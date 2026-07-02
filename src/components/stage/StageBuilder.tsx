@@ -617,7 +617,8 @@ export function StageBuilder() {
       x = Math.round(x / GRID) * GRID;
       y = Math.round(y / GRID) * GRID;
     }
-    setItems((prev) => [...prev, { id: uid(), kind: k, x, y, rot: 0 }]);
+    const label = k === "custom" ? (prompt("Název zařízení:", "MůjStroj")?.trim() || "USER") : undefined;
+    setItems((prev) => [...prev, { id: uid(), kind: k, x, y, rot: 0, label }]);
     setPaletteOpen(false);
   };
 
