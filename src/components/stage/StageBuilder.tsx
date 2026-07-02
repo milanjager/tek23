@@ -799,8 +799,8 @@ export function StageBuilder() {
     const move = (e: PointerEvent) => {
       if (pendingPointer.current !== e.pointerId || !canvasRef.current) return;
       const rect = canvasRef.current.getBoundingClientRect();
-      const x = e.clientX - rect.left;
-      const y = e.clientY - rect.top;
+      const x = (e.clientX - rect.left - rect.width / 2) / zoom + rect.width / 2;
+      const y = (e.clientY - rect.top - rect.height / 2) / zoom + rect.height / 2;
 
       // find nearest compatible port
       let hover: { itemId: string; portId: string } | null = null;
