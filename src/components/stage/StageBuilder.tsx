@@ -1105,7 +1105,7 @@ export function StageBuilder() {
             onClick={() => {
               setSelected(null);
             }}
-            style={{ touchAction: "none" }}
+            style={{ touchAction: "none", perspective: "1400px" }}
             className="bg-grid relative h-full w-full"
           >
             {/* Stage markers */}
