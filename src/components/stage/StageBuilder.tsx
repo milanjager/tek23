@@ -172,7 +172,8 @@ const CATEGORIES: { id: Category; label: string }[] = [
 /* ---------- Constants ---------- */
 
 const GRID = 24;
-const SNAP_THRESHOLD = 8;
+const SNAP_THRESHOLD = 12;
+
 const STORAGE = "stagerig:v3";
 const PORT_SNAP = 24;
 const PORT_R = 6;
@@ -207,63 +208,80 @@ const colorClass = (c: ColorKey) => {
 interface Guide {
   axis: "x" | "y";
   pos: number;
+  from: number; // min along the perpendicular axis
+  to: number;   // max along the perpendicular axis
+  kind: "start" | "center" | "end";
 }
 
+type Rect = { x: number; y: number; w: number; h: number };
+
 function snapAndGuide(
-  candidate: { x: number; y: number; w: number; h: number },
-  others: { x: number; y: number; w: number; h: number }[],
+  candidate: Rect,
+  others: Rect[],
   useGrid: boolean,
 ): { x: number; y: number; guides: Guide[] } {
-  const cxs = [candidate.x, candidate.x + candidate.w / 2, candidate.x + candidate.w];
-  const cys = [candidate.y, candidate.y + candidate.h / 2, candidate.y + candidate.h];
+  // For X axis (vertical guide lines): candidate has 3 x-targets (start, center, end).
+  const candXs = [
+    { pos: candidate.x, kind: "start" as const },
+    { pos: candidate.x + candidate.w / 2, kind: "center" as const },
+    { pos: candidate.x + candidate.w, kind: "end" as const },
+  ];
+  const candYs = [
+    { pos: candidate.y, kind: "start" as const },
+    { pos: candidate.y + candidate.h / 2, kind: "center" as const },
+    { pos: candidate.y + candidate.h, kind: "end" as const },
+  ];
 
-  const targetsX: number[] = [];
-  const targetsY: number[] = [];
+  let bestX: { delta: number; guide: number; kind: Guide["kind"]; target: Rect } | null = null;
+  let bestY: { delta: number; guide: number; kind: Guide["kind"]; target: Rect } | null = null;
+
   for (const o of others) {
-    targetsX.push(o.x, o.x + o.w / 2, o.x + o.w);
-    targetsY.push(o.y, o.y + o.h / 2, o.y + o.h);
+    const targetsX = [o.x, o.x + o.w / 2, o.x + o.w];
+    const targetsY = [o.y, o.y + o.h / 2, o.y + o.h];
+    for (const cx of candXs) {
+      for (const t of targetsX) {
+        const d = t - cx.pos;
+        if (Math.abs(d) <= SNAP_THRESHOLD && (!bestX || Math.abs(d) < Math.abs(bestX.delta))) {
+          bestX = { delta: d, guide: t, kind: cx.kind, target: o };
+        }
+      }
+    }
+    for (const cy of candYs) {
+      for (const t of targetsY) {
+        const d = t - cy.pos;
+        if (Math.abs(d) <= SNAP_THRESHOLD && (!bestY || Math.abs(d) < Math.abs(bestY.delta))) {
+          bestY = { delta: d, guide: t, kind: cy.kind, target: o };
+        }
+      }
+    }
   }
-
-  let bestX: { delta: number; snap: number; guide: number } | null = null;
-  let bestY: { delta: number; snap: number; guide: number } | null = null;
-
-  cxs.forEach((cx, i) => {
-    for (const t of targetsX) {
-      const d = t - cx;
-      if (Math.abs(d) <= SNAP_THRESHOLD && (!bestX || Math.abs(d) < Math.abs(bestX.delta))) {
-        bestX = { delta: d, snap: candidate.x + d, guide: t };
-        void i;
-      }
-    }
-  });
-  cys.forEach((cy) => {
-    for (const t of targetsY) {
-      const d = t - cy;
-      if (Math.abs(d) <= SNAP_THRESHOLD && (!bestY || Math.abs(d) < Math.abs(bestY.delta))) {
-        bestY = { delta: d, snap: candidate.y + d, guide: t };
-      }
-    }
-  });
 
   let nx = candidate.x;
   let ny = candidate.y;
   const guides: Guide[] = [];
 
   if (bestX) {
-    nx = (bestX as { delta: number; snap: number; guide: number }).snap;
-    guides.push({ axis: "x", pos: (bestX as { delta: number; snap: number; guide: number }).guide });
+    nx = candidate.x + bestX.delta;
+    const snapped = { ...candidate, x: nx };
+    const from = Math.min(snapped.y, bestX.target.y);
+    const to = Math.max(snapped.y + snapped.h, bestX.target.y + bestX.target.h);
+    guides.push({ axis: "x", pos: bestX.guide, from, to, kind: bestX.kind });
   } else if (useGrid) {
     nx = Math.round(candidate.x / GRID) * GRID;
   }
   if (bestY) {
-    ny = (bestY as { delta: number; snap: number; guide: number }).snap;
-    guides.push({ axis: "y", pos: (bestY as { delta: number; snap: number; guide: number }).guide });
+    ny = candidate.y + bestY.delta;
+    const snapped = { ...candidate, y: ny };
+    const from = Math.min(snapped.x, bestY.target.x);
+    const to = Math.max(snapped.x + snapped.w, bestY.target.x + bestY.target.w);
+    guides.push({ axis: "y", pos: bestY.guide, from, to, kind: bestY.kind });
   } else if (useGrid) {
     ny = Math.round(candidate.y / GRID) * GRID;
   }
 
   return { x: nx, y: ny, guides };
 }
+
 
 /* ---------- Visual glyphs ---------- */
 
@@ -439,6 +457,8 @@ export function StageBuilder() {
   const dragState = useRef<{ id: string; dx: number; dy: number; pointerId: number } | null>(null);
   const paletteDragRef = useRef<{ kind: ComponentKind; pointerId: number } | null>(null);
   const pendingPointer = useRef<number | null>(null);
+  const lastSnapSig = useRef<string>("");
+
 
 
   /* persistence */
@@ -553,14 +573,25 @@ export function StageBuilder() {
         ? snapAndGuide({ x: rawX, y: rawY, w: spec.w, h: spec.h }, others, true)
         : { x: rawX, y: rawY, guides: [] as Guide[] };
       setItems((prev) => prev.map((i) => (i.id === d.id ? { ...i, x: res.x, y: res.y } : i)));
+      // haptic feedback whenever the snap-guide signature changes
+      const sig = res.guides.map((g) => `${g.axis}:${g.pos}`).join("|");
+      if (sig !== lastSnapSig.current) {
+        lastSnapSig.current = sig;
+        if (sig && typeof navigator !== "undefined" && "vibrate" in navigator) {
+          try { (navigator as Navigator).vibrate?.(12); } catch {}
+        }
+      }
       setGuides(res.guides);
+
     };
     const up = (e: PointerEvent) => {
       const d = dragState.current;
       if (!d || d.pointerId !== e.pointerId) return;
       dragState.current = null;
+      lastSnapSig.current = "";
       setGuides([]);
     };
+
     window.addEventListener("pointermove", move);
     window.addEventListener("pointerup", up);
     window.addEventListener("pointercancel", up);
@@ -965,21 +996,70 @@ export function StageBuilder() {
                 );
               })()}
 
-              {/* Alignment guides */}
-              {guides.map((g, i) =>
-                g.axis === "x" ? (
-                  <line key={i} x1={g.pos} y1={0} x2={g.pos} y2="100%" stroke="oklch(0.7 0.28 340)" strokeWidth={1} strokeDasharray="2 3" />
-                ) : (
-                  <line key={i} x1={0} y1={g.pos} x2="100%" y2={g.pos} stroke="oklch(0.7 0.28 340)" strokeWidth={1} strokeDasharray="2 3" />
-                ),
-              )}
+              {/* Alignment guides — bright magenta with glow, capped, range-limited */}
+              <defs>
+                <filter id="snap-glow" x="-50%" y="-50%" width="200%" height="200%">
+                  <feGaussianBlur stdDeviation="2.5" result="b" />
+                  <feMerge>
+                    <feMergeNode in="b" />
+                    <feMergeNode in="SourceGraphic" />
+                  </feMerge>
+                </filter>
+              </defs>
+              {guides.map((g, i) => {
+                const col = "oklch(0.75 0.3 340)";
+                const pad = 40;
+                const from = g.from - pad;
+                const to = g.to + pad;
+                if (g.axis === "x") {
+                  return (
+                    <g key={i} filter="url(#snap-glow)">
+                      {/* faint full-canvas line */}
+                      <line x1={g.pos} y1={0} x2={g.pos} y2="100%" stroke={col} strokeOpacity={0.25} strokeWidth={1} strokeDasharray="2 4" />
+                      {/* bright bounded line */}
+                      <line x1={g.pos} y1={from} x2={g.pos} y2={to} stroke={col} strokeWidth={2} strokeDasharray="6 4">
+                        <animate attributeName="stroke-dashoffset" from="0" to="20" dur="0.6s" repeatCount="indefinite" />
+                      </line>
+                      {/* end caps */}
+                      <line x1={g.pos - 8} y1={from} x2={g.pos + 8} y2={from} stroke={col} strokeWidth={2} />
+                      <line x1={g.pos - 8} y1={to} x2={g.pos + 8} y2={to} stroke={col} strokeWidth={2} />
+                      {/* SNAP badge */}
+                      <g transform={`translate(${g.pos + 10}, ${(from + to) / 2 - 8})`}>
+                        <rect width="46" height="14" rx="2" fill="oklch(0.14 0.02 280)" stroke={col} strokeWidth={1} />
+                        <text x="23" y="10" textAnchor="middle" fontFamily="ui-monospace, monospace" fontSize="9" fill={col} style={{ letterSpacing: "0.15em" }}>
+                          {g.kind === "center" ? "MID" : g.kind === "start" ? "LEFT" : "RIGHT"}
+                        </text>
+                      </g>
+                    </g>
+                  );
+                }
+                return (
+                  <g key={i} filter="url(#snap-glow)">
+                    <line x1={0} y1={g.pos} x2="100%" y2={g.pos} stroke={col} strokeOpacity={0.25} strokeWidth={1} strokeDasharray="2 4" />
+                    <line x1={from} y1={g.pos} x2={to} y2={g.pos} stroke={col} strokeWidth={2} strokeDasharray="6 4">
+                      <animate attributeName="stroke-dashoffset" from="0" to="20" dur="0.6s" repeatCount="indefinite" />
+                    </line>
+                    <line x1={from} y1={g.pos - 8} x2={from} y2={g.pos + 8} stroke={col} strokeWidth={2} />
+                    <line x1={to} y1={g.pos - 8} x2={to} y2={g.pos + 8} stroke={col} strokeWidth={2} />
+                    <g transform={`translate(${(from + to) / 2 - 20}, ${g.pos + 6})`}>
+                      <rect width="40" height="14" rx="2" fill="oklch(0.14 0.02 280)" stroke={col} strokeWidth={1} />
+                      <text x="20" y="10" textAnchor="middle" fontFamily="ui-monospace, monospace" fontSize="9" fill={col} style={{ letterSpacing: "0.15em" }}>
+                        {g.kind === "center" ? "MID" : g.kind === "start" ? "TOP" : "BOT"}
+                      </text>
+                    </g>
+                  </g>
+                );
+              })}
             </svg>
+
 
             {/* Items */}
             {items.map((it) => {
               const spec = SPECS[it.kind];
               const cls = colorClass(spec.color);
               const isSel = selected === it.id;
+              const isDragging = dragState.current?.id === it.id;
+              const isSnapped = isDragging && guides.length > 0;
               return (
                 <div
                   key={it.id}
@@ -997,6 +1077,15 @@ export function StageBuilder() {
                     isSel ? "z-20" : "z-10"
                   }`}
                 >
+                  {isSnapped && (
+                    <div
+                      className="pointer-events-none absolute -inset-1.5 rounded-md border-2 animate-pulse"
+                      style={{
+                        borderColor: "oklch(0.75 0.3 340)",
+                        boxShadow: "0 0 24px oklch(0.75 0.3 340 / 0.6), inset 0 0 12px oklch(0.75 0.3 340 / 0.4)",
+                      }}
+                    />
+                  )}
                   <div
                     className={`relative h-full w-full rounded-md border ${cls.border} ${cls.bg} backdrop-blur-sm transition ${
                       isSel ? "ring-2 " + cls.ring : ""
@@ -1012,6 +1101,7 @@ export function StageBuilder() {
                 </div>
               );
             })}
+
 
             {/* Ports overlay — interactive only in cable mode */}
             <svg
