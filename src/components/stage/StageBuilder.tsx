@@ -1504,13 +1504,17 @@ function BackstagePanel({
   cables,
   onClose,
   onSelect,
+  onHighlightCables,
 }: {
   view: "backstage" | "speakers";
   items: Placed[];
   cables: CableLink[];
   onClose: () => void;
   onSelect: (id: string) => void;
+  onHighlightCables: (ids: string[]) => void;
 }) {
+  const [detailId, setDetailId] = useState<string | null>(null);
+
   const filtered = view === "speakers"
     ? items.filter((i) => SPECS[i.kind].category === "sound")
     : items;
@@ -1524,13 +1528,37 @@ function BackstagePanel({
     return g;
   }, [filtered]);
 
-  const cableCountFor = (id: string) =>
-    cables.filter((c) => c.from === id || c.to === id).length;
+  const cablesFor = (id: string) => cables.filter((c) => c.from === id || c.to === id);
 
   const CAT_LABEL: Record<Category, string> = {
     sound: "Zvuk / Reproduktory",
     lights: "Světla",
     infra: "Infra & technika",
+  };
+
+  const openDetail = (id: string) => {
+    setDetailId(id);
+    onHighlightCables(cablesFor(id).map((c) => c.id));
+  };
+  const closeDetail = () => {
+    setDetailId(null);
+    onHighlightCables([]);
+  };
+
+  const detail = detailId ? items.find((i) => i.id === detailId) : null;
+  const detailSpec = detail ? SPECS[detail.kind] : null;
+  const detailCables = detail ? cablesFor(detail.id) : [];
+
+  const itemLabel = (id: string) => {
+    const it = items.find((i) => i.id === id);
+    if (!it) return "?";
+    return it.label ?? SPECS[it.kind].label;
+  };
+  const portLabel = (itemId: string, portId: string) => {
+    const it = items.find((i) => i.id === itemId);
+    if (!it) return portId;
+    const p = SPECS[it.kind].ports.find((pp) => pp.id === portId);
+    return p ? `${portId} · ${p.dir.toUpperCase()}` : portId;
   };
 
   return (
@@ -1548,12 +1576,98 @@ function BackstagePanel({
             </p>
           </div>
           <button
-            onClick={onClose}
+            onClick={() => { closeDetail(); onClose(); }}
             className="flex items-center gap-1.5 rounded-sm border border-border px-3 py-1.5 font-mono text-[10px] uppercase tracking-widest text-muted-foreground hover:border-foreground/50 hover:text-foreground"
           >
             <X className="h-3.5 w-3.5" /> Zavřít
           </button>
         </div>
+
+        {/* Detail card */}
+        {detail && detailSpec && (
+          <div className={`mb-5 rounded-md border ${colorClass(detailSpec.color).border} ${colorClass(detailSpec.color).bg} p-4`}>
+            <div className="flex items-start gap-4">
+              <div className="h-20 w-28 shrink-0">
+                <Glyph kind={detail.kind} selected label={detail.label} />
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center justify-between gap-2">
+                  <div>
+                    <div className={`font-mono text-sm font-bold uppercase tracking-wider ${colorClass(detailSpec.color).text}`}>
+                      {detail.label ?? detailSpec.label}
+                    </div>
+                    <div className="mt-0.5 font-mono text-[10px] uppercase tracking-widest text-muted-foreground">
+                      {detailSpec.hint} · pos {Math.round(detail.x)},{Math.round(detail.y)} · {detail.rot}°
+                    </div>
+                  </div>
+                  <div className="flex gap-1.5">
+                    <button
+                      onClick={() => { onSelect(detail.id); /* also switches to stage */ }}
+                      className="rounded-sm border border-[color:var(--acid)]/60 bg-[color:var(--acid)]/10 px-2.5 py-1 font-mono text-[9px] uppercase tracking-widest text-[color:var(--acid)] hover:bg-[color:var(--acid)]/20"
+                    >
+                      Ukaž na stagi
+                    </button>
+                    <button
+                      onClick={closeDetail}
+                      className="rounded-sm border border-border px-2.5 py-1 font-mono text-[9px] uppercase tracking-widest text-muted-foreground hover:border-foreground/50 hover:text-foreground"
+                    >
+                      Zpět
+                    </button>
+                  </div>
+                </div>
+
+                <div className="mt-3">
+                  <div className="mb-1 font-mono text-[9px] uppercase tracking-widest text-muted-foreground">
+                    Kabelové spoje · {detailCables.length}
+                  </div>
+                  {detailCables.length === 0 ? (
+                    <div className="rounded-sm border border-dashed border-border/60 p-3 font-mono text-[10px] uppercase tracking-widest text-muted-foreground/70">
+                      — bez zapojení —
+                    </div>
+                  ) : (
+                    <ul className="space-y-1.5">
+                      {detailCables.map((c) => {
+                        const isOut = c.from === detail.id;
+                        const otherId = isOut ? c.to : c.from;
+                        const myPort = isOut ? c.fromPort : c.toPort;
+                        const otherPort = isOut ? c.toPort : c.fromPort;
+                        const col = PORT_COLOR[c.type];
+                        return (
+                          <li
+                            key={c.id}
+                            onMouseEnter={() => onHighlightCables([c.id])}
+                            onMouseLeave={() => onHighlightCables(detailCables.map((cc) => cc.id))}
+                            className="flex items-center gap-2 rounded-sm border border-border/60 bg-background/50 px-2 py-1.5 font-mono text-[10px]"
+                          >
+                            <span
+                              className="inline-block h-2 w-2 rounded-full"
+                              style={{ background: col, boxShadow: `0 0 6px ${col}` }}
+                            />
+                            <span className="uppercase tracking-widest" style={{ color: col }}>
+                              {PORT_LABEL[c.type]}
+                            </span>
+                            <span className="text-muted-foreground">
+                              {portLabel(detail.id, myPort)}
+                            </span>
+                            <span className="text-[color:var(--acid)]">
+                              {isOut ? "→" : "←"}
+                            </span>
+                            <span className="truncate text-foreground">
+                              {itemLabel(otherId)}
+                            </span>
+                            <span className="text-muted-foreground">
+                              · {portLabel(otherId, otherPort)}
+                            </span>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         {filtered.length === 0 ? (
           <div className="rounded-md border border-dashed border-border bg-card/40 p-8 text-center font-mono text-[11px] uppercase tracking-widest text-muted-foreground">
@@ -1573,15 +1687,19 @@ function BackstagePanel({
                   {grouped[cat].map((it) => {
                     const spec = SPECS[it.kind];
                     const cls = colorClass(spec.color);
+                    const nCab = cablesFor(it.id).length;
+                    const active = detailId === it.id;
                     return (
                       <button
                         key={it.id}
-                        onClick={() => onSelect(it.id)}
-                        className={`group rounded-md border ${cls.border} ${cls.bg} p-3 text-left transition hover:scale-[1.02]`}
+                        onClick={() => (active ? closeDetail() : openDetail(it.id))}
+                        className={`group rounded-md border ${cls.border} ${cls.bg} p-3 text-left transition hover:scale-[1.02] ${
+                          active ? "ring-2 " + cls.ring : ""
+                        }`}
                       >
                         <div className="flex items-center gap-3">
                           <div className="h-14 w-20 shrink-0">
-                            <Glyph kind={it.kind} selected={false} label={it.label} />
+                            <Glyph kind={it.kind} selected={active} label={it.label} />
                           </div>
                           <div className="min-w-0 flex-1">
                             <div className={`truncate font-mono text-[11px] font-bold uppercase tracking-wider ${cls.text}`}>
@@ -1596,7 +1714,7 @@ function BackstagePanel({
                               <span>{it.rot}°</span>
                               <span>·</span>
                               <span className="text-[color:var(--amber)]">
-                                {cableCountFor(it.id)} kab.
+                                {nCab} kab.
                               </span>
                             </div>
                           </div>
