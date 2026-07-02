@@ -391,6 +391,61 @@ function Glyph({ kind, selected, label }: { kind: ComponentKind; selected: boole
           <line x1="72" y1="36" x2="72" y2="60" stroke={stroke} strokeWidth="1" opacity="0.6" />
         </svg>
       );
+    case "korg":
+      return (
+        <svg viewBox="0 0 120 72" className="h-full w-full" {...common}>
+          <rect x="4" y="4" width="112" height="64" rx="4" fill={fill} stroke={stroke} strokeWidth="1.5" />
+          {/* pads 4x4 */}
+          {Array.from({ length: 16 }).map((_, i) => {
+            const c = i % 4;
+            const r = Math.floor(i / 4);
+            return (
+              <rect key={i} x={12 + c * 12} y={16 + r * 9} width="9" height="6" rx="1"
+                fill={stroke} opacity={0.35 + (i % 3) * 0.2} />
+            );
+          })}
+          {/* knobs */}
+          <circle cx="78" cy="22" r="6" fill="none" stroke={stroke} strokeWidth="1.2" />
+          <circle cx="96" cy="22" r="6" fill="none" stroke={stroke} strokeWidth="1.2" />
+          <line x1="78" y1="22" x2="82" y2="18" stroke={stroke} strokeWidth="1.2" />
+          <line x1="96" y1="22" x2="100" y2="18" stroke={stroke} strokeWidth="1.2" />
+          {/* screen */}
+          <rect x="72" y="36" width="36" height="14" rx="1" fill={stroke} opacity="0.25" />
+          <text x="90" y="46" textAnchor="middle" fontSize="7" fontFamily="ui-monospace, monospace" fill={stroke}>KORG</text>
+          <text x="60" y="64" textAnchor="middle" fontSize="6" fontFamily="ui-monospace, monospace" fill={stroke} opacity="0.7">LIVE</text>
+        </svg>
+      );
+    case "turntable":
+      return (
+        <svg viewBox="0 0 96 96" className="h-full w-full" {...common}>
+          <rect x="4" y="4" width="88" height="88" rx="4" fill={fill} stroke={stroke} strokeWidth="1.5" />
+          <circle cx="42" cy="48" r="30" fill="none" stroke={stroke} strokeWidth="1.5" />
+          <circle cx="42" cy="48" r="22" fill={stroke} opacity="0.15" />
+          <circle cx="42" cy="48" r="4" fill={stroke} />
+          {/* concentric grooves */}
+          <circle cx="42" cy="48" r="14" fill="none" stroke={stroke} strokeWidth="0.6" opacity="0.5" />
+          <circle cx="42" cy="48" r="26" fill="none" stroke={stroke} strokeWidth="0.6" opacity="0.5" />
+          {/* tonearm */}
+          <line x1="78" y1="14" x2="52" y2="42" stroke={stroke} strokeWidth="2" />
+          <circle cx="78" cy="14" r="3" fill={stroke} />
+          <rect x="50" y="40" width="6" height="8" rx="1" fill={stroke} opacity="0.8" />
+          {/* pitch fader */}
+          <rect x="78" y="52" width="10" height="34" rx="1" fill="none" stroke={stroke} strokeWidth="1" opacity="0.7" />
+          <rect x="79" y="66" width="8" height="4" rx="1" fill={stroke} />
+        </svg>
+      );
+    case "custom":
+      return (
+        <svg viewBox="0 0 96 72" className="h-full w-full" {...common}>
+          <rect x="4" y="4" width="88" height="64" rx="4" fill={fill} stroke={stroke} strokeWidth="1.5" strokeDasharray="4 3" />
+          <text x="48" y="30" textAnchor="middle" fontSize="10" fontFamily="ui-monospace, monospace" fill={stroke} style={{ letterSpacing: "0.15em" }}>
+            USER
+          </text>
+          <text x="48" y="52" textAnchor="middle" fontSize="9" fontFamily="ui-monospace, monospace" fill={stroke} opacity="0.9">
+            {(label ?? "?").slice(0, 12).toUpperCase()}
+          </text>
+        </svg>
+      );
     case "strobe":
       return (
         <svg viewBox="0 0 72 72" className="h-full w-full" {...common}>
