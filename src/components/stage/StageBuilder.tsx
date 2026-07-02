@@ -1217,7 +1217,7 @@ export function StageBuilder() {
                       isSel ? "ring-2 " + cls.ring : ""
                     }`}
                   >
-                    <Glyph kind={it.kind} selected={isSel} />
+                    <Glyph kind={it.kind} selected={isSel} label={it.label} />
                     {isSel && (
                       <div className={`absolute -top-6 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-sm border ${cls.border} bg-background/90 px-2 py-0.5 font-mono text-[9px] uppercase tracking-widest ${cls.text}`}>
                         {spec.label}
