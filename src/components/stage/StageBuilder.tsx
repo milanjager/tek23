@@ -13,6 +13,9 @@ import {
   Volume2,
   Menu,
   X,
+  Ruler,
+  Sparkles,
+
 } from "lucide-react";
 
 
