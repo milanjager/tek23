@@ -891,7 +891,6 @@ export function StageBuilder() {
             ref={canvasRef}
             onClick={() => {
               setSelected(null);
-              if (cableMode) setCableFrom(null);
             }}
             style={{ touchAction: "none" }}
             className="bg-grid relative h-full w-full"
@@ -919,32 +918,51 @@ export function StageBuilder() {
               </div>
             )}
 
-            {/* Cables */}
+            {/* Cables + guides layer (non-interactive) */}
             <svg className="pointer-events-none absolute inset-0 h-full w-full">
               {cables.map((c) => {
-                const a = centerOf(c.from);
-                const b = centerOf(c.to);
-                if (!a || !b) return null;
+                const f = findPort(c.from, c.fromPort);
+                const t = findPort(c.to, c.toPort);
+                if (!f || !t) return null;
+                const a = f.pos;
+                const b = t.pos;
                 const mx = (a.x + b.x) / 2;
                 const my = (a.y + b.y) / 2 + 40;
+                const col = PORT_COLOR[c.type];
                 return (
                   <g key={c.id}>
                     <path
                       d={`M ${a.x} ${a.y} Q ${mx} ${my} ${b.x} ${b.y}`}
-                      stroke="oklch(0.82 0.18 75 / 0.7)"
-                      strokeWidth={2}
+                      stroke={col}
+                      strokeOpacity={0.75}
+                      strokeWidth={2.5}
                       fill="none"
-                      strokeDasharray="4 4"
                     />
-                    <circle cx={a.x} cy={a.y} r={3} fill="oklch(0.82 0.18 75)" />
-                    <circle cx={b.x} cy={b.y} r={3} fill="oklch(0.82 0.18 75)" />
+                    <circle cx={a.x} cy={a.y} r={3.5} fill={col} />
+                    <circle cx={b.x} cy={b.y} r={3.5} fill={col} />
                   </g>
                 );
               })}
-              {cableMode && cableFrom && (() => {
-                const a = centerOf(cableFrom);
-                if (!a) return null;
-                return <circle cx={a.x} cy={a.y} r={10} fill="none" stroke="oklch(0.86 0.24 135)" strokeWidth={2} className="animate-pulse" />;
+
+              {/* Pending cable */}
+              {pending && (() => {
+                const f = findPort(pending.itemId, pending.portId);
+                if (!f) return null;
+                const a = f.pos;
+                const b = { x: pending.x, y: pending.y };
+                const mx = (a.x + b.x) / 2;
+                const my = (a.y + b.y) / 2 + 30;
+                const col = PORT_COLOR[pending.type];
+                return (
+                  <path
+                    d={`M ${a.x} ${a.y} Q ${mx} ${my} ${b.x} ${b.y}`}
+                    stroke={col}
+                    strokeWidth={2.5}
+                    fill="none"
+                    strokeDasharray={pending.hover ? "0" : "6 4"}
+                    strokeOpacity={pending.hover ? 1 : 0.7}
+                  />
+                );
               })()}
 
               {/* Alignment guides */}
@@ -962,7 +980,6 @@ export function StageBuilder() {
               const spec = SPECS[it.kind];
               const cls = colorClass(spec.color);
               const isSel = selected === it.id;
-              const isCableSrc = cableFrom === it.id;
               return (
                 <div
                   key={it.id}
@@ -976,14 +993,14 @@ export function StageBuilder() {
                     transform: `rotate(${it.rot}deg)`,
                     touchAction: "none",
                   }}
-                  className={`absolute cursor-move select-none ${cableMode ? "cursor-crosshair" : ""} ${
+                  className={`absolute select-none ${cableMode ? "cursor-default" : "cursor-move"} ${
                     isSel ? "z-20" : "z-10"
                   }`}
                 >
                   <div
                     className={`relative h-full w-full rounded-md border ${cls.border} ${cls.bg} backdrop-blur-sm transition ${
                       isSel ? "ring-2 " + cls.ring : ""
-                    } ${isCableSrc ? "ring-2 " + cls.ring : ""}`}
+                    }`}
                   >
                     <Glyph kind={it.kind} selected={isSel} />
                     {isSel && (
@@ -995,7 +1012,72 @@ export function StageBuilder() {
                 </div>
               );
             })}
+
+            {/* Ports overlay — interactive only in cable mode */}
+            <svg
+              className="absolute inset-0 h-full w-full"
+              style={{ pointerEvents: cableMode ? "auto" : "none" }}
+            >
+              {cableMode &&
+                items.flatMap((it) =>
+                  SPECS[it.kind].ports.map((p) => {
+                    const pos = portPos(it, p);
+                    const col = PORT_COLOR[p.type];
+                    const isHover =
+                      pending?.hover?.itemId === it.id && pending?.hover?.portId === p.id;
+                    const isSource =
+                      pending?.itemId === it.id && pending?.portId === p.id;
+                    const compat =
+                      !pending ||
+                      isSource ||
+                      (p.type === pending.type && p.dir !== pending.dir && it.id !== pending.itemId);
+                    const r = isHover ? PORT_R * 1.7 : isSource ? PORT_R * 1.3 : PORT_R;
+                    const op = compat ? 1 : 0.2;
+                    return (
+                      <g
+                        key={`${it.id}:${p.id}`}
+                        style={{ cursor: compat ? "crosshair" : "not-allowed" }}
+                        opacity={op}
+                        onPointerDown={compat ? onPortPointerDown(it.id, p) : undefined}
+                      >
+                        {(isHover || isSource) && (
+                          <circle
+                            cx={pos.x}
+                            cy={pos.y}
+                            r={r + 6}
+                            fill={col}
+                            opacity={0.25}
+                          />
+                        )}
+                        <circle
+                          cx={pos.x}
+                          cy={pos.y}
+                          r={r + 2}
+                          fill="oklch(0.14 0.02 280)"
+                          stroke={col}
+                          strokeWidth={isHover || isSource ? 2 : 1.5}
+                        />
+                        <circle cx={pos.x} cy={pos.y} r={r - 2} fill={col} />
+                        {(isHover || isSource) && (
+                          <text
+                            x={pos.x}
+                            y={pos.y - r - 8}
+                            textAnchor="middle"
+                            fontSize="9"
+                            fontFamily="ui-monospace, monospace"
+                            fill={col}
+                            style={{ textTransform: "uppercase", letterSpacing: "0.1em" }}
+                          >
+                            {PORT_LABEL[p.type]} {p.dir}
+                          </text>
+                        )}
+                      </g>
+                    );
+                  }),
+                )}
+            </svg>
           </div>
+
 
           {/* Status bar */}
           <div className="pointer-events-none absolute bottom-3 left-3 right-3 flex items-center justify-between gap-2 font-mono text-[10px] uppercase tracking-widest text-muted-foreground">
