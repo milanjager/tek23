@@ -1682,6 +1682,7 @@ function BackstagePanel({
   onClose,
   onSelect,
   onHighlightCables,
+  onFocusCable,
 }: {
   view: "backstage" | "speakers";
   items: Placed[];
@@ -1689,6 +1690,7 @@ function BackstagePanel({
   onClose: () => void;
   onSelect: (id: string) => void;
   onHighlightCables: (ids: string[]) => void;
+  onFocusCable: (cableId: string, targetId: string) => void;
 }) {
   const [detailId, setDetailId] = useState<string | null>(null);
 
