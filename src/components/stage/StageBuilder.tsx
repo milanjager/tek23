@@ -1095,7 +1095,7 @@ export function StageBuilder() {
               view={view}
               items={items}
               cables={cables}
-              specLookup={SPECS}
+              cables={cables}
               onClose={() => { setHighlightCables(new Set()); setView("stage"); }}
               onSelect={(id) => {
                 setSelected(id);
