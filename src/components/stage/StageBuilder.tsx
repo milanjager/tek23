@@ -1114,6 +1114,7 @@ export function StageBuilder() {
             ref={canvasRef}
             onClick={() => {
               setSelected(null);
+              setHighlightCables(new Set());
             }}
             style={{ touchAction: "none", perspective: "1400px" }}
             className="bg-grid relative h-full w-full"
