@@ -457,6 +457,8 @@ export function StageBuilder() {
   const dragState = useRef<{ id: string; dx: number; dy: number; pointerId: number } | null>(null);
   const paletteDragRef = useRef<{ kind: ComponentKind; pointerId: number } | null>(null);
   const pendingPointer = useRef<number | null>(null);
+  const lastSnapSig = useRef<string>("");
+
 
 
   /* persistence */
