@@ -1154,6 +1154,16 @@ export function StageBuilder() {
               </div>
             </div>
 
+            {/* 3D / zoom transform layer — contains all interactive world content */}
+            <div
+              className="absolute inset-0"
+              style={{
+                transform: `scale(${zoom}) rotateX(${tilt}deg)`,
+                transformOrigin: "50% 50%",
+                transformStyle: "preserve-3d",
+                transition: dragState.current ? "none" : "transform 220ms ease",
+              }}
+            >
             {items.length === 0 && (
               <div className="pointer-events-none absolute inset-0 flex items-center justify-center px-6">
                 <div className="max-w-sm rounded-lg border border-dashed border-border bg-card/40 px-6 py-5 text-center backdrop-blur">
