@@ -784,6 +784,13 @@ export function StageBuilder() {
           <ToolbarBtn onClick={() => setSnap((v) => !v)} active={snap} icon={Magnet}>
             {snap ? "Snap ON" : "Snap OFF"}
           </ToolbarBtn>
+          <ToolbarBtn onClick={() => setShowGuides((v) => !v)} active={showGuides} icon={Ruler}>
+            {showGuides ? "Guides ON" : "Guides OFF"}
+          </ToolbarBtn>
+          <ToolbarBtn onClick={() => setShowHalo((v) => !v)} active={showHalo} icon={Sparkles}>
+            {showHalo ? "Halo ON" : "Halo OFF"}
+          </ToolbarBtn>
+
           <ToolbarBtn
             onClick={() => setCableMode((v) => { setPending(null); return !v; })}
             active={cableMode}
