@@ -749,6 +749,62 @@ export function StageBuilder() {
     URL.revokeObjectURL(url);
   };
 
+  /* base preset — two stacks (L/R) + amps + mixer + generator, fully wired */
+  const loadBasePreset = () => {
+    if (items.length > 0 && !confirm("Nahradit aktuální stage základním presetem?")) return;
+    const mk = (kind: ComponentKind, x: number, y: number, rot = 0): Placed =>
+      ({ id: uid(), kind, x, y, rot });
+    // Stage front is at top; speakers face up (audience).
+    // Left stack column center ≈ 220, right ≈ 620
+    const LX = 172; // bass 120 wide → x=172 puts center at 232
+    const RX = 548; // bass at 548 → center 608
+    // Vertical: horn top, mid below, bass bottom
+    const hornL = mk("horn", LX + 12, 48);   // 96 wide, indent 12 to center over mid
+    const midL  = mk("mid",  LX + 12, 120);  // 96 wide
+    const bassL = mk("bass", LX,      216);  // 120 wide
+    const hornR = mk("horn", RX + 12, 48);
+    const midR  = mk("mid",  RX + 12, 120);
+    const bassR = mk("bass", RX,      216);
+    // Amps behind each stack
+    const ampL = mk("amp", LX - 12, 336);    // 96 wide
+    const ampR = mk("amp", RX + 24, 336);
+    // Mixer center-back (FOH)
+    const mixer = mk("mixer", 340, 432);     // 120 wide, center ≈ 400
+    // Generator further back
+    const gen = mk("generator", 340, 552);   // 120 wide
+
+    const newItems: Placed[] = [hornL, midL, bassL, hornR, midR, bassR, ampL, ampR, mixer, gen];
+
+    const link = (
+      from: string, fromPort: string,
+      to: string, toPort: string,
+      type: PortType,
+    ): CableLink => ({ id: uid(), from, to, fromPort, toPort, type });
+
+    const newCables: CableLink[] = [
+      // Audio: mixer → amps → speakers (bass + mid per side; horn passive)
+      link(mixer.id, "audio_out", ampL.id, "audio_in", "audio"),
+      link(mixer.id, "audio_out", ampR.id, "audio_in", "audio"),
+      link(ampL.id, "out_a", bassL.id, "in", "audio"),
+      link(ampL.id, "out_b", midL.id,  "in", "audio"),
+      link(ampR.id, "out_a", bassR.id, "in", "audio"),
+      link(ampR.id, "out_b", midR.id,  "in", "audio"),
+      // Power: generator → mixer + amps
+      link(gen.id, "out1", ampL.id,  "pwr", "power"),
+      link(gen.id, "out2", ampR.id,  "pwr", "power"),
+      link(gen.id, "out3", mixer.id, "pwr", "power"),
+    ];
+
+    setItems(newItems);
+    setCables(newCables);
+    setSelected(null);
+    setHighlightCables(new Set());
+    setZoom(1);
+    setPan({ x: 0, y: 0 });
+    setTilt(0);
+  };
+
+
   const centerOf = useCallback(
     (id: string) => {
       const it = items.find((i) => i.id === id);
