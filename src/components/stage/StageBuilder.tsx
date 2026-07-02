@@ -619,7 +619,7 @@ export function StageBuilder() {
       window.removeEventListener("pointerup", up);
       window.removeEventListener("pointercancel", up);
     };
-  }, [snap, zoom]);
+  }, [snap, zoom, pan]);
 
   /* tap-to-place fallback for mobile: single tap on palette item, then tap on canvas */
   const onPaletteItemClick = (k: ComponentKind) => () => {
@@ -705,7 +705,7 @@ export function StageBuilder() {
       window.removeEventListener("pointerup", up);
       window.removeEventListener("pointercancel", up);
     };
-  }, [items, snap, zoom]);
+  }, [items, snap, zoom, pan]);
 
   /* keyboard */
   useEffect(() => {
@@ -860,7 +860,7 @@ export function StageBuilder() {
       window.removeEventListener("pointercancel", up);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pending, items, zoom]);
+  }, [pending, items, zoom, pan]);
 
 
 
