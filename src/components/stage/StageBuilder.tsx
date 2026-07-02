@@ -945,6 +945,40 @@ export function StageBuilder() {
                 ▲ STAGE FRONT ▲
               </div>
             </div>
+            {showGuides && (
+              <div className="pointer-events-none absolute right-3 top-14 z-10 rounded-md border border-[oklch(0.75_0.3_340)]/40 bg-background/80 px-3 py-2 backdrop-blur">
+                <div className="mb-1 font-mono text-[9px] uppercase tracking-widest" style={{ color: "oklch(0.75 0.3 340)" }}>
+                  Legenda vodítek
+                </div>
+                <div className="space-y-0.5 font-mono text-[10px] text-muted-foreground">
+                  <div className="flex items-center gap-2">
+                    <span className="inline-block w-8 text-center rounded px-1 text-[9px]" style={{ background: "oklch(0.14 0.02 280)", color: "oklch(0.75 0.3 340)", border: "1px solid oklch(0.75 0.3 340)" }}>LEFT</span>
+                    <span>levý okraj</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="inline-block w-8 text-center rounded px-1 text-[9px]" style={{ background: "oklch(0.14 0.02 280)", color: "oklch(0.75 0.3 340)", border: "1px solid oklch(0.75 0.3 340)" }}>MID</span>
+                    <span>střed</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="inline-block w-8 text-center rounded px-1 text-[9px]" style={{ background: "oklch(0.14 0.02 280)", color: "oklch(0.75 0.3 340)", border: "1px solid oklch(0.75 0.3 340)" }}>RIGHT</span>
+                    <span>pravý okraj</span>
+                  </div>
+                  <div className="my-1 h-px bg-border/60" />
+                  <div className="flex items-center gap-2">
+                    <span className="inline-block w-8 text-center rounded px-1 text-[9px]" style={{ background: "oklch(0.14 0.02 280)", color: "oklch(0.75 0.3 340)", border: "1px solid oklch(0.75 0.3 340)" }}>TOP</span>
+                    <span>horní okraj</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="inline-block w-8 text-center rounded px-1 text-[9px]" style={{ background: "oklch(0.14 0.02 280)", color: "oklch(0.75 0.3 340)", border: "1px solid oklch(0.75 0.3 340)" }}>MID</span>
+                    <span>střed</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="inline-block w-8 text-center rounded px-1 text-[9px]" style={{ background: "oklch(0.14 0.02 280)", color: "oklch(0.75 0.3 340)", border: "1px solid oklch(0.75 0.3 340)" }}>BOT</span>
+                    <span>spodní okraj</span>
+                  </div>
+                </div>
+              </div>
+            )}
             <div className="pointer-events-none absolute inset-x-0 bottom-0 flex justify-center">
               <div className="mb-8 rounded-full border border-border bg-background/60 px-4 py-1 font-mono text-[10px] uppercase tracking-widest text-muted-foreground backdrop-blur">
                 ▼ CROWD ▼
