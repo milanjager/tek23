@@ -1392,6 +1392,7 @@ export function StageBuilder() {
                   }),
                 )}
             </svg>
+            </div>
           </div>
 
 
