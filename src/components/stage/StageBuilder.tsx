@@ -13,6 +13,9 @@ import {
   Volume2,
   Menu,
   X,
+  Ruler,
+  Sparkles,
+
 } from "lucide-react";
 
 
@@ -440,7 +443,10 @@ export function StageBuilder() {
   const [cableMode, setCableMode] = useState(false);
   const [category, setCategory] = useState<Category>("sound");
   const [snap, setSnap] = useState(true);
+  const [showGuides, setShowGuides] = useState(true);
+  const [showHalo, setShowHalo] = useState(true);
   const [guides, setGuides] = useState<Guide[]>([]);
+
   const [ghost, setGhost] = useState<{ kind: ComponentKind; x: number; y: number } | null>(null);
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [pending, setPending] = useState<{
@@ -778,6 +784,13 @@ export function StageBuilder() {
           <ToolbarBtn onClick={() => setSnap((v) => !v)} active={snap} icon={Magnet}>
             {snap ? "Snap ON" : "Snap OFF"}
           </ToolbarBtn>
+          <ToolbarBtn onClick={() => setShowGuides((v) => !v)} active={showGuides} icon={Ruler}>
+            {showGuides ? "Guides ON" : "Guides OFF"}
+          </ToolbarBtn>
+          <ToolbarBtn onClick={() => setShowHalo((v) => !v)} active={showHalo} icon={Sparkles}>
+            {showHalo ? "Halo ON" : "Halo OFF"}
+          </ToolbarBtn>
+
           <ToolbarBtn
             onClick={() => setCableMode((v) => { setPending(null); return !v; })}
             active={cableMode}
@@ -1006,7 +1019,7 @@ export function StageBuilder() {
                   </feMerge>
                 </filter>
               </defs>
-              {guides.map((g, i) => {
+              {showGuides && guides.map((g, i) => {
                 const col = "oklch(0.75 0.3 340)";
                 const pad = 40;
                 const from = g.from - pad;
@@ -1059,7 +1072,7 @@ export function StageBuilder() {
               const cls = colorClass(spec.color);
               const isSel = selected === it.id;
               const isDragging = dragState.current?.id === it.id;
-              const isSnapped = isDragging && guides.length > 0;
+              const isSnapped = isDragging && guides.length > 0 && showHalo;
               return (
                 <div
                   key={it.id}
