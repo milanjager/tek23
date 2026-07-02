@@ -596,8 +596,8 @@ export function StageBuilder() {
       const rect = canvasRef.current?.getBoundingClientRect();
       if (rect && e.clientX >= rect.left && e.clientX <= rect.right && e.clientY >= rect.top && e.clientY <= rect.bottom) {
         const spec = SPECS[pd.kind];
-        const lx = (e.clientX - rect.left - rect.width / 2) / zoom + rect.width / 2;
-        const ly = (e.clientY - rect.top - rect.height / 2) / zoom + rect.height / 2;
+        const lx = (e.clientX - rect.left - rect.width / 2 - pan.x) / zoom + rect.width / 2;
+        const ly = (e.clientY - rect.top - rect.height / 2 - pan.y) / zoom + rect.height / 2;
         let x = lx - spec.w / 2;
         let y = ly - spec.h / 2;
         if (snap) {
