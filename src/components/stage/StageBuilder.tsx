@@ -623,6 +623,110 @@ export function StageBuilder() {
     [items],
   );
 
+  /* absolute port position with rotation */
+  const portPos = useCallback(
+    (item: Placed, port: Port) => {
+      const s = SPECS[item.kind];
+      const cx = item.x + s.w / 2;
+      const cy = item.y + s.h / 2;
+      const lx = port.ox - s.w / 2;
+      const ly = port.oy - s.h / 2;
+      const a = (item.rot * Math.PI) / 180;
+      const cos = Math.cos(a);
+      const sin = Math.sin(a);
+      return { x: cx + lx * cos - ly * sin, y: cy + lx * sin + ly * cos };
+    },
+    [],
+  );
+
+  const findPort = (itemId: string, portId: string) => {
+    const it = items.find((i) => i.id === itemId);
+    if (!it) return null;
+    const p = SPECS[it.kind].ports.find((pp) => pp.id === portId);
+    if (!p) return null;
+    return { item: it, port: p, pos: portPos(it, p) };
+  };
+
+  /* start cable from a port */
+  const onPortPointerDown = (itemId: string, port: Port) => (e: React.PointerEvent) => {
+    if (!cableMode) return;
+    e.stopPropagation();
+    e.preventDefault();
+    const it = items.find((i) => i.id === itemId);
+    if (!it || !canvasRef.current) return;
+    const pos = portPos(it, port);
+    pendingPointer.current = e.pointerId;
+    setPending({
+      itemId,
+      portId: port.id,
+      type: port.type,
+      dir: port.dir,
+      x: pos.x,
+      y: pos.y,
+      hover: null,
+    });
+  };
+
+  /* global pointer handlers for pending cable */
+  useEffect(() => {
+    if (!pending) return;
+    const move = (e: PointerEvent) => {
+      if (pendingPointer.current !== e.pointerId || !canvasRef.current) return;
+      const rect = canvasRef.current.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+
+      // find nearest compatible port
+      let hover: { itemId: string; portId: string } | null = null;
+      let bestD = PORT_SNAP;
+      for (const it of items) {
+        if (it.id === pending.itemId) continue;
+        for (const p of SPECS[it.kind].ports) {
+          if (p.type !== pending.type) continue;
+          if (p.dir === pending.dir) continue;
+          const pp = portPos(it, p);
+          const d = Math.hypot(pp.x - x, pp.y - y);
+          if (d < bestD) {
+            bestD = d;
+            hover = { itemId: it.id, portId: p.id };
+          }
+        }
+      }
+      let nx = x;
+      let ny = y;
+      if (hover) {
+        const tp = findPort(hover.itemId, hover.portId);
+        if (tp) { nx = tp.pos.x; ny = tp.pos.y; }
+      }
+      setPending((p) => (p ? { ...p, x: nx, y: ny, hover } : p));
+    };
+    const up = (e: PointerEvent) => {
+      if (pendingPointer.current !== e.pointerId) return;
+      pendingPointer.current = null;
+      setPending((p) => {
+        if (p && p.hover) {
+          const from = p.dir === "out" ? { i: p.itemId, port: p.portId } : { i: p.hover.itemId, port: p.hover.portId };
+          const to = p.dir === "out" ? { i: p.hover.itemId, port: p.hover.portId } : { i: p.itemId, port: p.portId };
+          setCables((prev) => [
+            ...prev,
+            { id: uid(), from: from.i, to: to.i, fromPort: from.port, toPort: to.port, type: p.type },
+          ]);
+        }
+        return null;
+      });
+    };
+    window.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", up);
+    window.addEventListener("pointercancel", up);
+    return () => {
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", up);
+      window.removeEventListener("pointercancel", up);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pending, items]);
+
+
 
   return (
     <div className="flex h-screen w-screen flex-col overflow-hidden bg-background text-foreground">
