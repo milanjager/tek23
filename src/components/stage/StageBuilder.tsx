@@ -1072,7 +1072,7 @@ export function StageBuilder() {
               const cls = colorClass(spec.color);
               const isSel = selected === it.id;
               const isDragging = dragState.current?.id === it.id;
-              const isSnapped = isDragging && guides.length > 0;
+              const isSnapped = isDragging && guides.length > 0 && showHalo;
               return (
                 <div
                   key={it.id}
