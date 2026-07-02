@@ -523,6 +523,9 @@ export function StageBuilder() {
   const [showHalo, setShowHalo] = useState(true);
   const [guides, setGuides] = useState<Guide[]>([]);
   const [view, setView] = useState<"stage" | "backstage" | "speakers">("stage");
+  const [zoom, setZoom] = useState(1);
+  const [tilt, setTilt] = useState(0); // 0 = top-down, up to ~55deg = 3D perspective
+  const [highlightCables, setHighlightCables] = useState<Set<string>>(new Set());
 
   const [ghost, setGhost] = useState<{ kind: ComponentKind; x: number; y: number } | null>(null);
   const [paletteOpen, setPaletteOpen] = useState(false);
