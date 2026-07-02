@@ -648,8 +648,8 @@ export function StageBuilder() {
     const item = items.find((i) => i.id === id);
     if (!item || !canvasRef.current) return;
     const rect = canvasRef.current.getBoundingClientRect();
-    const lx = (e.clientX - rect.left - rect.width / 2) / zoom + rect.width / 2;
-    const ly = (e.clientY - rect.top - rect.height / 2) / zoom + rect.height / 2;
+    const lx = (e.clientX - rect.left - rect.width / 2 - pan.x) / zoom + rect.width / 2;
+    const ly = (e.clientY - rect.top - rect.height / 2 - pan.y) / zoom + rect.height / 2;
     dragState.current = {
       id,
       dx: lx - item.x,
@@ -664,8 +664,8 @@ export function StageBuilder() {
       const d = dragState.current;
       if (!d || d.pointerId !== e.pointerId || !canvasRef.current) return;
       const rect = canvasRef.current.getBoundingClientRect();
-      const lx = (e.clientX - rect.left - rect.width / 2) / zoom + rect.width / 2;
-      const ly = (e.clientY - rect.top - rect.height / 2) / zoom + rect.height / 2;
+      const lx = (e.clientX - rect.left - rect.width / 2 - pan.x) / zoom + rect.width / 2;
+      const ly = (e.clientY - rect.top - rect.height / 2 - pan.y) / zoom + rect.height / 2;
       const rawX = lx - d.dx;
       const rawY = ly - d.dy;
       const dragged = items.find((i) => i.id === d.id);
@@ -809,8 +809,8 @@ export function StageBuilder() {
     const move = (e: PointerEvent) => {
       if (pendingPointer.current !== e.pointerId || !canvasRef.current) return;
       const rect = canvasRef.current.getBoundingClientRect();
-      const x = (e.clientX - rect.left - rect.width / 2) / zoom + rect.width / 2;
-      const y = (e.clientY - rect.top - rect.height / 2) / zoom + rect.height / 2;
+      const x = (e.clientX - rect.left - rect.width / 2 - pan.x) / zoom + rect.width / 2;
+      const y = (e.clientY - rect.top - rect.height / 2 - pan.y) / zoom + rect.height / 2;
 
       // find nearest compatible port
       let hover: { itemId: string; portId: string } | null = null;
