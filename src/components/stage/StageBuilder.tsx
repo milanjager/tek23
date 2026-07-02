@@ -586,8 +586,10 @@ export function StageBuilder() {
       const rect = canvasRef.current?.getBoundingClientRect();
       if (rect && e.clientX >= rect.left && e.clientX <= rect.right && e.clientY >= rect.top && e.clientY <= rect.bottom) {
         const spec = SPECS[pd.kind];
-        let x = e.clientX - rect.left - spec.w / 2;
-        let y = e.clientY - rect.top - spec.h / 2;
+        const lx = (e.clientX - rect.left - rect.width / 2) / zoom + rect.width / 2;
+        const ly = (e.clientY - rect.top - rect.height / 2) / zoom + rect.height / 2;
+        let x = lx - spec.w / 2;
+        let y = ly - spec.h / 2;
         if (snap) {
           x = Math.round(x / GRID) * GRID;
           y = Math.round(y / GRID) * GRID;
@@ -607,7 +609,7 @@ export function StageBuilder() {
       window.removeEventListener("pointerup", up);
       window.removeEventListener("pointercancel", up);
     };
-  }, [snap]);
+  }, [snap, zoom]);
 
   /* tap-to-place fallback for mobile: single tap on palette item, then tap on canvas */
   const onPaletteItemClick = (k: ComponentKind) => () => {
