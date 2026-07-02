@@ -11,7 +11,10 @@ import {
   Move,
   Magnet,
   Volume2,
+  Menu,
+  X,
 } from "lucide-react";
+
 
 /* ---------- Types ---------- */
 
