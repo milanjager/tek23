@@ -1095,10 +1095,21 @@ export function StageBuilder() {
               view={view}
               items={items}
               cables={cables}
-              onClose={() => setView("stage")}
-              onSelect={(id) => { setSelected(id); setView("stage"); }}
+              specLookup={SPECS}
+              onClose={() => { setHighlightCables(new Set()); setView("stage"); }}
+              onSelect={(id) => {
+                setSelected(id);
+                // highlight all cables touching this item, then switch to stage
+                const ids = new Set(
+                  cables.filter((c) => c.from === id || c.to === id).map((c) => c.id),
+                );
+                setHighlightCables(ids);
+                setView("stage");
+              }}
+              onHighlightCables={(ids) => setHighlightCables(new Set(ids))}
             />
           )}
+
 
           <div
             ref={canvasRef}
