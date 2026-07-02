@@ -1019,7 +1019,7 @@ export function StageBuilder() {
                   </feMerge>
                 </filter>
               </defs>
-              {guides.map((g, i) => {
+              {showGuides && guides.map((g, i) => {
                 const col = "oklch(0.75 0.3 340)";
                 const pad = 40;
                 const from = g.from - pad;
