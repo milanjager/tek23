@@ -172,7 +172,8 @@ const CATEGORIES: { id: Category; label: string }[] = [
 /* ---------- Constants ---------- */
 
 const GRID = 24;
-const SNAP_THRESHOLD = 8;
+const SNAP_THRESHOLD = 12;
+
 const STORAGE = "stagerig:v3";
 const PORT_SNAP = 24;
 const PORT_R = 6;
