@@ -748,12 +748,13 @@ export function StageBuilder() {
             {snap ? "Snap ON" : "Snap OFF"}
           </ToolbarBtn>
           <ToolbarBtn
-            onClick={() => setCableMode((v) => { setCableFrom(null); return !v; })}
+            onClick={() => setCableMode((v) => { setPending(null); return !v; })}
             active={cableMode}
             icon={Cable}
           >
-            {cableMode ? (cableFrom ? "Vyber cíl…" : "Klikni zdroj") : "Kabel"}
+            {cableMode ? "Kabel: táhni port→port" : "Kabel"}
           </ToolbarBtn>
+
           <ToolbarBtn
             onClick={() => selected && setItems((p) => p.map((i) => (i.id === selected ? { ...i, rot: (i.rot + 15) % 360 } : i)))}
             icon={RotateCw}
