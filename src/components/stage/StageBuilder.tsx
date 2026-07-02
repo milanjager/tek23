@@ -1,15 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Speaker,
-  Radio,
-  Volume2,
-  Zap,
-  Lightbulb,
-  Wine,
-  Disc3,
-  Sliders,
-  Fuel,
-  Users,
   Cable,
   RotateCw,
   Trash2,
@@ -18,6 +9,8 @@ import {
   Download,
   Plus,
   Move,
+  Magnet,
+  Volume2,
 } from "lucide-react";
 
 /* ---------- Types ---------- */
@@ -38,6 +31,7 @@ type ComponentKind =
   | "crowd";
 
 type Category = "sound" | "lights" | "infra";
+type ColorKey = "acid" | "magenta" | "cyan" | "amber";
 
 interface Spec {
   kind: ComponentKind;
@@ -45,8 +39,7 @@ interface Spec {
   category: Category;
   w: number;
   h: number;
-  color: "acid" | "magenta" | "cyan" | "amber";
-  icon: typeof Speaker;
+  color: ColorKey;
   hint: string;
 }
 
@@ -56,10 +49,9 @@ interface Placed {
   x: number;
   y: number;
   rot: number;
-  label?: string;
 }
 
-interface Cable {
+interface CableLink {
   id: string;
   from: string;
   to: string;
@@ -68,19 +60,19 @@ interface Cable {
 /* ---------- Catalog ---------- */
 
 const SPECS: Record<ComponentKind, Spec> = {
-  horn: { kind: "horn", label: "Horn", category: "sound", w: 90, h: 70, color: "acid", icon: Radio, hint: "Výškový horn" },
-  mid: { kind: "mid", label: "Mid", category: "sound", w: 90, h: 90, color: "acid", icon: Speaker, hint: "Střední pásmo" },
-  bass: { kind: "bass", label: "Bass bin", category: "sound", w: 120, h: 100, color: "acid", icon: Volume2, hint: "Basová bedna" },
-  sub: { kind: "sub", label: "Sub 2x18", category: "sound", w: 150, h: 110, color: "acid", icon: Volume2, hint: "Sub-bass" },
-  amp: { kind: "amp", label: "Amp rack", category: "infra", w: 80, h: 70, color: "amber", icon: Sliders, hint: "Zesilovače" },
-  mixer: { kind: "mixer", label: "Mixer FOH", category: "infra", w: 100, h: 70, color: "amber", icon: Sliders, hint: "Mixážní pult" },
-  dj: { kind: "dj", label: "DJ booth", category: "infra", w: 130, h: 80, color: "amber", icon: Disc3, hint: "DJ pult" },
-  strobe: { kind: "strobe", label: "Strobo", category: "lights", w: 70, h: 60, color: "cyan", icon: Zap, hint: "Stroboskop" },
-  laser: { kind: "laser", label: "Laser", category: "lights", w: 70, h: 60, color: "magenta", icon: Zap, hint: "Laser" },
-  movinghead: { kind: "movinghead", label: "Moving head", category: "lights", w: 70, h: 70, color: "magenta", icon: Lightbulb, hint: "Otočná hlava" },
-  bar: { kind: "bar", label: "Bar", category: "infra", w: 200, h: 70, color: "amber", icon: Wine, hint: "Bar" },
-  generator: { kind: "generator", label: "Aggregát", category: "infra", w: 110, h: 90, color: "amber", icon: Fuel, hint: "Diesel generátor" },
-  crowd: { kind: "crowd", label: "Dancefloor", category: "infra", w: 220, h: 160, color: "magenta", icon: Users, hint: "Prostor pro dav" },
+  horn: { kind: "horn", label: "Horn", category: "sound", w: 96, h: 72, color: "acid", hint: "Výškový horn" },
+  mid: { kind: "mid", label: "Mid", category: "sound", w: 96, h: 96, color: "acid", hint: "Střední pásmo" },
+  bass: { kind: "bass", label: "Bass bin", category: "sound", w: 120, h: 96, color: "acid", hint: "Basová bedna" },
+  sub: { kind: "sub", label: "Sub 2×18", category: "sound", w: 168, h: 120, color: "acid", hint: "Sub-bass" },
+  amp: { kind: "amp", label: "Amp rack", category: "infra", w: 96, h: 72, color: "amber", hint: "Zesilovače" },
+  mixer: { kind: "mixer", label: "Mixer FOH", category: "infra", w: 120, h: 72, color: "amber", hint: "Mixážní pult" },
+  dj: { kind: "dj", label: "DJ booth", category: "infra", w: 144, h: 96, color: "amber", hint: "DJ pult" },
+  strobe: { kind: "strobe", label: "Strobo", category: "lights", w: 72, h: 72, color: "cyan", hint: "Stroboskop" },
+  laser: { kind: "laser", label: "Laser", category: "lights", w: 72, h: 72, color: "magenta", hint: "Laser" },
+  movinghead: { kind: "movinghead", label: "Moving head", category: "lights", w: 72, h: 72, color: "magenta", hint: "Otočná hlava" },
+  bar: { kind: "bar", label: "Bar", category: "infra", w: 216, h: 72, color: "amber", hint: "Bar" },
+  generator: { kind: "generator", label: "Aggregát", category: "infra", w: 120, h: 96, color: "amber", hint: "Diesel" },
+  crowd: { kind: "crowd", label: "Dancefloor", category: "infra", w: 240, h: 168, color: "magenta", hint: "Prostor pro dav" },
 };
 
 const CATEGORIES: { id: Category; label: string }[] = [
@@ -89,29 +81,258 @@ const CATEGORIES: { id: Category; label: string }[] = [
   { id: "infra", label: "Infra" },
 ];
 
+/* ---------- Constants ---------- */
+
+const GRID = 24;
+const SNAP_THRESHOLD = 8;
+const STORAGE = "stagerig:v2";
+
 /* ---------- Helpers ---------- */
 
 const uid = () => Math.random().toString(36).slice(2, 10);
-const STORAGE = "stagerig:v1";
 
-const colorClass = (c: Spec["color"]) => {
+const COLOR_VAR: Record<ColorKey, string> = {
+  acid: "var(--acid)",
+  magenta: "var(--magenta)",
+  cyan: "var(--cyan)",
+  amber: "var(--amber)",
+};
+
+const colorClass = (c: ColorKey) => {
   switch (c) {
-    case "acid": return { ring: "ring-[color:var(--acid)]", text: "text-[color:var(--acid)]", bg: "bg-[color:var(--acid)]/10", border: "border-[color:var(--acid)]/60" };
-    case "magenta": return { ring: "ring-[color:var(--magenta)]", text: "text-[color:var(--magenta)]", bg: "bg-[color:var(--magenta)]/10", border: "border-[color:var(--magenta)]/60" };
-    case "cyan": return { ring: "ring-[color:var(--cyan)]", text: "text-[color:var(--cyan)]", bg: "bg-[color:var(--cyan)]/10", border: "border-[color:var(--cyan)]/60" };
-    case "amber": return { ring: "ring-[color:var(--amber)]", text: "text-[color:var(--amber)]", bg: "bg-[color:var(--amber)]/10", border: "border-[color:var(--amber)]/60" };
+    case "acid":
+      return { text: "text-[color:var(--acid)]", bg: "bg-[color:var(--acid)]/10", border: "border-[color:var(--acid)]/60", ring: "ring-[color:var(--acid)]" };
+    case "magenta":
+      return { text: "text-[color:var(--magenta)]", bg: "bg-[color:var(--magenta)]/10", border: "border-[color:var(--magenta)]/60", ring: "ring-[color:var(--magenta)]" };
+    case "cyan":
+      return { text: "text-[color:var(--cyan)]", bg: "bg-[color:var(--cyan)]/10", border: "border-[color:var(--cyan)]/60", ring: "ring-[color:var(--cyan)]" };
+    case "amber":
+      return { text: "text-[color:var(--amber)]", bg: "bg-[color:var(--amber)]/10", border: "border-[color:var(--amber)]/60", ring: "ring-[color:var(--amber)]" };
   }
 };
+
+/* ---------- Alignment ---------- */
+
+interface Guide {
+  axis: "x" | "y";
+  pos: number;
+}
+
+function snapAndGuide(
+  candidate: { x: number; y: number; w: number; h: number },
+  others: { x: number; y: number; w: number; h: number }[],
+  useGrid: boolean,
+): { x: number; y: number; guides: Guide[] } {
+  const cxs = [candidate.x, candidate.x + candidate.w / 2, candidate.x + candidate.w];
+  const cys = [candidate.y, candidate.y + candidate.h / 2, candidate.y + candidate.h];
+
+  const targetsX: number[] = [];
+  const targetsY: number[] = [];
+  for (const o of others) {
+    targetsX.push(o.x, o.x + o.w / 2, o.x + o.w);
+    targetsY.push(o.y, o.y + o.h / 2, o.y + o.h);
+  }
+
+  let bestX: { delta: number; snap: number; guide: number } | null = null;
+  let bestY: { delta: number; snap: number; guide: number } | null = null;
+
+  cxs.forEach((cx, i) => {
+    for (const t of targetsX) {
+      const d = t - cx;
+      if (Math.abs(d) <= SNAP_THRESHOLD && (!bestX || Math.abs(d) < Math.abs(bestX.delta))) {
+        bestX = { delta: d, snap: candidate.x + d, guide: t };
+        void i;
+      }
+    }
+  });
+  cys.forEach((cy) => {
+    for (const t of targetsY) {
+      const d = t - cy;
+      if (Math.abs(d) <= SNAP_THRESHOLD && (!bestY || Math.abs(d) < Math.abs(bestY.delta))) {
+        bestY = { delta: d, snap: candidate.y + d, guide: t };
+      }
+    }
+  });
+
+  let nx = candidate.x;
+  let ny = candidate.y;
+  const guides: Guide[] = [];
+
+  if (bestX) {
+    nx = (bestX as { delta: number; snap: number; guide: number }).snap;
+    guides.push({ axis: "x", pos: (bestX as { delta: number; snap: number; guide: number }).guide });
+  } else if (useGrid) {
+    nx = Math.round(candidate.x / GRID) * GRID;
+  }
+  if (bestY) {
+    ny = (bestY as { delta: number; snap: number; guide: number }).snap;
+    guides.push({ axis: "y", pos: (bestY as { delta: number; snap: number; guide: number }).guide });
+  } else if (useGrid) {
+    ny = Math.round(candidate.y / GRID) * GRID;
+  }
+
+  return { x: nx, y: ny, guides };
+}
+
+/* ---------- Visual glyphs ---------- */
+
+function Glyph({ kind, selected }: { kind: ComponentKind; selected: boolean }) {
+  const spec = SPECS[kind];
+  const c = COLOR_VAR[spec.color];
+  const stroke = c;
+  const fill = `color-mix(in oklch, ${c} 18%, transparent)`;
+  const glow = selected ? `drop-shadow(0 0 8px ${c})` : undefined;
+
+  const common = { style: { filter: glow } as React.CSSProperties };
+
+  switch (kind) {
+    case "horn":
+      return (
+        <svg viewBox="0 0 96 72" className="h-full w-full" {...common}>
+          <rect x="6" y="10" width="24" height="52" rx="3" fill={fill} stroke={stroke} strokeWidth="1.5" />
+          <path d="M30 14 L88 4 L88 68 L30 58 Z" fill={fill} stroke={stroke} strokeWidth="1.5" />
+          <line x1="88" y1="4" x2="88" y2="68" stroke={stroke} strokeWidth="1.5" />
+        </svg>
+      );
+    case "mid":
+      return (
+        <svg viewBox="0 0 96 96" className="h-full w-full" {...common}>
+          <rect x="6" y="6" width="84" height="84" rx="4" fill={fill} stroke={stroke} strokeWidth="1.5" />
+          <circle cx="48" cy="36" r="16" fill="none" stroke={stroke} strokeWidth="1.5" />
+          <circle cx="48" cy="36" r="6" fill={stroke} opacity="0.5" />
+          <rect x="20" y="62" width="56" height="18" rx="2" fill="none" stroke={stroke} strokeWidth="1.2" opacity="0.7" />
+        </svg>
+      );
+    case "bass":
+      return (
+        <svg viewBox="0 0 120 96" className="h-full w-full" {...common}>
+          <rect x="4" y="4" width="112" height="88" rx="3" fill={fill} stroke={stroke} strokeWidth="1.5" />
+          <circle cx="36" cy="48" r="22" fill="none" stroke={stroke} strokeWidth="1.5" />
+          <circle cx="36" cy="48" r="8" fill={stroke} opacity="0.4" />
+          <circle cx="84" cy="48" r="22" fill="none" stroke={stroke} strokeWidth="1.5" />
+          <circle cx="84" cy="48" r="8" fill={stroke} opacity="0.4" />
+        </svg>
+      );
+    case "sub":
+      return (
+        <svg viewBox="0 0 168 120" className="h-full w-full" {...common}>
+          <rect x="4" y="4" width="160" height="112" rx="3" fill={fill} stroke={stroke} strokeWidth="1.5" />
+          <line x1="84" y1="8" x2="84" y2="112" stroke={stroke} strokeWidth="1" opacity="0.4" />
+          <circle cx="44" cy="60" r="34" fill="none" stroke={stroke} strokeWidth="1.5" />
+          <circle cx="44" cy="60" r="12" fill={stroke} opacity="0.4" />
+          <circle cx="124" cy="60" r="34" fill="none" stroke={stroke} strokeWidth="1.5" />
+          <circle cx="124" cy="60" r="12" fill={stroke} opacity="0.4" />
+        </svg>
+      );
+    case "amp":
+      return (
+        <svg viewBox="0 0 96 72" className="h-full w-full" {...common}>
+          <rect x="4" y="4" width="88" height="64" rx="2" fill={fill} stroke={stroke} strokeWidth="1.5" />
+          {[0, 1, 2, 3].map((i) => (
+            <rect key={i} x="10" y={12 + i * 12} width="76" height="6" rx="1" fill="none" stroke={stroke} strokeWidth="1" opacity="0.7" />
+          ))}
+          <circle cx="82" cy="14" r="2" fill={stroke} />
+        </svg>
+      );
+    case "mixer":
+      return (
+        <svg viewBox="0 0 120 72" className="h-full w-full" {...common}>
+          <rect x="4" y="4" width="112" height="64" rx="3" fill={fill} stroke={stroke} strokeWidth="1.5" />
+          {[16, 32, 48, 64, 80, 96].map((x) => (
+            <g key={x}>
+              <line x1={x} y1="14" x2={x} y2="58" stroke={stroke} strokeWidth="1" opacity="0.5" />
+              <rect x={x - 3} y={20 + ((x % 24) / 3)} width="6" height="10" rx="1" fill={stroke} />
+            </g>
+          ))}
+        </svg>
+      );
+    case "dj":
+      return (
+        <svg viewBox="0 0 144 96" className="h-full w-full" {...common}>
+          <rect x="4" y="4" width="136" height="88" rx="4" fill={fill} stroke={stroke} strokeWidth="1.5" />
+          <circle cx="34" cy="48" r="22" fill="none" stroke={stroke} strokeWidth="1.5" />
+          <circle cx="34" cy="48" r="4" fill={stroke} />
+          <circle cx="110" cy="48" r="22" fill="none" stroke={stroke} strokeWidth="1.5" />
+          <circle cx="110" cy="48" r="4" fill={stroke} />
+          <rect x="62" y="30" width="20" height="36" rx="1" fill="none" stroke={stroke} strokeWidth="1" />
+          <line x1="72" y1="36" x2="72" y2="60" stroke={stroke} strokeWidth="1" opacity="0.6" />
+        </svg>
+      );
+    case "strobe":
+      return (
+        <svg viewBox="0 0 72 72" className="h-full w-full" {...common}>
+          <rect x="4" y="20" width="64" height="32" rx="2" fill={fill} stroke={stroke} strokeWidth="1.5" />
+          <rect x="10" y="26" width="52" height="20" rx="1" fill={stroke} opacity="0.85" />
+          <path d="M36 4 L40 16 L52 12 L44 22 L56 26 L44 30 L48 42 L36 34 L24 42 L28 30 L16 26 L28 22 L20 12 L32 16 Z"
+            fill={stroke} opacity="0.35" />
+        </svg>
+      );
+    case "laser":
+      return (
+        <svg viewBox="0 0 72 72" className="h-full w-full" {...common}>
+          <rect x="16" y="24" width="40" height="24" rx="3" fill={fill} stroke={stroke} strokeWidth="1.5" />
+          <circle cx="36" cy="36" r="4" fill={stroke} />
+          <line x1="36" y1="36" x2="4" y2="4" stroke={stroke} strokeWidth="1" opacity="0.5" />
+          <line x1="36" y1="36" x2="68" y2="4" stroke={stroke} strokeWidth="1" opacity="0.5" />
+          <line x1="36" y1="36" x2="4" y2="68" stroke={stroke} strokeWidth="1" opacity="0.5" />
+          <line x1="36" y1="36" x2="68" y2="68" stroke={stroke} strokeWidth="1" opacity="0.5" />
+        </svg>
+      );
+    case "movinghead":
+      return (
+        <svg viewBox="0 0 72 72" className="h-full w-full" {...common}>
+          <rect x="20" y="52" width="32" height="14" rx="2" fill={fill} stroke={stroke} strokeWidth="1.5" />
+          <circle cx="36" cy="34" r="18" fill={fill} stroke={stroke} strokeWidth="1.5" />
+          <circle cx="36" cy="34" r="8" fill={stroke} opacity="0.6" />
+          <path d="M18 34 L36 34 L18 20 Z" fill={stroke} opacity="0.25" />
+          <path d="M54 34 L36 34 L54 20 Z" fill={stroke} opacity="0.25" />
+        </svg>
+      );
+    case "bar":
+      return (
+        <svg viewBox="0 0 216 72" className="h-full w-full" {...common}>
+          <rect x="4" y="14" width="208" height="44" rx="4" fill={fill} stroke={stroke} strokeWidth="1.5" />
+          <line x1="4" y1="30" x2="212" y2="30" stroke={stroke} strokeWidth="1" opacity="0.5" />
+          {[30, 60, 90, 120, 150, 180].map((x) => (
+            <rect key={x} x={x} y="38" width="8" height="14" rx="1" fill={stroke} opacity="0.6" />
+          ))}
+        </svg>
+      );
+    case "generator":
+      return (
+        <svg viewBox="0 0 120 96" className="h-full w-full" {...common}>
+          <rect x="4" y="10" width="112" height="76" rx="4" fill={fill} stroke={stroke} strokeWidth="1.5" />
+          <circle cx="30" cy="48" r="14" fill="none" stroke={stroke} strokeWidth="1.2" />
+          <rect x="54" y="30" width="52" height="14" rx="1" fill="none" stroke={stroke} strokeWidth="1" opacity="0.7" />
+          <rect x="54" y="52" width="52" height="14" rx="1" fill="none" stroke={stroke} strokeWidth="1" opacity="0.7" />
+          <text x="60" y="42" fontSize="10" fill={stroke} fontFamily="monospace">FUEL</text>
+        </svg>
+      );
+    case "crowd":
+      return (
+        <svg viewBox="0 0 240 168" className="h-full w-full" {...common}>
+          <rect x="4" y="4" width="232" height="160" rx="6" fill={fill} stroke={stroke} strokeWidth="1.5" strokeDasharray="6 4" />
+          {Array.from({ length: 40 }).map((_, i) => {
+            const cx = 20 + (i % 10) * 22 + ((Math.floor(i / 10) % 2) * 10);
+            const cy = 24 + Math.floor(i / 10) * 34;
+            return <circle key={i} cx={cx} cy={cy} r="6" fill={stroke} opacity="0.5" />;
+          })}
+        </svg>
+      );
+  }
+}
 
 /* ---------- Component ---------- */
 
 export function StageBuilder() {
   const [items, setItems] = useState<Placed[]>([]);
-  const [cables, setCables] = useState<Cable[]>([]);
+  const [cables, setCables] = useState<CableLink[]>([]);
   const [selected, setSelected] = useState<string | null>(null);
   const [cableMode, setCableMode] = useState(false);
   const [cableFrom, setCableFrom] = useState<string | null>(null);
   const [category, setCategory] = useState<Category>("sound");
+  const [snap, setSnap] = useState(true);
+  const [guides, setGuides] = useState<Guide[]>([]);
 
   const canvasRef = useRef<HTMLDivElement>(null);
   const dragState = useRef<{ id: string; dx: number; dy: number } | null>(null);
@@ -143,22 +364,24 @@ export function StageBuilder() {
     if (!k || !canvasRef.current) return;
     const rect = canvasRef.current.getBoundingClientRect();
     const spec = SPECS[k];
-    const x = e.clientX - rect.left - spec.w / 2;
-    const y = e.clientY - rect.top - spec.h / 2;
+    let x = e.clientX - rect.left - spec.w / 2;
+    let y = e.clientY - rect.top - spec.h / 2;
+    if (snap) {
+      x = Math.round(x / GRID) * GRID;
+      y = Math.round(y / GRID) * GRID;
+    }
     setItems((prev) => [...prev, { id: uid(), kind: k, x, y, rot: 0 }]);
     paletteDrag.current = null;
   };
 
-  /* item drag inside canvas */
+  /* item drag */
   const onItemMouseDown = (id: string) => (e: React.MouseEvent) => {
     if (cableMode) {
       if (!cableFrom) setCableFrom(id);
       else if (cableFrom !== id) {
         setCables((c) => [...c, { id: uid(), from: cableFrom, to: id }]);
         setCableFrom(null);
-      } else {
-        setCableFrom(null);
-      }
+      } else setCableFrom(null);
       return;
     }
     e.stopPropagation();
@@ -166,11 +389,7 @@ export function StageBuilder() {
     const item = items.find((i) => i.id === id);
     if (!item || !canvasRef.current) return;
     const rect = canvasRef.current.getBoundingClientRect();
-    dragState.current = {
-      id,
-      dx: e.clientX - rect.left - item.x,
-      dy: e.clientY - rect.top - item.y,
-    };
+    dragState.current = { id, dx: e.clientX - rect.left - item.x, dy: e.clientY - rect.top - item.y };
   };
 
   useEffect(() => {
@@ -178,18 +397,31 @@ export function StageBuilder() {
       const d = dragState.current;
       if (!d || !canvasRef.current) return;
       const rect = canvasRef.current.getBoundingClientRect();
-      const nx = e.clientX - rect.left - d.dx;
-      const ny = e.clientY - rect.top - d.dy;
-      setItems((prev) => prev.map((i) => (i.id === d.id ? { ...i, x: nx, y: ny } : i)));
+      const rawX = e.clientX - rect.left - d.dx;
+      const rawY = e.clientY - rect.top - d.dy;
+      const dragged = items.find((i) => i.id === d.id);
+      if (!dragged) return;
+      const spec = SPECS[dragged.kind];
+      const others = items
+        .filter((i) => i.id !== d.id)
+        .map((i) => ({ x: i.x, y: i.y, w: SPECS[i.kind].w, h: SPECS[i.kind].h }));
+      const res = snap
+        ? snapAndGuide({ x: rawX, y: rawY, w: spec.w, h: spec.h }, others, true)
+        : { x: rawX, y: rawY, guides: [] as Guide[] };
+      setItems((prev) => prev.map((i) => (i.id === d.id ? { ...i, x: res.x, y: res.y } : i)));
+      setGuides(res.guides);
     };
-    const up = () => (dragState.current = null);
+    const up = () => {
+      dragState.current = null;
+      setGuides([]);
+    };
     window.addEventListener("mousemove", move);
     window.addEventListener("mouseup", up);
     return () => {
       window.removeEventListener("mousemove", move);
       window.removeEventListener("mouseup", up);
     };
-  }, []);
+  }, [items, snap]);
 
   /* keyboard */
   useEffect(() => {
@@ -246,7 +478,7 @@ export function StageBuilder() {
   return (
     <div className="flex h-screen w-screen flex-col overflow-hidden bg-background text-foreground">
       {/* Top bar */}
-      <header className="flex items-center justify-between border-b border-border bg-card/50 px-5 py-3 backdrop-blur">
+      <header className="flex flex-wrap items-center justify-between gap-2 border-b border-border bg-card/50 px-5 py-3 backdrop-blur">
         <div className="flex items-center gap-3">
           <div className="flex h-9 w-9 items-center justify-center rounded-md bg-[color:var(--acid)]/15 ring-1 ring-[color:var(--acid)]/40">
             <Volume2 className="h-5 w-5 text-[color:var(--acid)]" />
@@ -258,8 +490,15 @@ export function StageBuilder() {
             </p>
           </div>
         </div>
-        <div className="flex items-center gap-2">
-          <ToolbarBtn onClick={() => setCableMode((v) => { setCableFrom(null); return !v; })} active={cableMode} icon={Cable}>
+        <div className="flex flex-wrap items-center gap-2">
+          <ToolbarBtn onClick={() => setSnap((v) => !v)} active={snap} icon={Magnet}>
+            {snap ? "Snap ON" : "Snap OFF"}
+          </ToolbarBtn>
+          <ToolbarBtn
+            onClick={() => setCableMode((v) => { setCableFrom(null); return !v; })}
+            active={cableMode}
+            icon={Cable}
+          >
             {cableMode ? (cableFrom ? "Vyber cíl…" : "Klikni zdroj") : "Kabel"}
           </ToolbarBtn>
           <ToolbarBtn
@@ -270,7 +509,12 @@ export function StageBuilder() {
             Otočit
           </ToolbarBtn>
           <ToolbarBtn
-            onClick={() => selected && (setItems((p) => p.filter((i) => i.id !== selected)), setSelected(null))}
+            onClick={() => {
+              if (!selected) return;
+              setItems((p) => p.filter((i) => i.id !== selected));
+              setCables((c) => c.filter((cb) => cb.from !== selected && cb.to !== selected));
+              setSelected(null);
+            }}
             icon={Trash2}
             disabled={!selected}
             danger
@@ -315,29 +559,32 @@ export function StageBuilder() {
                 .filter((s) => s.category === category)
                 .map((s) => {
                   const cls = colorClass(s.color);
-                  const Icon = s.icon;
                   return (
                     <div
                       key={s.kind}
                       draggable
                       onDragStart={onPaletteDragStart(s.kind)}
-                      className={`group cursor-grab rounded-md border ${cls.border} ${cls.bg} p-3 transition hover:scale-[1.02] active:cursor-grabbing`}
+                      className={`group cursor-grab rounded-md border ${cls.border} ${cls.bg} p-2 transition hover:scale-[1.02] active:cursor-grabbing`}
                     >
-                      <div className="flex items-start justify-between">
-                        <Icon className={`h-5 w-5 ${cls.text}`} />
+                      <div className="flex h-16 items-center justify-center">
+                        <div className="h-14 w-full">
+                          <Glyph kind={s.kind} selected={false} />
+                        </div>
+                      </div>
+                      <div className="mt-1 flex items-center justify-between">
+                        <div className={`font-mono text-[10px] font-bold uppercase tracking-wider ${cls.text}`}>
+                          {s.label}
+                        </div>
                         <Move className="h-3 w-3 text-muted-foreground opacity-0 transition group-hover:opacity-100" />
                       </div>
-                      <div className="mt-2 font-mono text-xs font-bold uppercase tracking-wider text-foreground">
-                        {s.label}
-                      </div>
-                      <div className="mt-0.5 text-[10px] text-muted-foreground">{s.hint}</div>
+                      <div className="text-[9px] text-muted-foreground">{s.hint}</div>
                     </div>
                   );
                 })}
             </div>
           </div>
 
-          {/* Stats */}
+          {/* Rig sheet */}
           <div className="border-t border-border p-3">
             <div className="mb-2 font-mono text-[10px] uppercase tracking-widest text-muted-foreground">Rig sheet</div>
             {Object.keys(counts).length === 0 ? (
@@ -371,14 +618,14 @@ export function StageBuilder() {
             }}
             className="bg-grid relative h-full w-full"
           >
-            {/* Stage front marker */}
+            {/* Stage markers */}
             <div className="pointer-events-none absolute inset-x-0 top-0 flex justify-center">
               <div className="mt-4 rounded-full border border-[color:var(--acid)]/40 bg-background/60 px-4 py-1 font-mono text-[10px] uppercase tracking-widest text-[color:var(--acid)] backdrop-blur">
                 ▲ STAGE FRONT ▲
               </div>
             </div>
             <div className="pointer-events-none absolute inset-x-0 bottom-0 flex justify-center">
-              <div className="mb-4 rounded-full border border-border bg-background/60 px-4 py-1 font-mono text-[10px] uppercase tracking-widest text-muted-foreground backdrop-blur">
+              <div className="mb-8 rounded-full border border-border bg-background/60 px-4 py-1 font-mono text-[10px] uppercase tracking-widest text-muted-foreground backdrop-blur">
                 ▼ CROWD ▼
               </div>
             </div>
@@ -388,13 +635,13 @@ export function StageBuilder() {
                 <div className="max-w-sm rounded-lg border border-dashed border-border bg-card/40 px-6 py-5 text-center backdrop-blur">
                   <p className="font-mono text-xs uppercase tracking-widest text-[color:var(--acid)]">Přetáhni komponentu</p>
                   <p className="mt-2 text-sm text-muted-foreground">
-                    Postav horny nahoře, středy pod ně, basy dolů. Přidej stroboskopy, laser, DJ pult a bar.
+                    Horny nahoře, středy pod ně, basy dolů. Přidej stroboskopy, laser, DJ pult a bar.
                   </p>
                 </div>
               </div>
             )}
 
-            {/* Cables (SVG under items) */}
+            {/* Cables */}
             <svg className="pointer-events-none absolute inset-0 h-full w-full">
               {cables.map((c) => {
                 const a = centerOf(c.from);
@@ -421,6 +668,15 @@ export function StageBuilder() {
                 if (!a) return null;
                 return <circle cx={a.x} cy={a.y} r={10} fill="none" stroke="oklch(0.86 0.24 135)" strokeWidth={2} className="animate-pulse" />;
               })()}
+
+              {/* Alignment guides */}
+              {guides.map((g, i) =>
+                g.axis === "x" ? (
+                  <line key={i} x1={g.pos} y1={0} x2={g.pos} y2="100%" stroke="oklch(0.7 0.28 340)" strokeWidth={1} strokeDasharray="2 3" />
+                ) : (
+                  <line key={i} x1={0} y1={g.pos} x2="100%" y2={g.pos} stroke="oklch(0.7 0.28 340)" strokeWidth={1} strokeDasharray="2 3" />
+                ),
+              )}
             </svg>
 
             {/* Items */}
@@ -429,7 +685,6 @@ export function StageBuilder() {
               const cls = colorClass(spec.color);
               const isSel = selected === it.id;
               const isCableSrc = cableFrom === it.id;
-              const Icon = spec.icon;
               return (
                 <div
                   key={it.id}
@@ -442,13 +697,21 @@ export function StageBuilder() {
                     height: spec.h,
                     transform: `rotate(${it.rot}deg)`,
                   }}
-                  className={`absolute flex cursor-move flex-col items-center justify-center rounded-md border-2 ${cls.border} ${cls.bg} backdrop-blur-sm transition ${
-                    isSel ? "ring-2 ring-offset-2 ring-offset-background " + cls.ring + " glow-acid" : ""
-                  } ${isCableSrc ? "ring-2 " + cls.ring : ""} ${cableMode ? "cursor-crosshair" : ""}`}
+                  className={`absolute cursor-move ${cableMode ? "cursor-crosshair" : ""} ${
+                    isSel ? "z-20" : "z-10"
+                  }`}
                 >
-                  <Icon className={`h-6 w-6 ${cls.text}`} />
-                  <div className={`mt-1 font-mono text-[10px] font-bold uppercase tracking-wider ${cls.text}`}>
-                    {spec.label}
+                  <div
+                    className={`relative h-full w-full rounded-md border ${cls.border} ${cls.bg} backdrop-blur-sm transition ${
+                      isSel ? "ring-2 " + cls.ring : ""
+                    } ${isCableSrc ? "ring-2 " + cls.ring : ""}`}
+                  >
+                    <Glyph kind={it.kind} selected={isSel} />
+                    {isSel && (
+                      <div className={`absolute -top-6 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-sm border ${cls.border} bg-background/90 px-2 py-0.5 font-mono text-[9px] uppercase tracking-widest ${cls.text}`}>
+                        {spec.label}
+                      </div>
+                    )}
                   </div>
                 </div>
               );
@@ -457,13 +720,13 @@ export function StageBuilder() {
 
           {/* Status bar */}
           <div className="pointer-events-none absolute bottom-3 left-3 right-3 flex items-center justify-between font-mono text-[10px] uppercase tracking-widest text-muted-foreground">
-            <span>{items.length} kusů · {cables.length} kabelů</span>
+            <span>{items.length} kusů · {cables.length} kabelů · grid {GRID}px</span>
             <span>
               {selectedItem
-                ? `${SPECS[selectedItem.kind].label} · ${Math.round(selectedItem.x)},${Math.round(selectedItem.y)} · ${selectedItem.rot}°  [R] rotace  [Del] smazat`
+                ? `${SPECS[selectedItem.kind].label} · ${Math.round(selectedItem.x)},${Math.round(selectedItem.y)} · ${selectedItem.rot}°  [R] otočit  [Del] smazat`
                 : cableMode
                 ? "Klikni na dva prvky pro propojení kabelem"
-                : "Klikni prvek pro výběr · přetáhni pro pohyb"}
+                : "Přetáhni z palety · drž a přesouvej · edge-snap aktivní"}
             </span>
           </div>
         </main>
