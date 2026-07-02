@@ -580,10 +580,31 @@ export function StageBuilder() {
         </div>
       </header>
 
-      <div className="flex flex-1 overflow-hidden">
+      <div className="relative flex flex-1 overflow-hidden">
+        {/* Mobile palette toggle */}
+        <button
+          onClick={() => setPaletteOpen((v) => !v)}
+          className="absolute left-3 top-3 z-40 flex items-center gap-1.5 rounded-sm border border-[color:var(--acid)]/60 bg-background/80 px-3 py-1.5 font-mono text-[10px] uppercase tracking-widest text-[color:var(--acid)] backdrop-blur md:hidden"
+        >
+          {paletteOpen ? <X className="h-3.5 w-3.5" /> : <Menu className="h-3.5 w-3.5" />}
+          {paletteOpen ? "Zavřít" : "Komponenty"}
+        </button>
+
+        {/* Palette backdrop on mobile */}
+        {paletteOpen && (
+          <div
+            className="absolute inset-0 z-20 bg-background/50 backdrop-blur-sm md:hidden"
+            onClick={() => setPaletteOpen(false)}
+          />
+        )}
+
         {/* Palette */}
-        <aside className="flex w-72 shrink-0 flex-col border-r border-border bg-card/30">
-          <div className="border-b border-border p-3">
+        <aside
+          className={`absolute inset-y-0 left-0 z-30 flex w-72 max-w-[85vw] shrink-0 flex-col border-r border-border bg-card/95 backdrop-blur transition-transform md:static md:z-0 md:bg-card/30 md:backdrop-blur-none ${
+            paletteOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"
+          }`}
+        >
+          <div className="border-b border-border p-3 pt-14 md:pt-3">
             <div className="mb-2 flex items-center gap-2">
               <Plus className="h-3.5 w-3.5 text-[color:var(--acid)]" />
               <span className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">Komponenty</span>
@@ -603,6 +624,9 @@ export function StageBuilder() {
                 </button>
               ))}
             </div>
+            <p className="mt-2 font-mono text-[9px] uppercase tracking-widest text-muted-foreground/70 md:hidden">
+              Podrž a přetáhni na plochu →
+            </p>
           </div>
 
           <div className="flex-1 overflow-y-auto p-3">
@@ -614,9 +638,10 @@ export function StageBuilder() {
                   return (
                     <div
                       key={s.kind}
-                      draggable
-                      onDragStart={onPaletteDragStart(s.kind)}
-                      className={`group cursor-grab rounded-md border ${cls.border} ${cls.bg} p-2 transition hover:scale-[1.02] active:cursor-grabbing`}
+                      onPointerDown={onPaletteItemPointerDown(s.kind)}
+                      onDoubleClick={onPaletteItemClick(s.kind)}
+                      style={{ touchAction: "none" }}
+                      className={`group cursor-grab select-none rounded-md border ${cls.border} ${cls.bg} p-2 transition hover:scale-[1.02] active:cursor-grabbing active:scale-95`}
                     >
                       <div className="flex h-16 items-center justify-center">
                         <div className="h-14 w-full">
@@ -627,7 +652,7 @@ export function StageBuilder() {
                         <div className={`font-mono text-[10px] font-bold uppercase tracking-wider ${cls.text}`}>
                           {s.label}
                         </div>
-                        <Move className="h-3 w-3 text-muted-foreground opacity-0 transition group-hover:opacity-100" />
+                        <Move className="h-3 w-3 text-muted-foreground opacity-60" />
                       </div>
                       <div className="text-[9px] text-muted-foreground">{s.hint}</div>
                     </div>
@@ -662,12 +687,11 @@ export function StageBuilder() {
         <main className="relative flex-1 overflow-hidden">
           <div
             ref={canvasRef}
-            onDragOver={(e) => e.preventDefault()}
-            onDrop={onCanvasDrop}
             onClick={() => {
               setSelected(null);
               if (cableMode) setCableFrom(null);
             }}
+            style={{ touchAction: "none" }}
             className="bg-grid relative h-full w-full"
           >
             {/* Stage markers */}
@@ -683,7 +707,7 @@ export function StageBuilder() {
             </div>
 
             {items.length === 0 && (
-              <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+              <div className="pointer-events-none absolute inset-0 flex items-center justify-center px-6">
                 <div className="max-w-sm rounded-lg border border-dashed border-border bg-card/40 px-6 py-5 text-center backdrop-blur">
                   <p className="font-mono text-xs uppercase tracking-widest text-[color:var(--acid)]">Přetáhni komponentu</p>
                   <p className="mt-2 text-sm text-muted-foreground">
@@ -740,7 +764,7 @@ export function StageBuilder() {
               return (
                 <div
                   key={it.id}
-                  onMouseDown={onItemMouseDown(it.id)}
+                  onPointerDown={onItemPointerDown(it.id)}
                   onClick={(e) => e.stopPropagation()}
                   style={{
                     left: it.x,
@@ -748,8 +772,9 @@ export function StageBuilder() {
                     width: spec.w,
                     height: spec.h,
                     transform: `rotate(${it.rot}deg)`,
+                    touchAction: "none",
                   }}
-                  className={`absolute cursor-move ${cableMode ? "cursor-crosshair" : ""} ${
+                  className={`absolute cursor-move select-none ${cableMode ? "cursor-crosshair" : ""} ${
                     isSel ? "z-20" : "z-10"
                   }`}
                 >
@@ -771,21 +796,40 @@ export function StageBuilder() {
           </div>
 
           {/* Status bar */}
-          <div className="pointer-events-none absolute bottom-3 left-3 right-3 flex items-center justify-between font-mono text-[10px] uppercase tracking-widest text-muted-foreground">
-            <span>{items.length} kusů · {cables.length} kabelů · grid {GRID}px</span>
-            <span>
+          <div className="pointer-events-none absolute bottom-3 left-3 right-3 flex items-center justify-between gap-2 font-mono text-[10px] uppercase tracking-widest text-muted-foreground">
+            <span className="hidden sm:inline">{items.length} kusů · {cables.length} kabelů · grid {GRID}px</span>
+            <span className="sm:hidden">{items.length}× · {cables.length} kab.</span>
+            <span className="truncate text-right">
               {selectedItem
-                ? `${SPECS[selectedItem.kind].label} · ${Math.round(selectedItem.x)},${Math.round(selectedItem.y)} · ${selectedItem.rot}°  [R] otočit  [Del] smazat`
+                ? `${SPECS[selectedItem.kind].label} · ${Math.round(selectedItem.x)},${Math.round(selectedItem.y)} · ${selectedItem.rot}°`
                 : cableMode
-                ? "Klikni na dva prvky pro propojení kabelem"
-                : "Přetáhni z palety · drž a přesouvej · edge-snap aktivní"}
+                ? "Klikni na dva prvky pro propojení"
+                : "Podrž komponentu a přetáhni"}
             </span>
           </div>
         </main>
+
+        {/* Drag ghost */}
+        {ghost && (
+          <div
+            className="pointer-events-none fixed z-50 opacity-80"
+            style={{
+              left: ghost.x - SPECS[ghost.kind].w / 2,
+              top: ghost.y - SPECS[ghost.kind].h / 2,
+              width: SPECS[ghost.kind].w,
+              height: SPECS[ghost.kind].h,
+            }}
+          >
+            <div className={`h-full w-full rounded-md border ${colorClass(SPECS[ghost.kind].color).border} ${colorClass(SPECS[ghost.kind].color).bg} backdrop-blur-sm`}>
+              <Glyph kind={ghost.kind} selected />
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
 }
+
 
 /* ---------- Toolbar btn ---------- */
 
