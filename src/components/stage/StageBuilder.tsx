@@ -448,13 +448,18 @@ export function StageBuilder() {
       if (raw) {
         const p = JSON.parse(raw);
         setItems(p.items ?? []);
-        setCables(p.cables ?? []);
+        // migrate: only keep cables that have port info
+        const valid: CableLink[] = (p.cables ?? []).filter(
+          (c: Partial<CableLink>) => c && c.fromPort && c.toPort && c.type,
+        );
+        setCables(valid);
       }
     } catch {}
   }, []);
   useEffect(() => {
     localStorage.setItem(STORAGE, JSON.stringify({ items, cables }));
   }, [items, cables]);
+
 
   /* palette pointer drag (works on touch + mouse) */
   const onPaletteItemPointerDown = (k: ComponentKind) => (e: React.PointerEvent) => {
