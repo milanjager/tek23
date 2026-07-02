@@ -333,10 +333,12 @@ export function StageBuilder() {
   const [category, setCategory] = useState<Category>("sound");
   const [snap, setSnap] = useState(true);
   const [guides, setGuides] = useState<Guide[]>([]);
+  const [ghost, setGhost] = useState<{ kind: ComponentKind; x: number; y: number } | null>(null);
+  const [paletteOpen, setPaletteOpen] = useState(false);
 
   const canvasRef = useRef<HTMLDivElement>(null);
-  const dragState = useRef<{ id: string; dx: number; dy: number } | null>(null);
-  const paletteDrag = useRef<ComponentKind | null>(null);
+  const dragState = useRef<{ id: string; dx: number; dy: number; pointerId: number } | null>(null);
+  const paletteDragRef = useRef<{ kind: ComponentKind; pointerId: number } | null>(null);
 
   /* persistence */
   useEffect(() => {
@@ -353,29 +355,65 @@ export function StageBuilder() {
     localStorage.setItem(STORAGE, JSON.stringify({ items, cables }));
   }, [items, cables]);
 
-  /* palette → canvas */
-  const onPaletteDragStart = (k: ComponentKind) => (e: React.DragEvent) => {
-    paletteDrag.current = k;
-    e.dataTransfer.effectAllowed = "copy";
-  };
-  const onCanvasDrop = (e: React.DragEvent) => {
+  /* palette pointer drag (works on touch + mouse) */
+  const onPaletteItemPointerDown = (k: ComponentKind) => (e: React.PointerEvent) => {
     e.preventDefault();
-    const k = paletteDrag.current;
-    if (!k || !canvasRef.current) return;
+    paletteDragRef.current = { kind: k, pointerId: e.pointerId };
+    setGhost({ kind: k, x: e.clientX, y: e.clientY });
+  };
+
+  useEffect(() => {
+    const move = (e: PointerEvent) => {
+      const pd = paletteDragRef.current;
+      if (!pd || pd.pointerId !== e.pointerId) return;
+      setGhost({ kind: pd.kind, x: e.clientX, y: e.clientY });
+    };
+    const up = (e: PointerEvent) => {
+      const pd = paletteDragRef.current;
+      if (!pd || pd.pointerId !== e.pointerId) return;
+      const rect = canvasRef.current?.getBoundingClientRect();
+      if (rect && e.clientX >= rect.left && e.clientX <= rect.right && e.clientY >= rect.top && e.clientY <= rect.bottom) {
+        const spec = SPECS[pd.kind];
+        let x = e.clientX - rect.left - spec.w / 2;
+        let y = e.clientY - rect.top - spec.h / 2;
+        if (snap) {
+          x = Math.round(x / GRID) * GRID;
+          y = Math.round(y / GRID) * GRID;
+        }
+        setItems((prev) => [...prev, { id: uid(), kind: pd.kind, x, y, rot: 0 }]);
+        setPaletteOpen(false);
+      }
+      paletteDragRef.current = null;
+      setGhost(null);
+    };
+    window.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", up);
+    window.addEventListener("pointercancel", up);
+    return () => {
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", up);
+      window.removeEventListener("pointercancel", up);
+    };
+  }, [snap]);
+
+  /* tap-to-place fallback for mobile: single tap on palette item, then tap on canvas */
+  const onPaletteItemClick = (k: ComponentKind) => () => {
+    // Only used as a fallback if drag didn't fire (rare). Place near canvas center.
+    if (!canvasRef.current) return;
     const rect = canvasRef.current.getBoundingClientRect();
     const spec = SPECS[k];
-    let x = e.clientX - rect.left - spec.w / 2;
-    let y = e.clientY - rect.top - spec.h / 2;
+    let x = rect.width / 2 - spec.w / 2;
+    let y = rect.height / 2 - spec.h / 2;
     if (snap) {
       x = Math.round(x / GRID) * GRID;
       y = Math.round(y / GRID) * GRID;
     }
     setItems((prev) => [...prev, { id: uid(), kind: k, x, y, rot: 0 }]);
-    paletteDrag.current = null;
+    setPaletteOpen(false);
   };
 
-  /* item drag */
-  const onItemMouseDown = (id: string) => (e: React.MouseEvent) => {
+  /* item pointer drag */
+  const onItemPointerDown = (id: string) => (e: React.PointerEvent) => {
     if (cableMode) {
       if (!cableFrom) setCableFrom(id);
       else if (cableFrom !== id) {
@@ -389,13 +427,19 @@ export function StageBuilder() {
     const item = items.find((i) => i.id === id);
     if (!item || !canvasRef.current) return;
     const rect = canvasRef.current.getBoundingClientRect();
-    dragState.current = { id, dx: e.clientX - rect.left - item.x, dy: e.clientY - rect.top - item.y };
+    dragState.current = {
+      id,
+      dx: e.clientX - rect.left - item.x,
+      dy: e.clientY - rect.top - item.y,
+      pointerId: e.pointerId,
+    };
+    try { (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId); } catch {}
   };
 
   useEffect(() => {
-    const move = (e: MouseEvent) => {
+    const move = (e: PointerEvent) => {
       const d = dragState.current;
-      if (!d || !canvasRef.current) return;
+      if (!d || d.pointerId !== e.pointerId || !canvasRef.current) return;
       const rect = canvasRef.current.getBoundingClientRect();
       const rawX = e.clientX - rect.left - d.dx;
       const rawY = e.clientY - rect.top - d.dy;
@@ -411,15 +455,19 @@ export function StageBuilder() {
       setItems((prev) => prev.map((i) => (i.id === d.id ? { ...i, x: res.x, y: res.y } : i)));
       setGuides(res.guides);
     };
-    const up = () => {
+    const up = (e: PointerEvent) => {
+      const d = dragState.current;
+      if (!d || d.pointerId !== e.pointerId) return;
       dragState.current = null;
       setGuides([]);
     };
-    window.addEventListener("mousemove", move);
-    window.addEventListener("mouseup", up);
+    window.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", up);
+    window.addEventListener("pointercancel", up);
     return () => {
-      window.removeEventListener("mousemove", move);
-      window.removeEventListener("mouseup", up);
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", up);
+      window.removeEventListener("pointercancel", up);
     };
   }, [items, snap]);
 
@@ -474,6 +522,7 @@ export function StageBuilder() {
     },
     [items],
   );
+
 
   return (
     <div className="flex h-screen w-screen flex-col overflow-hidden bg-background text-foreground">
