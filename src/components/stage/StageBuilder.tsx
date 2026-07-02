@@ -523,6 +523,9 @@ export function StageBuilder() {
   const [showHalo, setShowHalo] = useState(true);
   const [guides, setGuides] = useState<Guide[]>([]);
   const [view, setView] = useState<"stage" | "backstage" | "speakers">("stage");
+  const [zoom, setZoom] = useState(1);
+  const [tilt, setTilt] = useState(0); // 0 = top-down, up to ~55deg = 3D perspective
+  const [highlightCables, setHighlightCables] = useState<Set<string>>(new Set());
 
   const [ghost, setGhost] = useState<{ kind: ComponentKind; x: number; y: number } | null>(null);
   const [paletteOpen, setPaletteOpen] = useState(false);
@@ -583,8 +586,10 @@ export function StageBuilder() {
       const rect = canvasRef.current?.getBoundingClientRect();
       if (rect && e.clientX >= rect.left && e.clientX <= rect.right && e.clientY >= rect.top && e.clientY <= rect.bottom) {
         const spec = SPECS[pd.kind];
-        let x = e.clientX - rect.left - spec.w / 2;
-        let y = e.clientY - rect.top - spec.h / 2;
+        const lx = (e.clientX - rect.left - rect.width / 2) / zoom + rect.width / 2;
+        const ly = (e.clientY - rect.top - rect.height / 2) / zoom + rect.height / 2;
+        let x = lx - spec.w / 2;
+        let y = ly - spec.h / 2;
         if (snap) {
           x = Math.round(x / GRID) * GRID;
           y = Math.round(y / GRID) * GRID;
@@ -604,7 +609,7 @@ export function StageBuilder() {
       window.removeEventListener("pointerup", up);
       window.removeEventListener("pointercancel", up);
     };
-  }, [snap]);
+  }, [snap, zoom]);
 
   /* tap-to-place fallback for mobile: single tap on palette item, then tap on canvas */
   const onPaletteItemClick = (k: ComponentKind) => () => {
@@ -628,14 +633,17 @@ export function StageBuilder() {
     if (cableMode) return; // cable mode uses ports, not item body
     e.stopPropagation();
     setSelected(id);
+    if (tilt > 0) return; // no dragging in 3D preview
 
     const item = items.find((i) => i.id === id);
     if (!item || !canvasRef.current) return;
     const rect = canvasRef.current.getBoundingClientRect();
+    const lx = (e.clientX - rect.left - rect.width / 2) / zoom + rect.width / 2;
+    const ly = (e.clientY - rect.top - rect.height / 2) / zoom + rect.height / 2;
     dragState.current = {
       id,
-      dx: e.clientX - rect.left - item.x,
-      dy: e.clientY - rect.top - item.y,
+      dx: lx - item.x,
+      dy: ly - item.y,
       pointerId: e.pointerId,
     };
     try { (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId); } catch {}
@@ -646,8 +654,10 @@ export function StageBuilder() {
       const d = dragState.current;
       if (!d || d.pointerId !== e.pointerId || !canvasRef.current) return;
       const rect = canvasRef.current.getBoundingClientRect();
-      const rawX = e.clientX - rect.left - d.dx;
-      const rawY = e.clientY - rect.top - d.dy;
+      const lx = (e.clientX - rect.left - rect.width / 2) / zoom + rect.width / 2;
+      const ly = (e.clientY - rect.top - rect.height / 2) / zoom + rect.height / 2;
+      const rawX = lx - d.dx;
+      const rawY = ly - d.dy;
       const dragged = items.find((i) => i.id === d.id);
       if (!dragged) return;
       const spec = SPECS[dragged.kind];
@@ -685,7 +695,7 @@ export function StageBuilder() {
       window.removeEventListener("pointerup", up);
       window.removeEventListener("pointercancel", up);
     };
-  }, [items, snap]);
+  }, [items, snap, zoom]);
 
   /* keyboard */
   useEffect(() => {
@@ -789,8 +799,8 @@ export function StageBuilder() {
     const move = (e: PointerEvent) => {
       if (pendingPointer.current !== e.pointerId || !canvasRef.current) return;
       const rect = canvasRef.current.getBoundingClientRect();
-      const x = e.clientX - rect.left;
-      const y = e.clientY - rect.top;
+      const x = (e.clientX - rect.left - rect.width / 2) / zoom + rect.width / 2;
+      const y = (e.clientY - rect.top - rect.height / 2) / zoom + rect.height / 2;
 
       // find nearest compatible port
       let hover: { itemId: string; portId: string } | null = null;
@@ -840,7 +850,7 @@ export function StageBuilder() {
       window.removeEventListener("pointercancel", up);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pending, items]);
+  }, [pending, items, zoom]);
 
 
 
@@ -906,7 +916,7 @@ export function StageBuilder() {
       </header>
 
       {/* View tabs */}
-      <div className="flex items-center gap-1 border-b border-border bg-card/30 px-3 py-2">
+      <div className="flex flex-wrap items-center gap-1 border-b border-border bg-card/30 px-3 py-2">
         {([
           { id: "stage", label: "Stage", icon: Grid3x3 },
           { id: "backstage", label: "Backstage", icon: Layers },
@@ -929,7 +939,49 @@ export function StageBuilder() {
             </button>
           );
         })}
+
+        {view === "stage" && (
+          <div className="ml-auto flex flex-wrap items-center gap-2">
+            {/* Zoom */}
+            <div className="flex items-center gap-1 rounded-sm border border-border bg-background/40 px-2 py-1">
+              <button
+                onClick={() => setZoom((z) => Math.max(0.3, +(z - 0.1).toFixed(2)))}
+                className="font-mono text-[11px] text-muted-foreground hover:text-foreground"
+                aria-label="Oddálit"
+              >−</button>
+              <span className="w-10 text-center font-mono text-[10px] uppercase tracking-widest text-[color:var(--acid)]">
+                {Math.round(zoom * 100)}%
+              </span>
+              <button
+                onClick={() => setZoom((z) => Math.min(2, +(z + 0.1).toFixed(2)))}
+                className="font-mono text-[11px] text-muted-foreground hover:text-foreground"
+                aria-label="Přiblížit"
+              >+</button>
+              <button
+                onClick={() => { setZoom(1); setTilt(0); }}
+                className="ml-1 font-mono text-[9px] uppercase tracking-widest text-muted-foreground hover:text-foreground"
+                aria-label="Reset zoom"
+              >Fit</button>
+            </div>
+            {/* Tilt (3D) */}
+            <div className="flex items-center gap-1 rounded-sm border border-border bg-background/40 px-2 py-1">
+              <span className="font-mono text-[9px] uppercase tracking-widest text-muted-foreground">3D</span>
+              <input
+                type="range"
+                min={0}
+                max={55}
+                step={1}
+                value={tilt}
+                onChange={(e) => setTilt(Number(e.target.value))}
+                className="h-1 w-20 accent-[color:var(--acid)]"
+                aria-label="Náklon pohledu"
+              />
+              <span className="w-8 text-center font-mono text-[10px] text-[color:var(--acid)]">{tilt}°</span>
+            </div>
+          </div>
+        )}
       </div>
+
 
 
 
@@ -1043,17 +1095,28 @@ export function StageBuilder() {
               view={view}
               items={items}
               cables={cables}
-              onClose={() => setView("stage")}
-              onSelect={(id) => { setSelected(id); setView("stage"); }}
+              onClose={() => { setHighlightCables(new Set()); setView("stage"); }}
+              onSelect={(id) => {
+                setSelected(id);
+                // highlight all cables touching this item, then switch to stage
+                const ids = new Set(
+                  cables.filter((c) => c.from === id || c.to === id).map((c) => c.id),
+                );
+                setHighlightCables(ids);
+                setView("stage");
+              }}
+              onHighlightCables={(ids) => setHighlightCables(new Set(ids))}
             />
           )}
+
 
           <div
             ref={canvasRef}
             onClick={() => {
               setSelected(null);
+              setHighlightCables(new Set());
             }}
-            style={{ touchAction: "none" }}
+            style={{ touchAction: "none", perspective: "1400px" }}
             className="bg-grid relative h-full w-full"
           >
             {/* Stage markers */}
@@ -1102,6 +1165,16 @@ export function StageBuilder() {
               </div>
             </div>
 
+            {/* 3D / zoom transform layer — contains all interactive world content */}
+            <div
+              className="absolute inset-0"
+              style={{
+                transform: `scale(${zoom}) rotateX(${tilt}deg)`,
+                transformOrigin: "50% 50%",
+                transformStyle: "preserve-3d",
+                transition: dragState.current ? "none" : "transform 220ms ease",
+              }}
+            >
             {items.length === 0 && (
               <div className="pointer-events-none absolute inset-0 flex items-center justify-center px-6">
                 <div className="max-w-sm rounded-lg border border-dashed border-border bg-card/40 px-6 py-5 text-center backdrop-blur">
@@ -1124,17 +1197,34 @@ export function StageBuilder() {
                 const mx = (a.x + b.x) / 2;
                 const my = (a.y + b.y) / 2 + 40;
                 const col = PORT_COLOR[c.type];
+                const hl = highlightCables.has(c.id);
+                const anyHl = highlightCables.size > 0;
                 return (
-                  <g key={c.id}>
+                  <g key={c.id} opacity={anyHl && !hl ? 0.18 : 1}>
+                    {hl && (
+                      <path
+                        d={`M ${a.x} ${a.y} Q ${mx} ${my} ${b.x} ${b.y}`}
+                        stroke={col}
+                        strokeOpacity={0.35}
+                        strokeWidth={10}
+                        fill="none"
+                        strokeLinecap="round"
+                      />
+                    )}
                     <path
                       d={`M ${a.x} ${a.y} Q ${mx} ${my} ${b.x} ${b.y}`}
                       stroke={col}
-                      strokeOpacity={0.75}
-                      strokeWidth={2.5}
+                      strokeOpacity={hl ? 1 : 0.75}
+                      strokeWidth={hl ? 4 : 2.5}
                       fill="none"
-                    />
-                    <circle cx={a.x} cy={a.y} r={3.5} fill={col} />
-                    <circle cx={b.x} cy={b.y} r={3.5} fill={col} />
+                      strokeDasharray={hl ? "10 6" : undefined}
+                    >
+                      {hl && (
+                        <animate attributeName="stroke-dashoffset" from="0" to="32" dur="0.8s" repeatCount="indefinite" />
+                      )}
+                    </path>
+                    <circle cx={a.x} cy={a.y} r={hl ? 5 : 3.5} fill={col} />
+                    <circle cx={b.x} cy={b.y} r={hl ? 5 : 3.5} fill={col} />
                   </g>
                 );
               })}
@@ -1330,6 +1420,7 @@ export function StageBuilder() {
                   }),
                 )}
             </svg>
+            </div>
           </div>
 
 
@@ -1413,13 +1504,17 @@ function BackstagePanel({
   cables,
   onClose,
   onSelect,
+  onHighlightCables,
 }: {
   view: "backstage" | "speakers";
   items: Placed[];
   cables: CableLink[];
   onClose: () => void;
   onSelect: (id: string) => void;
+  onHighlightCables: (ids: string[]) => void;
 }) {
+  const [detailId, setDetailId] = useState<string | null>(null);
+
   const filtered = view === "speakers"
     ? items.filter((i) => SPECS[i.kind].category === "sound")
     : items;
@@ -1433,13 +1528,37 @@ function BackstagePanel({
     return g;
   }, [filtered]);
 
-  const cableCountFor = (id: string) =>
-    cables.filter((c) => c.from === id || c.to === id).length;
+  const cablesFor = (id: string) => cables.filter((c) => c.from === id || c.to === id);
 
   const CAT_LABEL: Record<Category, string> = {
     sound: "Zvuk / Reproduktory",
     lights: "Světla",
     infra: "Infra & technika",
+  };
+
+  const openDetail = (id: string) => {
+    setDetailId(id);
+    onHighlightCables(cablesFor(id).map((c) => c.id));
+  };
+  const closeDetail = () => {
+    setDetailId(null);
+    onHighlightCables([]);
+  };
+
+  const detail = detailId ? items.find((i) => i.id === detailId) : null;
+  const detailSpec = detail ? SPECS[detail.kind] : null;
+  const detailCables = detail ? cablesFor(detail.id) : [];
+
+  const itemLabel = (id: string) => {
+    const it = items.find((i) => i.id === id);
+    if (!it) return "?";
+    return it.label ?? SPECS[it.kind].label;
+  };
+  const portLabel = (itemId: string, portId: string) => {
+    const it = items.find((i) => i.id === itemId);
+    if (!it) return portId;
+    const p = SPECS[it.kind].ports.find((pp) => pp.id === portId);
+    return p ? `${portId} · ${p.dir.toUpperCase()}` : portId;
   };
 
   return (
@@ -1457,12 +1576,98 @@ function BackstagePanel({
             </p>
           </div>
           <button
-            onClick={onClose}
+            onClick={() => { closeDetail(); onClose(); }}
             className="flex items-center gap-1.5 rounded-sm border border-border px-3 py-1.5 font-mono text-[10px] uppercase tracking-widest text-muted-foreground hover:border-foreground/50 hover:text-foreground"
           >
             <X className="h-3.5 w-3.5" /> Zavřít
           </button>
         </div>
+
+        {/* Detail card */}
+        {detail && detailSpec && (
+          <div className={`mb-5 rounded-md border ${colorClass(detailSpec.color).border} ${colorClass(detailSpec.color).bg} p-4`}>
+            <div className="flex items-start gap-4">
+              <div className="h-20 w-28 shrink-0">
+                <Glyph kind={detail.kind} selected label={detail.label} />
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center justify-between gap-2">
+                  <div>
+                    <div className={`font-mono text-sm font-bold uppercase tracking-wider ${colorClass(detailSpec.color).text}`}>
+                      {detail.label ?? detailSpec.label}
+                    </div>
+                    <div className="mt-0.5 font-mono text-[10px] uppercase tracking-widest text-muted-foreground">
+                      {detailSpec.hint} · pos {Math.round(detail.x)},{Math.round(detail.y)} · {detail.rot}°
+                    </div>
+                  </div>
+                  <div className="flex gap-1.5">
+                    <button
+                      onClick={() => { onSelect(detail.id); /* also switches to stage */ }}
+                      className="rounded-sm border border-[color:var(--acid)]/60 bg-[color:var(--acid)]/10 px-2.5 py-1 font-mono text-[9px] uppercase tracking-widest text-[color:var(--acid)] hover:bg-[color:var(--acid)]/20"
+                    >
+                      Ukaž na stagi
+                    </button>
+                    <button
+                      onClick={closeDetail}
+                      className="rounded-sm border border-border px-2.5 py-1 font-mono text-[9px] uppercase tracking-widest text-muted-foreground hover:border-foreground/50 hover:text-foreground"
+                    >
+                      Zpět
+                    </button>
+                  </div>
+                </div>
+
+                <div className="mt-3">
+                  <div className="mb-1 font-mono text-[9px] uppercase tracking-widest text-muted-foreground">
+                    Kabelové spoje · {detailCables.length}
+                  </div>
+                  {detailCables.length === 0 ? (
+                    <div className="rounded-sm border border-dashed border-border/60 p-3 font-mono text-[10px] uppercase tracking-widest text-muted-foreground/70">
+                      — bez zapojení —
+                    </div>
+                  ) : (
+                    <ul className="space-y-1.5">
+                      {detailCables.map((c) => {
+                        const isOut = c.from === detail.id;
+                        const otherId = isOut ? c.to : c.from;
+                        const myPort = isOut ? c.fromPort : c.toPort;
+                        const otherPort = isOut ? c.toPort : c.fromPort;
+                        const col = PORT_COLOR[c.type];
+                        return (
+                          <li
+                            key={c.id}
+                            onMouseEnter={() => onHighlightCables([c.id])}
+                            onMouseLeave={() => onHighlightCables(detailCables.map((cc) => cc.id))}
+                            className="flex items-center gap-2 rounded-sm border border-border/60 bg-background/50 px-2 py-1.5 font-mono text-[10px]"
+                          >
+                            <span
+                              className="inline-block h-2 w-2 rounded-full"
+                              style={{ background: col, boxShadow: `0 0 6px ${col}` }}
+                            />
+                            <span className="uppercase tracking-widest" style={{ color: col }}>
+                              {PORT_LABEL[c.type]}
+                            </span>
+                            <span className="text-muted-foreground">
+                              {portLabel(detail.id, myPort)}
+                            </span>
+                            <span className="text-[color:var(--acid)]">
+                              {isOut ? "→" : "←"}
+                            </span>
+                            <span className="truncate text-foreground">
+                              {itemLabel(otherId)}
+                            </span>
+                            <span className="text-muted-foreground">
+                              · {portLabel(otherId, otherPort)}
+                            </span>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         {filtered.length === 0 ? (
           <div className="rounded-md border border-dashed border-border bg-card/40 p-8 text-center font-mono text-[11px] uppercase tracking-widest text-muted-foreground">
@@ -1482,15 +1687,19 @@ function BackstagePanel({
                   {grouped[cat].map((it) => {
                     const spec = SPECS[it.kind];
                     const cls = colorClass(spec.color);
+                    const nCab = cablesFor(it.id).length;
+                    const active = detailId === it.id;
                     return (
                       <button
                         key={it.id}
-                        onClick={() => onSelect(it.id)}
-                        className={`group rounded-md border ${cls.border} ${cls.bg} p-3 text-left transition hover:scale-[1.02]`}
+                        onClick={() => (active ? closeDetail() : openDetail(it.id))}
+                        className={`group rounded-md border ${cls.border} ${cls.bg} p-3 text-left transition hover:scale-[1.02] ${
+                          active ? "ring-2 " + cls.ring : ""
+                        }`}
                       >
                         <div className="flex items-center gap-3">
                           <div className="h-14 w-20 shrink-0">
-                            <Glyph kind={it.kind} selected={false} label={it.label} />
+                            <Glyph kind={it.kind} selected={active} label={it.label} />
                           </div>
                           <div className="min-w-0 flex-1">
                             <div className={`truncate font-mono text-[11px] font-bold uppercase tracking-wider ${cls.text}`}>
@@ -1505,7 +1714,7 @@ function BackstagePanel({
                               <span>{it.rot}°</span>
                               <span>·</span>
                               <span className="text-[color:var(--amber)]">
-                                {cableCountFor(it.id)} kab.
+                                {nCab} kab.
                               </span>
                             </div>
                           </div>
