@@ -83,6 +83,15 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
         content:
           "Drag-and-drop plánovač tekno stage: reproduktory, světla, kabely a rozložení party.",
       },
+      { property: "og:title", content: "Stage Rig — Tekno Sound System Builder" },
+      { name: "twitter:title", content: "Stage Rig — Tekno Sound System Builder" },
+      { name: "description", content: "Build and visualize techno stage sound systems with drag-and-drop components." },
+      { property: "og:description", content: "Build and visualize techno stage sound systems with drag-and-drop components." },
+      { name: "twitter:description", content: "Build and visualize techno stage sound systems with drag-and-drop components." },
+      { property: "og:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/d45593a7-7015-4676-94e0-5434fbb58ea5/id-preview-7cd063e8--2bd5ae47-8fa2-47fb-a1f9-781dab3f9998.lovable.app-1782981129357.png" },
+      { name: "twitter:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/d45593a7-7015-4676-94e0-5434fbb58ea5/id-preview-7cd063e8--2bd5ae47-8fa2-47fb-a1f9-781dab3f9998.lovable.app-1782981129357.png" },
+      { name: "twitter:card", content: "summary_large_image" },
+      { property: "og:type", content: "website" },
     ],
     links: [
       { rel: "stylesheet", href: appCss },
