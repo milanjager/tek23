@@ -515,16 +515,10 @@ export function StageBuilder() {
 
   /* item pointer drag */
   const onItemPointerDown = (id: string) => (e: React.PointerEvent) => {
-    if (cableMode) {
-      if (!cableFrom) setCableFrom(id);
-      else if (cableFrom !== id) {
-        setCables((c) => [...c, { id: uid(), from: cableFrom, to: id }]);
-        setCableFrom(null);
-      } else setCableFrom(null);
-      return;
-    }
+    if (cableMode) return; // cable mode uses ports, not item body
     e.stopPropagation();
     setSelected(id);
+
     const item = items.find((i) => i.id === id);
     if (!item || !canvasRef.current) return;
     const rect = canvasRef.current.getBoundingClientRect();
