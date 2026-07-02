@@ -15,7 +15,9 @@ import {
   X,
   Ruler,
   Sparkles,
-
+  Layers,
+  Radio,
+  Grid3x3,
 } from "lucide-react";
 
 
@@ -29,6 +31,9 @@ type ComponentKind =
   | "amp"
   | "mixer"
   | "dj"
+  | "korg"
+  | "turntable"
+  | "custom"
   | "strobe"
   | "laser"
   | "movinghead"
@@ -66,6 +71,7 @@ interface Placed {
   x: number;
   y: number;
   rot: number;
+  label?: string;
 }
 
 interface CableLink {
@@ -140,6 +146,21 @@ const SPECS: Record<ComponentKind, Spec> = (() => {
       pLeft(144, 96, "pwr", "power", "in"),
       pRight(144, 96, "audio_out", "audio", "out", 0.35),
       pRight(144, 96, "dmx_out", "dmx", "out", 0.75),
+    ]),
+    korg: mk("korg", "Korg live", "infra", 120, 72, "cyan", "Korg groovebox pro live sety", [
+      pLeft(120, 72, "pwr", "power", "in", 0.3),
+      pLeft(120, 72, "midi_in", "dmx", "in", 0.75),
+      pRight(120, 72, "audio_out_l", "audio", "out", 0.35),
+      pRight(120, 72, "audio_out_r", "audio", "out", 0.7),
+    ]),
+    turntable: mk("turntable", "Gramofon", "infra", 96, 96, "amber", "Vinyl deck", [
+      pLeft(96, 96, "pwr", "power", "in", 0.3),
+      pRight(96, 96, "audio_out", "audio", "out", 0.55),
+    ]),
+    custom: mk("custom", "Vlastní", "infra", 96, 72, "cyan", "Vlastní zařízení uživatele", [
+      pLeft(96, 72, "pwr", "power", "in", 0.3),
+      pLeft(96, 72, "in", "audio", "in", 0.75),
+      pRight(96, 72, "out", "audio", "out", 0.5),
     ]),
     strobe: mk("strobe", "Strobo", "lights", 72, 72, "cyan", "Stroboskop", [
       pLeft(72, 72, "pwr", "power", "in", 0.3),
@@ -288,7 +309,7 @@ function snapAndGuide(
 
 /* ---------- Visual glyphs ---------- */
 
-function Glyph({ kind, selected }: { kind: ComponentKind; selected: boolean }) {
+function Glyph({ kind, selected, label }: { kind: ComponentKind; selected: boolean; label?: string }) {
   const spec = SPECS[kind];
   const c = COLOR_VAR[spec.color];
   const stroke = c;
@@ -370,6 +391,61 @@ function Glyph({ kind, selected }: { kind: ComponentKind; selected: boolean }) {
           <line x1="72" y1="36" x2="72" y2="60" stroke={stroke} strokeWidth="1" opacity="0.6" />
         </svg>
       );
+    case "korg":
+      return (
+        <svg viewBox="0 0 120 72" className="h-full w-full" {...common}>
+          <rect x="4" y="4" width="112" height="64" rx="4" fill={fill} stroke={stroke} strokeWidth="1.5" />
+          {/* pads 4x4 */}
+          {Array.from({ length: 16 }).map((_, i) => {
+            const c = i % 4;
+            const r = Math.floor(i / 4);
+            return (
+              <rect key={i} x={12 + c * 12} y={16 + r * 9} width="9" height="6" rx="1"
+                fill={stroke} opacity={0.35 + (i % 3) * 0.2} />
+            );
+          })}
+          {/* knobs */}
+          <circle cx="78" cy="22" r="6" fill="none" stroke={stroke} strokeWidth="1.2" />
+          <circle cx="96" cy="22" r="6" fill="none" stroke={stroke} strokeWidth="1.2" />
+          <line x1="78" y1="22" x2="82" y2="18" stroke={stroke} strokeWidth="1.2" />
+          <line x1="96" y1="22" x2="100" y2="18" stroke={stroke} strokeWidth="1.2" />
+          {/* screen */}
+          <rect x="72" y="36" width="36" height="14" rx="1" fill={stroke} opacity="0.25" />
+          <text x="90" y="46" textAnchor="middle" fontSize="7" fontFamily="ui-monospace, monospace" fill={stroke}>KORG</text>
+          <text x="60" y="64" textAnchor="middle" fontSize="6" fontFamily="ui-monospace, monospace" fill={stroke} opacity="0.7">LIVE</text>
+        </svg>
+      );
+    case "turntable":
+      return (
+        <svg viewBox="0 0 96 96" className="h-full w-full" {...common}>
+          <rect x="4" y="4" width="88" height="88" rx="4" fill={fill} stroke={stroke} strokeWidth="1.5" />
+          <circle cx="42" cy="48" r="30" fill="none" stroke={stroke} strokeWidth="1.5" />
+          <circle cx="42" cy="48" r="22" fill={stroke} opacity="0.15" />
+          <circle cx="42" cy="48" r="4" fill={stroke} />
+          {/* concentric grooves */}
+          <circle cx="42" cy="48" r="14" fill="none" stroke={stroke} strokeWidth="0.6" opacity="0.5" />
+          <circle cx="42" cy="48" r="26" fill="none" stroke={stroke} strokeWidth="0.6" opacity="0.5" />
+          {/* tonearm */}
+          <line x1="78" y1="14" x2="52" y2="42" stroke={stroke} strokeWidth="2" />
+          <circle cx="78" cy="14" r="3" fill={stroke} />
+          <rect x="50" y="40" width="6" height="8" rx="1" fill={stroke} opacity="0.8" />
+          {/* pitch fader */}
+          <rect x="78" y="52" width="10" height="34" rx="1" fill="none" stroke={stroke} strokeWidth="1" opacity="0.7" />
+          <rect x="79" y="66" width="8" height="4" rx="1" fill={stroke} />
+        </svg>
+      );
+    case "custom":
+      return (
+        <svg viewBox="0 0 96 72" className="h-full w-full" {...common}>
+          <rect x="4" y="4" width="88" height="64" rx="4" fill={fill} stroke={stroke} strokeWidth="1.5" strokeDasharray="4 3" />
+          <text x="48" y="30" textAnchor="middle" fontSize="10" fontFamily="ui-monospace, monospace" fill={stroke} style={{ letterSpacing: "0.15em" }}>
+            USER
+          </text>
+          <text x="48" y="52" textAnchor="middle" fontSize="9" fontFamily="ui-monospace, monospace" fill={stroke} opacity="0.9">
+            {(label ?? "?").slice(0, 12).toUpperCase()}
+          </text>
+        </svg>
+      );
     case "strobe":
       return (
         <svg viewBox="0 0 72 72" className="h-full w-full" {...common}>
@@ -446,6 +522,7 @@ export function StageBuilder() {
   const [showGuides, setShowGuides] = useState(true);
   const [showHalo, setShowHalo] = useState(true);
   const [guides, setGuides] = useState<Guide[]>([]);
+  const [view, setView] = useState<"stage" | "backstage" | "speakers">("stage");
 
   const [ghost, setGhost] = useState<{ kind: ComponentKind; x: number; y: number } | null>(null);
   const [paletteOpen, setPaletteOpen] = useState(false);
@@ -512,7 +589,8 @@ export function StageBuilder() {
           x = Math.round(x / GRID) * GRID;
           y = Math.round(y / GRID) * GRID;
         }
-        setItems((prev) => [...prev, { id: uid(), kind: pd.kind, x, y, rot: 0 }]);
+        const label = pd.kind === "custom" ? (prompt("Název zařízení:", "MůjStroj")?.trim() || "USER") : undefined;
+        setItems((prev) => [...prev, { id: uid(), kind: pd.kind, x, y, rot: 0, label }]);
         setPaletteOpen(false);
       }
       paletteDragRef.current = null;
@@ -540,7 +618,8 @@ export function StageBuilder() {
       x = Math.round(x / GRID) * GRID;
       y = Math.round(y / GRID) * GRID;
     }
-    setItems((prev) => [...prev, { id: uid(), kind: k, x, y, rot: 0 }]);
+    const label = k === "custom" ? (prompt("Název zařízení:", "MůjStroj")?.trim() || "USER") : undefined;
+    setItems((prev) => [...prev, { id: uid(), kind: k, x, y, rot: 0, label }]);
     setPaletteOpen(false);
   };
 
@@ -826,6 +905,34 @@ export function StageBuilder() {
         </div>
       </header>
 
+      {/* View tabs */}
+      <div className="flex items-center gap-1 border-b border-border bg-card/30 px-3 py-2">
+        {([
+          { id: "stage", label: "Stage", icon: Grid3x3 },
+          { id: "backstage", label: "Backstage", icon: Layers },
+          { id: "speakers", label: "Reproduktory", icon: Radio },
+        ] as const).map((v) => {
+          const Icon = v.icon;
+          const active = view === v.id;
+          return (
+            <button
+              key={v.id}
+              onClick={() => setView(v.id)}
+              className={`flex items-center gap-1.5 rounded-sm border px-3 py-1.5 font-mono text-[10px] uppercase tracking-widest transition ${
+                active
+                  ? "border-[color:var(--acid)] bg-[color:var(--acid)]/15 text-[color:var(--acid)] glow-acid"
+                  : "border-border text-muted-foreground hover:border-foreground/50 hover:text-foreground"
+              }`}
+            >
+              <Icon className="h-3.5 w-3.5" />
+              {v.label}
+            </button>
+          );
+        })}
+      </div>
+
+
+
       <div className="relative flex flex-1 overflow-hidden">
         {/* Mobile palette toggle */}
         <button
@@ -931,6 +1038,16 @@ export function StageBuilder() {
 
         {/* Canvas */}
         <main className="relative flex-1 overflow-hidden">
+          {view !== "stage" && (
+            <BackstagePanel
+              view={view}
+              items={items}
+              cables={cables}
+              onClose={() => setView("stage")}
+              onSelect={(id) => { setSelected(id); setView("stage"); }}
+            />
+          )}
+
           <div
             ref={canvasRef}
             onClick={() => {
@@ -1138,7 +1255,7 @@ export function StageBuilder() {
                       isSel ? "ring-2 " + cls.ring : ""
                     }`}
                   >
-                    <Glyph kind={it.kind} selected={isSel} />
+                    <Glyph kind={it.kind} selected={isSel} label={it.label} />
                     {isSel && (
                       <div className={`absolute -top-6 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-sm border ${cls.border} bg-background/90 px-2 py-0.5 font-mono text-[9px] uppercase tracking-widest ${cls.text}`}>
                         {spec.label}
@@ -1284,5 +1401,124 @@ function ToolbarBtn({
       <Icon className="h-3.5 w-3.5" />
       {children}
     </button>
+  );
+}
+
+
+/* ---------- Backstage / Speakers panel ---------- */
+
+function BackstagePanel({
+  view,
+  items,
+  cables,
+  onClose,
+  onSelect,
+}: {
+  view: "backstage" | "speakers";
+  items: Placed[];
+  cables: CableLink[];
+  onClose: () => void;
+  onSelect: (id: string) => void;
+}) {
+  const filtered = view === "speakers"
+    ? items.filter((i) => SPECS[i.kind].category === "sound")
+    : items;
+
+  const grouped = useMemo(() => {
+    const g: Record<string, Placed[]> = {};
+    filtered.forEach((it) => {
+      const cat = SPECS[it.kind].category;
+      (g[cat] ??= []).push(it);
+    });
+    return g;
+  }, [filtered]);
+
+  const cableCountFor = (id: string) =>
+    cables.filter((c) => c.from === id || c.to === id).length;
+
+  const CAT_LABEL: Record<Category, string> = {
+    sound: "Zvuk / Reproduktory",
+    lights: "Světla",
+    infra: "Infra & technika",
+  };
+
+  return (
+    <div className="absolute inset-0 z-30 overflow-y-auto bg-background/95 backdrop-blur">
+      <div className="mx-auto max-w-4xl p-5">
+        <div className="mb-4 flex items-center justify-between">
+          <div>
+            <h2 className="font-mono text-sm font-bold uppercase tracking-widest text-[color:var(--acid)] text-glow-acid">
+              {view === "speakers" ? "// Pohled — REPRODUKTORY" : "// Pohled — BACKSTAGE"}
+            </h2>
+            <p className="mt-1 font-mono text-[10px] uppercase tracking-widest text-muted-foreground">
+              {view === "speakers"
+                ? `${filtered.length} reprosoustav na stagi`
+                : `${filtered.length} kusů techniky · ${cables.length} kabelů`}
+            </p>
+          </div>
+          <button
+            onClick={onClose}
+            className="flex items-center gap-1.5 rounded-sm border border-border px-3 py-1.5 font-mono text-[10px] uppercase tracking-widest text-muted-foreground hover:border-foreground/50 hover:text-foreground"
+          >
+            <X className="h-3.5 w-3.5" /> Zavřít
+          </button>
+        </div>
+
+        {filtered.length === 0 ? (
+          <div className="rounded-md border border-dashed border-border bg-card/40 p-8 text-center font-mono text-[11px] uppercase tracking-widest text-muted-foreground">
+            {view === "speakers" ? "— Zatím žádné reproduktory —" : "— Backstage prázdný —"}
+          </div>
+        ) : (
+          <div className="space-y-6">
+            {(Object.keys(grouped) as Category[]).map((cat) => (
+              <section key={cat}>
+                <div className="mb-2 flex items-center gap-2 border-b border-border/60 pb-1">
+                  <span className="font-mono text-[10px] uppercase tracking-widest text-[color:var(--acid)]">
+                    {CAT_LABEL[cat]}
+                  </span>
+                  <span className="font-mono text-[10px] text-muted-foreground">×{grouped[cat].length}</span>
+                </div>
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                  {grouped[cat].map((it) => {
+                    const spec = SPECS[it.kind];
+                    const cls = colorClass(spec.color);
+                    return (
+                      <button
+                        key={it.id}
+                        onClick={() => onSelect(it.id)}
+                        className={`group rounded-md border ${cls.border} ${cls.bg} p-3 text-left transition hover:scale-[1.02]`}
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="h-14 w-20 shrink-0">
+                            <Glyph kind={it.kind} selected={false} label={it.label} />
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <div className={`truncate font-mono text-[11px] font-bold uppercase tracking-wider ${cls.text}`}>
+                              {it.label ?? spec.label}
+                            </div>
+                            <div className="mt-0.5 font-mono text-[9px] uppercase tracking-widest text-muted-foreground">
+                              {spec.hint}
+                            </div>
+                            <div className="mt-1 flex items-center gap-2 font-mono text-[9px] uppercase tracking-widest text-muted-foreground/80">
+                              <span>{Math.round(it.x)},{Math.round(it.y)}</span>
+                              <span>·</span>
+                              <span>{it.rot}°</span>
+                              <span>·</span>
+                              <span className="text-[color:var(--amber)]">
+                                {cableCountFor(it.id)} kab.
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </section>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
   );
 }
