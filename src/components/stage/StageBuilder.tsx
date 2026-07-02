@@ -309,7 +309,7 @@ function snapAndGuide(
 
 /* ---------- Visual glyphs ---------- */
 
-function Glyph({ kind, selected }: { kind: ComponentKind; selected: boolean }) {
+function Glyph({ kind, selected, label }: { kind: ComponentKind; selected: boolean; label?: string }) {
   const spec = SPECS[kind];
   const c = COLOR_VAR[spec.color];
   const stroke = c;
