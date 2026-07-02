@@ -525,7 +525,9 @@ export function StageBuilder() {
   const [view, setView] = useState<"stage" | "backstage" | "speakers">("stage");
   const [zoom, setZoom] = useState(1);
   const [tilt, setTilt] = useState(0); // 0 = top-down, up to ~55deg = 3D perspective
+  const [pan, setPan] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
   const [highlightCables, setHighlightCables] = useState<Set<string>>(new Set());
+  const [focusPulse, setFocusPulse] = useState<string | null>(null);
 
   const [ghost, setGhost] = useState<{ kind: ComponentKind; x: number; y: number } | null>(null);
   const [paletteOpen, setPaletteOpen] = useState(false);
@@ -544,6 +546,14 @@ export function StageBuilder() {
   const paletteDragRef = useRef<{ kind: ComponentKind; pointerId: number } | null>(null);
   const pendingPointer = useRef<number | null>(null);
   const lastSnapSig = useRef<string>("");
+  const canvasPointers = useRef<Map<number, { x: number; y: number }>>(new Map());
+  const pinchRef = useRef<{
+    dist: number;
+    midScreen: { x: number; y: number };
+    startZoom: number;
+    startPan: { x: number; y: number };
+  } | null>(null);
+  const gestureActive = useRef(false);
 
 
 
