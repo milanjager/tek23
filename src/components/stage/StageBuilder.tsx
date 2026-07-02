@@ -1070,7 +1070,7 @@ export function StageBuilder() {
                 aria-label="Přiblížit"
               >+</button>
               <button
-                onClick={() => { setZoom(1); setTilt(0); }}
+                onClick={() => { setZoom(1); setTilt(0); setPan({ x: 0, y: 0 }); }}
                 className="ml-1 font-mono text-[9px] uppercase tracking-widest text-muted-foreground hover:text-foreground"
                 aria-label="Reset zoom"
               >Fit</button>
