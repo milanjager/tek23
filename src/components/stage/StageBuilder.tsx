@@ -996,15 +996,62 @@ export function StageBuilder() {
                 );
               })()}
 
-              {/* Alignment guides */}
-              {guides.map((g, i) =>
-                g.axis === "x" ? (
-                  <line key={i} x1={g.pos} y1={0} x2={g.pos} y2="100%" stroke="oklch(0.7 0.28 340)" strokeWidth={1} strokeDasharray="2 3" />
-                ) : (
-                  <line key={i} x1={0} y1={g.pos} x2="100%" y2={g.pos} stroke="oklch(0.7 0.28 340)" strokeWidth={1} strokeDasharray="2 3" />
-                ),
-              )}
+              {/* Alignment guides — bright magenta with glow, capped, range-limited */}
+              <defs>
+                <filter id="snap-glow" x="-50%" y="-50%" width="200%" height="200%">
+                  <feGaussianBlur stdDeviation="2.5" result="b" />
+                  <feMerge>
+                    <feMergeNode in="b" />
+                    <feMergeNode in="SourceGraphic" />
+                  </feMerge>
+                </filter>
+              </defs>
+              {guides.map((g, i) => {
+                const col = "oklch(0.75 0.3 340)";
+                const pad = 40;
+                const from = g.from - pad;
+                const to = g.to + pad;
+                if (g.axis === "x") {
+                  return (
+                    <g key={i} filter="url(#snap-glow)">
+                      {/* faint full-canvas line */}
+                      <line x1={g.pos} y1={0} x2={g.pos} y2="100%" stroke={col} strokeOpacity={0.25} strokeWidth={1} strokeDasharray="2 4" />
+                      {/* bright bounded line */}
+                      <line x1={g.pos} y1={from} x2={g.pos} y2={to} stroke={col} strokeWidth={2} strokeDasharray="6 4">
+                        <animate attributeName="stroke-dashoffset" from="0" to="20" dur="0.6s" repeatCount="indefinite" />
+                      </line>
+                      {/* end caps */}
+                      <line x1={g.pos - 8} y1={from} x2={g.pos + 8} y2={from} stroke={col} strokeWidth={2} />
+                      <line x1={g.pos - 8} y1={to} x2={g.pos + 8} y2={to} stroke={col} strokeWidth={2} />
+                      {/* SNAP badge */}
+                      <g transform={`translate(${g.pos + 10}, ${(from + to) / 2 - 8})`}>
+                        <rect width="46" height="14" rx="2" fill="oklch(0.14 0.02 280)" stroke={col} strokeWidth={1} />
+                        <text x="23" y="10" textAnchor="middle" fontFamily="ui-monospace, monospace" fontSize="9" fill={col} style={{ letterSpacing: "0.15em" }}>
+                          {g.kind === "center" ? "MID" : g.kind === "start" ? "LEFT" : "RIGHT"}
+                        </text>
+                      </g>
+                    </g>
+                  );
+                }
+                return (
+                  <g key={i} filter="url(#snap-glow)">
+                    <line x1={0} y1={g.pos} x2="100%" y2={g.pos} stroke={col} strokeOpacity={0.25} strokeWidth={1} strokeDasharray="2 4" />
+                    <line x1={from} y1={g.pos} x2={to} y2={g.pos} stroke={col} strokeWidth={2} strokeDasharray="6 4">
+                      <animate attributeName="stroke-dashoffset" from="0" to="20" dur="0.6s" repeatCount="indefinite" />
+                    </line>
+                    <line x1={from} y1={g.pos - 8} x2={from} y2={g.pos + 8} stroke={col} strokeWidth={2} />
+                    <line x1={to} y1={g.pos - 8} x2={to} y2={g.pos + 8} stroke={col} strokeWidth={2} />
+                    <g transform={`translate(${(from + to) / 2 - 20}, ${g.pos + 6})`}>
+                      <rect width="40" height="14" rx="2" fill="oklch(0.14 0.02 280)" stroke={col} strokeWidth={1} />
+                      <text x="20" y="10" textAnchor="middle" fontFamily="ui-monospace, monospace" fontSize="9" fill={col} style={{ letterSpacing: "0.15em" }}>
+                        {g.kind === "center" ? "MID" : g.kind === "start" ? "TOP" : "BOT"}
+                      </text>
+                    </g>
+                  </g>
+                );
+              })}
             </svg>
+
 
             {/* Items */}
             {items.map((it) => {
