@@ -695,7 +695,7 @@ export function StageBuilder() {
       window.removeEventListener("pointerup", up);
       window.removeEventListener("pointercancel", up);
     };
-  }, [items, snap]);
+  }, [items, snap, zoom]);
 
   /* keyboard */
   useEffect(() => {
