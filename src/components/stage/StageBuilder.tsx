@@ -1186,17 +1186,34 @@ export function StageBuilder() {
                 const mx = (a.x + b.x) / 2;
                 const my = (a.y + b.y) / 2 + 40;
                 const col = PORT_COLOR[c.type];
+                const hl = highlightCables.has(c.id);
+                const anyHl = highlightCables.size > 0;
                 return (
-                  <g key={c.id}>
+                  <g key={c.id} opacity={anyHl && !hl ? 0.18 : 1}>
+                    {hl && (
+                      <path
+                        d={`M ${a.x} ${a.y} Q ${mx} ${my} ${b.x} ${b.y}`}
+                        stroke={col}
+                        strokeOpacity={0.35}
+                        strokeWidth={10}
+                        fill="none"
+                        strokeLinecap="round"
+                      />
+                    )}
                     <path
                       d={`M ${a.x} ${a.y} Q ${mx} ${my} ${b.x} ${b.y}`}
                       stroke={col}
-                      strokeOpacity={0.75}
-                      strokeWidth={2.5}
+                      strokeOpacity={hl ? 1 : 0.75}
+                      strokeWidth={hl ? 4 : 2.5}
                       fill="none"
-                    />
-                    <circle cx={a.x} cy={a.y} r={3.5} fill={col} />
-                    <circle cx={b.x} cy={b.y} r={3.5} fill={col} />
+                      strokeDasharray={hl ? "10 6" : undefined}
+                    >
+                      {hl && (
+                        <animate attributeName="stroke-dashoffset" from="0" to="32" dur="0.8s" repeatCount="indefinite" />
+                      )}
+                    </path>
+                    <circle cx={a.x} cy={a.y} r={hl ? 5 : 3.5} fill={col} />
+                    <circle cx={b.x} cy={b.y} r={hl ? 5 : 3.5} fill={col} />
                   </g>
                 );
               })}
