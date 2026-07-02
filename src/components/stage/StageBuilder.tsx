@@ -792,6 +792,7 @@ export function StageBuilder() {
     if (!it || !canvasRef.current) return;
     const pos = portPos(it, port);
     pendingPointer.current = e.pointerId;
+    try { (e.currentTarget as Element as SVGGraphicsElement).setPointerCapture?.(e.pointerId); } catch {}
     setPending({
       itemId,
       portId: port.id,
