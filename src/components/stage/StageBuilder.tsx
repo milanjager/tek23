@@ -633,14 +633,17 @@ export function StageBuilder() {
     if (cableMode) return; // cable mode uses ports, not item body
     e.stopPropagation();
     setSelected(id);
+    if (tilt > 0) return; // no dragging in 3D preview
 
     const item = items.find((i) => i.id === id);
     if (!item || !canvasRef.current) return;
     const rect = canvasRef.current.getBoundingClientRect();
+    const lx = (e.clientX - rect.left - rect.width / 2) / zoom + rect.width / 2;
+    const ly = (e.clientY - rect.top - rect.height / 2) / zoom + rect.height / 2;
     dragState.current = {
       id,
-      dx: e.clientX - rect.left - item.x,
-      dy: e.clientY - rect.top - item.y,
+      dx: lx - item.x,
+      dy: ly - item.y,
       pointerId: e.pointerId,
     };
     try { (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId); } catch {}
