@@ -15,7 +15,9 @@ import {
   X,
   Ruler,
   Sparkles,
-
+  Layers,
+  Radio,
+  Grid3x3,
 } from "lucide-react";
 
 
