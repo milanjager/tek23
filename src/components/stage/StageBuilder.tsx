@@ -522,6 +522,7 @@ export function StageBuilder() {
   const [showGuides, setShowGuides] = useState(true);
   const [showHalo, setShowHalo] = useState(true);
   const [guides, setGuides] = useState<Guide[]>([]);
+  const [view, setView] = useState<"stage" | "backstage" | "speakers">("stage");
 
   const [ghost, setGhost] = useState<{ kind: ComponentKind; x: number; y: number } | null>(null);
   const [paletteOpen, setPaletteOpen] = useState(false);
