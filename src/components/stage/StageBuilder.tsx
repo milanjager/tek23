@@ -208,63 +208,80 @@ const colorClass = (c: ColorKey) => {
 interface Guide {
   axis: "x" | "y";
   pos: number;
+  from: number; // min along the perpendicular axis
+  to: number;   // max along the perpendicular axis
+  kind: "start" | "center" | "end";
 }
 
+type Rect = { x: number; y: number; w: number; h: number };
+
 function snapAndGuide(
-  candidate: { x: number; y: number; w: number; h: number },
-  others: { x: number; y: number; w: number; h: number }[],
+  candidate: Rect,
+  others: Rect[],
   useGrid: boolean,
 ): { x: number; y: number; guides: Guide[] } {
-  const cxs = [candidate.x, candidate.x + candidate.w / 2, candidate.x + candidate.w];
-  const cys = [candidate.y, candidate.y + candidate.h / 2, candidate.y + candidate.h];
+  // For X axis (vertical guide lines): candidate has 3 x-targets (start, center, end).
+  const candXs = [
+    { pos: candidate.x, kind: "start" as const },
+    { pos: candidate.x + candidate.w / 2, kind: "center" as const },
+    { pos: candidate.x + candidate.w, kind: "end" as const },
+  ];
+  const candYs = [
+    { pos: candidate.y, kind: "start" as const },
+    { pos: candidate.y + candidate.h / 2, kind: "center" as const },
+    { pos: candidate.y + candidate.h, kind: "end" as const },
+  ];
 
-  const targetsX: number[] = [];
-  const targetsY: number[] = [];
+  let bestX: { delta: number; guide: number; kind: Guide["kind"]; target: Rect } | null = null;
+  let bestY: { delta: number; guide: number; kind: Guide["kind"]; target: Rect } | null = null;
+
   for (const o of others) {
-    targetsX.push(o.x, o.x + o.w / 2, o.x + o.w);
-    targetsY.push(o.y, o.y + o.h / 2, o.y + o.h);
+    const targetsX = [o.x, o.x + o.w / 2, o.x + o.w];
+    const targetsY = [o.y, o.y + o.h / 2, o.y + o.h];
+    for (const cx of candXs) {
+      for (const t of targetsX) {
+        const d = t - cx.pos;
+        if (Math.abs(d) <= SNAP_THRESHOLD && (!bestX || Math.abs(d) < Math.abs(bestX.delta))) {
+          bestX = { delta: d, guide: t, kind: cx.kind, target: o };
+        }
+      }
+    }
+    for (const cy of candYs) {
+      for (const t of targetsY) {
+        const d = t - cy.pos;
+        if (Math.abs(d) <= SNAP_THRESHOLD && (!bestY || Math.abs(d) < Math.abs(bestY.delta))) {
+          bestY = { delta: d, guide: t, kind: cy.kind, target: o };
+        }
+      }
+    }
   }
-
-  let bestX: { delta: number; snap: number; guide: number } | null = null;
-  let bestY: { delta: number; snap: number; guide: number } | null = null;
-
-  cxs.forEach((cx, i) => {
-    for (const t of targetsX) {
-      const d = t - cx;
-      if (Math.abs(d) <= SNAP_THRESHOLD && (!bestX || Math.abs(d) < Math.abs(bestX.delta))) {
-        bestX = { delta: d, snap: candidate.x + d, guide: t };
-        void i;
-      }
-    }
-  });
-  cys.forEach((cy) => {
-    for (const t of targetsY) {
-      const d = t - cy;
-      if (Math.abs(d) <= SNAP_THRESHOLD && (!bestY || Math.abs(d) < Math.abs(bestY.delta))) {
-        bestY = { delta: d, snap: candidate.y + d, guide: t };
-      }
-    }
-  });
 
   let nx = candidate.x;
   let ny = candidate.y;
   const guides: Guide[] = [];
 
   if (bestX) {
-    nx = (bestX as { delta: number; snap: number; guide: number }).snap;
-    guides.push({ axis: "x", pos: (bestX as { delta: number; snap: number; guide: number }).guide });
+    nx = candidate.x + bestX.delta;
+    const snapped = { ...candidate, x: nx };
+    const from = Math.min(snapped.y, bestX.target.y);
+    const to = Math.max(snapped.y + snapped.h, bestX.target.y + bestX.target.h);
+    guides.push({ axis: "x", pos: bestX.guide, from, to, kind: bestX.kind });
   } else if (useGrid) {
     nx = Math.round(candidate.x / GRID) * GRID;
   }
   if (bestY) {
-    ny = (bestY as { delta: number; snap: number; guide: number }).snap;
-    guides.push({ axis: "y", pos: (bestY as { delta: number; snap: number; guide: number }).guide });
+    ny = candidate.y + bestY.delta;
+    const snapped = { ...candidate, y: ny };
+    const from = Math.min(snapped.x, bestY.target.x);
+    const to = Math.max(snapped.x + snapped.w, bestY.target.x + bestY.target.w);
+    guides.push({ axis: "y", pos: bestY.guide, from, to, kind: bestY.kind });
   } else if (useGrid) {
     ny = Math.round(candidate.y / GRID) * GRID;
   }
 
   return { x: nx, y: ny, guides };
 }
+
 
 /* ---------- Visual glyphs ---------- */
 
