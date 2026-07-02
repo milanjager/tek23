@@ -1224,11 +1224,13 @@ export function StageBuilder() {
 
           <div
             ref={canvasRef}
+            onPointerDown={onCanvasPointerDown}
             onClick={() => {
+              if (gestureActive.current) return;
               setSelected(null);
               setHighlightCables(new Set());
             }}
-            style={{ touchAction: "none", perspective: "1400px" }}
+            style={{ touchAction: "none", perspective: `${1400 - tilt * 8}px`, perspectiveOrigin: "50% 65%" }}
             className="bg-grid relative h-full w-full"
           >
             {/* Stage markers */}
@@ -1277,16 +1279,37 @@ export function StageBuilder() {
               </div>
             </div>
 
-            {/* 3D / zoom transform layer — contains all interactive world content */}
+            {/* 3D / zoom / pan transform layer — contains all interactive world content */}
             <div
               className="absolute inset-0"
               style={{
-                transform: `scale(${zoom}) rotateX(${tilt}deg)`,
+                transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom}) rotateX(${tilt}deg)`,
                 transformOrigin: "50% 50%",
                 transformStyle: "preserve-3d",
-                transition: dragState.current ? "none" : "transform 220ms ease",
+                transition: dragState.current || pinchRef.current ? "none" : "transform 420ms cubic-bezier(0.22, 1, 0.36, 1)",
+                willChange: "transform",
               }}
             >
+              {/* Ground / horizon fog — visible in 3D tilt */}
+              {tilt > 0 && (
+                <>
+                  <div
+                    className="pointer-events-none absolute inset-0"
+                    style={{
+                      background:
+                        "linear-gradient(to top, oklch(0.86 0.24 135 / 0.06) 0%, transparent 30%, oklch(0.14 0.02 280 / 0.9) 100%)",
+                    }}
+                  />
+                  <div
+                    className="pointer-events-none absolute inset-x-0 top-0 h-px"
+                    style={{
+                      background: "linear-gradient(to right, transparent, oklch(0.86 0.24 135 / 0.6), transparent)",
+                      boxShadow: "0 0 24px oklch(0.86 0.24 135 / 0.4)",
+                    }}
+                  />
+                </>
+              )}
+
             {items.length === 0 && (
               <div className="pointer-events-none absolute inset-0 flex items-center justify-center px-6">
                 <div className="max-w-sm rounded-lg border border-dashed border-border bg-card/40 px-6 py-5 text-center backdrop-blur">
