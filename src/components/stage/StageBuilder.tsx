@@ -35,6 +35,16 @@ type ComponentKind =
 
 type Category = "sound" | "lights" | "infra";
 type ColorKey = "acid" | "magenta" | "cyan" | "amber";
+type PortType = "audio" | "power" | "dmx";
+type PortDir = "in" | "out";
+
+interface Port {
+  id: string;
+  type: PortType;
+  dir: PortDir;
+  ox: number; // offset from item left
+  oy: number; // offset from item top
+}
 
 interface Spec {
   kind: ComponentKind;
@@ -44,6 +54,7 @@ interface Spec {
   h: number;
   color: ColorKey;
   hint: string;
+  ports: Port[];
 }
 
 interface Placed {
@@ -58,25 +69,99 @@ interface CableLink {
   id: string;
   from: string;
   to: string;
+  fromPort: string;
+  toPort: string;
+  type: PortType;
 }
+
+/* ---------- Port helpers ---------- */
+
+const PORT_COLOR: Record<PortType, string> = {
+  audio: "oklch(0.86 0.24 135)",
+  power: "oklch(0.82 0.18 75)",
+  dmx: "oklch(0.7 0.28 340)",
+};
+
+const PORT_LABEL: Record<PortType, string> = {
+  audio: "AUDIO",
+  power: "PWR",
+  dmx: "DMX",
+};
+
+// helpers to build ports on box edges
+const pLeft = (w: number, h: number, id: string, type: PortType, dir: PortDir, ratio = 0.5): Port => ({
+  id, type, dir, ox: 0, oy: h * ratio,
+});
+const pRight = (w: number, h: number, id: string, type: PortType, dir: PortDir, ratio = 0.5): Port => ({
+  id, type, dir, ox: w, oy: h * ratio,
+});
+const pTop = (w: number, h: number, id: string, type: PortType, dir: PortDir, ratio = 0.5): Port => ({
+  id, type, dir, ox: w * ratio, oy: 0,
+});
+const pBottom = (w: number, h: number, id: string, type: PortType, dir: PortDir, ratio = 0.5): Port => ({
+  id, type, dir, ox: w * ratio, oy: h,
+});
 
 /* ---------- Catalog ---------- */
 
-const SPECS: Record<ComponentKind, Spec> = {
-  horn: { kind: "horn", label: "Horn", category: "sound", w: 96, h: 72, color: "acid", hint: "Výškový horn" },
-  mid: { kind: "mid", label: "Mid", category: "sound", w: 96, h: 96, color: "acid", hint: "Střední pásmo" },
-  bass: { kind: "bass", label: "Bass bin", category: "sound", w: 120, h: 96, color: "acid", hint: "Basová bedna" },
-  sub: { kind: "sub", label: "Sub 2×18", category: "sound", w: 168, h: 120, color: "acid", hint: "Sub-bass" },
-  amp: { kind: "amp", label: "Amp rack", category: "infra", w: 96, h: 72, color: "amber", hint: "Zesilovače" },
-  mixer: { kind: "mixer", label: "Mixer FOH", category: "infra", w: 120, h: 72, color: "amber", hint: "Mixážní pult" },
-  dj: { kind: "dj", label: "DJ booth", category: "infra", w: 144, h: 96, color: "amber", hint: "DJ pult" },
-  strobe: { kind: "strobe", label: "Strobo", category: "lights", w: 72, h: 72, color: "cyan", hint: "Stroboskop" },
-  laser: { kind: "laser", label: "Laser", category: "lights", w: 72, h: 72, color: "magenta", hint: "Laser" },
-  movinghead: { kind: "movinghead", label: "Moving head", category: "lights", w: 72, h: 72, color: "magenta", hint: "Otočná hlava" },
-  bar: { kind: "bar", label: "Bar", category: "infra", w: 216, h: 72, color: "amber", hint: "Bar" },
-  generator: { kind: "generator", label: "Aggregát", category: "infra", w: 120, h: 96, color: "amber", hint: "Diesel" },
-  crowd: { kind: "crowd", label: "Dancefloor", category: "infra", w: 240, h: 168, color: "magenta", hint: "Prostor pro dav" },
-};
+const SPECS: Record<ComponentKind, Spec> = (() => {
+  const mk = (
+    kind: ComponentKind, label: string, category: Category, w: number, h: number, color: ColorKey, hint: string, ports: Port[],
+  ): Spec => ({ kind, label, category, w, h, color, hint, ports });
+
+  return {
+    horn: mk("horn", "Horn", "sound", 96, 72, "acid", "Výškový horn", [
+      pBottom(96, 72, "in", "audio", "in"),
+    ]),
+    mid: mk("mid", "Mid", "sound", 96, 96, "acid", "Střední pásmo", [
+      pBottom(96, 96, "in", "audio", "in"),
+    ]),
+    bass: mk("bass", "Bass bin", "sound", 120, 96, "acid", "Basová bedna", [
+      pTop(120, 96, "in", "audio", "in"),
+    ]),
+    sub: mk("sub", "Sub 2×18", "sound", 168, 120, "acid", "Sub-bass", [
+      pTop(168, 120, "in", "audio", "in"),
+    ]),
+    amp: mk("amp", "Amp rack", "infra", 96, 72, "amber", "Zesilovače", [
+      pLeft(96, 72, "pwr", "power", "in", 0.5),
+      pLeft(96, 72, "audio_in", "audio", "in", 0.85),
+      pRight(96, 72, "out_a", "audio", "out", 0.3),
+      pRight(96, 72, "out_b", "audio", "out", 0.7),
+    ]),
+    mixer: mk("mixer", "Mixer FOH", "infra", 120, 72, "amber", "Mixážní pult", [
+      pLeft(120, 72, "pwr", "power", "in"),
+      pRight(120, 72, "audio_out", "audio", "out", 0.35),
+      pRight(120, 72, "dmx_out", "dmx", "out", 0.75),
+    ]),
+    dj: mk("dj", "DJ booth", "infra", 144, 96, "amber", "DJ pult", [
+      pLeft(144, 96, "pwr", "power", "in"),
+      pRight(144, 96, "audio_out", "audio", "out", 0.35),
+      pRight(144, 96, "dmx_out", "dmx", "out", 0.75),
+    ]),
+    strobe: mk("strobe", "Strobo", "lights", 72, 72, "cyan", "Stroboskop", [
+      pLeft(72, 72, "pwr", "power", "in", 0.3),
+      pLeft(72, 72, "dmx", "dmx", "in", 0.75),
+    ]),
+    laser: mk("laser", "Laser", "lights", 72, 72, "magenta", "Laser", [
+      pLeft(72, 72, "pwr", "power", "in", 0.3),
+      pLeft(72, 72, "dmx", "dmx", "in", 0.75),
+    ]),
+    movinghead: mk("movinghead", "Moving head", "lights", 72, 72, "magenta", "Otočná hlava", [
+      pLeft(72, 72, "pwr", "power", "in", 0.3),
+      pLeft(72, 72, "dmx", "dmx", "in", 0.75),
+    ]),
+    bar: mk("bar", "Bar", "infra", 216, 72, "amber", "Bar", [
+      pLeft(216, 72, "pwr", "power", "in"),
+    ]),
+    generator: mk("generator", "Aggregát", "infra", 120, 96, "amber", "Diesel", [
+      pRight(120, 96, "out1", "power", "out", 0.25),
+      pRight(120, 96, "out2", "power", "out", 0.55),
+      pRight(120, 96, "out3", "power", "out", 0.85),
+    ]),
+    crowd: mk("crowd", "Dancefloor", "infra", 240, 168, "magenta", "Prostor pro dav", []),
+  };
+})();
+
 
 const CATEGORIES: { id: Category; label: string }[] = [
   { id: "sound", label: "Sound" },
@@ -88,7 +173,10 @@ const CATEGORIES: { id: Category; label: string }[] = [
 
 const GRID = 24;
 const SNAP_THRESHOLD = 8;
-const STORAGE = "stagerig:v2";
+const STORAGE = "stagerig:v3";
+const PORT_SNAP = 24;
+const PORT_R = 6;
+
 
 /* ---------- Helpers ---------- */
 
@@ -332,16 +420,26 @@ export function StageBuilder() {
   const [cables, setCables] = useState<CableLink[]>([]);
   const [selected, setSelected] = useState<string | null>(null);
   const [cableMode, setCableMode] = useState(false);
-  const [cableFrom, setCableFrom] = useState<string | null>(null);
   const [category, setCategory] = useState<Category>("sound");
   const [snap, setSnap] = useState(true);
   const [guides, setGuides] = useState<Guide[]>([]);
   const [ghost, setGhost] = useState<{ kind: ComponentKind; x: number; y: number } | null>(null);
   const [paletteOpen, setPaletteOpen] = useState(false);
+  const [pending, setPending] = useState<{
+    itemId: string;
+    portId: string;
+    type: PortType;
+    dir: PortDir;
+    x: number;
+    y: number;
+    hover: { itemId: string; portId: string } | null;
+  } | null>(null);
 
   const canvasRef = useRef<HTMLDivElement>(null);
   const dragState = useRef<{ id: string; dx: number; dy: number; pointerId: number } | null>(null);
   const paletteDragRef = useRef<{ kind: ComponentKind; pointerId: number } | null>(null);
+  const pendingPointer = useRef<number | null>(null);
+
 
   /* persistence */
   useEffect(() => {
@@ -350,13 +448,18 @@ export function StageBuilder() {
       if (raw) {
         const p = JSON.parse(raw);
         setItems(p.items ?? []);
-        setCables(p.cables ?? []);
+        // migrate: only keep cables that have port info
+        const valid: CableLink[] = (p.cables ?? []).filter(
+          (c: Partial<CableLink>) => c && c.fromPort && c.toPort && c.type,
+        );
+        setCables(valid);
       }
     } catch {}
   }, []);
   useEffect(() => {
     localStorage.setItem(STORAGE, JSON.stringify({ items, cables }));
   }, [items, cables]);
+
 
   /* palette pointer drag (works on touch + mouse) */
   const onPaletteItemPointerDown = (k: ComponentKind) => (e: React.PointerEvent) => {
@@ -417,16 +520,10 @@ export function StageBuilder() {
 
   /* item pointer drag */
   const onItemPointerDown = (id: string) => (e: React.PointerEvent) => {
-    if (cableMode) {
-      if (!cableFrom) setCableFrom(id);
-      else if (cableFrom !== id) {
-        setCables((c) => [...c, { id: uid(), from: cableFrom, to: id }]);
-        setCableFrom(null);
-      } else setCableFrom(null);
-      return;
-    }
+    if (cableMode) return; // cable mode uses ports, not item body
     e.stopPropagation();
     setSelected(id);
+
     const item = items.find((i) => i.id === id);
     if (!item || !canvasRef.current) return;
     const rect = canvasRef.current.getBoundingClientRect();
@@ -526,6 +623,110 @@ export function StageBuilder() {
     [items],
   );
 
+  /* absolute port position with rotation */
+  const portPos = useCallback(
+    (item: Placed, port: Port) => {
+      const s = SPECS[item.kind];
+      const cx = item.x + s.w / 2;
+      const cy = item.y + s.h / 2;
+      const lx = port.ox - s.w / 2;
+      const ly = port.oy - s.h / 2;
+      const a = (item.rot * Math.PI) / 180;
+      const cos = Math.cos(a);
+      const sin = Math.sin(a);
+      return { x: cx + lx * cos - ly * sin, y: cy + lx * sin + ly * cos };
+    },
+    [],
+  );
+
+  const findPort = (itemId: string, portId: string) => {
+    const it = items.find((i) => i.id === itemId);
+    if (!it) return null;
+    const p = SPECS[it.kind].ports.find((pp) => pp.id === portId);
+    if (!p) return null;
+    return { item: it, port: p, pos: portPos(it, p) };
+  };
+
+  /* start cable from a port */
+  const onPortPointerDown = (itemId: string, port: Port) => (e: React.PointerEvent) => {
+    if (!cableMode) return;
+    e.stopPropagation();
+    e.preventDefault();
+    const it = items.find((i) => i.id === itemId);
+    if (!it || !canvasRef.current) return;
+    const pos = portPos(it, port);
+    pendingPointer.current = e.pointerId;
+    setPending({
+      itemId,
+      portId: port.id,
+      type: port.type,
+      dir: port.dir,
+      x: pos.x,
+      y: pos.y,
+      hover: null,
+    });
+  };
+
+  /* global pointer handlers for pending cable */
+  useEffect(() => {
+    if (!pending) return;
+    const move = (e: PointerEvent) => {
+      if (pendingPointer.current !== e.pointerId || !canvasRef.current) return;
+      const rect = canvasRef.current.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+
+      // find nearest compatible port
+      let hover: { itemId: string; portId: string } | null = null;
+      let bestD = PORT_SNAP;
+      for (const it of items) {
+        if (it.id === pending.itemId) continue;
+        for (const p of SPECS[it.kind].ports) {
+          if (p.type !== pending.type) continue;
+          if (p.dir === pending.dir) continue;
+          const pp = portPos(it, p);
+          const d = Math.hypot(pp.x - x, pp.y - y);
+          if (d < bestD) {
+            bestD = d;
+            hover = { itemId: it.id, portId: p.id };
+          }
+        }
+      }
+      let nx = x;
+      let ny = y;
+      if (hover) {
+        const tp = findPort(hover.itemId, hover.portId);
+        if (tp) { nx = tp.pos.x; ny = tp.pos.y; }
+      }
+      setPending((p) => (p ? { ...p, x: nx, y: ny, hover } : p));
+    };
+    const up = (e: PointerEvent) => {
+      if (pendingPointer.current !== e.pointerId) return;
+      pendingPointer.current = null;
+      setPending((p) => {
+        if (p && p.hover) {
+          const from = p.dir === "out" ? { i: p.itemId, port: p.portId } : { i: p.hover.itemId, port: p.hover.portId };
+          const to = p.dir === "out" ? { i: p.hover.itemId, port: p.hover.portId } : { i: p.itemId, port: p.portId };
+          setCables((prev) => [
+            ...prev,
+            { id: uid(), from: from.i, to: to.i, fromPort: from.port, toPort: to.port, type: p.type },
+          ]);
+        }
+        return null;
+      });
+    };
+    window.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", up);
+    window.addEventListener("pointercancel", up);
+    return () => {
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", up);
+      window.removeEventListener("pointercancel", up);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pending, items]);
+
+
 
   return (
     <div className="flex h-screen w-screen flex-col overflow-hidden bg-background text-foreground">
@@ -547,12 +748,13 @@ export function StageBuilder() {
             {snap ? "Snap ON" : "Snap OFF"}
           </ToolbarBtn>
           <ToolbarBtn
-            onClick={() => setCableMode((v) => { setCableFrom(null); return !v; })}
+            onClick={() => setCableMode((v) => { setPending(null); return !v; })}
             active={cableMode}
             icon={Cable}
           >
-            {cableMode ? (cableFrom ? "Vyber cíl…" : "Klikni zdroj") : "Kabel"}
+            {cableMode ? "Kabel: táhni port→port" : "Kabel"}
           </ToolbarBtn>
+
           <ToolbarBtn
             onClick={() => selected && setItems((p) => p.map((i) => (i.id === selected ? { ...i, rot: (i.rot + 15) % 360 } : i)))}
             icon={RotateCw}
@@ -689,7 +891,6 @@ export function StageBuilder() {
             ref={canvasRef}
             onClick={() => {
               setSelected(null);
-              if (cableMode) setCableFrom(null);
             }}
             style={{ touchAction: "none" }}
             className="bg-grid relative h-full w-full"
@@ -717,32 +918,51 @@ export function StageBuilder() {
               </div>
             )}
 
-            {/* Cables */}
+            {/* Cables + guides layer (non-interactive) */}
             <svg className="pointer-events-none absolute inset-0 h-full w-full">
               {cables.map((c) => {
-                const a = centerOf(c.from);
-                const b = centerOf(c.to);
-                if (!a || !b) return null;
+                const f = findPort(c.from, c.fromPort);
+                const t = findPort(c.to, c.toPort);
+                if (!f || !t) return null;
+                const a = f.pos;
+                const b = t.pos;
                 const mx = (a.x + b.x) / 2;
                 const my = (a.y + b.y) / 2 + 40;
+                const col = PORT_COLOR[c.type];
                 return (
                   <g key={c.id}>
                     <path
                       d={`M ${a.x} ${a.y} Q ${mx} ${my} ${b.x} ${b.y}`}
-                      stroke="oklch(0.82 0.18 75 / 0.7)"
-                      strokeWidth={2}
+                      stroke={col}
+                      strokeOpacity={0.75}
+                      strokeWidth={2.5}
                       fill="none"
-                      strokeDasharray="4 4"
                     />
-                    <circle cx={a.x} cy={a.y} r={3} fill="oklch(0.82 0.18 75)" />
-                    <circle cx={b.x} cy={b.y} r={3} fill="oklch(0.82 0.18 75)" />
+                    <circle cx={a.x} cy={a.y} r={3.5} fill={col} />
+                    <circle cx={b.x} cy={b.y} r={3.5} fill={col} />
                   </g>
                 );
               })}
-              {cableMode && cableFrom && (() => {
-                const a = centerOf(cableFrom);
-                if (!a) return null;
-                return <circle cx={a.x} cy={a.y} r={10} fill="none" stroke="oklch(0.86 0.24 135)" strokeWidth={2} className="animate-pulse" />;
+
+              {/* Pending cable */}
+              {pending && (() => {
+                const f = findPort(pending.itemId, pending.portId);
+                if (!f) return null;
+                const a = f.pos;
+                const b = { x: pending.x, y: pending.y };
+                const mx = (a.x + b.x) / 2;
+                const my = (a.y + b.y) / 2 + 30;
+                const col = PORT_COLOR[pending.type];
+                return (
+                  <path
+                    d={`M ${a.x} ${a.y} Q ${mx} ${my} ${b.x} ${b.y}`}
+                    stroke={col}
+                    strokeWidth={2.5}
+                    fill="none"
+                    strokeDasharray={pending.hover ? "0" : "6 4"}
+                    strokeOpacity={pending.hover ? 1 : 0.7}
+                  />
+                );
               })()}
 
               {/* Alignment guides */}
@@ -760,7 +980,6 @@ export function StageBuilder() {
               const spec = SPECS[it.kind];
               const cls = colorClass(spec.color);
               const isSel = selected === it.id;
-              const isCableSrc = cableFrom === it.id;
               return (
                 <div
                   key={it.id}
@@ -774,14 +993,14 @@ export function StageBuilder() {
                     transform: `rotate(${it.rot}deg)`,
                     touchAction: "none",
                   }}
-                  className={`absolute cursor-move select-none ${cableMode ? "cursor-crosshair" : ""} ${
+                  className={`absolute select-none ${cableMode ? "cursor-default" : "cursor-move"} ${
                     isSel ? "z-20" : "z-10"
                   }`}
                 >
                   <div
                     className={`relative h-full w-full rounded-md border ${cls.border} ${cls.bg} backdrop-blur-sm transition ${
                       isSel ? "ring-2 " + cls.ring : ""
-                    } ${isCableSrc ? "ring-2 " + cls.ring : ""}`}
+                    }`}
                   >
                     <Glyph kind={it.kind} selected={isSel} />
                     {isSel && (
@@ -793,7 +1012,72 @@ export function StageBuilder() {
                 </div>
               );
             })}
+
+            {/* Ports overlay — interactive only in cable mode */}
+            <svg
+              className="absolute inset-0 h-full w-full"
+              style={{ pointerEvents: cableMode ? "auto" : "none" }}
+            >
+              {cableMode &&
+                items.flatMap((it) =>
+                  SPECS[it.kind].ports.map((p) => {
+                    const pos = portPos(it, p);
+                    const col = PORT_COLOR[p.type];
+                    const isHover =
+                      pending?.hover?.itemId === it.id && pending?.hover?.portId === p.id;
+                    const isSource =
+                      pending?.itemId === it.id && pending?.portId === p.id;
+                    const compat =
+                      !pending ||
+                      isSource ||
+                      (p.type === pending.type && p.dir !== pending.dir && it.id !== pending.itemId);
+                    const r = isHover ? PORT_R * 1.7 : isSource ? PORT_R * 1.3 : PORT_R;
+                    const op = compat ? 1 : 0.2;
+                    return (
+                      <g
+                        key={`${it.id}:${p.id}`}
+                        style={{ cursor: compat ? "crosshair" : "not-allowed" }}
+                        opacity={op}
+                        onPointerDown={compat ? onPortPointerDown(it.id, p) : undefined}
+                      >
+                        {(isHover || isSource) && (
+                          <circle
+                            cx={pos.x}
+                            cy={pos.y}
+                            r={r + 6}
+                            fill={col}
+                            opacity={0.25}
+                          />
+                        )}
+                        <circle
+                          cx={pos.x}
+                          cy={pos.y}
+                          r={r + 2}
+                          fill="oklch(0.14 0.02 280)"
+                          stroke={col}
+                          strokeWidth={isHover || isSource ? 2 : 1.5}
+                        />
+                        <circle cx={pos.x} cy={pos.y} r={r - 2} fill={col} />
+                        {(isHover || isSource) && (
+                          <text
+                            x={pos.x}
+                            y={pos.y - r - 8}
+                            textAnchor="middle"
+                            fontSize="9"
+                            fontFamily="ui-monospace, monospace"
+                            fill={col}
+                            style={{ textTransform: "uppercase", letterSpacing: "0.1em" }}
+                          >
+                            {PORT_LABEL[p.type]} {p.dir}
+                          </text>
+                        )}
+                      </g>
+                    );
+                  }),
+                )}
+            </svg>
           </div>
+
 
           {/* Status bar */}
           <div className="pointer-events-none absolute bottom-3 left-3 right-3 flex items-center justify-between gap-2 font-mono text-[10px] uppercase tracking-widest text-muted-foreground">
@@ -803,7 +1087,7 @@ export function StageBuilder() {
               {selectedItem
                 ? `${SPECS[selectedItem.kind].label} · ${Math.round(selectedItem.x)},${Math.round(selectedItem.y)} · ${selectedItem.rot}°`
                 : cableMode
-                ? "Klikni na dva prvky pro propojení"
+                ? "Táhni z portu na kompatibilní port (audio/power/dmx)"
                 : "Podrž komponentu a přetáhni"}
             </span>
           </div>
