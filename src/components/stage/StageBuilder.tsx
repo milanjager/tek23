@@ -1331,7 +1331,8 @@ export function StageBuilder() {
             )}
 
             {/* Cables + guides layer (non-interactive) */}
-            <svg className="pointer-events-none absolute inset-0 h-full w-full">
+            <svg className="pointer-events-none absolute inset-0 h-full w-full" style={{ overflow: "visible" }}>
+
               {cables.map((c) => {
                 const f = findPort(c.from, c.fromPort);
                 const t = findPort(c.to, c.toPort);
