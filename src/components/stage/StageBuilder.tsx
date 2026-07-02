@@ -588,8 +588,10 @@ export function StageBuilder() {
       const d = dragState.current;
       if (!d || d.pointerId !== e.pointerId) return;
       dragState.current = null;
+      lastSnapSig.current = "";
       setGuides([]);
     };
+
     window.addEventListener("pointermove", move);
     window.addEventListener("pointerup", up);
     window.addEventListener("pointercancel", up);
