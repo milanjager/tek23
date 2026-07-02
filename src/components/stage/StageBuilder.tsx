@@ -1087,7 +1087,7 @@ export function StageBuilder() {
               {selectedItem
                 ? `${SPECS[selectedItem.kind].label} · ${Math.round(selectedItem.x)},${Math.round(selectedItem.y)} · ${selectedItem.rot}°`
                 : cableMode
-                ? "Klikni na dva prvky pro propojení"
+                ? "Táhni z portu na kompatibilní port (audio/power/dmx)"
                 : "Podrž komponentu a přetáhni"}
             </span>
           </div>
