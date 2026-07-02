@@ -1058,6 +1058,8 @@ export function StageBuilder() {
               const spec = SPECS[it.kind];
               const cls = colorClass(spec.color);
               const isSel = selected === it.id;
+              const isDragging = dragState.current?.id === it.id;
+              const isSnapped = isDragging && guides.length > 0;
               return (
                 <div
                   key={it.id}
@@ -1075,6 +1077,15 @@ export function StageBuilder() {
                     isSel ? "z-20" : "z-10"
                   }`}
                 >
+                  {isSnapped && (
+                    <div
+                      className="pointer-events-none absolute -inset-1.5 rounded-md border-2 animate-pulse"
+                      style={{
+                        borderColor: "oklch(0.75 0.3 340)",
+                        boxShadow: "0 0 24px oklch(0.75 0.3 340 / 0.6), inset 0 0 12px oklch(0.75 0.3 340 / 0.4)",
+                      }}
+                    />
+                  )}
                   <div
                     className={`relative h-full w-full rounded-md border ${cls.border} ${cls.bg} backdrop-blur-sm transition ${
                       isSel ? "ring-2 " + cls.ring : ""
@@ -1090,6 +1101,7 @@ export function StageBuilder() {
                 </div>
               );
             })}
+
 
             {/* Ports overlay — interactive only in cable mode */}
             <svg
