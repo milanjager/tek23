@@ -71,6 +71,7 @@ interface Placed {
   x: number;
   y: number;
   rot: number;
+  label?: string;
 }
 
 interface CableLink {
