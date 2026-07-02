@@ -420,16 +420,26 @@ export function StageBuilder() {
   const [cables, setCables] = useState<CableLink[]>([]);
   const [selected, setSelected] = useState<string | null>(null);
   const [cableMode, setCableMode] = useState(false);
-  const [cableFrom, setCableFrom] = useState<string | null>(null);
   const [category, setCategory] = useState<Category>("sound");
   const [snap, setSnap] = useState(true);
   const [guides, setGuides] = useState<Guide[]>([]);
   const [ghost, setGhost] = useState<{ kind: ComponentKind; x: number; y: number } | null>(null);
   const [paletteOpen, setPaletteOpen] = useState(false);
+  const [pending, setPending] = useState<{
+    itemId: string;
+    portId: string;
+    type: PortType;
+    dir: PortDir;
+    x: number;
+    y: number;
+    hover: { itemId: string; portId: string } | null;
+  } | null>(null);
 
   const canvasRef = useRef<HTMLDivElement>(null);
   const dragState = useRef<{ id: string; dx: number; dy: number; pointerId: number } | null>(null);
   const paletteDragRef = useRef<{ kind: ComponentKind; pointerId: number } | null>(null);
+  const pendingPointer = useRef<number | null>(null);
+
 
   /* persistence */
   useEffect(() => {
