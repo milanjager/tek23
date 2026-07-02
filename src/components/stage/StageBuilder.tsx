@@ -571,7 +571,16 @@ export function StageBuilder() {
         ? snapAndGuide({ x: rawX, y: rawY, w: spec.w, h: spec.h }, others, true)
         : { x: rawX, y: rawY, guides: [] as Guide[] };
       setItems((prev) => prev.map((i) => (i.id === d.id ? { ...i, x: res.x, y: res.y } : i)));
+      // haptic feedback whenever the snap-guide signature changes
+      const sig = res.guides.map((g) => `${g.axis}:${g.pos}`).join("|");
+      if (sig !== lastSnapSig.current) {
+        lastSnapSig.current = sig;
+        if (sig && typeof navigator !== "undefined" && "vibrate" in navigator) {
+          try { (navigator as Navigator).vibrate?.(12); } catch {}
+        }
+      }
       setGuides(res.guides);
+
     };
     const up = (e: PointerEvent) => {
       const d = dragState.current;
