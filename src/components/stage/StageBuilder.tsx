@@ -1507,68 +1507,87 @@ export function StageBuilder() {
             })}
 
 
-            {/* Ports overlay — interactive only in cable mode */}
+            {/* Ports overlay — small markers always visible; interactive in cable mode */}
             <svg
               className="absolute inset-0 h-full w-full"
               style={{ pointerEvents: cableMode ? "auto" : "none" }}
             >
-              {cableMode &&
-                items.flatMap((it) =>
-                  SPECS[it.kind].ports.map((p) => {
-                    const pos = portPos(it, p);
-                    const col = PORT_COLOR[p.type];
-                    const isHover =
-                      pending?.hover?.itemId === it.id && pending?.hover?.portId === p.id;
-                    const isSource =
-                      pending?.itemId === it.id && pending?.portId === p.id;
-                    const compat =
-                      !pending ||
-                      isSource ||
-                      (p.type === pending.type && p.dir !== pending.dir && it.id !== pending.itemId);
-                    const r = isHover ? PORT_R * 1.7 : isSource ? PORT_R * 1.3 : PORT_R;
-                    const op = compat ? 1 : 0.2;
+              {items.flatMap((it) =>
+                SPECS[it.kind].ports.map((p) => {
+                  const pos = portPos(it, p);
+                  const col = PORT_COLOR[p.type];
+                  if (!cableMode) {
+                    // small always-visible marker so the user can see IN/OUT on every device
                     return (
-                      <g
-                        key={`${it.id}:${p.id}`}
-                        style={{ cursor: compat ? "crosshair" : "not-allowed" }}
-                        opacity={op}
-                        onPointerDown={compat ? onPortPointerDown(it.id, p) : undefined}
-                      >
-                        {(isHover || isSource) && (
-                          <circle
-                            cx={pos.x}
-                            cy={pos.y}
-                            r={r + 6}
-                            fill={col}
-                            opacity={0.25}
+                      <g key={`v:${it.id}:${p.id}`}>
+                        <circle cx={pos.x} cy={pos.y} r={4} fill="oklch(0.14 0.02 280)" stroke={col} strokeWidth={1.25} />
+                        <circle cx={pos.x} cy={pos.y} r={1.8} fill={col} />
+                        {p.dir === "in" ? (
+                          <circle cx={pos.x} cy={pos.y} r={6} fill="none" stroke={col} strokeWidth={0.7} opacity={0.6} />
+                        ) : (
+                          <path
+                            d={`M ${pos.x - 6} ${pos.y} L ${pos.x + 6} ${pos.y} M ${pos.x + 3} ${pos.y - 3} L ${pos.x + 6} ${pos.y} L ${pos.x + 3} ${pos.y + 3}`}
+                            stroke={col}
+                            strokeWidth={0.9}
+                            fill="none"
+                            opacity={0.75}
                           />
-                        )}
-                        <circle
-                          cx={pos.x}
-                          cy={pos.y}
-                          r={r + 2}
-                          fill="oklch(0.14 0.02 280)"
-                          stroke={col}
-                          strokeWidth={isHover || isSource ? 2 : 1.5}
-                        />
-                        <circle cx={pos.x} cy={pos.y} r={r - 2} fill={col} />
-                        {(isHover || isSource) && (
-                          <text
-                            x={pos.x}
-                            y={pos.y - r - 8}
-                            textAnchor="middle"
-                            fontSize="9"
-                            fontFamily="ui-monospace, monospace"
-                            fill={col}
-                            style={{ textTransform: "uppercase", letterSpacing: "0.1em" }}
-                          >
-                            {PORT_LABEL[p.type]} {p.dir}
-                          </text>
                         )}
                       </g>
                     );
-                  }),
-                )}
+                  }
+                  const isHover =
+                    pending?.hover?.itemId === it.id && pending?.hover?.portId === p.id;
+                  const isSource =
+                    pending?.itemId === it.id && pending?.portId === p.id;
+                  const compat =
+                    !pending ||
+                    isSource ||
+                    (p.type === pending.type && p.dir !== pending.dir && it.id !== pending.itemId);
+                  const r = isHover ? PORT_R * 1.7 : isSource ? PORT_R * 1.3 : PORT_R;
+                  const op = compat ? 1 : 0.2;
+                  return (
+                    <g
+                      key={`${it.id}:${p.id}`}
+                      style={{ cursor: compat ? "crosshair" : "not-allowed" }}
+                      opacity={op}
+                      onPointerDown={compat ? onPortPointerDown(it.id, p) : undefined}
+                    >
+                      {(isHover || isSource) && (
+                        <circle
+                          cx={pos.x}
+                          cy={pos.y}
+                          r={r + 6}
+                          fill={col}
+                          opacity={0.25}
+                        />
+                      )}
+                      <circle
+                        cx={pos.x}
+                        cy={pos.y}
+                        r={r + 2}
+                        fill="oklch(0.14 0.02 280)"
+                        stroke={col}
+                        strokeWidth={isHover || isSource ? 2 : 1.5}
+                      />
+                      <circle cx={pos.x} cy={pos.y} r={r - 2} fill={col} />
+                      {(isHover || isSource) && (
+                        <text
+                          x={pos.x}
+                          y={pos.y - r - 8}
+                          textAnchor="middle"
+                          fontSize="9"
+                          fontFamily="ui-monospace, monospace"
+                          fill={col}
+                          style={{ textTransform: "uppercase", letterSpacing: "0.1em" }}
+                        >
+                          {PORT_LABEL[p.type]} {p.dir}
+                        </text>
+                      )}
+                    </g>
+                  );
+                }),
+              )}
             </svg>
             </div>
           </div>
