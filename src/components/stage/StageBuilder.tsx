@@ -1038,6 +1038,16 @@ export function StageBuilder() {
 
         {/* Canvas */}
         <main className="relative flex-1 overflow-hidden">
+          {view !== "stage" && (
+            <BackstagePanel
+              view={view}
+              items={items}
+              cables={cables}
+              onClose={() => setView("stage")}
+              onSelect={(id) => { setSelected(id); setView("stage"); }}
+            />
+          )}
+
           <div
             ref={canvasRef}
             onClick={() => {
