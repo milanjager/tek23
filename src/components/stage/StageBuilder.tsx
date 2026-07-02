@@ -850,7 +850,7 @@ export function StageBuilder() {
       window.removeEventListener("pointercancel", up);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pending, items]);
+  }, [pending, items, zoom]);
 
 
 
