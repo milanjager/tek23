@@ -905,6 +905,34 @@ export function StageBuilder() {
         </div>
       </header>
 
+      {/* View tabs */}
+      <div className="flex items-center gap-1 border-b border-border bg-card/30 px-3 py-2">
+        {([
+          { id: "stage", label: "Stage", icon: Grid3x3 },
+          { id: "backstage", label: "Backstage", icon: Layers },
+          { id: "speakers", label: "Reproduktory", icon: Radio },
+        ] as const).map((v) => {
+          const Icon = v.icon;
+          const active = view === v.id;
+          return (
+            <button
+              key={v.id}
+              onClick={() => setView(v.id)}
+              className={`flex items-center gap-1.5 rounded-sm border px-3 py-1.5 font-mono text-[10px] uppercase tracking-widest transition ${
+                active
+                  ? "border-[color:var(--acid)] bg-[color:var(--acid)]/15 text-[color:var(--acid)] glow-acid"
+                  : "border-border text-muted-foreground hover:border-foreground/50 hover:text-foreground"
+              }`}
+            >
+              <Icon className="h-3.5 w-3.5" />
+              {v.label}
+            </button>
+          );
+        })}
+      </div>
+
+
+
       <div className="relative flex flex-1 overflow-hidden">
         {/* Mobile palette toggle */}
         <button
