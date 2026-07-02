@@ -35,6 +35,16 @@ type ComponentKind =
 
 type Category = "sound" | "lights" | "infra";
 type ColorKey = "acid" | "magenta" | "cyan" | "amber";
+type PortType = "audio" | "power" | "dmx";
+type PortDir = "in" | "out";
+
+interface Port {
+  id: string;
+  type: PortType;
+  dir: PortDir;
+  ox: number; // offset from item left
+  oy: number; // offset from item top
+}
 
 interface Spec {
   kind: ComponentKind;
@@ -44,6 +54,7 @@ interface Spec {
   h: number;
   color: ColorKey;
   hint: string;
+  ports: Port[];
 }
 
 interface Placed {
@@ -58,25 +69,99 @@ interface CableLink {
   id: string;
   from: string;
   to: string;
+  fromPort: string;
+  toPort: string;
+  type: PortType;
 }
+
+/* ---------- Port helpers ---------- */
+
+const PORT_COLOR: Record<PortType, string> = {
+  audio: "oklch(0.86 0.24 135)",
+  power: "oklch(0.82 0.18 75)",
+  dmx: "oklch(0.7 0.28 340)",
+};
+
+const PORT_LABEL: Record<PortType, string> = {
+  audio: "AUDIO",
+  power: "PWR",
+  dmx: "DMX",
+};
+
+// helpers to build ports on box edges
+const pLeft = (w: number, h: number, id: string, type: PortType, dir: PortDir, ratio = 0.5): Port => ({
+  id, type, dir, ox: 0, oy: h * ratio,
+});
+const pRight = (w: number, h: number, id: string, type: PortType, dir: PortDir, ratio = 0.5): Port => ({
+  id, type, dir, ox: w, oy: h * ratio,
+});
+const pTop = (w: number, h: number, id: string, type: PortType, dir: PortDir, ratio = 0.5): Port => ({
+  id, type, dir, ox: w * ratio, oy: 0,
+});
+const pBottom = (w: number, h: number, id: string, type: PortType, dir: PortDir, ratio = 0.5): Port => ({
+  id, type, dir, ox: w * ratio, oy: h,
+});
 
 /* ---------- Catalog ---------- */
 
-const SPECS: Record<ComponentKind, Spec> = {
-  horn: { kind: "horn", label: "Horn", category: "sound", w: 96, h: 72, color: "acid", hint: "Výškový horn" },
-  mid: { kind: "mid", label: "Mid", category: "sound", w: 96, h: 96, color: "acid", hint: "Střední pásmo" },
-  bass: { kind: "bass", label: "Bass bin", category: "sound", w: 120, h: 96, color: "acid", hint: "Basová bedna" },
-  sub: { kind: "sub", label: "Sub 2×18", category: "sound", w: 168, h: 120, color: "acid", hint: "Sub-bass" },
-  amp: { kind: "amp", label: "Amp rack", category: "infra", w: 96, h: 72, color: "amber", hint: "Zesilovače" },
-  mixer: { kind: "mixer", label: "Mixer FOH", category: "infra", w: 120, h: 72, color: "amber", hint: "Mixážní pult" },
-  dj: { kind: "dj", label: "DJ booth", category: "infra", w: 144, h: 96, color: "amber", hint: "DJ pult" },
-  strobe: { kind: "strobe", label: "Strobo", category: "lights", w: 72, h: 72, color: "cyan", hint: "Stroboskop" },
-  laser: { kind: "laser", label: "Laser", category: "lights", w: 72, h: 72, color: "magenta", hint: "Laser" },
-  movinghead: { kind: "movinghead", label: "Moving head", category: "lights", w: 72, h: 72, color: "magenta", hint: "Otočná hlava" },
-  bar: { kind: "bar", label: "Bar", category: "infra", w: 216, h: 72, color: "amber", hint: "Bar" },
-  generator: { kind: "generator", label: "Aggregát", category: "infra", w: 120, h: 96, color: "amber", hint: "Diesel" },
-  crowd: { kind: "crowd", label: "Dancefloor", category: "infra", w: 240, h: 168, color: "magenta", hint: "Prostor pro dav" },
-};
+const SPECS: Record<ComponentKind, Spec> = (() => {
+  const mk = (
+    kind: ComponentKind, label: string, category: Category, w: number, h: number, color: ColorKey, hint: string, ports: Port[],
+  ): Spec => ({ kind, label, category, w, h, color, hint, ports });
+
+  return {
+    horn: mk("horn", "Horn", "sound", 96, 72, "acid", "Výškový horn", [
+      pBottom(96, 72, "in", "audio", "in"),
+    ]),
+    mid: mk("mid", "Mid", "sound", 96, 96, "acid", "Střední pásmo", [
+      pBottom(96, 96, "in", "audio", "in"),
+    ]),
+    bass: mk("bass", "Bass bin", "sound", 120, 96, "acid", "Basová bedna", [
+      pTop(120, 96, "in", "audio", "in"),
+    ]),
+    sub: mk("sub", "Sub 2×18", "sound", 168, 120, "acid", "Sub-bass", [
+      pTop(168, 120, "in", "audio", "in"),
+    ]),
+    amp: mk("amp", "Amp rack", "infra", 96, 72, "amber", "Zesilovače", [
+      pLeft(96, 72, "pwr", "power", "in", 0.5),
+      pLeft(96, 72, "audio_in", "audio", "in", 0.85),
+      pRight(96, 72, "out_a", "audio", "out", 0.3),
+      pRight(96, 72, "out_b", "audio", "out", 0.7),
+    ]),
+    mixer: mk("mixer", "Mixer FOH", "infra", 120, 72, "amber", "Mixážní pult", [
+      pLeft(120, 72, "pwr", "power", "in"),
+      pRight(120, 72, "audio_out", "audio", "out", 0.35),
+      pRight(120, 72, "dmx_out", "dmx", "out", 0.75),
+    ]),
+    dj: mk("dj", "DJ booth", "infra", 144, 96, "amber", "DJ pult", [
+      pLeft(144, 96, "pwr", "power", "in"),
+      pRight(144, 96, "audio_out", "audio", "out", 0.35),
+      pRight(144, 96, "dmx_out", "dmx", "out", 0.75),
+    ]),
+    strobe: mk("strobe", "Strobo", "lights", 72, 72, "cyan", "Stroboskop", [
+      pLeft(72, 72, "pwr", "power", "in", 0.3),
+      pLeft(72, 72, "dmx", "dmx", "in", 0.75),
+    ]),
+    laser: mk("laser", "Laser", "lights", 72, 72, "magenta", "Laser", [
+      pLeft(72, 72, "pwr", "power", "in", 0.3),
+      pLeft(72, 72, "dmx", "dmx", "in", 0.75),
+    ]),
+    movinghead: mk("movinghead", "Moving head", "lights", 72, 72, "magenta", "Otočná hlava", [
+      pLeft(72, 72, "pwr", "power", "in", 0.3),
+      pLeft(72, 72, "dmx", "dmx", "in", 0.75),
+    ]),
+    bar: mk("bar", "Bar", "infra", 216, 72, "amber", "Bar", [
+      pLeft(216, 72, "pwr", "power", "in"),
+    ]),
+    generator: mk("generator", "Aggregát", "infra", 120, 96, "amber", "Diesel", [
+      pRight(120, 96, "out1", "power", "out", 0.25),
+      pRight(120, 96, "out2", "power", "out", 0.55),
+      pRight(120, 96, "out3", "power", "out", 0.85),
+    ]),
+    crowd: mk("crowd", "Dancefloor", "infra", 240, 168, "magenta", "Prostor pro dav", []),
+  };
+})();
+
 
 const CATEGORIES: { id: Category; label: string }[] = [
   { id: "sound", label: "Sound" },
