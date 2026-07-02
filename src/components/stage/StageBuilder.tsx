@@ -863,6 +863,108 @@ export function StageBuilder() {
   }, [pending, items, zoom, pan]);
 
 
+  /* Wheel zoom (map-like, focal point at cursor) */
+  useEffect(() => {
+    const el = canvasRef.current;
+    if (!el) return;
+    const onWheel = (e: WheelEvent) => {
+      e.preventDefault();
+      const rect = el.getBoundingClientRect();
+      const sx = e.clientX - rect.left - rect.width / 2;
+      const sy = e.clientY - rect.top - rect.height / 2;
+      const factor = Math.exp(-e.deltaY * 0.0015);
+      const newZoom = Math.max(0.3, Math.min(2, +(zoom * factor).toFixed(3)));
+      const Lcx = (sx - pan.x) / zoom;
+      const Lcy = (sy - pan.y) / zoom;
+      setZoom(newZoom);
+      setPan({ x: sx - Lcx * newZoom, y: sy - Lcy * newZoom });
+    };
+    el.addEventListener("wheel", onWheel, { passive: false });
+    return () => el.removeEventListener("wheel", onWheel);
+  }, [zoom, pan]);
+
+  /* Two-finger pinch-zoom + pan (like maps) */
+  const onCanvasPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (e.target !== e.currentTarget) return;
+    canvasPointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (canvasPointers.current.size === 2 && canvasRef.current) {
+      const rect = canvasRef.current.getBoundingClientRect();
+      const pts = Array.from(canvasPointers.current.values());
+      const dx = pts[1].x - pts[0].x;
+      const dy = pts[1].y - pts[0].y;
+      pinchRef.current = {
+        dist: Math.hypot(dx, dy) || 1,
+        midScreen: {
+          x: (pts[0].x + pts[1].x) / 2 - rect.left - rect.width / 2,
+          y: (pts[0].y + pts[1].y) / 2 - rect.top - rect.height / 2,
+        },
+        startZoom: zoom,
+        startPan: { ...pan },
+      };
+      gestureActive.current = true;
+    }
+    try { (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId); } catch {}
+  };
+
+  useEffect(() => {
+    const move = (e: PointerEvent) => {
+      if (!canvasPointers.current.has(e.pointerId)) return;
+      canvasPointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      if (canvasPointers.current.size >= 2 && pinchRef.current && canvasRef.current) {
+        const rect = canvasRef.current.getBoundingClientRect();
+        const pts = Array.from(canvasPointers.current.values()).slice(0, 2);
+        const dx = pts[1].x - pts[0].x;
+        const dy = pts[1].y - pts[0].y;
+        const newDist = Math.hypot(dx, dy) || 1;
+        const newMid = {
+          x: (pts[0].x + pts[1].x) / 2 - rect.left - rect.width / 2,
+          y: (pts[0].y + pts[1].y) / 2 - rect.top - rect.height / 2,
+        };
+        const scale = newDist / pinchRef.current.dist;
+        const newZoom = Math.max(0.3, Math.min(2, pinchRef.current.startZoom * scale));
+        // Logical point under the initial midpoint stays under the current midpoint.
+        const Lcx = (pinchRef.current.midScreen.x - pinchRef.current.startPan.x) / pinchRef.current.startZoom;
+        const Lcy = (pinchRef.current.midScreen.y - pinchRef.current.startPan.y) / pinchRef.current.startZoom;
+        setZoom(newZoom);
+        setPan({ x: newMid.x - Lcx * newZoom, y: newMid.y - Lcy * newZoom });
+      }
+    };
+    const up = (e: PointerEvent) => {
+      if (!canvasPointers.current.has(e.pointerId)) return;
+      canvasPointers.current.delete(e.pointerId);
+      if (canvasPointers.current.size < 2) {
+        pinchRef.current = null;
+        setTimeout(() => { gestureActive.current = false; }, 50);
+      }
+    };
+    window.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", up);
+    window.addEventListener("pointercancel", up);
+    return () => {
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", up);
+      window.removeEventListener("pointercancel", up);
+    };
+  }, []);
+
+  /* Animated focus on an item — center + zoom-in */
+  const focusItem = useCallback((id: string, targetZoom = 1.5) => {
+    const it = items.find((i) => i.id === id);
+    if (!it || !canvasRef.current) return;
+    const rect = canvasRef.current.getBoundingClientRect();
+    const spec = SPECS[it.kind];
+    const cx = it.x + spec.w / 2;
+    const cy = it.y + spec.h / 2;
+    const z = Math.max(0.5, Math.min(2, targetZoom));
+    setZoom(z);
+    setPan({
+      x: -(cx - rect.width / 2) * z,
+      y: -(cy - rect.height / 2) * z,
+    });
+    setFocusPulse(id);
+    setTimeout(() => setFocusPulse((p) => (p === id ? null : p)), 1400);
+  }, [items]);
+
 
   return (
     <div className="flex h-screen w-screen flex-col overflow-hidden bg-background text-foreground">
