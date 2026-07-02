@@ -1816,7 +1816,9 @@ function BackstagePanel({
                             key={c.id}
                             onMouseEnter={() => onHighlightCables([c.id])}
                             onMouseLeave={() => onHighlightCables(detailCables.map((cc) => cc.id))}
-                            className="flex items-center gap-2 rounded-sm border border-border/60 bg-background/50 px-2 py-1.5 font-mono text-[10px]"
+                            onClick={() => onFocusCable(c.id, otherId)}
+                            title="Klikni pro přiblížení a zvýraznění trasy"
+                            className="flex cursor-pointer items-center gap-2 rounded-sm border border-border/60 bg-background/50 px-2 py-1.5 font-mono text-[10px] transition hover:border-[color:var(--acid)]/60 hover:bg-background/80"
                           >
                             <span
                               className="inline-block h-2 w-2 rounded-full"
@@ -1836,6 +1838,9 @@ function BackstagePanel({
                             </span>
                             <span className="text-muted-foreground">
                               · {portLabel(otherId, otherPort)}
+                            </span>
+                            <span className="ml-auto rounded-sm border border-[color:var(--acid)]/40 px-1.5 py-0.5 text-[8px] uppercase tracking-widest text-[color:var(--acid)]">
+                              zoom
                             </span>
                           </li>
                         );
