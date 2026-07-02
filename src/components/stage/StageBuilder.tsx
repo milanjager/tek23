@@ -1449,6 +1449,11 @@ export function StageBuilder() {
               const isSel = selected === it.id;
               const isDragging = dragState.current?.id === it.id;
               const isSnapped = isDragging && guides.length > 0 && showHalo;
+              const isFocus = focusPulse === it.id;
+              const shadow =
+                tilt > 0
+                  ? `drop-shadow(0 ${Math.max(2, tilt * 0.35)}px ${Math.max(4, tilt * 0.6)}px rgba(0,0,0,0.55))`
+                  : undefined;
               return (
                 <div
                   key={it.id}
@@ -1461,6 +1466,7 @@ export function StageBuilder() {
                     height: spec.h,
                     transform: `rotate(${it.rot}deg)`,
                     touchAction: "none",
+                    filter: shadow,
                   }}
                   className={`absolute select-none ${cableMode ? "cursor-default" : "cursor-move"} ${
                     isSel ? "z-20" : "z-10"
@@ -1472,6 +1478,15 @@ export function StageBuilder() {
                       style={{
                         borderColor: "oklch(0.75 0.3 340)",
                         boxShadow: "0 0 24px oklch(0.75 0.3 340 / 0.6), inset 0 0 12px oklch(0.75 0.3 340 / 0.4)",
+                      }}
+                    />
+                  )}
+                  {isFocus && (
+                    <div
+                      className="pointer-events-none absolute -inset-3 rounded-lg border-2 animate-ping"
+                      style={{
+                        borderColor: "var(--acid)",
+                        boxShadow: "0 0 40px oklch(0.86 0.24 135 / 0.7)",
                       }}
                     />
                   )}
