@@ -146,6 +146,21 @@ const SPECS: Record<ComponentKind, Spec> = (() => {
       pRight(144, 96, "audio_out", "audio", "out", 0.35),
       pRight(144, 96, "dmx_out", "dmx", "out", 0.75),
     ]),
+    korg: mk("korg", "Korg live", "infra", 120, 72, "cyan", "Korg groovebox pro live sety", [
+      pLeft(120, 72, "pwr", "power", "in", 0.3),
+      pLeft(120, 72, "midi_in", "dmx", "in", 0.75),
+      pRight(120, 72, "audio_out_l", "audio", "out", 0.35),
+      pRight(120, 72, "audio_out_r", "audio", "out", 0.7),
+    ]),
+    turntable: mk("turntable", "Gramofon", "infra", 96, 96, "amber", "Vinyl deck", [
+      pLeft(96, 96, "pwr", "power", "in", 0.3),
+      pRight(96, 96, "audio_out", "audio", "out", 0.55),
+    ]),
+    custom: mk("custom", "Vlastní", "infra", 96, 72, "cyan", "Vlastní zařízení uživatele", [
+      pLeft(96, 72, "pwr", "power", "in", 0.3),
+      pLeft(96, 72, "in", "audio", "in", 0.75),
+      pRight(96, 72, "out", "audio", "out", 0.5),
+    ]),
     strobe: mk("strobe", "Strobo", "lights", 72, 72, "cyan", "Stroboskop", [
       pLeft(72, 72, "pwr", "power", "in", 0.3),
       pLeft(72, 72, "dmx", "dmx", "in", 0.75),
