@@ -916,7 +916,7 @@ export function StageBuilder() {
       </header>
 
       {/* View tabs */}
-      <div className="flex items-center gap-1 border-b border-border bg-card/30 px-3 py-2">
+      <div className="flex flex-wrap items-center gap-1 border-b border-border bg-card/30 px-3 py-2">
         {([
           { id: "stage", label: "Stage", icon: Grid3x3 },
           { id: "backstage", label: "Backstage", icon: Layers },
@@ -939,7 +939,49 @@ export function StageBuilder() {
             </button>
           );
         })}
+
+        {view === "stage" && (
+          <div className="ml-auto flex flex-wrap items-center gap-2">
+            {/* Zoom */}
+            <div className="flex items-center gap-1 rounded-sm border border-border bg-background/40 px-2 py-1">
+              <button
+                onClick={() => setZoom((z) => Math.max(0.3, +(z - 0.1).toFixed(2)))}
+                className="font-mono text-[11px] text-muted-foreground hover:text-foreground"
+                aria-label="Oddálit"
+              >−</button>
+              <span className="w-10 text-center font-mono text-[10px] uppercase tracking-widest text-[color:var(--acid)]">
+                {Math.round(zoom * 100)}%
+              </span>
+              <button
+                onClick={() => setZoom((z) => Math.min(2, +(z + 0.1).toFixed(2)))}
+                className="font-mono text-[11px] text-muted-foreground hover:text-foreground"
+                aria-label="Přiblížit"
+              >+</button>
+              <button
+                onClick={() => { setZoom(1); setTilt(0); }}
+                className="ml-1 font-mono text-[9px] uppercase tracking-widest text-muted-foreground hover:text-foreground"
+                aria-label="Reset zoom"
+              >Fit</button>
+            </div>
+            {/* Tilt (3D) */}
+            <div className="flex items-center gap-1 rounded-sm border border-border bg-background/40 px-2 py-1">
+              <span className="font-mono text-[9px] uppercase tracking-widest text-muted-foreground">3D</span>
+              <input
+                type="range"
+                min={0}
+                max={55}
+                step={1}
+                value={tilt}
+                onChange={(e) => setTilt(Number(e.target.value))}
+                className="h-1 w-20 accent-[color:var(--acid)]"
+                aria-label="Náklon pohledu"
+              />
+              <span className="w-8 text-center font-mono text-[10px] text-[color:var(--acid)]">{tilt}°</span>
+            </div>
+          </div>
+        )}
       </div>
+
 
 
 
