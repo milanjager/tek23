@@ -525,7 +525,9 @@ export function StageBuilder() {
   const [view, setView] = useState<"stage" | "backstage" | "speakers">("stage");
   const [zoom, setZoom] = useState(1);
   const [tilt, setTilt] = useState(0); // 0 = top-down, up to ~55deg = 3D perspective
+  const [pan, setPan] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
   const [highlightCables, setHighlightCables] = useState<Set<string>>(new Set());
+  const [focusPulse, setFocusPulse] = useState<string | null>(null);
 
   const [ghost, setGhost] = useState<{ kind: ComponentKind; x: number; y: number } | null>(null);
   const [paletteOpen, setPaletteOpen] = useState(false);
@@ -544,6 +546,14 @@ export function StageBuilder() {
   const paletteDragRef = useRef<{ kind: ComponentKind; pointerId: number } | null>(null);
   const pendingPointer = useRef<number | null>(null);
   const lastSnapSig = useRef<string>("");
+  const canvasPointers = useRef<Map<number, { x: number; y: number }>>(new Map());
+  const pinchRef = useRef<{
+    dist: number;
+    midScreen: { x: number; y: number };
+    startZoom: number;
+    startPan: { x: number; y: number };
+  } | null>(null);
+  const gestureActive = useRef(false);
 
 
 
@@ -586,8 +596,8 @@ export function StageBuilder() {
       const rect = canvasRef.current?.getBoundingClientRect();
       if (rect && e.clientX >= rect.left && e.clientX <= rect.right && e.clientY >= rect.top && e.clientY <= rect.bottom) {
         const spec = SPECS[pd.kind];
-        const lx = (e.clientX - rect.left - rect.width / 2) / zoom + rect.width / 2;
-        const ly = (e.clientY - rect.top - rect.height / 2) / zoom + rect.height / 2;
+        const lx = (e.clientX - rect.left - rect.width / 2 - pan.x) / zoom + rect.width / 2;
+        const ly = (e.clientY - rect.top - rect.height / 2 - pan.y) / zoom + rect.height / 2;
         let x = lx - spec.w / 2;
         let y = ly - spec.h / 2;
         if (snap) {
@@ -609,7 +619,7 @@ export function StageBuilder() {
       window.removeEventListener("pointerup", up);
       window.removeEventListener("pointercancel", up);
     };
-  }, [snap, zoom]);
+  }, [snap, zoom, pan]);
 
   /* tap-to-place fallback for mobile: single tap on palette item, then tap on canvas */
   const onPaletteItemClick = (k: ComponentKind) => () => {
@@ -638,8 +648,8 @@ export function StageBuilder() {
     const item = items.find((i) => i.id === id);
     if (!item || !canvasRef.current) return;
     const rect = canvasRef.current.getBoundingClientRect();
-    const lx = (e.clientX - rect.left - rect.width / 2) / zoom + rect.width / 2;
-    const ly = (e.clientY - rect.top - rect.height / 2) / zoom + rect.height / 2;
+    const lx = (e.clientX - rect.left - rect.width / 2 - pan.x) / zoom + rect.width / 2;
+    const ly = (e.clientY - rect.top - rect.height / 2 - pan.y) / zoom + rect.height / 2;
     dragState.current = {
       id,
       dx: lx - item.x,
@@ -654,8 +664,8 @@ export function StageBuilder() {
       const d = dragState.current;
       if (!d || d.pointerId !== e.pointerId || !canvasRef.current) return;
       const rect = canvasRef.current.getBoundingClientRect();
-      const lx = (e.clientX - rect.left - rect.width / 2) / zoom + rect.width / 2;
-      const ly = (e.clientY - rect.top - rect.height / 2) / zoom + rect.height / 2;
+      const lx = (e.clientX - rect.left - rect.width / 2 - pan.x) / zoom + rect.width / 2;
+      const ly = (e.clientY - rect.top - rect.height / 2 - pan.y) / zoom + rect.height / 2;
       const rawX = lx - d.dx;
       const rawY = ly - d.dy;
       const dragged = items.find((i) => i.id === d.id);
@@ -695,7 +705,7 @@ export function StageBuilder() {
       window.removeEventListener("pointerup", up);
       window.removeEventListener("pointercancel", up);
     };
-  }, [items, snap, zoom]);
+  }, [items, snap, zoom, pan]);
 
   /* keyboard */
   useEffect(() => {
@@ -799,8 +809,8 @@ export function StageBuilder() {
     const move = (e: PointerEvent) => {
       if (pendingPointer.current !== e.pointerId || !canvasRef.current) return;
       const rect = canvasRef.current.getBoundingClientRect();
-      const x = (e.clientX - rect.left - rect.width / 2) / zoom + rect.width / 2;
-      const y = (e.clientY - rect.top - rect.height / 2) / zoom + rect.height / 2;
+      const x = (e.clientX - rect.left - rect.width / 2 - pan.x) / zoom + rect.width / 2;
+      const y = (e.clientY - rect.top - rect.height / 2 - pan.y) / zoom + rect.height / 2;
 
       // find nearest compatible port
       let hover: { itemId: string; portId: string } | null = null;
@@ -850,8 +860,110 @@ export function StageBuilder() {
       window.removeEventListener("pointercancel", up);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pending, items, zoom]);
+  }, [pending, items, zoom, pan]);
 
+
+  /* Wheel zoom (map-like, focal point at cursor) */
+  useEffect(() => {
+    const el = canvasRef.current;
+    if (!el) return;
+    const onWheel = (e: WheelEvent) => {
+      e.preventDefault();
+      const rect = el.getBoundingClientRect();
+      const sx = e.clientX - rect.left - rect.width / 2;
+      const sy = e.clientY - rect.top - rect.height / 2;
+      const factor = Math.exp(-e.deltaY * 0.0015);
+      const newZoom = Math.max(0.3, Math.min(2, +(zoom * factor).toFixed(3)));
+      const Lcx = (sx - pan.x) / zoom;
+      const Lcy = (sy - pan.y) / zoom;
+      setZoom(newZoom);
+      setPan({ x: sx - Lcx * newZoom, y: sy - Lcy * newZoom });
+    };
+    el.addEventListener("wheel", onWheel, { passive: false });
+    return () => el.removeEventListener("wheel", onWheel);
+  }, [zoom, pan]);
+
+  /* Two-finger pinch-zoom + pan (like maps) */
+  const onCanvasPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (e.target !== e.currentTarget) return;
+    canvasPointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (canvasPointers.current.size === 2 && canvasRef.current) {
+      const rect = canvasRef.current.getBoundingClientRect();
+      const pts = Array.from(canvasPointers.current.values());
+      const dx = pts[1].x - pts[0].x;
+      const dy = pts[1].y - pts[0].y;
+      pinchRef.current = {
+        dist: Math.hypot(dx, dy) || 1,
+        midScreen: {
+          x: (pts[0].x + pts[1].x) / 2 - rect.left - rect.width / 2,
+          y: (pts[0].y + pts[1].y) / 2 - rect.top - rect.height / 2,
+        },
+        startZoom: zoom,
+        startPan: { ...pan },
+      };
+      gestureActive.current = true;
+    }
+    try { (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId); } catch {}
+  };
+
+  useEffect(() => {
+    const move = (e: PointerEvent) => {
+      if (!canvasPointers.current.has(e.pointerId)) return;
+      canvasPointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      if (canvasPointers.current.size >= 2 && pinchRef.current && canvasRef.current) {
+        const rect = canvasRef.current.getBoundingClientRect();
+        const pts = Array.from(canvasPointers.current.values()).slice(0, 2);
+        const dx = pts[1].x - pts[0].x;
+        const dy = pts[1].y - pts[0].y;
+        const newDist = Math.hypot(dx, dy) || 1;
+        const newMid = {
+          x: (pts[0].x + pts[1].x) / 2 - rect.left - rect.width / 2,
+          y: (pts[0].y + pts[1].y) / 2 - rect.top - rect.height / 2,
+        };
+        const scale = newDist / pinchRef.current.dist;
+        const newZoom = Math.max(0.3, Math.min(2, pinchRef.current.startZoom * scale));
+        // Logical point under the initial midpoint stays under the current midpoint.
+        const Lcx = (pinchRef.current.midScreen.x - pinchRef.current.startPan.x) / pinchRef.current.startZoom;
+        const Lcy = (pinchRef.current.midScreen.y - pinchRef.current.startPan.y) / pinchRef.current.startZoom;
+        setZoom(newZoom);
+        setPan({ x: newMid.x - Lcx * newZoom, y: newMid.y - Lcy * newZoom });
+      }
+    };
+    const up = (e: PointerEvent) => {
+      if (!canvasPointers.current.has(e.pointerId)) return;
+      canvasPointers.current.delete(e.pointerId);
+      if (canvasPointers.current.size < 2) {
+        pinchRef.current = null;
+        setTimeout(() => { gestureActive.current = false; }, 50);
+      }
+    };
+    window.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", up);
+    window.addEventListener("pointercancel", up);
+    return () => {
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", up);
+      window.removeEventListener("pointercancel", up);
+    };
+  }, []);
+
+  /* Animated focus on an item — center + zoom-in */
+  const focusItem = useCallback((id: string, targetZoom = 1.5) => {
+    const it = items.find((i) => i.id === id);
+    if (!it || !canvasRef.current) return;
+    const rect = canvasRef.current.getBoundingClientRect();
+    const spec = SPECS[it.kind];
+    const cx = it.x + spec.w / 2;
+    const cy = it.y + spec.h / 2;
+    const z = Math.max(0.5, Math.min(2, targetZoom));
+    setZoom(z);
+    setPan({
+      x: -(cx - rect.width / 2) * z,
+      y: -(cy - rect.height / 2) * z,
+    });
+    setFocusPulse(id);
+    setTimeout(() => setFocusPulse((p) => (p === id ? null : p)), 1400);
+  }, [items]);
 
 
   return (
@@ -958,7 +1070,7 @@ export function StageBuilder() {
                 aria-label="Přiblížit"
               >+</button>
               <button
-                onClick={() => { setZoom(1); setTilt(0); }}
+                onClick={() => { setZoom(1); setTilt(0); setPan({ x: 0, y: 0 }); }}
                 className="ml-1 font-mono text-[9px] uppercase tracking-widest text-muted-foreground hover:text-foreground"
                 aria-label="Reset zoom"
               >Fit</button>
@@ -1104,19 +1216,29 @@ export function StageBuilder() {
                 );
                 setHighlightCables(ids);
                 setView("stage");
+                // wait for view to mount, then animate focus
+                requestAnimationFrame(() => requestAnimationFrame(() => focusItem(id, 1.4)));
               }}
               onHighlightCables={(ids) => setHighlightCables(new Set(ids))}
+              onFocusCable={(cableId, targetId) => {
+                setHighlightCables(new Set([cableId]));
+                setSelected(targetId);
+                setView("stage");
+                requestAnimationFrame(() => requestAnimationFrame(() => focusItem(targetId, 1.6)));
+              }}
             />
           )}
 
 
           <div
             ref={canvasRef}
+            onPointerDown={onCanvasPointerDown}
             onClick={() => {
+              if (gestureActive.current) return;
               setSelected(null);
               setHighlightCables(new Set());
             }}
-            style={{ touchAction: "none", perspective: "1400px" }}
+            style={{ touchAction: "none", perspective: `${1400 - tilt * 8}px`, perspectiveOrigin: "50% 65%" }}
             className="bg-grid relative h-full w-full"
           >
             {/* Stage markers */}
@@ -1165,16 +1287,37 @@ export function StageBuilder() {
               </div>
             </div>
 
-            {/* 3D / zoom transform layer — contains all interactive world content */}
+            {/* 3D / zoom / pan transform layer — contains all interactive world content */}
             <div
               className="absolute inset-0"
               style={{
-                transform: `scale(${zoom}) rotateX(${tilt}deg)`,
+                transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom}) rotateX(${tilt}deg)`,
                 transformOrigin: "50% 50%",
                 transformStyle: "preserve-3d",
-                transition: dragState.current ? "none" : "transform 220ms ease",
+                transition: dragState.current || pinchRef.current ? "none" : "transform 420ms cubic-bezier(0.22, 1, 0.36, 1)",
+                willChange: "transform",
               }}
             >
+              {/* Ground / horizon fog — visible in 3D tilt */}
+              {tilt > 0 && (
+                <>
+                  <div
+                    className="pointer-events-none absolute inset-0"
+                    style={{
+                      background:
+                        "linear-gradient(to top, oklch(0.86 0.24 135 / 0.06) 0%, transparent 30%, oklch(0.14 0.02 280 / 0.9) 100%)",
+                    }}
+                  />
+                  <div
+                    className="pointer-events-none absolute inset-x-0 top-0 h-px"
+                    style={{
+                      background: "linear-gradient(to right, transparent, oklch(0.86 0.24 135 / 0.6), transparent)",
+                      boxShadow: "0 0 24px oklch(0.86 0.24 135 / 0.4)",
+                    }}
+                  />
+                </>
+              )}
+
             {items.length === 0 && (
               <div className="pointer-events-none absolute inset-0 flex items-center justify-center px-6">
                 <div className="max-w-sm rounded-lg border border-dashed border-border bg-card/40 px-6 py-5 text-center backdrop-blur">
@@ -1314,6 +1457,11 @@ export function StageBuilder() {
               const isSel = selected === it.id;
               const isDragging = dragState.current?.id === it.id;
               const isSnapped = isDragging && guides.length > 0 && showHalo;
+              const isFocus = focusPulse === it.id;
+              const shadow =
+                tilt > 0
+                  ? `drop-shadow(0 ${Math.max(2, tilt * 0.35)}px ${Math.max(4, tilt * 0.6)}px rgba(0,0,0,0.55))`
+                  : undefined;
               return (
                 <div
                   key={it.id}
@@ -1326,6 +1474,7 @@ export function StageBuilder() {
                     height: spec.h,
                     transform: `rotate(${it.rot}deg)`,
                     touchAction: "none",
+                    filter: shadow,
                   }}
                   className={`absolute select-none ${cableMode ? "cursor-default" : "cursor-move"} ${
                     isSel ? "z-20" : "z-10"
@@ -1337,6 +1486,15 @@ export function StageBuilder() {
                       style={{
                         borderColor: "oklch(0.75 0.3 340)",
                         boxShadow: "0 0 24px oklch(0.75 0.3 340 / 0.6), inset 0 0 12px oklch(0.75 0.3 340 / 0.4)",
+                      }}
+                    />
+                  )}
+                  {isFocus && (
+                    <div
+                      className="pointer-events-none absolute -inset-3 rounded-lg border-2 animate-ping"
+                      style={{
+                        borderColor: "var(--acid)",
+                        boxShadow: "0 0 40px oklch(0.86 0.24 135 / 0.7)",
                       }}
                     />
                   )}
@@ -1357,68 +1515,87 @@ export function StageBuilder() {
             })}
 
 
-            {/* Ports overlay — interactive only in cable mode */}
+            {/* Ports overlay — small markers always visible; interactive in cable mode */}
             <svg
               className="absolute inset-0 h-full w-full"
               style={{ pointerEvents: cableMode ? "auto" : "none" }}
             >
-              {cableMode &&
-                items.flatMap((it) =>
-                  SPECS[it.kind].ports.map((p) => {
-                    const pos = portPos(it, p);
-                    const col = PORT_COLOR[p.type];
-                    const isHover =
-                      pending?.hover?.itemId === it.id && pending?.hover?.portId === p.id;
-                    const isSource =
-                      pending?.itemId === it.id && pending?.portId === p.id;
-                    const compat =
-                      !pending ||
-                      isSource ||
-                      (p.type === pending.type && p.dir !== pending.dir && it.id !== pending.itemId);
-                    const r = isHover ? PORT_R * 1.7 : isSource ? PORT_R * 1.3 : PORT_R;
-                    const op = compat ? 1 : 0.2;
+              {items.flatMap((it) =>
+                SPECS[it.kind].ports.map((p) => {
+                  const pos = portPos(it, p);
+                  const col = PORT_COLOR[p.type];
+                  if (!cableMode) {
+                    // small always-visible marker so the user can see IN/OUT on every device
                     return (
-                      <g
-                        key={`${it.id}:${p.id}`}
-                        style={{ cursor: compat ? "crosshair" : "not-allowed" }}
-                        opacity={op}
-                        onPointerDown={compat ? onPortPointerDown(it.id, p) : undefined}
-                      >
-                        {(isHover || isSource) && (
-                          <circle
-                            cx={pos.x}
-                            cy={pos.y}
-                            r={r + 6}
-                            fill={col}
-                            opacity={0.25}
+                      <g key={`v:${it.id}:${p.id}`}>
+                        <circle cx={pos.x} cy={pos.y} r={4} fill="oklch(0.14 0.02 280)" stroke={col} strokeWidth={1.25} />
+                        <circle cx={pos.x} cy={pos.y} r={1.8} fill={col} />
+                        {p.dir === "in" ? (
+                          <circle cx={pos.x} cy={pos.y} r={6} fill="none" stroke={col} strokeWidth={0.7} opacity={0.6} />
+                        ) : (
+                          <path
+                            d={`M ${pos.x - 6} ${pos.y} L ${pos.x + 6} ${pos.y} M ${pos.x + 3} ${pos.y - 3} L ${pos.x + 6} ${pos.y} L ${pos.x + 3} ${pos.y + 3}`}
+                            stroke={col}
+                            strokeWidth={0.9}
+                            fill="none"
+                            opacity={0.75}
                           />
-                        )}
-                        <circle
-                          cx={pos.x}
-                          cy={pos.y}
-                          r={r + 2}
-                          fill="oklch(0.14 0.02 280)"
-                          stroke={col}
-                          strokeWidth={isHover || isSource ? 2 : 1.5}
-                        />
-                        <circle cx={pos.x} cy={pos.y} r={r - 2} fill={col} />
-                        {(isHover || isSource) && (
-                          <text
-                            x={pos.x}
-                            y={pos.y - r - 8}
-                            textAnchor="middle"
-                            fontSize="9"
-                            fontFamily="ui-monospace, monospace"
-                            fill={col}
-                            style={{ textTransform: "uppercase", letterSpacing: "0.1em" }}
-                          >
-                            {PORT_LABEL[p.type]} {p.dir}
-                          </text>
                         )}
                       </g>
                     );
-                  }),
-                )}
+                  }
+                  const isHover =
+                    pending?.hover?.itemId === it.id && pending?.hover?.portId === p.id;
+                  const isSource =
+                    pending?.itemId === it.id && pending?.portId === p.id;
+                  const compat =
+                    !pending ||
+                    isSource ||
+                    (p.type === pending.type && p.dir !== pending.dir && it.id !== pending.itemId);
+                  const r = isHover ? PORT_R * 1.7 : isSource ? PORT_R * 1.3 : PORT_R;
+                  const op = compat ? 1 : 0.2;
+                  return (
+                    <g
+                      key={`${it.id}:${p.id}`}
+                      style={{ cursor: compat ? "crosshair" : "not-allowed" }}
+                      opacity={op}
+                      onPointerDown={compat ? onPortPointerDown(it.id, p) : undefined}
+                    >
+                      {(isHover || isSource) && (
+                        <circle
+                          cx={pos.x}
+                          cy={pos.y}
+                          r={r + 6}
+                          fill={col}
+                          opacity={0.25}
+                        />
+                      )}
+                      <circle
+                        cx={pos.x}
+                        cy={pos.y}
+                        r={r + 2}
+                        fill="oklch(0.14 0.02 280)"
+                        stroke={col}
+                        strokeWidth={isHover || isSource ? 2 : 1.5}
+                      />
+                      <circle cx={pos.x} cy={pos.y} r={r - 2} fill={col} />
+                      {(isHover || isSource) && (
+                        <text
+                          x={pos.x}
+                          y={pos.y - r - 8}
+                          textAnchor="middle"
+                          fontSize="9"
+                          fontFamily="ui-monospace, monospace"
+                          fill={col}
+                          style={{ textTransform: "uppercase", letterSpacing: "0.1em" }}
+                        >
+                          {PORT_LABEL[p.type]} {p.dir}
+                        </text>
+                      )}
+                    </g>
+                  );
+                }),
+              )}
             </svg>
             </div>
           </div>
@@ -1505,6 +1682,7 @@ function BackstagePanel({
   onClose,
   onSelect,
   onHighlightCables,
+  onFocusCable,
 }: {
   view: "backstage" | "speakers";
   items: Placed[];
@@ -1512,6 +1690,7 @@ function BackstagePanel({
   onClose: () => void;
   onSelect: (id: string) => void;
   onHighlightCables: (ids: string[]) => void;
+  onFocusCable: (cableId: string, targetId: string) => void;
 }) {
   const [detailId, setDetailId] = useState<string | null>(null);
 
@@ -1637,7 +1816,9 @@ function BackstagePanel({
                             key={c.id}
                             onMouseEnter={() => onHighlightCables([c.id])}
                             onMouseLeave={() => onHighlightCables(detailCables.map((cc) => cc.id))}
-                            className="flex items-center gap-2 rounded-sm border border-border/60 bg-background/50 px-2 py-1.5 font-mono text-[10px]"
+                            onClick={() => onFocusCable(c.id, otherId)}
+                            title="Klikni pro přiblížení a zvýraznění trasy"
+                            className="flex cursor-pointer items-center gap-2 rounded-sm border border-border/60 bg-background/50 px-2 py-1.5 font-mono text-[10px] transition hover:border-[color:var(--acid)]/60 hover:bg-background/80"
                           >
                             <span
                               className="inline-block h-2 w-2 rounded-full"
@@ -1657,6 +1838,9 @@ function BackstagePanel({
                             </span>
                             <span className="text-muted-foreground">
                               · {portLabel(otherId, otherPort)}
+                            </span>
+                            <span className="ml-auto rounded-sm border border-[color:var(--acid)]/40 px-1.5 py-0.5 text-[8px] uppercase tracking-widest text-[color:var(--acid)]">
+                              zoom
                             </span>
                           </li>
                         );
