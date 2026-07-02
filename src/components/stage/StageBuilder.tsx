@@ -1520,7 +1520,7 @@ export function StageBuilder() {
             {/* Ports overlay — small markers always visible; interactive in cable mode */}
             <svg
               className="absolute inset-0 h-full w-full"
-              style={{ pointerEvents: cableMode ? "auto" : "none" }}
+              style={{ pointerEvents: cableMode ? "auto" : "none", overflow: "visible" }}
             >
               {items.flatMap((it) =>
                 SPECS[it.kind].ports.map((p) => {
@@ -1556,13 +1556,16 @@ export function StageBuilder() {
                     (p.type === pending.type && p.dir !== pending.dir && it.id !== pending.itemId);
                   const r = isHover ? PORT_R * 1.7 : isSource ? PORT_R * 1.3 : PORT_R;
                   const op = compat ? 1 : 0.2;
+                  const hitR = Math.max(18, (r + 6) / Math.max(0.5, zoom));
                   return (
                     <g
                       key={`${it.id}:${p.id}`}
-                      style={{ cursor: compat ? "crosshair" : "not-allowed" }}
+                      style={{ cursor: compat ? "crosshair" : "not-allowed", touchAction: "none" }}
                       opacity={op}
                       onPointerDown={compat ? onPortPointerDown(it.id, p) : undefined}
                     >
+                      {/* invisible large hit area for touch */}
+                      <circle cx={pos.x} cy={pos.y} r={hitR} fill="transparent" />
                       {(isHover || isSource) && (
                         <circle
                           cx={pos.x}
