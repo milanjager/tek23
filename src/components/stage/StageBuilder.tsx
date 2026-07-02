@@ -654,8 +654,10 @@ export function StageBuilder() {
       const d = dragState.current;
       if (!d || d.pointerId !== e.pointerId || !canvasRef.current) return;
       const rect = canvasRef.current.getBoundingClientRect();
-      const rawX = e.clientX - rect.left - d.dx;
-      const rawY = e.clientY - rect.top - d.dy;
+      const lx = (e.clientX - rect.left - rect.width / 2) / zoom + rect.width / 2;
+      const ly = (e.clientY - rect.top - rect.height / 2) / zoom + rect.height / 2;
+      const rawX = lx - d.dx;
+      const rawY = ly - d.dy;
       const dragged = items.find((i) => i.id === d.id);
       if (!dragged) return;
       const spec = SPECS[dragged.kind];
