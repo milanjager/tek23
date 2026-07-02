@@ -1403,3 +1403,122 @@ function ToolbarBtn({
     </button>
   );
 }
+
+
+/* ---------- Backstage / Speakers panel ---------- */
+
+function BackstagePanel({
+  view,
+  items,
+  cables,
+  onClose,
+  onSelect,
+}: {
+  view: "backstage" | "speakers";
+  items: Placed[];
+  cables: CableLink[];
+  onClose: () => void;
+  onSelect: (id: string) => void;
+}) {
+  const filtered = view === "speakers"
+    ? items.filter((i) => SPECS[i.kind].category === "sound")
+    : items;
+
+  const grouped = useMemo(() => {
+    const g: Record<string, Placed[]> = {};
+    filtered.forEach((it) => {
+      const cat = SPECS[it.kind].category;
+      (g[cat] ??= []).push(it);
+    });
+    return g;
+  }, [filtered]);
+
+  const cableCountFor = (id: string) =>
+    cables.filter((c) => c.from === id || c.to === id).length;
+
+  const CAT_LABEL: Record<Category, string> = {
+    sound: "Zvuk / Reproduktory",
+    lights: "Světla",
+    infra: "Infra & technika",
+  };
+
+  return (
+    <div className="absolute inset-0 z-30 overflow-y-auto bg-background/95 backdrop-blur">
+      <div className="mx-auto max-w-4xl p-5">
+        <div className="mb-4 flex items-center justify-between">
+          <div>
+            <h2 className="font-mono text-sm font-bold uppercase tracking-widest text-[color:var(--acid)] text-glow-acid">
+              {view === "speakers" ? "// Pohled — REPRODUKTORY" : "// Pohled — BACKSTAGE"}
+            </h2>
+            <p className="mt-1 font-mono text-[10px] uppercase tracking-widest text-muted-foreground">
+              {view === "speakers"
+                ? `${filtered.length} reprosoustav na stagi`
+                : `${filtered.length} kusů techniky · ${cables.length} kabelů`}
+            </p>
+          </div>
+          <button
+            onClick={onClose}
+            className="flex items-center gap-1.5 rounded-sm border border-border px-3 py-1.5 font-mono text-[10px] uppercase tracking-widest text-muted-foreground hover:border-foreground/50 hover:text-foreground"
+          >
+            <X className="h-3.5 w-3.5" /> Zavřít
+          </button>
+        </div>
+
+        {filtered.length === 0 ? (
+          <div className="rounded-md border border-dashed border-border bg-card/40 p-8 text-center font-mono text-[11px] uppercase tracking-widest text-muted-foreground">
+            {view === "speakers" ? "— Zatím žádné reproduktory —" : "— Backstage prázdný —"}
+          </div>
+        ) : (
+          <div className="space-y-6">
+            {(Object.keys(grouped) as Category[]).map((cat) => (
+              <section key={cat}>
+                <div className="mb-2 flex items-center gap-2 border-b border-border/60 pb-1">
+                  <span className="font-mono text-[10px] uppercase tracking-widest text-[color:var(--acid)]">
+                    {CAT_LABEL[cat]}
+                  </span>
+                  <span className="font-mono text-[10px] text-muted-foreground">×{grouped[cat].length}</span>
+                </div>
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                  {grouped[cat].map((it) => {
+                    const spec = SPECS[it.kind];
+                    const cls = colorClass(spec.color);
+                    return (
+                      <button
+                        key={it.id}
+                        onClick={() => onSelect(it.id)}
+                        className={`group rounded-md border ${cls.border} ${cls.bg} p-3 text-left transition hover:scale-[1.02]`}
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="h-14 w-20 shrink-0">
+                            <Glyph kind={it.kind} selected={false} label={it.label} />
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <div className={`truncate font-mono text-[11px] font-bold uppercase tracking-wider ${cls.text}`}>
+                              {it.label ?? spec.label}
+                            </div>
+                            <div className="mt-0.5 font-mono text-[9px] uppercase tracking-widest text-muted-foreground">
+                              {spec.hint}
+                            </div>
+                            <div className="mt-1 flex items-center gap-2 font-mono text-[9px] uppercase tracking-widest text-muted-foreground/80">
+                              <span>{Math.round(it.x)},{Math.round(it.y)}</span>
+                              <span>·</span>
+                              <span>{it.rot}°</span>
+                              <span>·</span>
+                              <span className="text-[color:var(--amber)]">
+                                {cableCountFor(it.id)} kab.
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </section>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
