@@ -1216,8 +1216,16 @@ export function StageBuilder() {
                 );
                 setHighlightCables(ids);
                 setView("stage");
+                // wait for view to mount, then animate focus
+                requestAnimationFrame(() => requestAnimationFrame(() => focusItem(id, 1.4)));
               }}
               onHighlightCables={(ids) => setHighlightCables(new Set(ids))}
+              onFocusCable={(cableId, targetId) => {
+                setHighlightCables(new Set([cableId]));
+                setSelected(targetId);
+                setView("stage");
+                requestAnimationFrame(() => requestAnimationFrame(() => focusItem(targetId, 1.6)));
+              }}
             />
           )}
 
