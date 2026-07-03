@@ -24,10 +24,11 @@ import {
 type Kind =
   | "horn" | "mid" | "bass" | "sub" | "linearray" | "monitor"
   | "badtekk_sub" | "badtekk_bass" | "badtekk_top"
-  | "amp" | "powersoft" | "mixer" | "dj" | "cdj"
+  | "amp" | "powersoft" | "mixer" | "dj" | "dj_table" | "cdj"
   | "korg" | "korg_red" | "korg_blue" | "turntable"
   | "strobe" | "laser" | "movinghead"
   | "bar" | "generator" | "crowd";
+
 
 type Category = "sound" | "lights" | "infra";
 
@@ -54,7 +55,9 @@ const SPECS: Record<Kind, Spec> = {
   amp:          { label: "Amp rack",         category: "infra",  size: [0.60, 0.90, 0.60], stackable: true,  hint: "Rack zesilovačů" },
   powersoft:    { label: "Powersoft K20",    category: "infra",  size: [0.60, 0.90, 0.60], stackable: true,  hint: "Powersoft výkonový amp", defaultLabel: "Powersoft" },
   mixer:        { label: "Mixer",            category: "infra",  size: [0.80, 0.15, 0.55], stackable: false, hint: "Mixážní pult" },
-  dj:           { label: "DJ booth",         category: "infra",  size: [1.60, 1.00, 0.70], stackable: false, hint: "DJ pult" },
+  dj:           { label: "DJ booth",         category: "infra",  size: [1.60, 1.00, 0.70], stackable: true,  hint: "DJ pult" },
+  dj_table:     { label: "DJ stůl",          category: "infra",  size: [1.80, 0.95, 0.70], stackable: true,  hint: "Stůl pod DJ techniku (Korg, CDJ, mixer…)" },
+
   cdj:          { label: "CDJ",              category: "infra",  size: [0.35, 0.10, 0.42], stackable: false, hint: "CDJ přehrávač" },
   korg:         { label: "Korg live",        category: "infra",  size: [0.75, 0.10, 0.40], stackable: false, hint: "Korg groovebox" },
   korg_red:     { label: "Korg červený",     category: "infra",  size: [0.75, 0.10, 0.40], stackable: false, hint: "Korg groovebox – červený", defaultLabel: "Korg červený", defaultVariant: "red" },
@@ -192,8 +195,10 @@ function connectorsFor(kind: Kind): Connector[] {
 
     // Passive furniture — no connectors.
     case "bar":
+    case "dj_table":
     case "crowd":
       return [];
+
   }
 }
 
@@ -615,6 +620,45 @@ function DJBooth({ size }: { size: [number, number, number] }) {
   );
 }
 
+function DJTable({ size }: { size: [number, number, number] }) {
+  const [w, h, d] = size;
+  const legR = 0.04;
+  const topT = 0.05;
+  const skirtH = 0.08;
+  return (
+    <group>
+      {/* Four legs */}
+      {[[-1, -1], [1, -1], [-1, 1], [1, 1]].map(([sx, sz], i) => (
+        <mesh key={i} castShadow position={[sx * (w / 2 - legR - 0.02), (h - topT) / 2, sz * (d / 2 - legR - 0.02)]}>
+          <cylinderGeometry args={[legR, legR, h - topT, 12]} />
+          <meshStandardMaterial color="#111" metalness={0.7} roughness={0.35} />
+        </mesh>
+      ))}
+      {/* Cross-brace under the top */}
+      <mesh position={[0, h - topT - skirtH / 2, 0]}>
+        <boxGeometry args={[w - 0.1, skirtH, 0.04]} />
+        <meshStandardMaterial color="#0a0a0a" metalness={0.6} roughness={0.5} />
+      </mesh>
+      {/* Table top */}
+      <mesh castShadow receiveShadow position={[0, h - topT / 2, 0]}>
+        <boxGeometry args={[w, topT, d]} />
+        <meshStandardMaterial color="#141414" metalness={0.55} roughness={0.4} />
+      </mesh>
+      {/* Front skirt/scrim — black cloth stretched below the top */}
+      <mesh position={[0, (h - topT) / 2, d / 2 - 0.005]}>
+        <planeGeometry args={[w - 0.06, h - topT]} />
+        <meshStandardMaterial color="#050505" roughness={0.95} side={THREE.DoubleSide} />
+      </mesh>
+      {/* Subtle LED strip under the front lip */}
+      <mesh position={[0, h - topT - 0.005, d / 2 + 0.002]}>
+        <planeGeometry args={[w * 0.85, 0.015]} />
+        <meshStandardMaterial color="#05d9e8" emissive="#05d9e8" emissiveIntensity={1.6} />
+      </mesh>
+    </group>
+  );
+}
+
+
 function CDJModel({ size }: { size: [number, number, number] }) {
   const [w, h, d] = size;
   return (
@@ -853,6 +897,8 @@ function ModelFor({ kind, size, variant }: { kind: Kind; size: [number, number, 
     case "powersoft": return <AmpRack size={size} brand="powersoft" />;
     case "mixer": return <MixerModel size={size} />;
     case "dj": return <DJBooth size={size} />;
+    case "dj_table": return <DJTable size={size} />;
+
     case "cdj": return <CDJModel size={size} />;
     case "korg": return <KorgModel size={size} variant={variant} />;
     case "korg_red": return <KorgModel size={size} variant="red" />;
