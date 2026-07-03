@@ -858,6 +858,8 @@ function ModelFor({ kind, size, variant }: { kind: Kind; size: [number, number, 
     case "powersoft": return <AmpRack size={size} brand="powersoft" />;
     case "mixer": return <MixerModel size={size} />;
     case "dj": return <DJBooth size={size} />;
+    case "dj_table": return <DJTable size={size} />;
+
     case "cdj": return <CDJModel size={size} />;
     case "korg": return <KorgModel size={size} variant={variant} />;
     case "korg_red": return <KorgModel size={size} variant="red" />;
