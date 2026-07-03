@@ -112,7 +112,7 @@ function Pallet({ w, d }: { w: number; d: number }) {
 
 function Cabinet({
   size, color = WOOD, grilleColor = GRILLE, cornerColor = TEAL,
-  frontDetail, tealFrame = true, yellowCross = true, onPallet = false,
+  frontDetail, tealFrame = false, yellowCross = false, onPallet = false,
 }: {
   size: [number, number, number];
   color?: string;
@@ -123,6 +123,7 @@ function Cabinet({
   yellowCross?: boolean;
   onPallet?: boolean;
 }) {
+
   const [w, h, d] = size;
   const palletH = onPallet ? 0.14 : 0;
   return (
@@ -200,6 +201,8 @@ function HornModel({ size }: { size: [number, number, number] }) {
     <Cabinet
       size={size}
       color={WOOD}
+      tealFrame={false}
+      yellowCross={false}
       frontDetail={
         <group>
           <mesh position={[0, 0, 0.02]} rotation={[0, 0, 0]}>
@@ -216,12 +219,15 @@ function HornModel({ size }: { size: [number, number, number] }) {
   );
 }
 
+
 function MidModel({ size }: { size: [number, number, number] }) {
   const [w, h] = size;
   const r = Math.min(w, h) * 0.28;
   return (
     <Cabinet
       size={size}
+      tealFrame={true}
+      yellowCross={false}
       frontDetail={
         <group>
           <mesh position={[0, h * 0.12, 0.01]} rotation={[Math.PI / 2, 0, 0]}>
@@ -238,12 +244,15 @@ function MidModel({ size }: { size: [number, number, number] }) {
   );
 }
 
+
 function BassModel({ size }: { size: [number, number, number] }) {
   const [w, h] = size;
   const r = Math.min(w * 0.35, h * 0.42);
   return (
     <Cabinet
       size={size}
+      tealFrame={true}
+      yellowCross={false}
       frontDetail={
         <group>
           <mesh position={[-w * 0.2, 0, 0.01]} rotation={[Math.PI / 2, 0, 0]}>
@@ -260,6 +269,7 @@ function BassModel({ size }: { size: [number, number, number] }) {
   );
 }
 
+
 function SubModel({ size }: { size: [number, number, number] }) {
   const [w, h] = size;
   const r = Math.min(w * 0.28, h * 0.42);
@@ -267,6 +277,9 @@ function SubModel({ size }: { size: [number, number, number] }) {
     <Cabinet
       size={size}
       color={WOOD_DARK}
+      tealFrame={false}
+      yellowCross={true}
+      onPallet={true}
       frontDetail={
         <group>
           {[-1, 1].map((s) => (
@@ -286,6 +299,7 @@ function SubModel({ size }: { size: [number, number, number] }) {
     />
   );
 }
+
 
 function LineArrayModel({ size }: { size: [number, number, number] }) {
   // 3 stacked elements
