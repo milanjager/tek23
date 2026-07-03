@@ -469,16 +469,17 @@ function Glyph({ kind, selected, label }: { kind: ComponentKind; selected: boole
       return (
         <svg viewBox="0 0 96 72" className="h-full w-full" {...common}>
           <CabinetDefs id={uid} />
-          <rect x="1" y="1" width="94" height="70" rx="2" fill={`url(#wood-${uid})`} stroke="#000" strokeWidth="1" />
-          <rect x="1" y="1" width="94" height="70" rx="2" fill={`url(#grain-${uid})`} />
-          {/* two horn mouths */}
-          <path d="M6 10 L44 6 L44 66 L6 62 Z" fill="#050505" stroke={CAB.edge} strokeWidth="0.8" />
-          <path d="M52 6 L90 10 L90 62 L52 66 Z" fill="#050505" stroke={CAB.edge} strokeWidth="0.8" />
-          <path d="M12 14 L40 11 L40 61 L12 58 Z" fill={`url(#mesh-${uid})`} opacity="0.9" />
-          <path d="M56 11 L84 14 L84 58 L56 61 Z" fill={`url(#mesh-${uid})`} opacity="0.9" />
+          <WoodPanel w={96} h={72} id={uid} />
+          {/* two horn mouths cut into the cabinet — deep black rebate + inset mesh throat */}
+          <path d="M6 10 L44 6 L44 66 L6 62 Z" fill="#000" />
+          <path d="M52 6 L90 10 L90 62 L52 66 Z" fill="#000" />
+          <path d="M8 12 L42 8 L42 64 L8 60 Z" fill="none" stroke="#3b302a" strokeWidth="0.6" opacity="0.9" />
+          <path d="M54 8 L88 12 L88 60 L54 64 Z" fill="none" stroke="#3b302a" strokeWidth="0.6" opacity="0.9" />
+          <path d="M12 14 L40 11 L40 61 L12 58 Z" fill={`url(#mesh-${uid})`} opacity="0.92" />
+          <path d="M56 11 L84 14 L84 58 L56 61 Z" fill={`url(#mesh-${uid})`} opacity="0.92" />
           {/* driver throats visible in mouths */}
-          <ellipse cx="26" cy="36" rx="4" ry="14" fill="#000" opacity="0.7" />
-          <ellipse cx="70" cy="36" rx="4" ry="14" fill="#000" opacity="0.7" />
+          <ellipse cx="26" cy="36" rx="4" ry="14" fill="#000" opacity="0.85" />
+          <ellipse cx="70" cy="36" rx="4" ry="14" fill="#000" opacity="0.85" />
           <Rivets w={96} h={72} inset={4} id={uid} />
         </svg>
       );
@@ -487,16 +488,16 @@ function Glyph({ kind, selected, label }: { kind: ComponentKind; selected: boole
       return (
         <svg viewBox="0 0 96 96" className="h-full w-full" {...common}>
           <CabinetDefs id={uid} />
-          <rect x="1" y="1" width="94" height="94" rx="2" fill={`url(#wood-${uid})`} stroke="#000" strokeWidth="1" />
-          <rect x="1" y="1" width="94" height="94" rx="2" fill={`url(#grain-${uid})`} />
-          {/* bass reflex vents on top */}
-          <rect x="10" y="6" width="76" height="4" rx="1" fill="#000" opacity="0.75" />
+          <WoodPanel w={96} h={96} id={uid} />
+          {/* bass reflex vents on top — inset black slit with rim */}
+          <rect x="10" y="6" width="76" height="4" rx="1" fill="#000" />
+          <rect x="10" y="6" width="76" height="1" fill="#fff" opacity="0.05" />
           {/* two mid drivers */}
           <Driver cx={28} cy={52} r={18} id={uid} />
           <Driver cx={68} cy={52} r={18} id={uid} />
-          {/* label plate */}
-          <rect x="30" y="80" width="36" height="10" rx="1" fill="#000" opacity="0.6" />
-          <text x="48" y="87" textAnchor="middle" fontSize="6" fontFamily="ui-monospace, monospace" fill="#8a7a66" style={{ letterSpacing: "0.2em" }}>MID</text>
+          {/* label plate — metal badge */}
+          <rect x="30" y="80" width="36" height="10" rx="1" fill="#0a0908" stroke="#3a2f24" strokeWidth="0.4" />
+          <text x="48" y="87" textAnchor="middle" fontSize="6" fontFamily="ui-monospace, monospace" fill="#c9b89a" style={{ letterSpacing: "0.25em" }}>MID</text>
           <Rivets w={96} h={96} inset={4} id={uid} />
         </svg>
       );
@@ -505,13 +506,14 @@ function Glyph({ kind, selected, label }: { kind: ComponentKind; selected: boole
       return (
         <svg viewBox="0 0 120 96" className="h-full w-full" {...common}>
           <CabinetDefs id={uid} />
-          <rect x="1" y="1" width="118" height="94" rx="2" fill={`url(#wood-${uid})`} stroke="#000" strokeWidth="1" />
-          <rect x="1" y="1" width="118" height="94" rx="2" fill={`url(#grain-${uid})`} />
+          <WoodPanel w={120} h={96} id={uid} />
           {/* upper: 15" driver */}
           <Driver cx={60} cy={34} r={26} id={uid} />
           {/* lower: scoop opening (the visible hollow) */}
-          <path d="M8 60 L112 60 L112 92 L94 92 L82 70 L38 70 L26 92 L8 92 Z" fill="#000" opacity="0.92" />
-          <path d="M38 70 L82 70 L94 92 L26 92 Z" fill="#0a0908" stroke={CAB.edge} strokeWidth="0.5" />
+          <path d="M8 60 L112 60 L112 92 L94 92 L82 70 L38 70 L26 92 L8 92 Z" fill="#000" />
+          <path d="M38 70 L82 70 L94 92 L26 92 Z" fill="#0a0908" stroke="#3a2f24" strokeWidth="0.5" />
+          {/* scoop interior shading — subtle gradient of depth */}
+          <path d="M38 70 L82 70 L84 74 L36 74 Z" fill="#fff" opacity="0.04" />
           <Rivets w={120} h={96} inset={4} id={uid} />
         </svg>
       );
@@ -520,18 +522,20 @@ function Glyph({ kind, selected, label }: { kind: ComponentKind; selected: boole
       return (
         <svg viewBox="0 0 168 120" className="h-full w-full" {...common}>
           <CabinetDefs id={uid} />
-          <rect x="1" y="1" width="166" height="118" rx="2" fill={`url(#wood-${uid})`} stroke="#000" strokeWidth="1" />
-          <rect x="1" y="1" width="166" height="118" rx="2" fill={`url(#grain-${uid})`} />
+          <WoodPanel w={168} h={120} id={uid} />
           {/* vertical seam between two cabinets */}
-          <line x1="84" y1="4" x2="84" y2="116" stroke="#000" strokeWidth="1.5" opacity="0.85" />
+          <line x1="84" y1="4" x2="84" y2="116" stroke="#000" strokeWidth="1.5" opacity="0.95" />
+          <line x1="85" y1="4" x2="85" y2="116" stroke="#3a2f24" strokeWidth="0.5" opacity="0.6" />
           {/* two 18" drivers */}
           <Driver cx={42} cy={48} r={34} id={uid} />
           <Driver cx={126} cy={48} r={34} id={uid} />
           {/* bottom scoop shelves like Zongo bass bins */}
-          <rect x="6" y="94" width="76" height="22" fill="#000" opacity="0.92" />
-          <rect x="86" y="94" width="76" height="22" fill="#000" opacity="0.92" />
-          <line x1="6" y1="102" x2="82" y2="102" stroke={CAB.edge} strokeWidth="0.6" opacity="0.8" />
-          <line x1="86" y1="102" x2="162" y2="102" stroke={CAB.edge} strokeWidth="0.6" opacity="0.8" />
+          <rect x="6" y="94" width="76" height="22" fill="#000" />
+          <rect x="86" y="94" width="76" height="22" fill="#000" />
+          <line x1="6" y1="102" x2="82" y2="102" stroke="#2a231d" strokeWidth="0.6" opacity="0.9" />
+          <line x1="86" y1="102" x2="162" y2="102" stroke="#2a231d" strokeWidth="0.6" opacity="0.9" />
+          <rect x="6" y="94" width="76" height="2" fill="#fff" opacity="0.05" />
+          <rect x="86" y="94" width="76" height="2" fill="#fff" opacity="0.05" />
           <Rivets w={168} h={120} inset={5} id={uid} />
         </svg>
       );
