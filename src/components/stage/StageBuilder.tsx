@@ -337,46 +337,139 @@ function Glyph({ kind, selected, label }: { kind: ComponentKind; selected: boole
   const stroke = c;
   const fill = `color-mix(in oklch, ${c} 18%, transparent)`;
   const glow = selected ? `drop-shadow(0 0 8px ${c})` : undefined;
+  const uid = useId().replace(/[:]/g, "");
 
   const common = { style: { filter: glow } as React.CSSProperties };
 
+  // Shared cabinet palette — dark stained plywood look like Zongo / Iration
+  const CAB = {
+    wood: "#141210",
+    woodLight: "#231d18",
+    woodDark: "#0a0908",
+    edge: "#2a231d",
+    rivet: "#5c4a38",
+    mesh: "#050505",
+    cone: "#0f0d0b",
+    cap: "#1a1613",
+    ring: "#3a2f24",
+  };
+
+  // Reusable cabinet defs — wood-grain gradient, mesh dot grid, rivet detail
+  const CabinetDefs = ({ id }: { id: string }) => (
+    <defs>
+      <linearGradient id={`wood-${id}`} x1="0" y1="0" x2="1" y2="1">
+        <stop offset="0%" stopColor={CAB.woodLight} />
+        <stop offset="45%" stopColor={CAB.wood} />
+        <stop offset="100%" stopColor={CAB.woodDark} />
+      </linearGradient>
+      <linearGradient id={`grain-${id}`} x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stopColor="#000" stopOpacity="0" />
+        <stop offset="50%" stopColor="#000" stopOpacity="0.25" />
+        <stop offset="100%" stopColor="#000" stopOpacity="0" />
+      </linearGradient>
+      <radialGradient id={`cone-${id}`} cx="50%" cy="50%" r="50%">
+        <stop offset="0%" stopColor="#2a2521" />
+        <stop offset="60%" stopColor="#0e0c0a" />
+        <stop offset="100%" stopColor="#000" />
+      </radialGradient>
+      <pattern id={`mesh-${id}`} x="0" y="0" width="3" height="3" patternUnits="userSpaceOnUse">
+        <rect width="3" height="3" fill={CAB.mesh} />
+        <circle cx="1.5" cy="1.5" r="0.55" fill="#1e1a17" />
+      </pattern>
+    </defs>
+  );
+
+  // Corner rivets — 4 small dots hinting at cabinet hardware
+  const Rivets = ({ w, h, inset = 5 }: { w: number; h: number; inset?: number }) => (
+    <g fill={CAB.rivet} opacity="0.85">
+      <circle cx={inset} cy={inset} r="1.1" />
+      <circle cx={w - inset} cy={inset} r="1.1" />
+      <circle cx={inset} cy={h - inset} r="1.1" />
+      <circle cx={w - inset} cy={h - inset} r="1.1" />
+    </g>
+  );
+
+  // A single speaker driver with mesh grille, cone, dust cap and rim
+  const Driver = ({ cx, cy, r, id }: { cx: number; cy: number; r: number; id: string }) => (
+    <g>
+      <circle cx={cx} cy={cy} r={r + 1.5} fill={CAB.ring} />
+      <circle cx={cx} cy={cy} r={r} fill={`url(#mesh-${id})`} />
+      <circle cx={cx} cy={cy} r={r} fill={`url(#cone-${id})`} opacity="0.55" />
+      <circle cx={cx} cy={cy} r={r * 0.28} fill={CAB.cap} stroke="#000" strokeWidth="0.6" />
+      <circle cx={cx} cy={cy} r={r} fill="none" stroke="#000" strokeWidth="0.8" opacity="0.7" />
+    </g>
+  );
+
   switch (kind) {
     case "horn":
+      // Twin horns like the top box on Zongo — two rectangular horn mouths side by side
       return (
         <svg viewBox="0 0 96 72" className="h-full w-full" {...common}>
-          <rect x="6" y="10" width="24" height="52" rx="3" fill={fill} stroke={stroke} strokeWidth="1.5" />
-          <path d="M30 14 L88 4 L88 68 L30 58 Z" fill={fill} stroke={stroke} strokeWidth="1.5" />
-          <line x1="88" y1="4" x2="88" y2="68" stroke={stroke} strokeWidth="1.5" />
+          <CabinetDefs id={uid} />
+          <rect x="1" y="1" width="94" height="70" rx="2" fill={`url(#wood-${uid})`} stroke="#000" strokeWidth="1" />
+          <rect x="1" y="1" width="94" height="70" rx="2" fill={`url(#grain-${uid})`} />
+          {/* two horn mouths */}
+          <path d="M6 10 L44 6 L44 66 L6 62 Z" fill="#050505" stroke={CAB.edge} strokeWidth="0.8" />
+          <path d="M52 6 L90 10 L90 62 L52 66 Z" fill="#050505" stroke={CAB.edge} strokeWidth="0.8" />
+          <path d="M12 14 L40 11 L40 61 L12 58 Z" fill={`url(#mesh-${uid})`} opacity="0.9" />
+          <path d="M56 11 L84 14 L84 58 L56 61 Z" fill={`url(#mesh-${uid})`} opacity="0.9" />
+          {/* driver throats visible in mouths */}
+          <ellipse cx="26" cy="36" rx="4" ry="14" fill="#000" opacity="0.7" />
+          <ellipse cx="70" cy="36" rx="4" ry="14" fill="#000" opacity="0.7" />
+          <Rivets w={96} h={72} inset={4} />
         </svg>
       );
     case "mid":
+      // Twin 10" mids with mesh grille like Zongo mid-box
       return (
         <svg viewBox="0 0 96 96" className="h-full w-full" {...common}>
-          <rect x="6" y="6" width="84" height="84" rx="4" fill={fill} stroke={stroke} strokeWidth="1.5" />
-          <circle cx="48" cy="36" r="16" fill="none" stroke={stroke} strokeWidth="1.5" />
-          <circle cx="48" cy="36" r="6" fill={stroke} opacity="0.5" />
-          <rect x="20" y="62" width="56" height="18" rx="2" fill="none" stroke={stroke} strokeWidth="1.2" opacity="0.7" />
+          <CabinetDefs id={uid} />
+          <rect x="1" y="1" width="94" height="94" rx="2" fill={`url(#wood-${uid})`} stroke="#000" strokeWidth="1" />
+          <rect x="1" y="1" width="94" height="94" rx="2" fill={`url(#grain-${uid})`} />
+          {/* bass reflex vents on top */}
+          <rect x="10" y="6" width="76" height="4" rx="1" fill="#000" opacity="0.75" />
+          {/* two mid drivers */}
+          <Driver cx={28} cy={52} r={18} id={uid} />
+          <Driver cx={68} cy={52} r={18} id={uid} />
+          {/* label plate */}
+          <rect x="30" y="80" width="36" height="10" rx="1" fill="#000" opacity="0.6" />
+          <text x="48" y="87" textAnchor="middle" fontSize="6" fontFamily="ui-monospace, monospace" fill="#8a7a66" style={{ letterSpacing: "0.2em" }}>MID</text>
+          <Rivets w={96} h={96} inset={4} />
         </svg>
       );
     case "bass":
+      // Bass bin — scoop opening below + 15" driver above, like the mid-tier of Zongo
       return (
         <svg viewBox="0 0 120 96" className="h-full w-full" {...common}>
-          <rect x="4" y="4" width="112" height="88" rx="3" fill={fill} stroke={stroke} strokeWidth="1.5" />
-          <circle cx="36" cy="48" r="22" fill="none" stroke={stroke} strokeWidth="1.5" />
-          <circle cx="36" cy="48" r="8" fill={stroke} opacity="0.4" />
-          <circle cx="84" cy="48" r="22" fill="none" stroke={stroke} strokeWidth="1.5" />
-          <circle cx="84" cy="48" r="8" fill={stroke} opacity="0.4" />
+          <CabinetDefs id={uid} />
+          <rect x="1" y="1" width="118" height="94" rx="2" fill={`url(#wood-${uid})`} stroke="#000" strokeWidth="1" />
+          <rect x="1" y="1" width="118" height="94" rx="2" fill={`url(#grain-${uid})`} />
+          {/* upper: 15" driver */}
+          <Driver cx={60} cy={34} r={26} id={uid} />
+          {/* lower: scoop opening (the visible hollow) */}
+          <path d="M8 60 L112 60 L112 92 L94 92 L82 70 L38 70 L26 92 L8 92 Z" fill="#000" opacity="0.92" />
+          <path d="M38 70 L82 70 L94 92 L26 92 Z" fill="#0a0908" stroke={CAB.edge} strokeWidth="0.5" />
+          <Rivets w={120} h={96} inset={4} />
         </svg>
       );
     case "sub":
+      // Scoop sub — two big 18" drivers with folded-horn opening at bottom
       return (
         <svg viewBox="0 0 168 120" className="h-full w-full" {...common}>
-          <rect x="4" y="4" width="160" height="112" rx="3" fill={fill} stroke={stroke} strokeWidth="1.5" />
-          <line x1="84" y1="8" x2="84" y2="112" stroke={stroke} strokeWidth="1" opacity="0.4" />
-          <circle cx="44" cy="60" r="34" fill="none" stroke={stroke} strokeWidth="1.5" />
-          <circle cx="44" cy="60" r="12" fill={stroke} opacity="0.4" />
-          <circle cx="124" cy="60" r="34" fill="none" stroke={stroke} strokeWidth="1.5" />
-          <circle cx="124" cy="60" r="12" fill={stroke} opacity="0.4" />
+          <CabinetDefs id={uid} />
+          <rect x="1" y="1" width="166" height="118" rx="2" fill={`url(#wood-${uid})`} stroke="#000" strokeWidth="1" />
+          <rect x="1" y="1" width="166" height="118" rx="2" fill={`url(#grain-${uid})`} />
+          {/* vertical seam between two cabinets */}
+          <line x1="84" y1="4" x2="84" y2="116" stroke="#000" strokeWidth="1.5" opacity="0.85" />
+          {/* two 18" drivers */}
+          <Driver cx={42} cy={48} r={34} id={uid} />
+          <Driver cx={126} cy={48} r={34} id={uid} />
+          {/* bottom scoop shelves like Zongo bass bins */}
+          <rect x="6" y="94" width="76" height="22" fill="#000" opacity="0.92" />
+          <rect x="86" y="94" width="76" height="22" fill="#000" opacity="0.92" />
+          <line x1="6" y1="102" x2="82" y2="102" stroke={CAB.edge} strokeWidth="0.6" opacity="0.8" />
+          <line x1="86" y1="102" x2="162" y2="102" stroke={CAB.edge} strokeWidth="0.6" opacity="0.8" />
+          <Rivets w={168} h={120} inset={5} />
         </svg>
       );
     case "amp":
