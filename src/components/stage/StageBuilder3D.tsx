@@ -1244,15 +1244,16 @@ function loadPreset(kind: PresetKind): Placed[] {
     return [
       ...stack(-2, 0.25),
       ...stack(2, -0.25),
-      { ...mk("amp", -1.5, 0, 1.5), label: "Powersoft" },
-      { ...mk("amp", 1.5, 0, 1.5), label: "Powersoft" },
+      mk("powersoft", -1.5, 0, 1.5),
+      mk("powersoft", 1.5, 0, 1.5),
       mk("turntable", 0, 0.15, 2.2),
-      { ...mk("korg", -0.4, 0.1, 2.9), label: "Korg červený", variant: "red" },
-      { ...mk("korg", 0.4, 0.1, 2.9), label: "Korg modrý", variant: "blue" },
+      mk("korg_red", -0.4, 0.1, 2.9),
+      mk("korg_blue", 0.4, 0.1, 2.9),
       mk("generator", -5, 0, 2),
       mk("crowd", 0, 0, 5),
     ];
   }
+
 
   if (kind === "toroid") {
     const arr: Placed[] = [];
