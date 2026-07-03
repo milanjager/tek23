@@ -1167,15 +1167,27 @@ function SceneContent({
           item={it}
           selected={mode === "select" && selection.includes(it.id)}
           pending={mode === "cable" && pendingFrom === it.id}
+          showConnectors={mode === "cable"}
+          activeCableType={cableType}
           onSelect={(id, additive) => {
             if (mode === "cable") {
+              const target = items.find((x) => x.id === id);
+              if (!target) return;
+              if (!hasConnector(target.kind, cableType)) {
+                // No matching plug on this item — bail so user gets visual cue.
+                return;
+              }
               if (!pendingFrom) {
                 setPendingFrom(id);
               } else if (pendingFrom === id) {
                 setPendingFrom(null);
               } else {
-                const from = pendingFrom, to = id;
-                setCables((cs) => [...cs, { id: uid(), from, to, type: cableType }]);
+                const source = items.find((x) => x.id === pendingFrom);
+                if (!source || !hasConnector(source.kind, cableType)) {
+                  setPendingFrom(id);
+                  return;
+                }
+                setCables((cs) => [...cs, { id: uid(), from: pendingFrom!, to: id, type: cableType }]);
                 setPendingFrom(null);
               }
               return;
@@ -1205,9 +1217,9 @@ function SceneContent({
         const b = items.find((i) => i.id === c.to);
         if (!a || !b) return null;
         const meta = CABLE_META[c.type];
-        const p1 = anchorFor(a, c.type);
-        const p2 = anchorFor(b, c.type);
+        const { p1, p2 } = bestAnchorPair(a, b, c.type);
         const pts = cablePoints(p1, p2, 28);
+
         return (
           <group key={c.id}>
             <Line
