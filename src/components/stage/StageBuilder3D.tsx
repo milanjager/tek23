@@ -1276,15 +1276,56 @@ function loadPreset(kind: PresetKind): Placed[] {
 }
 
 /* ============================================================
+   Palette thumbnail — mini 3D preview per catalog item
+   ============================================================ */
+
+function ThumbLookAt() {
+  const { camera } = useThree();
+  useEffect(() => { camera.lookAt(0, 0, 0); }, [camera]);
+  return null;
+}
+
+function PaletteThumb({ kind }: { kind: Kind }) {
+  const spec = SPECS[kind];
+  const [w, h, d] = spec.size;
+  const maxDim = Math.max(w, h, d);
+  const camDist = maxDim * 2.2 + 0.4;
+  return (
+    <div className="pointer-events-none h-16 w-full overflow-hidden rounded bg-gradient-to-b from-neutral-950 to-neutral-900">
+      <Canvas
+        dpr={[1, 1.5]}
+        camera={{ position: [camDist * 0.9, camDist * 0.75, camDist], fov: 32 }}
+        gl={{ antialias: true, alpha: true, powerPreference: "low-power" }}
+        shadows={false}
+        frameloop="demand"
+      >
+        <ThumbLookAt />
+        <ambientLight intensity={0.7} />
+        <hemisphereLight args={["#a3ff12", "#221100", 0.4]} />
+        <directionalLight position={[3, 4, 3]} intensity={1.1} />
+        <group position={[0, -h / 2, 0]}>
+          <ModelFor kind={kind} size={spec.size} />
+        </group>
+      </Canvas>
+    </div>
+  );
+}
+
+/* ============================================================
    Main component
    ============================================================ */
 
 export function StageBuilder3D() {
   const [items, setItems] = useState<Placed[]>([]);
+  const [cables, setCables] = useState<Cable[]>([]);
   const [selection, setSelection] = useState<string[]>([]);
   const [tool, setTool] = useState<"translate" | "rotate">("translate");
+  const [mode, setMode] = useState<"select" | "cable">("select");
+  const [cableType, setCableType] = useState<CableType>("signal");
+  const [pendingFrom, setPendingFrom] = useState<string | null>(null);
   const [category, setCategory] = useState<Category>("sound");
   const [clipboard, setClipboard] = useState<Placed[]>([]);
+
 
   // Load from storage
   useEffect(() => {
