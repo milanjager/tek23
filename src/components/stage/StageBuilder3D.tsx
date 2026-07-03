@@ -70,7 +70,7 @@ interface Placed {
   label?: string;
 }
 
-type PresetKind = "mayapur" | "badtekk" | "namel" | "toroid" | "dub" | "techno" | "club";
+type PresetKind = "mayapur" | "badtekk" | "namel" | "toroid" | "dub" | "techno" | "club" | "freetekno";
 
 const STORAGE = "stagerig3d:v1";
 const uid = () => Math.random().toString(36).slice(2, 10);
@@ -79,35 +79,80 @@ const uid = () => Math.random().toString(36).slice(2, 10);
    3D Models — parametric low-poly per kind
    ============================================================ */
 
-const WOOD = "#3a2416";
-const WOOD_DARK = "#241408";
-const GRILLE = "#0a0a0a";
+const WOOD = "#1a1a1a";        // freetekno cabinets are black
+const WOOD_DARK = "#0a0a0a";
+const GRILLE = "#050505";
 const METAL = "#1a1a1a";
 const CHROME = "#8a8f95";
+const TEAL = "#0d8a8a";        // signature teal/cyan grille frame
+const YELLOW = "#f4c11a";      // freetekno yellow crosshair
+const PALLET_WOOD = "#7a5a30";
+
+function Pallet({ w, d }: { w: number; d: number }) {
+  // EUR pallet-ish: 3 top planks, 3 bottom blocks
+  const H = 0.14;
+  return (
+    <group position={[0, H / 2, 0]}>
+      {[-1, 0, 1].map((i) => (
+        <mesh key={`t${i}`} position={[0, H * 0.3, i * (d / 3)]} castShadow receiveShadow>
+          <boxGeometry args={[w, H * 0.35, d / 3.4]} />
+          <meshStandardMaterial color={PALLET_WOOD} roughness={0.95} />
+        </mesh>
+      ))}
+      {[-1, 0, 1].map((i) => (
+        <mesh key={`b${i}`} position={[i * (w / 3), -H * 0.25, 0]} castShadow receiveShadow>
+          <boxGeometry args={[w / 4, H * 0.5, d]} />
+          <meshStandardMaterial color={"#5a3f20"} roughness={0.95} />
+        </mesh>
+      ))}
+    </group>
+  );
+}
 
 function Cabinet({
-  size, color = WOOD, grilleColor = GRILLE, cornerColor = CHROME,
-  frontDetail,
+  size, color = WOOD, grilleColor = GRILLE, cornerColor = TEAL,
+  frontDetail, tealFrame = true, yellowCross = true, onPallet = false,
 }: {
   size: [number, number, number];
   color?: string;
   grilleColor?: string;
   cornerColor?: string;
   frontDetail?: React.ReactNode;
+  tealFrame?: boolean;
+  yellowCross?: boolean;
+  onPallet?: boolean;
 }) {
   const [w, h, d] = size;
+  const palletH = onPallet ? 0.14 : 0;
   return (
-    <group>
+    <group position={[0, palletH, 0]}>
+      {onPallet && <group position={[0, -palletH, 0]}><Pallet w={w * 1.02} d={d * 1.02} /></group>}
       {/* Body */}
       <mesh castShadow receiveShadow position={[0, h / 2, 0]}>
         <boxGeometry args={[w, h, d]} />
-        <meshStandardMaterial color={color} roughness={0.85} metalness={0.05} />
+        <meshStandardMaterial color={color} roughness={0.9} metalness={0.05} />
       </mesh>
       {/* Front grille panel */}
       <mesh position={[0, h / 2, d / 2 + 0.001]}>
         <planeGeometry args={[w * 0.9, h * 0.9]} />
-        <meshStandardMaterial color={grilleColor} roughness={0.95} metalness={0.1} />
+        <meshStandardMaterial color={grilleColor} roughness={0.98} metalness={0.05} />
       </mesh>
+      {/* Teal frame around grille (4 bars) */}
+      {tealFrame && (
+        <group position={[0, h / 2, d / 2 + 0.003]}>
+          <mesh position={[0, h * 0.44, 0]}><boxGeometry args={[w * 0.95, 0.03, 0.015]} /><meshStandardMaterial color={TEAL} roughness={0.6} metalness={0.3} /></mesh>
+          <mesh position={[0, -h * 0.44, 0]}><boxGeometry args={[w * 0.95, 0.03, 0.015]} /><meshStandardMaterial color={TEAL} roughness={0.6} metalness={0.3} /></mesh>
+          <mesh position={[w * 0.46, 0, 0]}><boxGeometry args={[0.03, h * 0.92, 0.015]} /><meshStandardMaterial color={TEAL} roughness={0.6} metalness={0.3} /></mesh>
+          <mesh position={[-w * 0.46, 0, 0]}><boxGeometry args={[0.03, h * 0.92, 0.015]} /><meshStandardMaterial color={TEAL} roughness={0.6} metalness={0.3} /></mesh>
+        </group>
+      )}
+      {/* Yellow crosshair (spray-paint) */}
+      {yellowCross && (
+        <group position={[0, h / 2, d / 2 + 0.004]}>
+          <mesh><boxGeometry args={[w * 0.55, 0.025, 0.005]} /><meshStandardMaterial color={YELLOW} emissive={YELLOW} emissiveIntensity={0.2} roughness={0.8} /></mesh>
+          <mesh><boxGeometry args={[0.025, h * 0.55, 0.005]} /><meshStandardMaterial color={YELLOW} emissive={YELLOW} emissiveIntensity={0.2} roughness={0.8} /></mesh>
+        </group>
+      )}
       {/* Corner protectors (8) */}
       {([-1, 1] as const).map((sx) =>
         ([-1, 1] as const).map((sy) =>
@@ -117,17 +162,18 @@ function Cabinet({
               position={[sx * (w / 2 - 0.04), h / 2 + sy * (h / 2 - 0.04), sz * (d / 2 - 0.04)]}
             >
               <boxGeometry args={[0.08, 0.08, 0.08]} />
-              <meshStandardMaterial color={cornerColor} metalness={0.7} roughness={0.4} />
+              <meshStandardMaterial color={cornerColor} metalness={0.5} roughness={0.5} />
             </mesh>
           ))
         )
       )}
       {frontDetail && (
-        <group position={[0, h / 2, d / 2 + 0.005]}>{frontDetail}</group>
+        <group position={[0, h / 2, d / 2 + 0.006]}>{frontDetail}</group>
       )}
     </group>
   );
 }
+
 
 function Cone({ radius, depth, color = "#0e0e0e" }: { radius: number; depth: number; color?: string }) {
   return (
@@ -625,7 +671,15 @@ const ItemObject = ({
         onSelect(item.id, e.shiftKey || e.metaKey || e.ctrlKey);
       }}
     >
-      <ModelFor kind={item.kind} size={spec.size} />
+      {/* Pallet under sound cabinets sitting on the ground */}
+      {spec.category === "sound" && item.pos[1] < 0.05 && item.kind !== "linearray" && item.kind !== "monitor" && (
+        <group position={[0, 0, 0]}>
+          <Pallet w={spec.size[0] * 1.02} d={spec.size[2] * 1.02} />
+        </group>
+      )}
+      <group position={[0, spec.category === "sound" && item.pos[1] < 0.05 && item.kind !== "linearray" && item.kind !== "monitor" ? 0.14 : 0, 0]}>
+        <ModelFor kind={item.kind} size={spec.size} />
+      </group>
       {/* Selection halo */}
       {selected && (
         <mesh position={[0, 0.005, 0]} rotation={[-Math.PI / 2, 0, 0]}>
@@ -874,6 +928,49 @@ function loadPreset(kind: PresetKind): Placed[] {
   const mk = (k: Kind, x: number, y: number, z: number, rot = 0): Placed => ({
     id: uid(), kind: k, pos: [x, y, z], rotY: rot,
   });
+
+  if (kind === "freetekno") {
+    // Wall inspired by the reference photo: pallets + row of subs at bottom,
+    // mid bins in middle, big teal-front tops on the outside, horns/mids stacked.
+    const sub = SPECS.sub.size, bass = SPECS.bass.size, mid = SPECS.mid.size, horn = SPECS.horn.size;
+    const arr: Placed[] = [];
+    // Bottom row: 5 subs side by side
+    for (let i = -2; i <= 2; i++) {
+      arr.push(mk("sub", i * (sub[0] + 0.02), 0, -1));
+    }
+    // Second row: 5 bass bins on top of subs
+    for (let i = -2; i <= 2; i++) {
+      arr.push(mk("bass", i * (sub[0] + 0.02), sub[1], -1));
+    }
+    // Third row: 5 mids on top of bass
+    for (let i = -2; i <= 2; i++) {
+      arr.push(mk("mid", i * (sub[0] + 0.02), sub[1] + bass[1], -1));
+    }
+    // Outer tall towers: double horn stack on far left & right
+    for (const sx of [-3.2, 3.2]) {
+      arr.push(mk("sub", sx, 0, -1));
+      arr.push(mk("bass", sx, sub[1], -1));
+      arr.push(mk("mid", sx, sub[1] + bass[1], -1));
+      arr.push(mk("horn", sx, sub[1] + bass[1] + mid[1], -1));
+      arr.push(mk("horn", sx, sub[1] + bass[1] + mid[1] + horn[1] + 0.02, -1));
+    }
+    // Amps on the side
+    arr.push(mk("amp", -4.5, 0, 0.5));
+    arr.push(mk("amp", 4.5, 0, 0.5));
+    // DJ / mixer
+    arr.push(mk("dj", 0, 0, 2.5));
+    arr.push(mk("cdj", -0.6, 1.0, 2.4));
+    arr.push(mk("cdj", 0.6, 1.0, 2.4));
+    // Lighting truss (approximated with moving heads on the flanks)
+    arr.push(mk("movinghead", -3.5, 3.2, -0.5));
+    arr.push(mk("movinghead", 3.5, 3.2, -0.5));
+    arr.push(mk("strobe", 0, 3.5, -1));
+    // Generator + crowd
+    arr.push(mk("generator", -6, 0, 3));
+    arr.push(mk("crowd", 0, 0, 5));
+    return arr;
+  }
+
 
   if (kind === "mayapur") {
     const stack = (sx: number): Placed[] => {
@@ -1170,6 +1267,7 @@ export function StageBuilder3D() {
         <button onClick={() => setItems(loadPreset("dub"))} className="rounded bg-neutral-800 px-2 py-1 hover:bg-neutral-700">Dub wall</button>
         <button onClick={() => setItems(loadPreset("techno"))} className="rounded bg-neutral-800 px-2 py-1 hover:bg-neutral-700">Techno rig</button>
         <button onClick={() => setItems(loadPreset("club"))} className="rounded bg-neutral-800 px-2 py-1 hover:bg-neutral-700">Malý klub</button>
+        <button onClick={() => setItems(loadPreset("freetekno"))} className="rounded bg-teal-700/70 px-2 py-1 hover:bg-teal-600"><Zap size={12} className="inline" /> Freetekno wall</button>
         <div className="mx-3 h-5 w-px bg-neutral-700" />
         <button onClick={() => setTool("translate")} className={`flex items-center gap-1 rounded px-2 py-1 ${tool === "translate" ? "bg-lime-500 text-neutral-950" : "bg-neutral-800 hover:bg-neutral-700"}`}><MoveIcon size={12} /> Posun (T)</button>
         <button onClick={() => setTool("rotate")} className={`flex items-center gap-1 rounded px-2 py-1 ${tool === "rotate" ? "bg-lime-500 text-neutral-950" : "bg-neutral-800 hover:bg-neutral-700"}`}><RotateCw size={12} /> Rotace (R)</button>
