@@ -1765,7 +1765,9 @@ export function StageBuilder() {
             Smazat
           </ToolbarBtn>
           <div className="mx-2 h-6 w-px bg-border" />
-          <ToolbarBtn onClick={loadBasePreset} icon={Zap}>Preset základ</ToolbarBtn>
+          <ToolbarBtn onClick={() => loadPreset("dub")} icon={Zap}>Dub wall</ToolbarBtn>
+          <ToolbarBtn onClick={() => loadPreset("techno")} icon={Zap}>Techno rig</ToolbarBtn>
+          <ToolbarBtn onClick={() => loadPreset("club")} icon={Zap}>Malý klub</ToolbarBtn>
           <ToolbarBtn onClick={exportJson} icon={Download}>Export</ToolbarBtn>
           <ToolbarBtn onClick={() => localStorage.setItem(STORAGE, JSON.stringify({ items, cables }))} icon={Save}>Uložit</ToolbarBtn>
           <ToolbarBtn onClick={clear} icon={Eraser} danger>Reset</ToolbarBtn>
