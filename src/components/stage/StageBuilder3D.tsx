@@ -79,9 +79,6 @@ const uid = () => Math.random().toString(36).slice(2, 10);
    3D Models — parametric low-poly per kind
    ============================================================ */
 
-const WOOD = "#3a2416";
-const WOOD_DARK = "#241408";
-const GRILLE = "#0a0a0a";
 const WOOD = "#1a1a1a";        // freetekno cabinets are black
 const WOOD_DARK = "#0a0a0a";
 const GRILLE = "#050505";
