@@ -720,10 +720,11 @@ function ModelFor({ kind, size, variant }: { kind: Kind; size: [number, number, 
    ============================================================ */
 
 const ItemObject = ({
-  item, selected, onSelect, onRegister,
+  item, selected, pending, onSelect, onRegister,
 }: {
   item: Placed;
   selected: boolean;
+  pending?: boolean;
   onSelect: (id: string, additive: boolean) => void;
   onRegister: (id: string, obj: THREE.Object3D | null) => void;
 }) => {
@@ -761,6 +762,13 @@ const ItemObject = ({
           <meshBasicMaterial color="#a3ff12" transparent opacity={0.9} />
         </mesh>
       )}
+      {/* Pending source for cable */}
+      {pending && (
+        <mesh position={[0, 0.006, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+          <ringGeometry args={[Math.max(spec.size[0], spec.size[2]) * 0.55, Math.max(spec.size[0], spec.size[2]) * 0.9, 48]} />
+          <meshBasicMaterial color="#f4c11a" transparent opacity={0.6} />
+        </mesh>
+      )}
       {/* Custom label above the box */}
       {item.label && (
         <Html position={[0, spec.size[1] + 0.25, 0]} center distanceFactor={8} occlude={false}>
@@ -772,6 +780,7 @@ const ItemObject = ({
     </group>
   );
 };
+
 
 /* ============================================================
    Snap / stacking
