@@ -158,6 +158,10 @@ const SPECS: Record<ComponentKind, Spec> = (() => {
       pRight(144, 96, "audio_out", "audio", "out", 0.35),
       pRight(144, 96, "dmx_out", "dmx", "out", 0.75),
     ]),
+    cdj: mk("cdj", "CDJ", "infra", 96, 96, "cyan", "Pioneer CDJ přehrávač", [
+      pLeft(96, 96, "pwr", "power", "in", 0.3),
+      pRight(96, 96, "audio_out", "audio", "out", 0.6),
+    ]),
     korg: mk("korg", "Korg live", "infra", 120, 72, "cyan", "Korg groovebox pro live sety", [
       pLeft(120, 72, "pwr", "power", "in", 0.3),
       pLeft(120, 72, "midi_in", "dmx", "in", 0.75),
