@@ -1176,49 +1176,45 @@ function loadPreset(kind: PresetKind): Placed[] {
   }
 
   if (kind === "badtekk") {
-    // Reference: indoor hall, symmetric wall — side towers (2 subs + 2 bass + 2 tops,
-    // outer tops angled outward), lower center stack (2 subs + 2 bass) with DJ + CDJs
-    // sitting on top, lighting truss spanning the whole width with moving heads.
-    const s = SPECS.sub.size, b = SPECS.bass.size, m = SPECS.mid.size, h = SPECS.horn.size;
+    const s = SPECS.badtekk_sub.size, b = SPECS.badtekk_bass.size;
     const arr: Placed[] = [];
     const Z = -1.6;
 
-    // ---- LEFT tower (2 columns × 3 rows) ----
-    for (const [ix, sx] of [[-1, -3.8], [-1, -2.55]] as [number, number][]) {
-      arr.push({ ...mk("sub", sx, 0, Z), label: ix < 0 && sx < -3 ? "2×18\" Sub" : undefined });
-      arr.push(mk("bass", sx, s[1], Z));
-      // outer top angled outward, inner top straight
-      const rot = sx < -3 ? 0.35 : 0.1;
+    // ---- LEFT tower ----
+    for (const sx of [-3.8, -2.55]) {
+      arr.push(mk("badtekk_sub", sx, 0, Z));
+      arr.push(mk("badtekk_bass", sx, s[1], Z));
       const isOuter = sx < -3;
-      arr.push({ ...mk(isOuter ? "horn" : "mid", sx, s[1] + b[1], Z, rot), label: isOuter ? "Top W-bin" : undefined });
+      const rot = isOuter ? 0.35 : 0.1;
+      arr.push(mk("badtekk_top", sx, s[1] + b[1], Z, rot));
     }
 
     // ---- RIGHT tower (mirror) ----
     for (const sx of [2.55, 3.8]) {
-      arr.push(mk("sub", sx, 0, Z));
-      arr.push(mk("bass", sx, s[1], Z));
-      const rot = sx > 3 ? -0.35 : -0.1;
+      arr.push(mk("badtekk_sub", sx, 0, Z));
+      arr.push(mk("badtekk_bass", sx, s[1], Z));
       const isOuter = sx > 3;
-      arr.push({ ...mk(isOuter ? "horn" : "mid", sx, s[1] + b[1], Z, rot), label: isOuter ? "Top W-bin" : undefined });
+      const rot = isOuter ? -0.35 : -0.1;
+      arr.push(mk("badtekk_top", sx, s[1] + b[1], Z, rot));
     }
 
-    // ---- CENTER stack (lower, DJ sits on top) ----
+    // ---- CENTER lower stack (DJ sits on top) ----
     for (const sx of [-0.65, 0.65]) {
-      arr.push(mk("sub", sx, 0, Z));
-      arr.push(mk("bass", sx, s[1], Z));
+      arr.push(mk("badtekk_sub", sx, 0, Z));
+      arr.push(mk("badtekk_bass", sx, s[1], Z));
     }
-    // DJ platform on top of center stack (~1.4 m high)
     const djY = s[1] + b[1];
     arr.push({ ...mk("dj", 0, djY, Z + 0.15), label: "Badtekk DJ" });
     arr.push(mk("cdj", -0.55, djY + 1.0, Z + 0.05));
     arr.push(mk("cdj", 0.55, djY + 1.0, Z + 0.05));
     arr.push(mk("mixer", 0, djY + 1.0, Z + 0.25));
 
-    // ---- Amp racks on the flanks (front-of-house sides) ----
-    arr.push({ ...mk("amp", -5.2, 0, 0.4), label: "Powersoft" });
-    arr.push({ ...mk("amp", -4.6, 0, 0.4), label: "Powersoft" });
-    arr.push({ ...mk("amp",  4.6, 0, 0.4), label: "Powersoft" });
-    arr.push({ ...mk("amp",  5.2, 0, 0.4), label: "Powersoft" });
+    // ---- Powersoft amp racks on the flanks ----
+    arr.push(mk("powersoft", -5.2, 0, 0.4));
+    arr.push(mk("powersoft", -4.6, 0, 0.4));
+    arr.push(mk("powersoft",  4.6, 0, 0.4));
+    arr.push(mk("powersoft",  5.2, 0, 0.4));
+
 
     // ---- Lighting truss (moving heads + strobes across the top) ----
     const trussY = s[1] + b[1] + m[1] + 1.3;
