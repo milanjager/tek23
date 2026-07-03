@@ -1059,7 +1059,8 @@ function loadPreset(kind: PresetKind): Placed[] {
       { ...mk("amp", -1.5, 0, 1.5), label: "Powersoft" },
       { ...mk("amp", 1.5, 0, 1.5), label: "Powersoft" },
       mk("turntable", 0, 0.15, 2.2),
-      mk("korg", 0, 0.1, 2.9),
+      { ...mk("korg", -0.4, 0.1, 2.9), label: "Korg červený", variant: "red" },
+      { ...mk("korg", 0.4, 0.1, 2.9), label: "Korg modrý", variant: "blue" },
       mk("generator", -5, 0, 2),
       mk("crowd", 0, 0, 5),
     ];
