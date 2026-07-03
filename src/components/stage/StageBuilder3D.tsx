@@ -720,13 +720,19 @@ function ModelFor({ kind, size, variant }: { kind: Kind; size: [number, number, 
     case "mid": return <MidModel size={size} />;
     case "bass": return <BassModel size={size} />;
     case "sub": return <SubModel size={size} />;
+    case "badtekk_sub": return <SubModel size={size} />;
+    case "badtekk_bass": return <BassModel size={size} />;
+    case "badtekk_top": return <HornModel size={size} />;
     case "linearray": return <LineArrayModel size={size} />;
     case "monitor": return <MonitorModel size={size} />;
     case "amp": return <AmpRack size={size} />;
+    case "powersoft": return <AmpRack size={size} brand="powersoft" />;
     case "mixer": return <MixerModel size={size} />;
     case "dj": return <DJBooth size={size} />;
     case "cdj": return <CDJModel size={size} />;
     case "korg": return <KorgModel size={size} variant={variant} />;
+    case "korg_red": return <KorgModel size={size} variant="red" />;
+    case "korg_blue": return <KorgModel size={size} variant="blue" />;
     case "turntable": return <TurntableModel size={size} />;
     case "strobe": return <StrobeModel size={size} />;
     case "laser": return <LaserModel size={size} />;
@@ -736,6 +742,7 @@ function ModelFor({ kind, size, variant }: { kind: Kind; size: [number, number, 
     case "crowd": return <CrowdModel size={size} />;
   }
 }
+
 
 /* ============================================================
    Item mesh — receives selection + click
