@@ -555,156 +555,589 @@ function Glyph({ kind, selected, label }: { kind: ComponentKind; selected: boole
           <Rivets w={168} h={120} inset={5} id={uid} />
         </svg>
       );
-    case "amp":
+    case "linearray":
+      // Three hanging line-array elements — trapezoid modules stacked vertically
       return (
-        <svg viewBox="0 0 96 72" className="h-full w-full" {...common}>
-          <rect x="4" y="4" width="88" height="64" rx="2" fill={fill} stroke={stroke} strokeWidth="1.5" />
-          {[0, 1, 2, 3].map((i) => (
-            <rect key={i} x="10" y={12 + i * 12} width="76" height="6" rx="1" fill="none" stroke={stroke} strokeWidth="1" opacity="0.7" />
-          ))}
-          <circle cx="82" cy="14" r="2" fill={stroke} />
-        </svg>
-      );
-    case "mixer":
-      return (
-        <svg viewBox="0 0 120 72" className="h-full w-full" {...common}>
-          <rect x="4" y="4" width="112" height="64" rx="3" fill={fill} stroke={stroke} strokeWidth="1.5" />
-          {[16, 32, 48, 64, 80, 96].map((x) => (
-            <g key={x}>
-              <line x1={x} y1="14" x2={x} y2="58" stroke={stroke} strokeWidth="1" opacity="0.5" />
-              <rect x={x - 3} y={20 + ((x % 24) / 3)} width="6" height="10" rx="1" fill={stroke} />
-            </g>
-          ))}
-        </svg>
-      );
-    case "dj":
-      return (
-        <svg viewBox="0 0 144 96" className="h-full w-full" {...common}>
-          <rect x="4" y="4" width="136" height="88" rx="4" fill={fill} stroke={stroke} strokeWidth="1.5" />
-          <circle cx="34" cy="48" r="22" fill="none" stroke={stroke} strokeWidth="1.5" />
-          <circle cx="34" cy="48" r="4" fill={stroke} />
-          <circle cx="110" cy="48" r="22" fill="none" stroke={stroke} strokeWidth="1.5" />
-          <circle cx="110" cy="48" r="4" fill={stroke} />
-          <rect x="62" y="30" width="20" height="36" rx="1" fill="none" stroke={stroke} strokeWidth="1" />
-          <line x1="72" y1="36" x2="72" y2="60" stroke={stroke} strokeWidth="1" opacity="0.6" />
-        </svg>
-      );
-    case "korg":
-      return (
-        <svg viewBox="0 0 120 72" className="h-full w-full" {...common}>
-          <rect x="4" y="4" width="112" height="64" rx="4" fill={fill} stroke={stroke} strokeWidth="1.5" />
-          {/* pads 4x4 */}
-          {Array.from({ length: 16 }).map((_, i) => {
-            const c = i % 4;
-            const r = Math.floor(i / 4);
+        <svg viewBox="0 0 144 72" className="h-full w-full" {...common}>
+          <CabinetDefs id={uid} />
+          {/* rigging point up top */}
+          <line x1="72" y1="0" x2="72" y2="4" stroke="#5c4a38" strokeWidth="1.5" />
+          <circle cx="72" cy="2" r="1.6" fill="#c9b89a" />
+          {/* three trapezoidal boxes stacked, slight angle between */}
+          {[0, 1, 2].map((i) => {
+            const y = 6 + i * 21;
+            const shrink = i * 1.5;
+            const x1 = 8 + shrink, x2 = 136 - shrink;
             return (
-              <rect key={i} x={12 + c * 12} y={16 + r * 9} width="9" height="6" rx="1"
-                fill={stroke} opacity={0.35 + (i % 3) * 0.2} />
+              <g key={i}>
+                <path d={`M${x1} ${y} L${x2} ${y} L${x2 - 2} ${y + 20} L${x1 + 2} ${y + 20} Z`}
+                  fill={`url(#wood-${uid})`} stroke="#000" strokeWidth="0.8" />
+                <path d={`M${x1} ${y} L${x2} ${y} L${x2 - 2} ${y + 20} L${x1 + 2} ${y + 20} Z`}
+                  fill={`url(#grain-${uid})`} opacity="0.4" />
+                {/* twin drivers per element */}
+                <ellipse cx={x1 + 24} cy={y + 10} rx="9" ry="7" fill={`url(#mesh-${uid})`} />
+                <ellipse cx={x2 - 24} cy={y + 10} rx="9" ry="7" fill={`url(#mesh-${uid})`} />
+                {/* horn slit in the middle */}
+                <rect x={(x1 + x2) / 2 - 12} y={y + 6} width="24" height="8" fill="#000" />
+                <rect x={(x1 + x2) / 2 - 10} y={y + 8} width="20" height="4" fill={`url(#mesh-${uid})`} />
+              </g>
             );
           })}
-          {/* knobs */}
-          <circle cx="78" cy="22" r="6" fill="none" stroke={stroke} strokeWidth="1.2" />
-          <circle cx="96" cy="22" r="6" fill="none" stroke={stroke} strokeWidth="1.2" />
-          <line x1="78" y1="22" x2="82" y2="18" stroke={stroke} strokeWidth="1.2" />
-          <line x1="96" y1="22" x2="100" y2="18" stroke={stroke} strokeWidth="1.2" />
-          {/* screen */}
-          <rect x="72" y="36" width="36" height="14" rx="1" fill={stroke} opacity="0.25" />
-          <text x="90" y="46" textAnchor="middle" fontSize="7" fontFamily="ui-monospace, monospace" fill={stroke}>KORG</text>
-          <text x="60" y="64" textAnchor="middle" fontSize="6" fontFamily="ui-monospace, monospace" fill={stroke} opacity="0.7">LIVE</text>
         </svg>
       );
-    case "turntable":
-      return (
-        <svg viewBox="0 0 96 96" className="h-full w-full" {...common}>
-          <rect x="4" y="4" width="88" height="88" rx="4" fill={fill} stroke={stroke} strokeWidth="1.5" />
-          <circle cx="42" cy="48" r="30" fill="none" stroke={stroke} strokeWidth="1.5" />
-          <circle cx="42" cy="48" r="22" fill={stroke} opacity="0.15" />
-          <circle cx="42" cy="48" r="4" fill={stroke} />
-          {/* concentric grooves */}
-          <circle cx="42" cy="48" r="14" fill="none" stroke={stroke} strokeWidth="0.6" opacity="0.5" />
-          <circle cx="42" cy="48" r="26" fill="none" stroke={stroke} strokeWidth="0.6" opacity="0.5" />
-          {/* tonearm */}
-          <line x1="78" y1="14" x2="52" y2="42" stroke={stroke} strokeWidth="2" />
-          <circle cx="78" cy="14" r="3" fill={stroke} />
-          <rect x="50" y="40" width="6" height="8" rx="1" fill={stroke} opacity="0.8" />
-          {/* pitch fader */}
-          <rect x="78" y="52" width="10" height="34" rx="1" fill="none" stroke={stroke} strokeWidth="1" opacity="0.7" />
-          <rect x="79" y="66" width="8" height="4" rx="1" fill={stroke} />
-        </svg>
-      );
-    case "custom":
+    case "monitor":
+      // Angled stage wedge — trapezoidal side profile with driver + horn
       return (
         <svg viewBox="0 0 96 72" className="h-full w-full" {...common}>
-          <rect x="4" y="4" width="88" height="64" rx="4" fill={fill} stroke={stroke} strokeWidth="1.5" strokeDasharray="4 3" />
-          <text x="48" y="30" textAnchor="middle" fontSize="10" fontFamily="ui-monospace, monospace" fill={stroke} style={{ letterSpacing: "0.15em" }}>
-            USER
-          </text>
-          <text x="48" y="52" textAnchor="middle" fontSize="9" fontFamily="ui-monospace, monospace" fill={stroke} opacity="0.9">
-            {(label ?? "?").slice(0, 12).toUpperCase()}
-          </text>
+          <CabinetDefs id={uid} />
+          {/* wedge shape — wider at bottom (floor), tilted top */}
+          <path d="M4 20 L92 8 L92 68 L4 68 Z" fill={`url(#wood-${uid})`} stroke="#000" strokeWidth="1" />
+          <path d="M4 20 L92 8 L92 68 L4 68 Z" fill={`url(#grain-${uid})`} opacity="0.55" />
+          <path d="M4 20 L92 8 L92 68 L4 68 Z" fill={`url(#ao-${uid})`} />
+          {/* 12" driver */}
+          <Driver cx={40} cy={44} r={18} id={uid} />
+          {/* horn slit */}
+          <rect x="66" y="30" width="20" height="10" fill="#000" />
+          <rect x="68" y="32" width="16" height="6" fill={`url(#mesh-${uid})`} />
+          {/* label badge */}
+          <rect x="66" y="52" width="20" height="8" fill="#0a0908" stroke="#3a2f24" strokeWidth="0.3" />
+          <text x="76" y="58" textAnchor="middle" fontSize="5" fontFamily="ui-monospace, monospace" fill="#c9b89a" style={{ letterSpacing: "0.2em" }}>MON</text>
+          <Rivets w={96} h={72} inset={5} id={uid} />
         </svg>
       );
-    case "strobe":
+    case "amp": {
+      // 2U rack amplifier: brushed alu front panel, VU meters, LEDs, rack ears
+      const c0 = "#12100e", c1 = "#2a2622", c2 = "#3d3730";
       return (
-        <svg viewBox="0 0 72 72" className="h-full w-full" {...common}>
-          <rect x="4" y="20" width="64" height="32" rx="2" fill={fill} stroke={stroke} strokeWidth="1.5" />
-          <rect x="10" y="26" width="52" height="20" rx="1" fill={stroke} opacity="0.85" />
-          <path d="M36 4 L40 16 L52 12 L44 22 L56 26 L44 30 L48 42 L36 34 L24 42 L28 30 L16 26 L28 22 L20 12 L32 16 Z"
-            fill={stroke} opacity="0.35" />
-        </svg>
-      );
-    case "laser":
-      return (
-        <svg viewBox="0 0 72 72" className="h-full w-full" {...common}>
-          <rect x="16" y="24" width="40" height="24" rx="3" fill={fill} stroke={stroke} strokeWidth="1.5" />
-          <circle cx="36" cy="36" r="4" fill={stroke} />
-          <line x1="36" y1="36" x2="4" y2="4" stroke={stroke} strokeWidth="1" opacity="0.5" />
-          <line x1="36" y1="36" x2="68" y2="4" stroke={stroke} strokeWidth="1" opacity="0.5" />
-          <line x1="36" y1="36" x2="4" y2="68" stroke={stroke} strokeWidth="1" opacity="0.5" />
-          <line x1="36" y1="36" x2="68" y2="68" stroke={stroke} strokeWidth="1" opacity="0.5" />
-        </svg>
-      );
-    case "movinghead":
-      return (
-        <svg viewBox="0 0 72 72" className="h-full w-full" {...common}>
-          <rect x="20" y="52" width="32" height="14" rx="2" fill={fill} stroke={stroke} strokeWidth="1.5" />
-          <circle cx="36" cy="34" r="18" fill={fill} stroke={stroke} strokeWidth="1.5" />
-          <circle cx="36" cy="34" r="8" fill={stroke} opacity="0.6" />
-          <path d="M18 34 L36 34 L18 20 Z" fill={stroke} opacity="0.25" />
-          <path d="M54 34 L36 34 L54 20 Z" fill={stroke} opacity="0.25" />
-        </svg>
-      );
-    case "bar":
-      return (
-        <svg viewBox="0 0 216 72" className="h-full w-full" {...common}>
-          <rect x="4" y="14" width="208" height="44" rx="4" fill={fill} stroke={stroke} strokeWidth="1.5" />
-          <line x1="4" y1="30" x2="212" y2="30" stroke={stroke} strokeWidth="1" opacity="0.5" />
-          {[30, 60, 90, 120, 150, 180].map((x) => (
-            <rect key={x} x={x} y="38" width="8" height="14" rx="1" fill={stroke} opacity="0.6" />
+        <svg viewBox="0 0 96 72" className="h-full w-full" {...common}>
+          <defs>
+            <linearGradient id={`amp-face-${uid}`} x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor={c2} />
+              <stop offset="45%" stopColor={c1} />
+              <stop offset="100%" stopColor={c0} />
+            </linearGradient>
+            <linearGradient id={`amp-vu-${uid}`} x1="0" y1="0" x2="1" y2="0">
+              <stop offset="0%" stopColor="#1a2a12" />
+              <stop offset="70%" stopColor="#4a6a1a" />
+              <stop offset="88%" stopColor="#d9a217" />
+              <stop offset="100%" stopColor="#c8321f" />
+            </linearGradient>
+          </defs>
+          {/* rack ears */}
+          <rect x="0" y="0" width="8" height="72" fill="#1a1815" />
+          <rect x="88" y="0" width="8" height="72" fill="#1a1815" />
+          <circle cx="4" cy="10" r="1.4" fill="#8a7355" />
+          <circle cx="4" cy="62" r="1.4" fill="#8a7355" />
+          <circle cx="92" cy="10" r="1.4" fill="#8a7355" />
+          <circle cx="92" cy="62" r="1.4" fill="#8a7355" />
+          {/* face plate */}
+          <rect x="8" y="2" width="80" height="68" fill={`url(#amp-face-${uid})`} stroke="#000" strokeWidth="0.6" />
+          {/* two VU meters */}
+          {[16, 46].map((y) => (
+            <g key={y}>
+              <rect x={14} y={y} width={48} height={10} fill="#050403" />
+              <rect x={15} y={y + 1} width={46} height={8} fill={`url(#amp-vu-${uid})`} opacity="0.9" />
+              {[0.2, 0.35, 0.5, 0.7, 0.85].map((f, i) => (
+                <line key={i} x1={15 + 46 * f} y1={y + 1} x2={15 + 46 * f} y2={y + 9} stroke="#000" strokeWidth="0.4" />
+              ))}
+            </g>
           ))}
+          {/* gain knobs */}
+          {[70, 82].map((x, i) => (
+            <g key={x}>
+              <circle cx={x} cy={20 + i * 30} r="5" fill="#0a0908" stroke="#5c4a38" strokeWidth="0.6" />
+              <circle cx={x} cy={20 + i * 30} r="3.5" fill="#1a1815" />
+              <line x1={x} y1={20 + i * 30} x2={x + 3} y2={17 + i * 30} stroke="#c9b89a" strokeWidth="0.9" />
+            </g>
+          ))}
+          {/* power LED */}
+          <circle cx="70" cy="60" r="1.6" fill="#7dff5a" />
+          <circle cx="70" cy="60" r="3" fill="#7dff5a" opacity="0.35" />
+          {/* label */}
+          <text x="48" y="10" textAnchor="middle" fontSize="5" fontFamily="ui-monospace, monospace" fill="#c9b89a" style={{ letterSpacing: "0.3em" }}>POWER AMP</text>
         </svg>
       );
-    case "generator":
+    }
+    case "mixer": {
+      // FOH mixer: metal chassis, EQ knobs, channel faders
       return (
-        <svg viewBox="0 0 120 96" className="h-full w-full" {...common}>
-          <rect x="4" y="10" width="112" height="76" rx="4" fill={fill} stroke={stroke} strokeWidth="1.5" />
-          <circle cx="30" cy="48" r="14" fill="none" stroke={stroke} strokeWidth="1.2" />
-          <rect x="54" y="30" width="52" height="14" rx="1" fill="none" stroke={stroke} strokeWidth="1" opacity="0.7" />
-          <rect x="54" y="52" width="52" height="14" rx="1" fill="none" stroke={stroke} strokeWidth="1" opacity="0.7" />
-          <text x="60" y="42" fontSize="10" fill={stroke} fontFamily="monospace">FUEL</text>
+        <svg viewBox="0 0 120 72" className="h-full w-full" {...common}>
+          <defs>
+            <linearGradient id={`mx-face-${uid}`} x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#2d2a26" />
+              <stop offset="100%" stopColor="#0e0d0c" />
+            </linearGradient>
+          </defs>
+          <rect x="2" y="2" width="116" height="68" rx="2" fill={`url(#mx-face-${uid})`} stroke="#000" strokeWidth="0.8" />
+          {/* 8 channel strips */}
+          {Array.from({ length: 8 }).map((_, i) => {
+            const x = 10 + i * 13;
+            const knobY = [10, 20, 30];
+            const knobColors = ["#c8321f", "#d9a217", "#4a9ad9"];
+            const faderPos = 40 + ((i * 7) % 18);
+            return (
+              <g key={i}>
+                {/* 3 EQ knobs */}
+                {knobY.map((y, j) => (
+                  <g key={j}>
+                    <circle cx={x} cy={y} r="3" fill="#0a0908" stroke={knobColors[j]} strokeWidth="0.5" />
+                    <line x1={x} y1={y} x2={x + 2} y2={y - 1.5} stroke={knobColors[j]} strokeWidth="0.7" />
+                  </g>
+                ))}
+                {/* fader slot */}
+                <rect x={x - 1} y={38} width="2" height="24" fill="#050403" />
+                <rect x={x - 3} y={faderPos} width="6" height="4" rx="0.5" fill="#c9b89a" stroke="#000" strokeWidth="0.3" />
+              </g>
+            );
+          })}
+          {/* master section — right side */}
+          <rect x="110" y="6" width="6" height="58" fill="#050403" />
+          <rect x="108" y="20" width="10" height="4" rx="0.5" fill="#e14b2a" />
+          {/* meters */}
+          <rect x="112" y="6" width="1.5" height="12" fill="#7dff5a" opacity="0.7" />
         </svg>
       );
-    case "crowd":
+    }
+    case "dj": {
+      // DJ booth: 2 CDJs + mixer in middle, tabletop
       return (
-        <svg viewBox="0 0 240 168" className="h-full w-full" {...common}>
-          <rect x="4" y="4" width="232" height="160" rx="6" fill={fill} stroke={stroke} strokeWidth="1.5" strokeDasharray="6 4" />
-          {Array.from({ length: 40 }).map((_, i) => {
-            const cx = 20 + (i % 10) * 22 + ((Math.floor(i / 10) % 2) * 10);
-            const cy = 24 + Math.floor(i / 10) * 34;
-            return <circle key={i} cx={cx} cy={cy} r="6" fill={stroke} opacity="0.5" />;
+        <svg viewBox="0 0 144 96" className="h-full w-full" {...common}>
+          <defs>
+            <linearGradient id={`dj-top-${uid}`} x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#1a1815" />
+              <stop offset="100%" stopColor="#050403" />
+            </linearGradient>
+          </defs>
+          <rect x="2" y="2" width="140" height="92" rx="3" fill={`url(#dj-top-${uid})`} stroke="#000" strokeWidth="0.8" />
+          {/* left CDJ */}
+          <rect x="6" y="10" width="42" height="76" rx="2" fill="#0a0908" stroke="#2a2622" strokeWidth="0.5" />
+          <circle cx="27" cy="42" r="16" fill="#1a1815" stroke="#3a3530" strokeWidth="0.6" />
+          <circle cx="27" cy="42" r="14" fill="none" stroke="#5c5248" strokeWidth="0.3" opacity="0.7" />
+          <circle cx="27" cy="42" r="9" fill="none" stroke="#c8321f" strokeWidth="0.4" strokeDasharray="1 2" />
+          <circle cx="27" cy="42" r="2.5" fill="#c9b89a" />
+          <rect x="12" y="66" width="30" height="6" rx="0.5" fill="#050403" />
+          <rect x="14" y="74" width="26" height="8" rx="0.5" fill="#0a0a12" stroke="#4a9ad9" strokeWidth="0.3" />
+          {/* right CDJ */}
+          <rect x="96" y="10" width="42" height="76" rx="2" fill="#0a0908" stroke="#2a2622" strokeWidth="0.5" />
+          <circle cx="117" cy="42" r="16" fill="#1a1815" stroke="#3a3530" strokeWidth="0.6" />
+          <circle cx="117" cy="42" r="14" fill="none" stroke="#5c5248" strokeWidth="0.3" opacity="0.7" />
+          <circle cx="117" cy="42" r="9" fill="none" stroke="#c8321f" strokeWidth="0.4" strokeDasharray="1 2" />
+          <circle cx="117" cy="42" r="2.5" fill="#c9b89a" />
+          <rect x="102" y="66" width="30" height="6" rx="0.5" fill="#050403" />
+          <rect x="104" y="74" width="26" height="8" rx="0.5" fill="#0a0a12" stroke="#4a9ad9" strokeWidth="0.3" />
+          {/* center mixer */}
+          <rect x="52" y="10" width="40" height="76" rx="2" fill="#12100e" stroke="#2a2622" strokeWidth="0.5" />
+          {/* mixer knobs 3x3 */}
+          {Array.from({ length: 9 }).map((_, i) => {
+            const c = i % 3, r = Math.floor(i / 3);
+            const knobColors = ["#c8321f", "#d9a217", "#4a9ad9"];
+            return <circle key={i} cx={60 + c * 12} cy={16 + r * 8} r="2.4" fill="#050403" stroke={knobColors[r]} strokeWidth="0.4" />;
+          })}
+          {/* channel faders */}
+          {[58, 72, 86].map((x) => (
+            <g key={x}>
+              <rect x={x - 1} y={44} width="2" height="30" fill="#050403" />
+              <rect x={x - 3} y={54} width="6" height="4" rx="0.5" fill="#c9b89a" />
+            </g>
+          ))}
+          {/* crossfader */}
+          <rect x="55" y="80" width="34" height="3" fill="#050403" />
+          <rect x="70" y="79" width="6" height="5" rx="0.5" fill="#c9b89a" />
+        </svg>
+      );
+    }
+    case "cdj": {
+      // Standalone Pioneer CDJ-style deck
+      return (
+        <svg viewBox="0 0 96 96" className="h-full w-full" {...common}>
+          <defs>
+            <radialGradient id={`cdj-platter-${uid}`} cx="50%" cy="50%" r="50%">
+              <stop offset="0%" stopColor="#3a3530" />
+              <stop offset="70%" stopColor="#1a1815" />
+              <stop offset="100%" stopColor="#050403" />
+            </radialGradient>
+          </defs>
+          <rect x="2" y="2" width="92" height="92" rx="4" fill="#0a0908" stroke="#2a2622" strokeWidth="0.8" />
+          {/* jog wheel */}
+          <circle cx="48" cy="42" r="30" fill={`url(#cdj-platter-${uid})`} stroke="#3a3530" strokeWidth="0.8" />
+          <circle cx="48" cy="42" r="26" fill="none" stroke="#5c5248" strokeWidth="0.3" opacity="0.7" />
+          {/* strobe dots around */}
+          {Array.from({ length: 24 }).map((_, i) => {
+            const a = (i / 24) * Math.PI * 2;
+            const px = 48 + Math.cos(a) * 27, py = 42 + Math.sin(a) * 27;
+            return <circle key={i} cx={px} cy={py} r="0.5" fill="#c8321f" opacity="0.7" />;
+          })}
+          <circle cx="48" cy="42" r="10" fill="none" stroke="#c8321f" strokeWidth="0.5" strokeDasharray="1 2" />
+          <circle cx="48" cy="42" r="3.5" fill="#c9b89a" />
+          {/* screen */}
+          <rect x="14" y="78" width="34" height="12" rx="1" fill="#0a1a2a" stroke="#4a9ad9" strokeWidth="0.4" />
+          <text x="16" y="86" fontSize="4" fontFamily="ui-monospace, monospace" fill="#4a9ad9">128.00 BPM</text>
+          {/* transport buttons */}
+          <rect x="54" y="78" width="8" height="5" rx="1" fill="#d9a217" />
+          <rect x="64" y="78" width="8" height="5" rx="1" fill="#4a6a1a" />
+          <rect x="74" y="78" width="16" height="5" rx="1" fill="#050403" stroke="#3a3530" strokeWidth="0.3" />
+          <text x="82" y="82" textAnchor="middle" fontSize="3" fill="#c9b89a" fontFamily="ui-monospace, monospace">CUE</text>
+        </svg>
+      );
+    }
+    case "korg": {
+      // Groovebox with RGB pads, screen, knobs — metallic gunmetal
+      return (
+        <svg viewBox="0 0 120 72" className="h-full w-full" {...common}>
+          <defs>
+            <linearGradient id={`kg-face-${uid}`} x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#2a3040" />
+              <stop offset="100%" stopColor="#0a0f1a" />
+            </linearGradient>
+          </defs>
+          <rect x="2" y="2" width="116" height="68" rx="3" fill={`url(#kg-face-${uid})`} stroke="#000" strokeWidth="0.6" />
+          {/* screen */}
+          <rect x="70" y="8" width="42" height="14" rx="1" fill="#001a12" stroke="#0d3d2a" strokeWidth="0.4" />
+          <text x="91" y="18" textAnchor="middle" fontSize="6" fontFamily="ui-monospace, monospace" fill="#5affaa" style={{ letterSpacing: "0.15em" }}>KORG</text>
+          {/* knobs */}
+          {[10, 24, 38, 52].map((x, i) => (
+            <g key={x}>
+              <circle cx={x} cy="12" r="4.5" fill="#050403" stroke="#5c5248" strokeWidth="0.4" />
+              <circle cx={x} cy="12" r="3" fill="#1a1815" />
+              <line x1={x} y1="12" x2={x + 3} y2={10 - i} stroke="#c9b89a" strokeWidth="0.7" />
+            </g>
+          ))}
+          {/* 4x4 pad grid, RGB */}
+          {Array.from({ length: 16 }).map((_, i) => {
+            const c = i % 4, r = Math.floor(i / 4);
+            const colors = ["#c8321f", "#d9a217", "#4a9ad9", "#a02fb5"];
+            const col = colors[(c + r) % 4];
+            return (
+              <g key={i}>
+                <rect x={8 + c * 13} y={28 + r * 10} width="10" height="8" rx="1.2" fill="#0a0908" stroke={col} strokeWidth="0.5" />
+                <rect x={9 + c * 13} y={29 + r * 10} width="8" height="6" rx="0.8" fill={col} opacity={0.35 + ((c + r) % 3) * 0.15} />
+              </g>
+            );
+          })}
+          {/* faders */}
+          {[74, 84, 94, 104].map((x) => (
+            <g key={x}>
+              <rect x={x - 0.5} y="30" width="1" height="24" fill="#050403" />
+              <rect x={x - 2.5} y={38 + (x % 10)} width="5" height="3" rx="0.4" fill="#c9b89a" />
+            </g>
+          ))}
+          <text x="60" y="66" textAnchor="middle" fontSize="4" fontFamily="ui-monospace, monospace" fill="#5affaa" opacity="0.7" style={{ letterSpacing: "0.25em" }}>ELECTRIBE LIVE</text>
+        </svg>
+      );
+    }
+    case "turntable": {
+      // Technics-style deck: metal top, black platter with slipmat, tonearm, pitch fader
+      return (
+        <svg viewBox="0 0 96 96" className="h-full w-full" {...common}>
+          <defs>
+            <linearGradient id={`tt-top-${uid}`} x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#5c5248" />
+              <stop offset="100%" stopColor="#2a2622" />
+            </linearGradient>
+            <radialGradient id={`tt-platter-${uid}`} cx="50%" cy="50%" r="50%">
+              <stop offset="0%" stopColor="#3a3530" />
+              <stop offset="30%" stopColor="#181614" />
+              <stop offset="100%" stopColor="#050403" />
+            </radialGradient>
+          </defs>
+          <rect x="2" y="2" width="92" height="92" rx="3" fill={`url(#tt-top-${uid})`} stroke="#000" strokeWidth="0.7" />
+          <rect x="2" y="2" width="92" height="92" rx="3" fill="url(#ao-nope)" opacity="0.15" />
+          {/* platter */}
+          <circle cx="40" cy="48" r="32" fill={`url(#tt-platter-${uid})`} stroke="#0a0908" strokeWidth="0.8" />
+          {/* strobe dots around edge */}
+          {Array.from({ length: 32 }).map((_, i) => {
+            const a = (i / 32) * Math.PI * 2;
+            const px = 40 + Math.cos(a) * 30, py = 48 + Math.sin(a) * 30;
+            return <circle key={i} cx={px} cy={py} r="0.6" fill="#c9b89a" opacity="0.8" />;
+          })}
+          {/* record label */}
+          <circle cx="40" cy="48" r="10" fill="#c8321f" />
+          <circle cx="40" cy="48" r="1.4" fill="#050403" />
+          <text x="40" y="46" textAnchor="middle" fontSize="3" fill="#050403" fontFamily="ui-monospace, monospace">33⅓</text>
+          {/* grooves */}
+          <circle cx="40" cy="48" r="18" fill="none" stroke="#1a1815" strokeWidth="0.3" />
+          <circle cx="40" cy="48" r="24" fill="none" stroke="#1a1815" strokeWidth="0.3" />
+          {/* tonearm base */}
+          <circle cx="82" cy="14" r="4" fill="#0a0908" stroke="#5c5248" strokeWidth="0.5" />
+          <circle cx="82" cy="14" r="2" fill="#c9b89a" />
+          {/* tonearm */}
+          <line x1="82" y1="14" x2="52" y2="42" stroke="#c9b89a" strokeWidth="2" />
+          <line x1="82" y1="14" x2="52" y2="42" stroke="#5c5248" strokeWidth="0.8" />
+          {/* counterweight */}
+          <rect x="83" y="10" width="8" height="4" rx="0.5" fill="#3a3530" />
+          {/* headshell */}
+          <rect x="48" y="40" width="8" height="6" rx="0.8" fill="#c9b89a" stroke="#050403" strokeWidth="0.4" />
+          {/* pitch fader */}
+          <rect x="80" y="52" width="8" height="34" rx="1" fill="#050403" stroke="#3a3530" strokeWidth="0.4" />
+          <line x1="80" y1="69" x2="88" y2="69" stroke="#c9b89a" strokeWidth="0.3" opacity="0.7" />
+          <rect x="79" y="66" width="10" height="5" rx="0.5" fill="#c9b89a" stroke="#050403" strokeWidth="0.3" />
+          {/* start/stop button */}
+          <circle cx="14" cy="82" r="3" fill="#0a0908" stroke="#5affaa" strokeWidth="0.5" />
+          <circle cx="14" cy="82" r="1.5" fill="#5affaa" opacity="0.6" />
+        </svg>
+      );
+    }
+    case "custom": {
+      // Brushed alu case with LED status and user label
+      return (
+        <svg viewBox="0 0 96 72" className="h-full w-full" {...common}>
+          <defs>
+            <linearGradient id={`cs-face-${uid}`} x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#3d3730" />
+              <stop offset="100%" stopColor="#12100e" />
+            </linearGradient>
+          </defs>
+          <rect x="2" y="2" width="92" height="68" rx="3" fill={`url(#cs-face-${uid})`} stroke="#000" strokeWidth="0.6" />
+          {/* brushed lines */}
+          {Array.from({ length: 12 }).map((_, i) => (
+            <line key={i} x1="4" y1={6 + i * 5} x2="92" y2={6 + i * 5} stroke="#fff" strokeOpacity="0.03" strokeWidth="0.3" />
+          ))}
+          <rect x="8" y="10" width="80" height="20" rx="1" fill="#050403" stroke="#5c5248" strokeWidth="0.4" />
+          <text x="48" y="24" textAnchor="middle" fontSize="10" fontFamily="ui-monospace, monospace" fill="#c9b89a" style={{ letterSpacing: "0.2em" }}>
+            {(label ?? "USER").slice(0, 10).toUpperCase()}
+          </text>
+          {/* row of LEDs */}
+          {["#7dff5a", "#d9a217", "#c8321f", "#4a9ad9"].map((col, i) => (
+            <g key={i}>
+              <circle cx={16 + i * 20} cy={46} r="2" fill={col} />
+              <circle cx={16 + i * 20} cy={46} r="4" fill={col} opacity="0.25" />
+            </g>
+          ))}
+          {/* screws */}
+          <Rivets w={96} h={72} inset={5} id={uid} />
+          <text x="48" y="64" textAnchor="middle" fontSize="4" fontFamily="ui-monospace, monospace" fill="#8a7355" style={{ letterSpacing: "0.3em" }}>CUSTOM DEVICE</text>
+        </svg>
+      );
+    }
+    case "strobe": {
+      // Atomic-style strobe: black housing, big xenon tube in white reflector
+      return (
+        <svg viewBox="0 0 72 72" className="h-full w-full" {...common}>
+          <defs>
+            <linearGradient id={`str-body-${uid}`} x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#2a2622" />
+              <stop offset="100%" stopColor="#050403" />
+            </linearGradient>
+            <radialGradient id={`str-refl-${uid}`} cx="50%" cy="50%" r="60%">
+              <stop offset="0%" stopColor="#ffffff" />
+              <stop offset="60%" stopColor="#d0d4d8" />
+              <stop offset="100%" stopColor="#5a6068" />
+            </radialGradient>
+          </defs>
+          {/* yoke bracket */}
+          <path d="M6 20 L6 52 M66 20 L66 52" stroke="#3a3530" strokeWidth="2" />
+          <circle cx="6" cy="36" r="2" fill="#5c5248" />
+          <circle cx="66" cy="36" r="2" fill="#5c5248" />
+          {/* body */}
+          <rect x="10" y="18" width="52" height="36" rx="2" fill={`url(#str-body-${uid})`} stroke="#000" strokeWidth="0.7" />
+          {/* reflector */}
+          <rect x="14" y="22" width="44" height="28" rx="1" fill={`url(#str-refl-${uid})`} />
+          {/* xenon tube */}
+          <rect x="18" y="34" width="36" height="4" rx="1.5" fill="#f8f4e6" />
+          <rect x="18" y="34" width="36" height="4" rx="1.5" fill="#ffffff" opacity="0.7" />
+          <rect x="18" y="34" width="36" height="1.2" fill="#ffffff" />
+          {/* mounting screws */}
+          <Rivets w={72} h={72} inset={14} id={uid} />
+        </svg>
+      );
+    }
+    case "laser": {
+      // Laser projector: black chassis with lens aperture + heatsink fins
+      return (
+        <svg viewBox="0 0 72 72" className="h-full w-full" {...common}>
+          <defs>
+            <linearGradient id={`las-body-${uid}`} x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#2a2622" />
+              <stop offset="100%" stopColor="#050403" />
+            </linearGradient>
+          </defs>
+          {/* body */}
+          <rect x="8" y="20" width="56" height="32" rx="3" fill={`url(#las-body-${uid})`} stroke="#000" strokeWidth="0.7" />
+          {/* heatsink fins on top */}
+          {[10, 14, 18, 22].map((y) => (
+            <line key={y} x1="12" y1={y} x2="60" y2={y} stroke="#3a3530" strokeWidth="0.8" />
+          ))}
+          {/* lens aperture */}
+          <circle cx="52" cy="36" r="8" fill="#0a0908" stroke="#5c5248" strokeWidth="0.5" />
+          <circle cx="52" cy="36" r="6" fill="#a02fb5" opacity="0.5" />
+          <circle cx="52" cy="36" r="3" fill="#e14bff" />
+          <circle cx="52" cy="36" r="1.2" fill="#ffffff" />
+          {/* beam hint */}
+          <path d="M52 36 L70 20 M52 36 L70 52" stroke="#e14bff" strokeWidth="0.8" opacity="0.35" />
+          {/* status LEDs */}
+          <circle cx="16" cy="30" r="1.4" fill="#c8321f" />
+          <circle cx="16" cy="42" r="1.4" fill="#7dff5a" />
+          {/* label */}
+          <text x="28" y="42" fontSize="5" fontFamily="ui-monospace, monospace" fill="#c9b89a" style={{ letterSpacing: "0.2em" }}>RGB</text>
+          {/* base */}
+          <rect x="20" y="54" width="32" height="8" rx="1" fill="#1a1815" stroke="#000" strokeWidth="0.4" />
+          <Rivets w={72} h={72} inset={22} id={uid} />
+        </svg>
+      );
+    }
+    case "movinghead": {
+      // Moving head: yoke + head with lens
+      return (
+        <svg viewBox="0 0 72 72" className="h-full w-full" {...common}>
+          <defs>
+            <linearGradient id={`mh-head-${uid}`} x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#3a3530" />
+              <stop offset="100%" stopColor="#12100e" />
+            </linearGradient>
+            <radialGradient id={`mh-lens-${uid}`} cx="50%" cy="45%" r="55%">
+              <stop offset="0%" stopColor="#fff8d0" />
+              <stop offset="55%" stopColor="#d9a217" />
+              <stop offset="100%" stopColor="#5c3a08" />
+            </radialGradient>
+          </defs>
+          {/* base */}
+          <rect x="18" y="54" width="36" height="14" rx="2" fill="#1a1815" stroke="#000" strokeWidth="0.5" />
+          <rect x="20" y="56" width="32" height="2" fill="#5c5248" opacity="0.6" />
+          {/* yoke */}
+          <path d="M22 52 L22 34 M50 52 L50 34" stroke="#3a3530" strokeWidth="3" strokeLinecap="round" />
+          {/* head */}
+          <circle cx="36" cy="30" r="18" fill={`url(#mh-head-${uid})`} stroke="#000" strokeWidth="0.7" />
+          <circle cx="36" cy="30" r="18" fill="url(#ao-nope)" opacity="0.2" />
+          {/* lens */}
+          <circle cx="36" cy="30" r="12" fill={`url(#mh-lens-${uid})`} />
+          <circle cx="36" cy="30" r="12" fill="none" stroke="#050403" strokeWidth="0.6" />
+          <circle cx="32" cy="26" r="3" fill="#ffffff" opacity="0.5" />
+          {/* mounting screws around lens */}
+          {Array.from({ length: 8 }).map((_, i) => {
+            const a = (i / 8) * Math.PI * 2;
+            const px = 36 + Math.cos(a) * 13, py = 30 + Math.sin(a) * 13;
+            return <circle key={i} cx={px} cy={py} r="0.5" fill="#8a7355" />;
           })}
         </svg>
       );
+    }
+    case "bar": {
+      // Wooden bar counter with bottles, taps, edge lighting
+      return (
+        <svg viewBox="0 0 216 72" className="h-full w-full" {...common}>
+          <defs>
+            <linearGradient id={`bar-wood-${uid}`} x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#5a3a1e" />
+              <stop offset="55%" stopColor="#3a2410" />
+              <stop offset="100%" stopColor="#1a1006" />
+            </linearGradient>
+            <pattern id={`bar-grain-${uid}`} x="0" y="0" width="18" height="72" patternUnits="userSpaceOnUse">
+              <line x1="3" y1="0" x2="3" y2="72" stroke="#000" strokeOpacity="0.25" strokeWidth="0.5" />
+              <line x1="9" y1="0" x2="9" y2="72" stroke="#6a4a2e" strokeOpacity="0.2" strokeWidth="0.4" />
+              <line x1="14" y1="0" x2="14" y2="72" stroke="#000" strokeOpacity="0.15" strokeWidth="0.3" />
+            </pattern>
+          </defs>
+          <rect x="2" y="14" width="212" height="44" rx="3" fill={`url(#bar-wood-${uid})`} stroke="#0a0604" strokeWidth="0.7" />
+          <rect x="2" y="14" width="212" height="44" rx="3" fill={`url(#bar-grain-${uid})`} />
+          <line x1="4" y1="20" x2="212" y2="20" stroke="#fff" strokeWidth="0.4" opacity="0.15" />
+          {/* bottles */}
+          {[20, 42, 64, 86].map((x, i) => {
+            const colors = ["#4a9ad9", "#7dff5a", "#c8321f", "#d9a217"];
+            return (
+              <g key={i}>
+                <rect x={x} y="22" width="6" height="14" rx="0.8" fill={colors[i]} opacity="0.85" />
+                <rect x={x + 2} y="18" width="2" height="6" fill="#1a1815" />
+              </g>
+            );
+          })}
+          {/* beer taps */}
+          {[130, 148, 166, 184].map((x) => (
+            <g key={x}>
+              <rect x={x - 1} y="22" width="2" height="12" fill="#c9b89a" />
+              <path d={`M${x - 3} 34 L${x + 3} 34 L${x + 2} 40 L${x - 2} 40 Z`} fill="#c9b89a" />
+              <circle cx={x} cy="20" r="2" fill="#c8321f" />
+            </g>
+          ))}
+          {/* under-bar LED strip */}
+          <rect x="2" y="56" width="212" height="2" fill="#c8321f" opacity="0.6" />
+        </svg>
+      );
+    }
+    case "generator": {
+      // Diesel genset: green industrial chassis, vents, exhaust, fuel gauge
+      return (
+        <svg viewBox="0 0 120 96" className="h-full w-full" {...common}>
+          <defs>
+            <linearGradient id={`gen-body-${uid}`} x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#3a4a2e" />
+              <stop offset="55%" stopColor="#1e281a" />
+              <stop offset="100%" stopColor="#0a0f08" />
+            </linearGradient>
+          </defs>
+          {/* skid base */}
+          <rect x="2" y="82" width="116" height="10" rx="1" fill="#1a1815" stroke="#000" strokeWidth="0.5" />
+          {/* body */}
+          <rect x="4" y="10" width="112" height="72" rx="3" fill={`url(#gen-body-${uid})`} stroke="#000" strokeWidth="0.8" />
+          {/* ventilation slats left */}
+          {[16, 22, 28, 34, 40, 46, 52, 58, 64, 70].map((y) => (
+            <line key={y} x1="8" y1={y} x2="32" y2={y} stroke="#050403" strokeWidth="1" />
+          ))}
+          {/* exhaust pipe on top */}
+          <rect x="24" y="2" width="8" height="10" fill="#2a2622" stroke="#050403" strokeWidth="0.5" />
+          <circle cx="28" cy="3" r="3" fill="#050403" />
+          {/* control panel */}
+          <rect x="42" y="20" width="66" height="52" rx="1.5" fill="#050403" stroke="#5c5248" strokeWidth="0.4" />
+          {/* fuel gauge */}
+          <circle cx="56" cy="34" r="8" fill="#0a0908" stroke="#5c5248" strokeWidth="0.5" />
+          <path d="M56 34 L61 30" stroke="#c8321f" strokeWidth="0.9" />
+          <text x="56" y="46" textAnchor="middle" fontSize="4" fill="#c9b89a" fontFamily="ui-monospace, monospace">FUEL</text>
+          {/* voltage meter */}
+          <circle cx="80" cy="34" r="8" fill="#0a0908" stroke="#5c5248" strokeWidth="0.5" />
+          <path d="M80 34 L84 30" stroke="#7dff5a" strokeWidth="0.9" />
+          <text x="80" y="46" textAnchor="middle" fontSize="4" fill="#c9b89a" fontFamily="ui-monospace, monospace">400V</text>
+          {/* power sockets */}
+          {[52, 68, 84, 100].map((x) => (
+            <g key={x}>
+              <rect x={x - 4} y="56" width="8" height="10" rx="1" fill="#c8321f" stroke="#050403" strokeWidth="0.4" />
+              <circle cx={x - 1.5} cy="60" r="0.8" fill="#050403" />
+              <circle cx={x + 1.5} cy="60" r="0.8" fill="#050403" />
+              <rect x={x - 0.5} y="62" width="1" height="2" fill="#050403" />
+            </g>
+          ))}
+          {/* running LED */}
+          <circle cx="102" cy="26" r="1.6" fill="#7dff5a" />
+          <circle cx="102" cy="26" r="3" fill="#7dff5a" opacity="0.3" />
+        </svg>
+      );
+    }
+    case "crowd": {
+      // Dancefloor with silhouettes of dancing people
+      return (
+        <svg viewBox="0 0 240 168" className="h-full w-full" {...common}>
+          <defs>
+            <radialGradient id={`floor-${uid}`} cx="50%" cy="50%" r="65%">
+              <stop offset="0%" stopColor="#2a1a3a" />
+              <stop offset="60%" stopColor="#12081a" />
+              <stop offset="100%" stopColor="#050208" />
+            </radialGradient>
+          </defs>
+          <rect x="2" y="2" width="236" height="164" rx="4" fill={`url(#floor-${uid})`} stroke="#3a2a4a" strokeWidth="0.6" strokeDasharray="4 3" />
+          {/* checkered dance floor hint */}
+          {Array.from({ length: 12 }).map((_, i) =>
+            Array.from({ length: 8 }).map((_, j) =>
+              (i + j) % 2 === 0 ? (
+                <rect key={`${i}-${j}`} x={10 + i * 19} y={10 + j * 19} width="19" height="19" fill="#fff" opacity="0.025" />
+              ) : null
+            )
+          )}
+          {/* dancing silhouettes (top-down view: head + shoulders) */}
+          {Array.from({ length: 44 }).map((_, i) => {
+            const cx = 22 + (i % 11) * 20 + ((Math.floor(i / 11) % 2) * 8);
+            const cy = 26 + Math.floor(i / 11) * 32 + (i % 3) * 2;
+            const jitter = ((i * 37) % 7) - 3;
+            return (
+              <g key={i}>
+                {/* shoulders */}
+                <ellipse cx={cx + jitter} cy={cy + 4} rx="6" ry="3" fill="#ffffff" opacity="0.15" />
+                {/* head */}
+                <circle cx={cx + jitter} cy={cy} r="3.2" fill="#f0d7b0" opacity="0.85" />
+                <circle cx={cx + jitter} cy={cy} r="3.2" fill="#000" opacity="0.15" />
+              </g>
+            );
+          })}
+        </svg>
+      );
+    }
   }
 }
 
