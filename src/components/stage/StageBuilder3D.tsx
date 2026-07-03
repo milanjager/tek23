@@ -106,8 +106,133 @@ const CABLE_META: Record<CableType, { label: string; short: string; color: strin
 const STORAGE = "stagerig3d:v2";
 const uid = () => Math.random().toString(36).slice(2, 10);
 
-// Anchor point on a placed item where cables plug in.
-// Signal/DMX = top-back, Power = bottom-back, Speaker = top-front.
+// ---- Connector catalog ------------------------------------------------------
+// Each Kind exposes specific plug points (SIG / SPK / PWR / DMX) with role
+// ("in" = female / input, "out" = male / output) and a local offset relative
+// to the item's bottom-center. Cables snap onto real connectors, so routing
+// on scene matches how the gear is actually wired.
+
+type ConnRole = "in" | "out";
+interface Connector {
+  type: CableType;
+  role: ConnRole;
+  offset: [number, number, number]; // local (before rotation)
+}
+
+function connectorsFor(kind: Kind): Connector[] {
+  const [bx, by, bz] = SPECS[kind].size;
+  const passiveSpeaker: Connector[] = [
+    { type: "speaker", role: "in", offset: [ bx * 0.28, by * 0.85, -bz * 0.45] },
+  ];
+  switch (kind) {
+    // Passive PA cabinets — one Speakon input on the back.
+    case "horn":
+    case "mid":
+    case "bass":
+    case "sub":
+    case "badtekk_sub":
+    case "badtekk_bass":
+    case "badtekk_top":
+    case "linearray":
+    case "monitor":
+      return passiveSpeaker;
+
+    // Power amps — SIG in, SPK out, PWR in.
+    case "amp":
+    case "powersoft":
+      return [
+        { type: "signal",  role: "in",  offset: [-bx * 0.30, by * 0.82, -bz * 0.50] },
+        { type: "speaker", role: "out", offset: [ bx * 0.30, by * 0.82, -bz * 0.50] },
+        { type: "power",   role: "in",  offset: [ 0,         by * 0.15, -bz * 0.50] },
+      ];
+
+    // Mixer — signal in/out + power.
+    case "mixer":
+      return [
+        { type: "signal", role: "in",  offset: [-bx * 0.35, by * 0.55, -bz * 0.50] },
+        { type: "signal", role: "out", offset: [ bx * 0.35, by * 0.55, -bz * 0.50] },
+        { type: "power",  role: "in",  offset: [ 0,         by * 0.10, -bz * 0.50] },
+      ];
+
+    // DJ deck / grooveboxes — signal out + power in.
+    case "dj":
+      return [
+        { type: "signal", role: "out", offset: [ bx * 0.35, by * 0.90, -bz * 0.40] },
+        { type: "power",  role: "in",  offset: [-bx * 0.35, by * 0.10, -bz * 0.40] },
+      ];
+    case "cdj":
+    case "turntable":
+    case "korg":
+    case "korg_red":
+    case "korg_blue":
+      return [
+        { type: "signal", role: "out", offset: [ bx * 0.35, by * 0.55, -bz * 0.50] },
+        { type: "power",  role: "in",  offset: [-bx * 0.35, by * 0.55, -bz * 0.50] },
+      ];
+
+    // Lights — DMX in + power in.
+    case "movinghead":
+      return [
+        { type: "dmx",   role: "in", offset: [ bx * 0.30, by * 0.15, -bz * 0.40] },
+        { type: "power", role: "in", offset: [-bx * 0.30, by * 0.15, -bz * 0.40] },
+      ];
+    case "strobe":
+    case "laser":
+      return [
+        { type: "dmx",   role: "in", offset: [ bx * 0.30, by * 0.55, -bz * 0.50] },
+        { type: "power", role: "in", offset: [-bx * 0.30, by * 0.55, -bz * 0.50] },
+      ];
+
+    // Generator — pure PWR source.
+    case "generator":
+      return [
+        { type: "power", role: "out", offset: [ bx * 0.35, by * 0.35,  bz * 0.50] },
+        { type: "power", role: "out", offset: [-bx * 0.35, by * 0.35,  bz * 0.50] },
+      ];
+
+    // Passive furniture — no connectors.
+    case "bar":
+    case "crowd":
+      return [];
+  }
+}
+
+function localToWorld(
+  item: Placed,
+  local: [number, number, number],
+): [number, number, number] {
+  const cs = Math.cos(item.rotY), sn = Math.sin(item.rotY);
+  const [lx, ly, lz] = local;
+  return [
+    item.pos[0] + lx * cs + lz * sn,
+    item.pos[1] + ly,
+    item.pos[2] + (-lx * sn + lz * cs),
+  ];
+}
+
+function hasConnector(kind: Kind, type: CableType): boolean {
+  return connectorsFor(kind).some((c) => c.type === type);
+}
+
+// Pick the best pair of connectors between a and b for the given cable type.
+// Prefers OUT on source, IN on target. Falls back to any connector of that
+// type, then to the generic anchorFor() so legacy items still route.
+function bestAnchorPair(
+  a: Placed,
+  b: Placed,
+  type: CableType,
+): { p1: [number, number, number]; p2: [number, number, number] } {
+  const ca = connectorsFor(a.kind).filter((c) => c.type === type);
+  const cb = connectorsFor(b.kind).filter((c) => c.type === type);
+  if (ca.length && cb.length) {
+    const outA = ca.find((c) => c.role === "out") ?? ca[0];
+    const inB  = cb.find((c) => c.role === "in")  ?? cb[0];
+    return { p1: localToWorld(a, outA.offset), p2: localToWorld(b, inB.offset) };
+  }
+  return { p1: anchorFor(a, type), p2: anchorFor(b, type) };
+}
+
+// Legacy generic anchor — kept as fallback for items with no specific plug.
 function anchorFor(item: Placed, type: CableType): [number, number, number] {
   const s = SPECS[item.kind].size;
   const [x, y, z] = item.pos;
@@ -116,7 +241,6 @@ function anchorFor(item: Placed, type: CableType): [number, number, number] {
   if (type === "power")   { ly = s[1] * 0.15; lz = -s[2] * 0.4; }
   if (type === "speaker") { ly = s[1] * 0.75; lz =  s[2] * 0.4; }
   if (type === "dmx")     { ly = s[1] * 0.95; lz = -s[2] * 0.2; lx = s[0] * 0.3; }
-  // Rotate around Y
   const wx = lx * cs + lz * sn;
   const wz = -lx * sn + lz * cs;
   return [x + wx, y + ly, z + wz];
@@ -132,12 +256,12 @@ function cablePoints(a: [number, number, number], b: [number, number, number], s
   const pts: [number, number, number][] = [];
   for (let i = 0; i <= segs; i++) {
     const t = i / segs;
-    // Parabolic sag: y_offset = -4 * sag * t * (1 - t)
     const yOff = -4 * sag * t * (1 - t);
     pts.push([ax + dx * t, ay + dy * t + yOff, az + dz * t]);
   }
   return pts;
 }
+
 
 
 /* ============================================================
