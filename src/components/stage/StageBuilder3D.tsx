@@ -68,6 +68,7 @@ interface Placed {
   rotY: number;                  // radians
   groupId?: string;
   label?: string;
+  variant?: "red" | "blue";
 }
 
 type PresetKind = "mayapur" | "badtekk" | "namel" | "toroid" | "dub" | "techno" | "club" | "freetekno";
@@ -423,8 +424,14 @@ function CDJModel({ size }: { size: [number, number, number] }) {
   );
 }
 
-function KorgModel({ size }: { size: [number, number, number] }) {
+function KorgModel({ size, variant }: { size: [number, number, number]; variant?: "red" | "blue" }) {
   const [w, h, d] = size;
+  const palette =
+    variant === "red"
+      ? ["#ff2a6d", "#ff1744", "#d50000", "#ff5252"]
+      : variant === "blue"
+      ? ["#05d9e8", "#2979ff", "#00b0ff", "#82b1ff"]
+      : ["#ff2a6d", "#05d9e8", "#d1f7ff", "#a3ff12"];
   return (
     <group>
       <mesh castShadow position={[0, h / 2, 0]}>
@@ -443,8 +450,8 @@ function KorgModel({ size }: { size: [number, number, number] }) {
           >
             <boxGeometry args={[0.06, 0.006, 0.06]} />
             <meshStandardMaterial
-              color={["#ff2a6d", "#05d9e8", "#d1f7ff", "#a3ff12"][(i + j) % 4]}
-              emissive={["#ff2a6d", "#05d9e8", "#d1f7ff", "#a3ff12"][(i + j) % 4]}
+              color={palette[(i + j) % 4]}
+              emissive={palette[(i + j) % 4]}
               emissiveIntensity={1.2}
             />
           </mesh>
@@ -618,7 +625,7 @@ function CrowdModel({ size }: { size: [number, number, number] }) {
   );
 }
 
-function ModelFor({ kind, size }: { kind: Kind; size: [number, number, number] }) {
+function ModelFor({ kind, size, variant }: { kind: Kind; size: [number, number, number]; variant?: "red" | "blue" }) {
   switch (kind) {
     case "horn": return <HornModel size={size} />;
     case "mid": return <MidModel size={size} />;
@@ -630,7 +637,7 @@ function ModelFor({ kind, size }: { kind: Kind; size: [number, number, number] }
     case "mixer": return <MixerModel size={size} />;
     case "dj": return <DJBooth size={size} />;
     case "cdj": return <CDJModel size={size} />;
-    case "korg": return <KorgModel size={size} />;
+    case "korg": return <KorgModel size={size} variant={variant} />;
     case "turntable": return <TurntableModel size={size} />;
     case "strobe": return <StrobeModel size={size} />;
     case "laser": return <LaserModel size={size} />;
@@ -678,7 +685,7 @@ const ItemObject = ({
         </group>
       )}
       <group position={[0, spec.category === "sound" && item.pos[1] < 0.05 && item.kind !== "linearray" && item.kind !== "monitor" ? 0.14 : 0, 0]}>
-        <ModelFor kind={item.kind} size={spec.size} />
+        <ModelFor kind={item.kind} size={spec.size} variant={item.variant} />
       </group>
       {/* Selection halo */}
       {selected && (
@@ -1052,7 +1059,8 @@ function loadPreset(kind: PresetKind): Placed[] {
       { ...mk("amp", -1.5, 0, 1.5), label: "Powersoft" },
       { ...mk("amp", 1.5, 0, 1.5), label: "Powersoft" },
       mk("turntable", 0, 0.15, 2.2),
-      mk("korg", 0, 0.1, 2.9),
+      { ...mk("korg", -0.4, 0.1, 2.9), label: "Korg červený", variant: "red" },
+      { ...mk("korg", 0.4, 0.1, 2.9), label: "Korg modrý", variant: "blue" },
       mk("generator", -5, 0, 2),
       mk("crowd", 0, 0, 5),
     ];
