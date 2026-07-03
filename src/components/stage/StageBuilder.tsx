@@ -1673,17 +1673,24 @@ export function StageBuilder() {
                   {slices > 0 && Array.from({ length: slices }).map((_, i) => {
                     const t = (i + 1) / slices;
                     const z = -depth * t;
-                    const shade = 0.55 - t * 0.35; // darker further back
+                    const isSound = spec.category === "sound";
+                    // Sound cabinets = black stained plywood; other gear keeps the tinted look
+                    const border = isSound
+                      ? `rgba(${20 + i * 4}, ${16 + i * 3}, ${14 + i * 3}, 1)`
+                      : `color-mix(in oklch, ${COLOR_VAR[spec.color]} ${18 - i * 2}%, oklch(0.14 0.02 280))`;
+                    const bg = isSound
+                      ? `linear-gradient(180deg, #1a1613 0%, #0d0b09 55%, #050403 100%)`
+                      : `color-mix(in oklch, ${COLOR_VAR[spec.color]} 8%, oklch(0.10 0.02 280 / ${0.55 - t * 0.35}))`;
                     return (
                       <div
                         key={`slice-${i}`}
                         aria-hidden
-                        className="pointer-events-none absolute inset-0 rounded-md border"
+                        className="pointer-events-none absolute inset-0 rounded-sm border"
                         style={{
                           transform: `translateZ(${z}px)`,
-                          borderColor: `color-mix(in oklch, ${COLOR_VAR[spec.color]} ${18 - i * 2}%, oklch(0.14 0.02 280))`,
-                          background: `color-mix(in oklch, ${COLOR_VAR[spec.color]} ${8}%, oklch(0.10 0.02 280 / ${shade}))`,
-                          boxShadow: i === slices - 1 ? "0 0 0 1px rgba(0,0,0,0.35)" : undefined,
+                          borderColor: border,
+                          background: bg,
+                          boxShadow: i === slices - 1 ? "0 6px 14px rgba(0,0,0,0.7)" : undefined,
                         }}
                       />
                     );
@@ -1707,9 +1714,11 @@ export function StageBuilder() {
                     />
                   )}
                   <div
-                    className={`relative h-full w-full rounded-md border ${cls.border} ${cls.bg} backdrop-blur-sm transition ${
-                      isSel ? "ring-2 " + cls.ring : ""
-                    }`}
+                    className={`relative h-full w-full overflow-hidden rounded-sm transition ${
+                      spec.category === "sound"
+                        ? "border border-black shadow-[inset_0_1px_0_rgba(255,255,255,0.04),0_2px_6px_rgba(0,0,0,0.6)]"
+                        : `border ${cls.border} ${cls.bg} backdrop-blur-sm`
+                    } ${isSel ? "ring-2 " + cls.ring : ""}`}
                   >
                     <Glyph kind={it.kind} selected={isSel} label={it.label} />
                     {isSel && (
