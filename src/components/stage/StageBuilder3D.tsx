@@ -671,7 +671,15 @@ const ItemObject = ({
         onSelect(item.id, e.shiftKey || e.metaKey || e.ctrlKey);
       }}
     >
-      <ModelFor kind={item.kind} size={spec.size} />
+      {/* Pallet under sound cabinets sitting on the ground */}
+      {spec.category === "sound" && item.pos[1] < 0.05 && item.kind !== "linearray" && item.kind !== "monitor" && (
+        <group position={[0, 0, 0]}>
+          <Pallet w={spec.size[0] * 1.02} d={spec.size[2] * 1.02} />
+        </group>
+      )}
+      <group position={[0, spec.category === "sound" && item.pos[1] < 0.05 && item.kind !== "linearray" && item.kind !== "monitor" ? 0.14 : 0, 0]}>
+        <ModelFor kind={item.kind} size={spec.size} />
+      </group>
       {/* Selection halo */}
       {selected && (
         <mesh position={[0, 0.005, 0]} rotation={[-Math.PI / 2, 0, 0]}>
