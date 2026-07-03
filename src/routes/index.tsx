@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { StageBuilder } from "@/components/stage/StageBuilder";
+import { StageBuilder3D } from "@/components/stage/StageBuilder3D";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -24,5 +24,5 @@ export const Route = createFileRoute("/")({
 });
 
 function Index() {
-  return <StageBuilder />;
+  return <StageBuilder3D />;
 }
