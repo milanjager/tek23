@@ -1381,50 +1381,106 @@ export function StageBuilder() {
   };
 
   /* base preset — two stacks (L/R) + amps + mixer + generator, fully wired */
-  const loadBasePreset = () => {
-    if (items.length > 0 && !confirm("Nahradit aktuální stage základním presetem?")) return;
+  type PresetKind = "dub" | "techno" | "club";
+  const loadPreset = (preset: PresetKind) => {
+    if (items.length > 0 && !confirm("Nahradit aktuální stage vybraným presetem?")) return;
     const mk = (kind: ComponentKind, x: number, y: number, rot = 0): Placed =>
       ({ id: uid(), kind, x, y, rot });
-    // Stage front is at top; speakers face up (audience).
-    // Left stack column center ≈ 220, right ≈ 620
-    const LX = 172; // bass 120 wide → x=172 puts center at 232
-    const RX = 548; // bass at 548 → center 608
-    // Vertical: horn top, mid below, bass bottom
-    const hornL = mk("horn", LX + 12, 48);   // 96 wide, indent 12 to center over mid
-    const midL  = mk("mid",  LX + 12, 120);  // 96 wide
-    const bassL = mk("bass", LX,      216);  // 120 wide
-    const hornR = mk("horn", RX + 12, 48);
-    const midR  = mk("mid",  RX + 12, 120);
-    const bassR = mk("bass", RX,      216);
-    // Amps behind each stack
-    const ampL = mk("amp", LX - 12, 336);    // 96 wide
-    const ampR = mk("amp", RX + 24, 336);
-    // Mixer center-back (FOH)
-    const mixer = mk("mixer", 340, 432);     // 120 wide, center ≈ 400
-    // Generator further back
-    const gen = mk("generator", 340, 552);   // 120 wide
-
-    const newItems: Placed[] = [hornL, midL, bassL, hornR, midR, bassR, ampL, ampR, mixer, gen];
-
     const link = (
       from: string, fromPort: string,
       to: string, toPort: string,
       type: PortType,
     ): CableLink => ({ id: uid(), from, to, fromPort, toPort, type });
 
-    const newCables: CableLink[] = [
-      // Audio: mixer → amps → speakers (bass + mid per side; horn passive)
-      link(mixer.id, "audio_out", ampL.id, "audio_in", "audio"),
-      link(mixer.id, "audio_out", ampR.id, "audio_in", "audio"),
-      link(ampL.id, "out_a", bassL.id, "in", "audio"),
-      link(ampL.id, "out_b", midL.id,  "in", "audio"),
-      link(ampR.id, "out_a", bassR.id, "in", "audio"),
-      link(ampR.id, "out_b", midR.id,  "in", "audio"),
-      // Power: generator → mixer + amps
-      link(gen.id, "out1", ampL.id,  "pwr", "power"),
-      link(gen.id, "out2", ampR.id,  "pwr", "power"),
-      link(gen.id, "out3", mixer.id, "pwr", "power"),
-    ];
+    let newItems: Placed[] = [];
+    let newCables: CableLink[] = [];
+
+    if (preset === "dub") {
+      // DUB SOUND SYSTEM (Zongo style): 2 stacks — horn + mid + bass, mixer, amps, generator
+      const LX = 172, RX = 548;
+      const hornL = mk("horn", LX + 12, 48);
+      const midL  = mk("mid",  LX + 12, 120);
+      const bassL = mk("bass", LX,      216);
+      const hornR = mk("horn", RX + 12, 48);
+      const midR  = mk("mid",  RX + 12, 120);
+      const bassR = mk("bass", RX,      216);
+      const ampL = mk("amp", LX - 12, 336);
+      const ampR = mk("amp", RX + 24, 336);
+      const mixer = mk("mixer", 340, 432);
+      const gen = mk("generator", 340, 552);
+      newItems = [hornL, midL, bassL, hornR, midR, bassR, ampL, ampR, mixer, gen];
+      newCables = [
+        link(mixer.id, "audio_out", ampL.id, "audio_in", "audio"),
+        link(mixer.id, "audio_out", ampR.id, "audio_in", "audio"),
+        link(ampL.id, "out_a", bassL.id, "in", "audio"),
+        link(ampL.id, "out_b", midL.id,  "in", "audio"),
+        link(ampR.id, "out_a", bassR.id, "in", "audio"),
+        link(ampR.id, "out_b", midR.id,  "in", "audio"),
+        link(gen.id, "out1", ampL.id,  "pwr", "power"),
+        link(gen.id, "out2", ampR.id,  "pwr", "power"),
+        link(gen.id, "out3", mixer.id, "pwr", "power"),
+      ];
+    } else if (preset === "techno") {
+      // TECHNO RIG: 4 subs front row + 2 line arrays hung + 2 monitors + 2 CDJs + mixer + amps + generator
+      const sub1 = mk("sub", 60,  260);
+      const sub2 = mk("sub", 240, 260);
+      const sub3 = mk("sub", 420, 260);
+      const sub4 = mk("sub", 600, 260);
+      const laL  = mk("linearray", 96,  60);
+      const laR  = mk("linearray", 552, 60);
+      const monL = mk("monitor", 260, 168);
+      const monR = mk("monitor", 484, 168);
+      const cdjL = mk("cdj", 300, 420);
+      const cdjR = mk("cdj", 456, 420);
+      const mixer = mk("mixer", 372, 528);
+      const ampL = mk("amp", 156, 420);
+      const ampR = mk("amp", 588, 420);
+      const gen  = mk("generator", 372, 624);
+      newItems = [sub1, sub2, sub3, sub4, laL, laR, monL, monR, cdjL, cdjR, mixer, ampL, ampR, gen];
+      newCables = [
+        // audio path: CDJs → mixer → amps → PA
+        link(cdjL.id, "audio_out", mixer.id, "audio_out", "audio"),
+        link(cdjR.id, "audio_out", mixer.id, "audio_out", "audio"),
+        link(mixer.id, "audio_out", ampL.id, "audio_in", "audio"),
+        link(mixer.id, "audio_out", ampR.id, "audio_in", "audio"),
+        link(ampL.id, "out_a", sub1.id, "in", "audio"),
+        link(ampL.id, "out_b", sub2.id, "in", "audio"),
+        link(ampR.id, "out_a", sub3.id, "in", "audio"),
+        link(ampR.id, "out_b", sub4.id, "in", "audio"),
+        // hang the line arrays off amp outputs (secondary — reuse b outputs conceptually)
+        link(ampL.id, "out_b", laL.id, "in", "audio"),
+        link(ampR.id, "out_b", laR.id, "in", "audio"),
+        // monitors from mixer
+        link(mixer.id, "audio_out", monL.id, "in", "audio"),
+        link(mixer.id, "audio_out", monR.id, "in", "audio"),
+        // power
+        link(gen.id, "out1", ampL.id,  "pwr", "power"),
+        link(gen.id, "out2", ampR.id,  "pwr", "power"),
+        link(gen.id, "out3", mixer.id, "pwr", "power"),
+      ];
+    } else {
+      // SMALL CLUB: 2× bass + 2× mid + 1× horn top-center, DJ booth, amp, mixer
+      const bassL = mk("bass", 180, 200);
+      const bassR = mk("bass", 480, 200);
+      const midL  = mk("mid",  192, 96);
+      const midR  = mk("mid",  492, 96);
+      const hornC = mk("horn", 340, 20);
+      const dj    = mk("dj",   324, 340);
+      const amp   = mk("amp",  360, 460);
+      const monL  = mk("monitor", 240, 340);
+      const monR  = mk("monitor", 480, 340);
+      newItems = [bassL, bassR, midL, midR, hornC, dj, amp, monL, monR];
+      newCables = [
+        link(dj.id, "audio_out", amp.id, "audio_in", "audio"),
+        link(amp.id, "out_a", bassL.id, "in", "audio"),
+        link(amp.id, "out_b", bassR.id, "in", "audio"),
+        link(dj.id, "audio_out", midL.id, "in", "audio"),
+        link(dj.id, "audio_out", midR.id, "in", "audio"),
+        link(dj.id, "audio_out", hornC.id, "in", "audio"),
+        link(dj.id, "audio_out", monL.id, "in", "audio"),
+        link(dj.id, "audio_out", monR.id, "in", "audio"),
+      ];
+    }
 
     setItems(newItems);
     setCables(newCables);
