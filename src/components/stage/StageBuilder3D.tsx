@@ -1809,8 +1809,120 @@ export function StageBuilder3D() {
           </div>
 
         </div>
+
+        {/* Right inspector — per-item model / label / variant */}
+        <aside className="flex w-72 flex-col border-l border-neutral-800 bg-neutral-900/80">
+          <div className="border-b border-neutral-800 px-3 py-2 text-xs font-bold uppercase tracking-wider text-neutral-400">
+            Komponenty na scéně ({items.length})
+          </div>
+          <div className="flex-1 overflow-y-auto p-2">
+            {items.length === 0 && (
+              <div className="p-4 text-center text-[11px] text-neutral-500">Zatím žádné komponenty. Přidej z levého panelu nebo načti preset.</div>
+            )}
+            {items.map((it) => {
+              const spec = SPECS[it.kind];
+              const isSel = selection.includes(it.id);
+              const isKorg = it.kind === "korg" || it.kind === "korg_red" || it.kind === "korg_blue";
+              return (
+                <div
+                  key={it.id}
+                  className={`mb-1.5 rounded border p-2 text-[11px] transition ${isSel ? "border-lime-500 bg-neutral-800" : "border-neutral-800 bg-neutral-900 hover:border-neutral-700"}`}
+                >
+                  <button
+                    onClick={() => { setMode("select"); setSelection([it.id]); }}
+                    className="mb-1.5 flex w-full items-center gap-2 text-left"
+                  >
+                    <span
+                      className="inline-block h-2 w-2 shrink-0 rounded-full"
+                      style={{ backgroundColor: spec.category === "sound" ? "#a3ff12" : spec.category === "lights" ? "#f4c11a" : "#05d9e8" }}
+                    />
+                    <span className="flex-1 truncate font-semibold text-neutral-100">
+                      {it.label || spec.label}
+                    </span>
+                    <span className="font-mono text-[9px] text-neutral-500">
+                      {it.pos[0].toFixed(1)},{it.pos[2].toFixed(1)}
+                    </span>
+                  </button>
+
+                  {/* Kind (model) selector */}
+                  <label className="mb-1 block">
+                    <span className="mb-0.5 block text-[9px] uppercase tracking-wider text-neutral-500">Model / typ bedny</span>
+                    <select
+                      value={it.kind}
+                      onChange={(e) => {
+                        const newKind = e.target.value as Kind;
+                        setItems((cur) => cur.map((x) => x.id === it.id ? {
+                          ...x,
+                          kind: newKind,
+                          variant: SPECS[newKind].defaultVariant ?? x.variant,
+                        } : x));
+                      }}
+                      className="w-full rounded border border-neutral-700 bg-neutral-950 px-1.5 py-1 text-[11px] text-neutral-100 focus:border-lime-500 focus:outline-none"
+                    >
+                      {CATEGORIES.map((cat) => (
+                        <optgroup key={cat.id} label={cat.label}>
+                          {(Object.entries(SPECS) as [Kind, Spec][])
+                            .filter(([, s]) => s.category === cat.id)
+                            .map(([k, s]) => (
+                              <option key={k} value={k}>{s.label}</option>
+                            ))}
+                        </optgroup>
+                      ))}
+                    </select>
+                  </label>
+
+                  {/* Custom label */}
+                  <label className="mb-1 block">
+                    <span className="mb-0.5 block text-[9px] uppercase tracking-wider text-neutral-500">Vlastní štítek</span>
+                    <input
+                      type="text"
+                      value={it.label ?? ""}
+                      placeholder={spec.defaultLabel ?? spec.label}
+                      onChange={(e) => {
+                        const v = e.target.value;
+                        setItems((cur) => cur.map((x) => x.id === it.id ? { ...x, label: v || undefined } : x));
+                      }}
+                      className="w-full rounded border border-neutral-700 bg-neutral-950 px-1.5 py-1 font-mono text-[11px] text-lime-400 focus:border-lime-500 focus:outline-none"
+                    />
+                  </label>
+
+                  {/* Variant (Korg color) */}
+                  {isKorg && (
+                    <div className="mb-1 flex items-center gap-1">
+                      <span className="text-[9px] uppercase tracking-wider text-neutral-500">Barva:</span>
+                      {(["red", "blue"] as const).map((v) => (
+                        <button
+                          key={v}
+                          onClick={() => setItems((cur) => cur.map((x) => x.id === it.id ? { ...x, variant: v } : x))}
+                          className={`h-5 w-5 rounded border-2 ${it.variant === v ? "border-lime-400" : "border-neutral-700"}`}
+                          style={{ backgroundColor: v === "red" ? "#c81e2a" : "#1e5ec8" }}
+                          title={v === "red" ? "Červený" : "Modrý"}
+                        />
+                      ))}
+                    </div>
+                  )}
+
+                  <div className="mt-1 flex items-center justify-between">
+                    <span className="font-mono text-[9px] text-neutral-600">
+                      {spec.size[0].toFixed(2)}×{spec.size[1].toFixed(2)}×{spec.size[2].toFixed(2)} m
+                    </span>
+                    <button
+                      onClick={() => {
+                        setItems((cur) => cur.filter((x) => x.id !== it.id));
+                        setCables((cs) => cs.filter((c) => c.from !== it.id && c.to !== it.id));
+                      }}
+                      className="rounded bg-red-900/50 px-1.5 py-0.5 text-[10px] text-red-200 hover:bg-red-800"
+                    >
+                      <Trash2 size={10} className="inline" />
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </aside>
       </div>
-    </div>
+
   );
 }
 
