@@ -195,8 +195,10 @@ function connectorsFor(kind: Kind): Connector[] {
 
     // Passive furniture — no connectors.
     case "bar":
+    case "dj_table":
     case "crowd":
       return [];
+
   }
 }
 
