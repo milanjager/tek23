@@ -826,13 +826,21 @@ function stackY(moving: Placed, others: Placed[]): number {
 
 function SceneContent({
   items, setItems, selection, setSelection, tool,
+  cables, setCables, mode, cableType, pendingFrom, setPendingFrom,
 }: {
   items: Placed[];
   setItems: React.Dispatch<React.SetStateAction<Placed[]>>;
   selection: string[];
   setSelection: React.Dispatch<React.SetStateAction<string[]>>;
   tool: "translate" | "rotate";
+  cables: Cable[];
+  setCables: React.Dispatch<React.SetStateAction<Cable[]>>;
+  mode: "select" | "cable";
+  cableType: CableType;
+  pendingFrom: string | null;
+  setPendingFrom: React.Dispatch<React.SetStateAction<string | null>>;
 }) {
+
   const objectsRef = useRef<Map<string, THREE.Object3D>>(new Map());
   const orbitRef = useRef<any>(null);
   const transformRef = useRef<any>(null);
