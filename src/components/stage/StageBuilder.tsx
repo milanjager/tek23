@@ -1554,6 +1554,9 @@ export function StageBuilder() {
                 tilt > 0
                   ? `drop-shadow(0 ${Math.max(2, tilt * 0.35)}px ${Math.max(4, tilt * 0.6)}px rgba(0,0,0,0.55))`
                   : undefined;
+              const depth = DEPTH[it.kind] ?? 24;
+              // Number of extrusion slices — more = smoother "cabinet" look
+              const slices = tilt > 4 ? 6 : 0;
               return (
                 <div
                   key={it.id}
@@ -1564,7 +1567,8 @@ export function StageBuilder() {
                     top: it.y,
                     width: spec.w,
                     height: spec.h,
-                    transform: `rotate(${it.rot}deg)`,
+                    transform: `rotate(${it.rot}deg) translateZ(${depth / 2}px)`,
+                    transformStyle: "preserve-3d",
                     touchAction: "none",
                     filter: shadow,
                   }}
@@ -1572,6 +1576,25 @@ export function StageBuilder() {
                     isSel ? "z-20" : "z-10"
                   }`}
                 >
+                  {/* Extrusion slices — stack of thin layers behind the front face for a real cabinet look */}
+                  {slices > 0 && Array.from({ length: slices }).map((_, i) => {
+                    const t = (i + 1) / slices;
+                    const z = -depth * t;
+                    const shade = 0.55 - t * 0.35; // darker further back
+                    return (
+                      <div
+                        key={`slice-${i}`}
+                        aria-hidden
+                        className="pointer-events-none absolute inset-0 rounded-md border"
+                        style={{
+                          transform: `translateZ(${z}px)`,
+                          borderColor: `color-mix(in oklch, ${COLOR_VAR[spec.color]} ${18 - i * 2}%, oklch(0.14 0.02 280))`,
+                          background: `color-mix(in oklch, ${COLOR_VAR[spec.color]} ${8}%, oklch(0.10 0.02 280 / ${shade}))`,
+                          boxShadow: i === slices - 1 ? "0 0 0 1px rgba(0,0,0,0.35)" : undefined,
+                        }}
+                      />
+                    );
+                  })}
                   {isSnapped && (
                     <div
                       className="pointer-events-none absolute -inset-1.5 rounded-md border-2 animate-pulse"
