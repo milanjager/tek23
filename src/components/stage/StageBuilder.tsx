@@ -1463,14 +1463,25 @@ export function StageBuilder() {
                 const my = (a.y + b.y) / 2 + 30;
                 const col = PORT_COLOR[pending.type];
                 return (
-                  <path
-                    d={`M ${a.x} ${a.y} Q ${mx} ${my} ${b.x} ${b.y}`}
-                    stroke={col}
-                    strokeWidth={2.5}
-                    fill="none"
-                    strokeDasharray={pending.hover ? "0" : "6 4"}
-                    strokeOpacity={pending.hover ? 1 : 0.7}
-                  />
+                  <g>
+                    <path
+                      d={`M ${a.x} ${a.y} Q ${mx} ${my} ${b.x} ${b.y}`}
+                      stroke={col}
+                      strokeWidth={2.5}
+                      fill="none"
+                      strokeDasharray={pending.hover ? "0" : "6 4"}
+                      strokeOpacity={pending.hover ? 1 : 0.7}
+                    />
+                    {/* Landing crosshair — always shows exact landing point (snaps to port when hovering) */}
+                    <g style={{ pointerEvents: "none" }}>
+                      <circle cx={b.x} cy={b.y} r={pending.hover ? 11 : 7} fill="none" stroke={col} strokeWidth={pending.hover ? 2 : 1.2} opacity={pending.hover ? 1 : 0.75} />
+                      <circle cx={b.x} cy={b.y} r={pending.hover ? 3 : 2} fill={col} />
+                      <line x1={b.x - 14} y1={b.y} x2={b.x - 6} y2={b.y} stroke={col} strokeWidth={1} opacity={0.7} />
+                      <line x1={b.x + 6} y1={b.y} x2={b.x + 14} y2={b.y} stroke={col} strokeWidth={1} opacity={0.7} />
+                      <line x1={b.x} y1={b.y - 14} x2={b.x} y2={b.y - 6} stroke={col} strokeWidth={1} opacity={0.7} />
+                      <line x1={b.x} y1={b.y + 6} x2={b.x} y2={b.y + 14} stroke={col} strokeWidth={1} opacity={0.7} />
+                    </g>
+                  </g>
                 );
               })()}
 
