@@ -1436,9 +1436,11 @@ export function StageBuilder3D() {
       else if (meta && e.key.toLowerCase() === "d") { duplicateSelection(); e.preventDefault(); }
       else if (meta && e.shiftKey && e.key.toLowerCase() === "g") { ungroupSelection(); e.preventDefault(); }
       else if (meta && e.key.toLowerCase() === "g") { groupSelection(); e.preventDefault(); }
-      else if (e.key === "Escape") setSelection([]);
-      else if (e.key.toLowerCase() === "t") setTool("translate");
-      else if (e.key.toLowerCase() === "r") setTool("rotate");
+      else if (e.key === "Escape") { setSelection([]); setPendingFrom(null); }
+      else if (e.key.toLowerCase() === "t") { setMode("select"); setTool("translate"); }
+      else if (e.key.toLowerCase() === "r") { setMode("select"); setTool("rotate"); }
+      else if (e.key.toLowerCase() === "c" && !meta) { setMode((m) => (m === "cable" ? "select" : "cable")); setSelection([]); setPendingFrom(null); }
+
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
