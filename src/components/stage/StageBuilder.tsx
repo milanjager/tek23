@@ -1909,6 +1909,10 @@ export function StageBuilder() {
           <ToolbarBtn onClick={() => loadPreset("dub")} icon={Zap}>Dub wall</ToolbarBtn>
           <ToolbarBtn onClick={() => loadPreset("techno")} icon={Zap}>Techno rig</ToolbarBtn>
           <ToolbarBtn onClick={() => loadPreset("club")} icon={Zap}>Malý klub</ToolbarBtn>
+          <ToolbarBtn onClick={() => loadPreset("mayapur")} icon={Zap}>Mayapur</ToolbarBtn>
+          <ToolbarBtn onClick={() => loadPreset("badtekk")} icon={Zap}>Badtekk</ToolbarBtn>
+          <ToolbarBtn onClick={() => loadPreset("namel")} icon={Zap}>Namel</ToolbarBtn>
+          <ToolbarBtn onClick={() => loadPreset("toroid")} icon={Zap}>Toroid</ToolbarBtn>
           <ToolbarBtn onClick={exportJson} icon={Download}>Export</ToolbarBtn>
           <ToolbarBtn onClick={() => localStorage.setItem(STORAGE, JSON.stringify({ items, cables }))} icon={Save}>Uložit</ToolbarBtn>
           <ToolbarBtn onClick={clear} icon={Eraser} danger>Reset</ToolbarBtn>
