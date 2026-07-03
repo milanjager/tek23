@@ -1495,9 +1495,10 @@ export function StageBuilder3D() {
         <button onClick={ungroupSelection} disabled={!selection.length} className="flex items-center gap-1 rounded bg-neutral-800 px-2 py-1 hover:bg-neutral-700 disabled:opacity-40"><Ungroup size={12} /> Ungroup</button>
         <button onClick={deleteSelection} disabled={!selection.length} className="flex items-center gap-1 rounded bg-red-900/70 px-2 py-1 hover:bg-red-800 disabled:opacity-40"><Trash2 size={12} /> Smazat</button>
         <div className="ml-auto flex items-center gap-2 text-xs text-neutral-400">
-          <span>{items.length} prvků · {selection.length} vybráno</span>
-          <button onClick={() => localStorage.setItem(STORAGE, JSON.stringify({ items }))} className="flex items-center gap-1 rounded bg-neutral-800 px-2 py-1 hover:bg-neutral-700"><Save size={12} /> Uložit</button>
-          <button onClick={() => { if (confirm("Vymazat vše?")) { setItems([]); setSelection([]); }}} className="rounded bg-neutral-800 px-2 py-1 hover:bg-neutral-700">Vyčistit</button>
+          <span>{items.length} prvků · {cables.length} kabelů · {selection.length} vybráno</span>
+          <button onClick={() => localStorage.setItem(STORAGE, JSON.stringify({ items, cables }))} className="flex items-center gap-1 rounded bg-neutral-800 px-2 py-1 hover:bg-neutral-700"><Save size={12} /> Uložit</button>
+          <button onClick={() => { if (confirm("Vymazat vše?")) { setItems([]); setCables([]); setSelection([]); }}} className="rounded bg-neutral-800 px-2 py-1 hover:bg-neutral-700">Vyčistit</button>
+
         </div>
       </div>
 
