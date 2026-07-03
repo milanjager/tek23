@@ -23,7 +23,9 @@ import {
 
 type Kind =
   | "horn" | "mid" | "bass" | "sub" | "linearray" | "monitor"
-  | "amp" | "mixer" | "dj" | "cdj" | "korg" | "turntable"
+  | "badtekk_sub" | "badtekk_bass" | "badtekk_top"
+  | "amp" | "powersoft" | "mixer" | "dj" | "cdj"
+  | "korg" | "korg_red" | "korg_blue" | "turntable"
   | "strobe" | "laser" | "movinghead"
   | "bar" | "generator" | "crowd";
 
@@ -33,30 +35,39 @@ interface Spec {
   label: string;
   category: Category;
   size: [number, number, number]; // w, h, d (meters)
-  stackable: boolean; // can host others on top / be stacked
+  stackable: boolean;
   hint: string;
+  defaultLabel?: string;
+  defaultVariant?: "red" | "blue";
 }
 
 const SPECS: Record<Kind, Spec> = {
-  horn:       { label: "Horn",         category: "sound",  size: [0.60, 0.40, 0.40], stackable: true,  hint: "Výškový horn" },
-  mid:        { label: "Mid",          category: "sound",  size: [0.60, 0.60, 0.50], stackable: true,  hint: "Střední pásmo" },
-  bass:       { label: "Bass bin",     category: "sound",  size: [0.80, 0.60, 0.70], stackable: true,  hint: "Basová bedna" },
-  sub:        { label: "Sub 2×18",     category: "sound",  size: [1.20, 0.80, 0.90], stackable: true,  hint: "Sub-bass" },
-  linearray:  { label: "Line array",   category: "sound",  size: [0.90, 0.28, 0.55], stackable: true,  hint: "Line array element" },
-  monitor:    { label: "Stage monitor",category: "sound",  size: [0.60, 0.40, 0.45], stackable: true,  hint: "Wedge odposlech" },
-  amp:        { label: "Amp rack",     category: "infra",  size: [0.60, 0.90, 0.60], stackable: true,  hint: "Rack zesilovačů" },
-  mixer:      { label: "Mixer",        category: "infra",  size: [0.80, 0.15, 0.55], stackable: false, hint: "Mixážní pult" },
-  dj:         { label: "DJ booth",     category: "infra",  size: [1.60, 1.00, 0.70], stackable: false, hint: "DJ pult" },
-  cdj:        { label: "CDJ",          category: "infra",  size: [0.35, 0.10, 0.42], stackable: false, hint: "CDJ přehrávač" },
-  korg:       { label: "Korg live",    category: "infra",  size: [0.75, 0.10, 0.40], stackable: false, hint: "Korg groovebox" },
-  turntable:  { label: "Gramofon",     category: "infra",  size: [0.45, 0.15, 0.35], stackable: false, hint: "Vinyl deck" },
-  strobe:     { label: "Strobo",       category: "lights", size: [0.45, 0.30, 0.20], stackable: false, hint: "Stroboskop" },
-  laser:      { label: "Laser",        category: "lights", size: [0.40, 0.25, 0.35], stackable: false, hint: "Laser" },
-  movinghead: { label: "Moving head",  category: "lights", size: [0.35, 0.55, 0.35], stackable: false, hint: "Otočná hlava" },
-  bar:        { label: "Bar",          category: "infra",  size: [2.40, 1.10, 0.65], stackable: false, hint: "Bar pult" },
-  generator:  { label: "Aggregát",     category: "infra",  size: [1.50, 1.20, 0.85], stackable: false, hint: "Diesel generátor" },
-  crowd:      { label: "Dancefloor",   category: "infra",  size: [4.00, 0.02, 4.00], stackable: false, hint: "Prostor pro dav" },
+  horn:         { label: "Horn",             category: "sound",  size: [0.60, 0.40, 0.40], stackable: true,  hint: "Výškový horn" },
+  mid:          { label: "Mid",              category: "sound",  size: [0.60, 0.60, 0.50], stackable: true,  hint: "Střední pásmo" },
+  bass:         { label: "Bass bin",         category: "sound",  size: [0.80, 0.60, 0.70], stackable: true,  hint: "Basová bedna" },
+  sub:          { label: "Sub 2×18",         category: "sound",  size: [1.20, 0.80, 0.90], stackable: true,  hint: "Sub-bass" },
+  linearray:    { label: "Line array",       category: "sound",  size: [0.90, 0.28, 0.55], stackable: true,  hint: "Line array element" },
+  monitor:      { label: "Stage monitor",    category: "sound",  size: [0.60, 0.40, 0.45], stackable: true,  hint: "Wedge odposlech" },
+  badtekk_sub:  { label: "Badtekk Sub",      category: "sound",  size: [1.20, 0.80, 0.90], stackable: true,  hint: "Badtekk 2×18\" sub", defaultLabel: "Badtekk Sub" },
+  badtekk_bass: { label: "Badtekk Bass",     category: "sound",  size: [0.90, 0.65, 0.75], stackable: true,  hint: "Badtekk 2×15\" bass", defaultLabel: "Badtekk Bass" },
+  badtekk_top:  { label: "Badtekk Top",      category: "sound",  size: [0.65, 0.55, 0.45], stackable: true,  hint: "Badtekk W-bin top", defaultLabel: "Badtekk Top" },
+  amp:          { label: "Amp rack",         category: "infra",  size: [0.60, 0.90, 0.60], stackable: true,  hint: "Rack zesilovačů" },
+  powersoft:    { label: "Powersoft K20",    category: "infra",  size: [0.60, 0.90, 0.60], stackable: true,  hint: "Powersoft výkonový amp", defaultLabel: "Powersoft" },
+  mixer:        { label: "Mixer",            category: "infra",  size: [0.80, 0.15, 0.55], stackable: false, hint: "Mixážní pult" },
+  dj:           { label: "DJ booth",         category: "infra",  size: [1.60, 1.00, 0.70], stackable: false, hint: "DJ pult" },
+  cdj:          { label: "CDJ",              category: "infra",  size: [0.35, 0.10, 0.42], stackable: false, hint: "CDJ přehrávač" },
+  korg:         { label: "Korg live",        category: "infra",  size: [0.75, 0.10, 0.40], stackable: false, hint: "Korg groovebox" },
+  korg_red:     { label: "Korg červený",     category: "infra",  size: [0.75, 0.10, 0.40], stackable: false, hint: "Korg groovebox – červený", defaultLabel: "Korg červený", defaultVariant: "red" },
+  korg_blue:    { label: "Korg modrý",       category: "infra",  size: [0.75, 0.10, 0.40], stackable: false, hint: "Korg groovebox – modrý",   defaultLabel: "Korg modrý",   defaultVariant: "blue" },
+  turntable:    { label: "Gramofon",         category: "infra",  size: [0.45, 0.15, 0.35], stackable: false, hint: "Vinyl deck" },
+  strobe:       { label: "Strobo",           category: "lights", size: [0.45, 0.30, 0.20], stackable: false, hint: "Stroboskop" },
+  laser:        { label: "Laser",            category: "lights", size: [0.40, 0.25, 0.35], stackable: false, hint: "Laser" },
+  movinghead:   { label: "Moving head",      category: "lights", size: [0.35, 0.55, 0.35], stackable: false, hint: "Otočná hlava" },
+  bar:          { label: "Bar",              category: "infra",  size: [2.40, 1.10, 0.65], stackable: false, hint: "Bar pult" },
+  generator:    { label: "Aggregát",         category: "infra",  size: [1.50, 1.20, 0.85], stackable: false, hint: "Diesel generátor" },
+  crowd:        { label: "Dancefloor",       category: "infra",  size: [4.00, 0.02, 4.00], stackable: false, hint: "Prostor pro dav" },
 };
+
 
 const CATEGORIES: { id: Category; label: string; icon: typeof Speaker }[] = [
   { id: "sound",  label: "Sound",  icon: Volume2 },
