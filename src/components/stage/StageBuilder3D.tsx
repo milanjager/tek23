@@ -68,6 +68,7 @@ interface Placed {
   rotY: number;                  // radians
   groupId?: string;
   label?: string;
+  variant?: "red" | "blue";
 }
 
 type PresetKind = "mayapur" | "badtekk" | "namel" | "toroid" | "dub" | "techno" | "club" | "freetekno";
