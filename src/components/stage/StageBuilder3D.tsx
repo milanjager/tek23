@@ -24,10 +24,11 @@ import {
 type Kind =
   | "horn" | "mid" | "bass" | "sub" | "linearray" | "monitor"
   | "badtekk_sub" | "badtekk_bass" | "badtekk_top"
-  | "amp" | "powersoft" | "mixer" | "dj" | "cdj"
+  | "amp" | "powersoft" | "mixer" | "dj" | "dj_table" | "cdj"
   | "korg" | "korg_red" | "korg_blue" | "turntable"
   | "strobe" | "laser" | "movinghead"
   | "bar" | "generator" | "crowd";
+
 
 type Category = "sound" | "lights" | "infra";
 
