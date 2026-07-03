@@ -1458,6 +1458,147 @@ export function StageBuilder() {
         link(gen.id, "out2", ampR.id,  "pwr", "power"),
         link(gen.id, "out3", mixer.id, "pwr", "power"),
       ];
+    } else if (preset === "mayapur") {
+      // MAYAPUR — devotional dub wall: 3 stacks (L/C/R) horn+mid+bass+sub, tube-style amps, valve mixer
+      const cols = [96, 356, 616];
+      const stacks = cols.map((cx) => {
+        const horn = mk("horn", cx + 12, 24);
+        const mid  = mk("mid",  cx + 12, 96);
+        const bass = mk("bass", cx,      192);
+        const sub  = mk("sub",  cx - 12, 312);
+        return { horn, mid, bass, sub };
+      });
+      const ampL = mk("amp", 96,  456);
+      const ampC = mk("amp", 356, 456);
+      const ampR = mk("amp", 616, 456);
+      const mixer = mk("mixer", 340, 564);
+      const turntable = mk("turntable", 180, 564);
+      const gen = mk("generator", 500, 660);
+      newItems = [
+        ...stacks.flatMap((s) => [s.horn, s.mid, s.bass, s.sub]),
+        ampL, ampC, ampR, mixer, turntable, gen,
+      ];
+      const amps = [ampL, ampC, ampR];
+      newCables = [
+        link(turntable.id, "audio_out", mixer.id, "audio_out", "audio"),
+        ...amps.flatMap((a, i) => [
+          link(mixer.id, "audio_out", a.id, "audio_in", "audio"),
+          link(a.id, "out_a", stacks[i].sub.id,  "in", "audio"),
+          link(a.id, "out_a", stacks[i].bass.id, "in", "audio"),
+          link(a.id, "out_b", stacks[i].mid.id,  "in", "audio"),
+          link(a.id, "out_b", stacks[i].horn.id, "in", "audio"),
+        ]),
+        link(gen.id, "out1", ampL.id, "pwr", "power"),
+        link(gen.id, "out2", ampC.id, "pwr", "power"),
+        link(gen.id, "out3", ampR.id, "pwr", "power"),
+      ];
+    } else if (preset === "badtekk") {
+      // BADTEKK — brutal free-tekno wall: 6 subs bottom row + 4 bass + 2 mid, 3 amps, generator, strobe
+      const subs = [24, 156, 288, 420, 552, 684].map((x) => mk("sub", x, 340));
+      const basses = [90, 264, 438, 612].map((x) => mk("bass", x, 220));
+      const mids = [180, 528].map((x) => mk("mid", x, 120));
+      const strobeL = mk("strobe", 60, 48);
+      const strobeR = mk("strobe", 660, 48);
+      const laser = mk("laser", 360, 40);
+      const amp1 = mk("amp", 60,  464);
+      const amp2 = mk("amp", 340, 464);
+      const amp3 = mk("amp", 620, 464);
+      const mixer = mk("mixer", 340, 572);
+      const cdjL = mk("cdj", 180, 572);
+      const cdjR = mk("cdj", 500, 572);
+      const gen  = mk("generator", 340, 668);
+      newItems = [...subs, ...basses, ...mids, strobeL, strobeR, laser, amp1, amp2, amp3, mixer, cdjL, cdjR, gen];
+      newCables = [
+        link(cdjL.id, "audio_out", mixer.id, "audio_out", "audio"),
+        link(cdjR.id, "audio_out", mixer.id, "audio_out", "audio"),
+        link(mixer.id, "audio_out", amp1.id, "audio_in", "audio"),
+        link(mixer.id, "audio_out", amp2.id, "audio_in", "audio"),
+        link(mixer.id, "audio_out", amp3.id, "audio_in", "audio"),
+        link(amp1.id, "out_a", subs[0].id, "in", "audio"),
+        link(amp1.id, "out_a", subs[1].id, "in", "audio"),
+        link(amp1.id, "out_b", basses[0].id, "in", "audio"),
+        link(amp1.id, "out_b", basses[1].id, "in", "audio"),
+        link(amp2.id, "out_a", subs[2].id, "in", "audio"),
+        link(amp2.id, "out_a", subs[3].id, "in", "audio"),
+        link(amp2.id, "out_b", mids[0].id, "in", "audio"),
+        link(amp2.id, "out_b", mids[1].id, "in", "audio"),
+        link(amp3.id, "out_a", subs[4].id, "in", "audio"),
+        link(amp3.id, "out_a", subs[5].id, "in", "audio"),
+        link(amp3.id, "out_b", basses[2].id, "in", "audio"),
+        link(amp3.id, "out_b", basses[3].id, "in", "audio"),
+        link(gen.id, "out1", amp1.id, "pwr", "power"),
+        link(gen.id, "out2", amp2.id, "pwr", "power"),
+        link(gen.id, "out3", amp3.id, "pwr", "power"),
+      ];
+    } else if (preset === "namel") {
+      // NAMEL — classic french dub: symmetric 2 stacks with scoop bass, plus sub row, dubplate turntable
+      const LX = 120, RX = 552;
+      const hornL = mk("horn", LX + 12, 24);
+      const hornR = mk("horn", RX + 12, 24);
+      const midL  = mk("mid",  LX + 12, 96);
+      const midR  = mk("mid",  RX + 12, 96);
+      const bassL = mk("bass", LX,      192);
+      const bassR = mk("bass", RX,      192);
+      const subL  = mk("sub",  LX - 12, 312);
+      const subR  = mk("sub",  RX - 12, 312);
+      const ampL  = mk("amp", 96,  452);
+      const ampR  = mk("amp", 588, 452);
+      const mixer = mk("mixer", 340, 452);
+      const tt    = mk("turntable", 200, 560);
+      const korg  = mk("korg", 480, 560);
+      const gen   = mk("generator", 340, 656);
+      newItems = [hornL, hornR, midL, midR, bassL, bassR, subL, subR, ampL, ampR, mixer, tt, korg, gen];
+      newCables = [
+        link(tt.id, "audio_out", mixer.id, "audio_out", "audio"),
+        link(mixer.id, "audio_out", ampL.id, "audio_in", "audio"),
+        link(mixer.id, "audio_out", ampR.id, "audio_in", "audio"),
+        link(ampL.id, "out_a", subL.id,  "in", "audio"),
+        link(ampL.id, "out_a", bassL.id, "in", "audio"),
+        link(ampL.id, "out_b", midL.id,  "in", "audio"),
+        link(ampL.id, "out_b", hornL.id, "in", "audio"),
+        link(ampR.id, "out_a", subR.id,  "in", "audio"),
+        link(ampR.id, "out_a", bassR.id, "in", "audio"),
+        link(ampR.id, "out_b", midR.id,  "in", "audio"),
+        link(ampR.id, "out_b", hornR.id, "in", "audio"),
+        link(gen.id, "out1", ampL.id, "pwr", "power"),
+        link(gen.id, "out2", ampR.id, "pwr", "power"),
+        link(gen.id, "out3", mixer.id, "pwr", "power"),
+      ];
+    } else if (preset === "toroid") {
+      // TOROID — modular circular tekno rig: subs in arc, hanging line arrays, movinghead lights, generator
+      const cx = 400, cy = 260, R = 260;
+      const arc = [-70, -35, 0, 35, 70].map((deg, i) => {
+        const rad = (deg * Math.PI) / 180;
+        return mk("sub", cx + Math.sin(rad) * R - 36, cy - Math.cos(rad) * R + 40, deg);
+      });
+      const laL = mk("linearray", 96, 40);
+      const laR = mk("linearray", 632, 40);
+      const mhL = mk("movinghead", 40, 200);
+      const mhR = mk("movinghead", 700, 200);
+      const laser = mk("laser", 372, 24);
+      const cdjL = mk("cdj", 260, 420);
+      const cdjR = mk("cdj", 480, 420);
+      const mixer = mk("mixer", 370, 528);
+      const amp1 = mk("amp", 156, 528);
+      const amp2 = mk("amp", 588, 528);
+      const gen = mk("generator", 372, 636);
+      newItems = [...arc, laL, laR, mhL, mhR, laser, cdjL, cdjR, mixer, amp1, amp2, gen];
+      newCables = [
+        link(cdjL.id, "audio_out", mixer.id, "audio_out", "audio"),
+        link(cdjR.id, "audio_out", mixer.id, "audio_out", "audio"),
+        link(mixer.id, "audio_out", amp1.id, "audio_in", "audio"),
+        link(mixer.id, "audio_out", amp2.id, "audio_in", "audio"),
+        link(amp1.id, "out_a", arc[0].id, "in", "audio"),
+        link(amp1.id, "out_a", arc[1].id, "in", "audio"),
+        link(amp1.id, "out_b", laL.id,    "in", "audio"),
+        link(amp2.id, "out_a", arc[3].id, "in", "audio"),
+        link(amp2.id, "out_a", arc[4].id, "in", "audio"),
+        link(amp2.id, "out_b", laR.id,    "in", "audio"),
+        link(mixer.id, "audio_out", arc[2].id, "in", "audio"),
+        link(gen.id, "out1", amp1.id, "pwr", "power"),
+        link(gen.id, "out2", amp2.id, "pwr", "power"),
+        link(gen.id, "out3", mixer.id, "pwr", "power"),
+      ];
     } else {
       // SMALL CLUB: 2× bass + 2× mid + 1× horn top-center, DJ booth, amp, mixer
       const bassL = mk("bass", 180, 200);
