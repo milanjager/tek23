@@ -1217,7 +1217,7 @@ function loadPreset(kind: PresetKind): Placed[] {
 
 
     // ---- Lighting truss (moving heads + strobes across the top) ----
-    const trussY = s[1] + b[1] + m[1] + 1.3;
+    const trussY = s[1] + b[1] + SPECS.badtekk_top.size[1] + 1.3;
     for (const tx of [-4, -2, 0, 2, 4]) {
       arr.push(mk("movinghead", tx, trussY, Z + 0.2));
     }
