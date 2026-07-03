@@ -1736,6 +1736,23 @@ export function StageBuilder() {
                     isSel ? "z-20" : "z-10"
                   }`}
                 >
+                  {/* Ground contact shadow — sits flat on the floor plane, darker under sound cabinets */}
+                  {tilt > 4 && (
+                    <div
+                      aria-hidden
+                      className="pointer-events-none absolute"
+                      style={{
+                        left: -spec.w * 0.15,
+                        top: spec.h - 8,
+                        width: spec.w * 1.3,
+                        height: spec.h * 0.7,
+                        background: "radial-gradient(ellipse at 50% 20%, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0.25) 45%, rgba(0,0,0,0) 75%)",
+                        transform: `translateZ(${-depth}px) rotateX(-90deg)`,
+                        transformOrigin: "50% 0%",
+                        filter: "blur(2px)",
+                      }}
+                    />
+                  )}
                   {/* Extrusion slices — stack of thin layers behind the front face for a real cabinet look */}
                   {slices > 0 && Array.from({ length: slices }).map((_, i) => {
                     const t = (i + 1) / slices;
@@ -1743,10 +1760,12 @@ export function StageBuilder() {
                     const isSound = spec.category === "sound";
                     // Sound cabinets = black stained plywood; other gear keeps the tinted look
                     const border = isSound
-                      ? `rgba(${20 + i * 4}, ${16 + i * 3}, ${14 + i * 3}, 1)`
+                      ? `rgba(${18 + i * 3}, ${14 + i * 2}, ${12 + i * 2}, 1)`
                       : `color-mix(in oklch, ${COLOR_VAR[spec.color]} ${18 - i * 2}%, oklch(0.14 0.02 280))`;
+                    // Side-lit gradient: light hits from the top-left, deeper slices get darker
+                    const shade = isSound ? Math.max(0, 0.9 - t * 0.55) : 1;
                     const bg = isSound
-                      ? `linear-gradient(180deg, #1a1613 0%, #0d0b09 55%, #050403 100%)`
+                      ? `linear-gradient(135deg, rgba(${28 * shade | 0}, ${22 * shade | 0}, ${18 * shade | 0}, 1) 0%, rgba(${14 * shade | 0}, ${11 * shade | 0}, ${9 * shade | 0}, 1) 60%, rgba(0,0,0,1) 100%)`
                       : `color-mix(in oklch, ${COLOR_VAR[spec.color]} 8%, oklch(0.10 0.02 280 / ${0.55 - t * 0.35}))`;
                     return (
                       <div
@@ -1757,7 +1776,9 @@ export function StageBuilder() {
                           transform: `translateZ(${z}px)`,
                           borderColor: border,
                           background: bg,
-                          boxShadow: i === slices - 1 ? "0 6px 14px rgba(0,0,0,0.7)" : undefined,
+                          boxShadow: i === slices - 1
+                            ? "0 8px 18px rgba(0,0,0,0.75), inset 0 1px 0 rgba(255,255,255,0.03)"
+                            : "inset 0 1px 0 rgba(255,255,255,0.02)",
                         }}
                       />
                     );
