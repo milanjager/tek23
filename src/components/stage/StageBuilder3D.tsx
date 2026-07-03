@@ -7,12 +7,15 @@ import {
   Html,
   ContactShadows,
   Environment,
+  Line,
 } from "@react-three/drei";
 import * as THREE from "three";
 import {
   Speaker, Trash2, Save, Copy, ClipboardPaste, Group as GroupIcon, Ungroup,
   Move as MoveIcon, RotateCw, Boxes, Zap, Sparkles, Radio, Volume2,
+  Cable as CableIcon, MousePointer2,
 } from "lucide-react";
+
 
 /* ============================================================
    Types & Catalog
