@@ -1922,8 +1922,9 @@ export function StageBuilder3D() {
           </div>
         </aside>
       </div>
-
+    </div>
   );
+
 }
 
 export default StageBuilder3D;
