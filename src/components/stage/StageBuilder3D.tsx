@@ -1148,6 +1148,12 @@ function SceneContent({
 
   // Disable orbit while gizmo dragging
   const [dragging, setDragging] = useState(false);
+  const [selectedCableId, setSelectedCableId] = useState<string | null>(null);
+  // When set, the next item click reconnects that endpoint of the selected cable.
+  const [reconnect, setReconnect] = useState<null | { cableId: string; end: "from" | "to" }>(null);
+
+  const itemLabel = (it: Placed) => it.label ?? SPECS[it.kind].defaultLabel ?? SPECS[it.kind].label;
+
   useEffect(() => {
     if (orbitRef.current) orbitRef.current.enabled = !dragging;
   }, [dragging]);
@@ -1216,13 +1222,22 @@ function SceneContent({
           showConnectors={mode === "cable"}
           activeCableType={cableType}
           onSelect={(id, additive) => {
+            // Reconnect flow — replace one endpoint of the selected cable.
+            if (reconnect) {
+              const cable = cables.find((c) => c.id === reconnect.cableId);
+              const target = items.find((x) => x.id === id);
+              if (!cable || !target || !hasConnector(target.kind, cable.type)) return;
+              // Avoid connecting a cable's two ends to the same item.
+              const other = reconnect.end === "from" ? cable.to : cable.from;
+              if (other === id) return;
+              setCables((cs) => cs.map((c) => c.id === cable.id ? { ...c, [reconnect.end]: id } : c));
+              setReconnect(null);
+              return;
+            }
             if (mode === "cable") {
               const target = items.find((x) => x.id === id);
               if (!target) return;
-              if (!hasConnector(target.kind, cableType)) {
-                // No matching plug on this item — bail so user gets visual cue.
-                return;
-              }
+              if (!hasConnector(target.kind, cableType)) return;
               if (!pendingFrom) {
                 setPendingFrom(id);
               } else if (pendingFrom === id) {
@@ -1238,6 +1253,7 @@ function SceneContent({
               }
               return;
             }
+
             setSelection((prev) => {
               const target = items.find((x) => x.id === id);
               const groupMembers = target?.groupId
@@ -1265,32 +1281,141 @@ function SceneContent({
         const meta = CABLE_META[c.type];
         const { p1, p2 } = bestAnchorPair(a, b, c.type);
         const pts = cablePoints(p1, p2, 28);
+        const mid = pts[Math.floor(pts.length / 2)];
+        const isSelected = selectedCableId === c.id;
+        const isReconnecting = reconnect?.cableId === c.id;
+        const fromName = itemLabel(a);
+        const toName = itemLabel(b);
 
         return (
           <group key={c.id}>
             <Line
               points={pts as unknown as [number, number, number][]}
               color={meta.color}
-              lineWidth={meta.width}
+              lineWidth={isSelected ? meta.width + 2 : meta.width}
               transparent
-              opacity={0.95}
+              opacity={isReconnecting ? 0.4 : 0.95}
               onClick={(e) => {
                 e.stopPropagation();
-                if (mode === "cable") setCables((cs) => cs.filter((x) => x.id !== c.id));
+                setSelectedCableId((cur) => (cur === c.id ? null : c.id));
+                setReconnect(null);
               }}
             />
             {/* connector caps */}
             <mesh position={p1}>
-              <sphereGeometry args={[0.05, 12, 8]} />
-              <meshStandardMaterial color={meta.color} emissive={meta.color} emissiveIntensity={0.6} />
+              <sphereGeometry args={[isSelected ? 0.08 : 0.05, 12, 8]} />
+              <meshStandardMaterial color={meta.color} emissive={meta.color} emissiveIntensity={isSelected ? 1.2 : 0.6} />
             </mesh>
             <mesh position={p2}>
-              <sphereGeometry args={[0.05, 12, 8]} />
-              <meshStandardMaterial color={meta.color} emissive={meta.color} emissiveIntensity={0.6} />
+              <sphereGeometry args={[isSelected ? 0.08 : 0.05, 12, 8]} />
+              <meshStandardMaterial color={meta.color} emissive={meta.color} emissiveIntensity={isSelected ? 1.2 : 0.6} />
             </mesh>
+
+            {/* Always-visible compact label at cable midpoint */}
+            {!isSelected && (
+              <Html position={mid} center distanceFactor={10} occlude={false} zIndexRange={[10, 0]}>
+                <div
+                  onPointerDown={(e) => {
+                    e.stopPropagation();
+                    setSelectedCableId(c.id);
+                    setReconnect(null);
+                  }}
+                  className="cursor-pointer whitespace-nowrap rounded px-1.5 py-0.5 font-mono text-[9px] font-bold uppercase leading-tight shadow-lg"
+                  style={{
+                    color: meta.color,
+                    background: "rgba(0,0,0,.85)",
+                    border: `1px solid ${meta.color}`,
+                  }}
+                  title={`${meta.label}: ${fromName} → ${toName}`}
+                >
+                  {meta.short} · {fromName}→{toName}
+                </div>
+              </Html>
+            )}
+
+            {/* Expanded inspector popup when selected */}
+            {isSelected && (
+              <Html position={mid} center distanceFactor={8} occlude={false} zIndexRange={[100, 0]}>
+                <div
+                  onPointerDown={(e) => e.stopPropagation()}
+                  className="w-64 rounded-md border bg-neutral-950/95 p-2 font-mono text-[10px] text-neutral-100 shadow-2xl backdrop-blur"
+                  style={{ borderColor: meta.color }}
+                >
+                  <div className="mb-1.5 flex items-center justify-between">
+                    <div className="flex items-center gap-1.5">
+                      <span
+                        className="inline-block h-2.5 w-2.5 rounded-sm"
+                        style={{ backgroundColor: meta.color, boxShadow: `0 0 6px ${meta.color}` }}
+                      />
+                      <span className="font-bold uppercase" style={{ color: meta.color }}>
+                        {meta.short}
+                      </span>
+                      <span className="text-neutral-400">{meta.label}</span>
+                    </div>
+                    <button
+                      onClick={() => { setSelectedCableId(null); setReconnect(null); }}
+                      className="rounded px-1 text-neutral-500 hover:bg-neutral-800 hover:text-white"
+                    >
+                      ✕
+                    </button>
+                  </div>
+
+                  <div className="mb-1 rounded bg-neutral-900 p-1.5">
+                    <div className="text-[8px] uppercase tracking-wider text-neutral-500">Zdroj (OUT)</div>
+                    <div className="truncate font-bold text-lime-400">{fromName}</div>
+                    <div className="text-[9px] text-neutral-500">
+                      {SPECS[a.kind].label} · plug {meta.short}▶
+                    </div>
+                  </div>
+
+                  <div className="mb-1.5 rounded bg-neutral-900 p-1.5">
+                    <div className="text-[8px] uppercase tracking-wider text-neutral-500">Cíl (IN)</div>
+                    <div className="truncate font-bold text-cyan-400">{toName}</div>
+                    <div className="text-[9px] text-neutral-500">
+                      {SPECS[b.kind].label} · plug {meta.short}◀
+                    </div>
+                  </div>
+
+                  {reconnect && (
+                    <div
+                      className="mb-1.5 rounded p-1 text-center text-[9px] font-bold"
+                      style={{ background: "rgba(244,193,26,.2)", color: "#f4c11a", border: "1px dashed #f4c11a" }}
+                    >
+                      Klikni na novou bednu pro {reconnect.end === "from" ? "zdroj" : "cíl"}…
+                    </div>
+                  )}
+
+                  <div className="grid grid-cols-2 gap-1">
+                    <button
+                      onClick={() => setReconnect({ cableId: c.id, end: "from" })}
+                      className={`rounded px-1 py-1 text-[9px] font-bold uppercase ${reconnect?.end === "from" ? "bg-yellow-500 text-black" : "bg-neutral-800 text-neutral-200 hover:bg-neutral-700"}`}
+                    >
+                      Přepojit zdroj
+                    </button>
+                    <button
+                      onClick={() => setReconnect({ cableId: c.id, end: "to" })}
+                      className={`rounded px-1 py-1 text-[9px] font-bold uppercase ${reconnect?.end === "to" ? "bg-yellow-500 text-black" : "bg-neutral-800 text-neutral-200 hover:bg-neutral-700"}`}
+                    >
+                      Přepojit cíl
+                    </button>
+                    <button
+                      onClick={() => {
+                        setCables((cs) => cs.filter((x) => x.id !== c.id));
+                        setSelectedCableId(null);
+                        setReconnect(null);
+                      }}
+                      className="col-span-2 rounded bg-red-900/80 px-1 py-1 text-[9px] font-bold uppercase text-red-100 hover:bg-red-800"
+                    >
+                      Smazat kabel
+                    </button>
+                  </div>
+                </div>
+              </Html>
+            )}
           </group>
         );
       })}
+
 
       {mode === "select" && primaryObj && (
         <TransformControls
