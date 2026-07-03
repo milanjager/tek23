@@ -402,33 +402,44 @@ function MonitorModel({ size }: { size: [number, number, number] }) {
   );
 }
 
-function AmpRack({ size }: { size: [number, number, number] }) {
+function AmpRack({ size, brand = "generic" }: { size: [number, number, number]; brand?: "generic" | "powersoft" }) {
   const [w, h, d] = size;
+  const isPS = brand === "powersoft";
+  const ledColor = isPS ? "#05d9e8" : "#f43f5e";
+  const rackColor = isPS ? "#141a22" : "#1e1e1e";
   return (
     <group>
       <mesh castShadow receiveShadow position={[0, h / 2, 0]}>
         <boxGeometry args={[w, h, d]} />
-        <meshStandardMaterial color="#111" roughness={0.5} metalness={0.5} />
+        <meshStandardMaterial color={isPS ? "#0a0f14" : "#111"} roughness={0.5} metalness={0.55} />
       </mesh>
       {/* Rack units */}
       {[0, 1, 2, 3].map((i) => (
         <group key={i} position={[0, 0.15 + i * (h - 0.3) / 4 + (h - 0.3) / 8, d / 2 + 0.001]}>
           <mesh>
             <planeGeometry args={[w * 0.9, (h - 0.3) / 4 * 0.85]} />
-            <meshStandardMaterial color="#1e1e1e" metalness={0.7} roughness={0.35} />
+            <meshStandardMaterial color={rackColor} metalness={0.7} roughness={0.35} />
           </mesh>
           {/* LEDs */}
           {[-1, 0, 1].map((k) => (
             <mesh key={k} position={[k * w * 0.15, 0, 0.005]}>
               <sphereGeometry args={[0.012, 8, 8]} />
-              <meshStandardMaterial color="#f43f5e" emissive="#f43f5e" emissiveIntensity={2} />
+              <meshStandardMaterial color={ledColor} emissive={ledColor} emissiveIntensity={2} />
             </mesh>
           ))}
+          {/* Powersoft cyan branding stripe on top rack unit */}
+          {isPS && i === 3 && (
+            <mesh position={[w * 0.28, 0, 0.006]}>
+              <planeGeometry args={[w * 0.35, 0.015]} />
+              <meshStandardMaterial color="#05d9e8" emissive="#05d9e8" emissiveIntensity={1.2} />
+            </mesh>
+          )}
         </group>
       ))}
     </group>
   );
 }
+
 
 function MixerModel({ size }: { size: [number, number, number] }) {
   const [w, h, d] = size;
