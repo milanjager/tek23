@@ -929,6 +929,49 @@ function loadPreset(kind: PresetKind): Placed[] {
     id: uid(), kind: k, pos: [x, y, z], rotY: rot,
   });
 
+  if (kind === "freetekno") {
+    // Wall inspired by the reference photo: pallets + row of subs at bottom,
+    // mid bins in middle, big teal-front tops on the outside, horns/mids stacked.
+    const sub = SPECS.sub.size, bass = SPECS.bass.size, mid = SPECS.mid.size, horn = SPECS.horn.size;
+    const arr: Placed[] = [];
+    // Bottom row: 5 subs side by side
+    for (let i = -2; i <= 2; i++) {
+      arr.push(mk("sub", i * (sub[0] + 0.02), 0, -1));
+    }
+    // Second row: 5 bass bins on top of subs
+    for (let i = -2; i <= 2; i++) {
+      arr.push(mk("bass", i * (sub[0] + 0.02), sub[1], -1));
+    }
+    // Third row: 5 mids on top of bass
+    for (let i = -2; i <= 2; i++) {
+      arr.push(mk("mid", i * (sub[0] + 0.02), sub[1] + bass[1], -1));
+    }
+    // Outer tall towers: double horn stack on far left & right
+    for (const sx of [-3.2, 3.2]) {
+      arr.push(mk("sub", sx, 0, -1));
+      arr.push(mk("bass", sx, sub[1], -1));
+      arr.push(mk("mid", sx, sub[1] + bass[1], -1));
+      arr.push(mk("horn", sx, sub[1] + bass[1] + mid[1], -1));
+      arr.push(mk("horn", sx, sub[1] + bass[1] + mid[1] + horn[1] + 0.02, -1));
+    }
+    // Amps on the side
+    arr.push(mk("amp", -4.5, 0, 0.5));
+    arr.push(mk("amp", 4.5, 0, 0.5));
+    // DJ / mixer
+    arr.push(mk("dj", 0, 0, 2.5));
+    arr.push(mk("cdj", -0.6, 1.0, 2.4));
+    arr.push(mk("cdj", 0.6, 1.0, 2.4));
+    // Lighting truss (approximated with moving heads on the flanks)
+    arr.push(mk("movinghead", -3.5, 3.2, -0.5));
+    arr.push(mk("movinghead", 3.5, 3.2, -0.5));
+    arr.push(mk("strobe", 0, 3.5, -1));
+    // Generator + crowd
+    arr.push(mk("generator", -6, 0, 3));
+    arr.push(mk("crowd", 0, 0, 5));
+    return arr;
+  }
+
+
   if (kind === "mayapur") {
     const stack = (sx: number): Placed[] => {
       const s = SPECS.sub.size, b = SPECS.bass.size, m = SPECS.mid.size, h = SPECS.horn.size;
