@@ -1148,6 +1148,12 @@ function SceneContent({
 
   // Disable orbit while gizmo dragging
   const [dragging, setDragging] = useState(false);
+  const [selectedCableId, setSelectedCableId] = useState<string | null>(null);
+  // When set, the next item click reconnects that endpoint of the selected cable.
+  const [reconnect, setReconnect] = useState<null | { cableId: string; end: "from" | "to" }>(null);
+
+  const itemLabel = (it: Placed) => it.label ?? SPECS[it.kind].defaultLabel ?? SPECS[it.kind].label;
+
   useEffect(() => {
     if (orbitRef.current) orbitRef.current.enabled = !dragging;
   }, [dragging]);
