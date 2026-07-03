@@ -1267,6 +1267,7 @@ export function StageBuilder3D() {
         <button onClick={() => setItems(loadPreset("dub"))} className="rounded bg-neutral-800 px-2 py-1 hover:bg-neutral-700">Dub wall</button>
         <button onClick={() => setItems(loadPreset("techno"))} className="rounded bg-neutral-800 px-2 py-1 hover:bg-neutral-700">Techno rig</button>
         <button onClick={() => setItems(loadPreset("club"))} className="rounded bg-neutral-800 px-2 py-1 hover:bg-neutral-700">Malý klub</button>
+        <button onClick={() => setItems(loadPreset("freetekno"))} className="rounded bg-teal-700/70 px-2 py-1 hover:bg-teal-600"><Zap size={12} className="inline" /> Freetekno wall</button>
         <div className="mx-3 h-5 w-px bg-neutral-700" />
         <button onClick={() => setTool("translate")} className={`flex items-center gap-1 rounded px-2 py-1 ${tool === "translate" ? "bg-lime-500 text-neutral-950" : "bg-neutral-800 hover:bg-neutral-700"}`}><MoveIcon size={12} /> Posun (T)</button>
         <button onClick={() => setTool("rotate")} className={`flex items-center gap-1 rounded px-2 py-1 ${tool === "rotate" ? "bg-lime-500 text-neutral-950" : "bg-neutral-800 hover:bg-neutral-700"}`}><RotateCw size={12} /> Rotace (R)</button>
