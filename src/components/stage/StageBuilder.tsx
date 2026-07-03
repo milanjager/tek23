@@ -201,8 +201,28 @@ const GRID = 24;
 const SNAP_THRESHOLD = 12;
 
 const STORAGE = "stagerig:v3";
-const PORT_SNAP = 24;
+const PORT_SNAP = 28;
 const PORT_R = 6;
+
+// Depth (in px) for pseudo-3D extrusion — makes devices look like real cabinets.
+const DEPTH: Record<ComponentKind, number> = {
+  horn: 34,
+  mid: 46,
+  bass: 62,
+  sub: 84,
+  amp: 44,
+  mixer: 26,
+  dj: 30,
+  korg: 22,
+  turntable: 18,
+  custom: 30,
+  strobe: 28,
+  laser: 26,
+  movinghead: 38,
+  bar: 40,
+  generator: 70,
+  crowd: 4,
+};
 
 
 /* ---------- Helpers ---------- */
