@@ -1635,7 +1635,8 @@ export function StageBuilder() {
                     (p.type === pending.type && p.dir !== pending.dir && it.id !== pending.itemId);
                   const r = isHover ? PORT_R * 1.7 : isSource ? PORT_R * 1.3 : PORT_R;
                   const op = compat ? 1 : 0.2;
-                  const hitR = Math.max(18, (r + 6) / Math.max(0.5, zoom));
+                  // Hit area scales inversely with zoom so ports on the edges stay easy to grab
+                  const hitR = Math.max(22, (r + 10) / Math.max(0.45, zoom));
                   return (
                     <g
                       key={`${it.id}:${p.id}`}
