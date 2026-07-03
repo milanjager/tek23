@@ -136,6 +136,12 @@ const SPECS: Record<ComponentKind, Spec> = (() => {
     sub: mk("sub", "Sub 2×18", "sound", 168, 120, "acid", "Sub-bass", [
       pTop(168, 120, "in", "audio", "in"),
     ]),
+    linearray: mk("linearray", "Line array", "sound", 144, 72, "acid", "Podvěsný line array (3 elementy)", [
+      pTop(144, 72, "in", "audio", "in"),
+    ]),
+    monitor: mk("monitor", "Stage monitor", "sound", 96, 72, "acid", "Odposlech / wedge pro DJ", [
+      pBottom(96, 72, "in", "audio", "in"),
+    ]),
     amp: mk("amp", "Amp rack", "infra", 96, 72, "amber", "Zesilovače", [
       pLeft(96, 72, "pwr", "power", "in", 0.5),
       pLeft(96, 72, "audio_in", "audio", "in", 0.85),
