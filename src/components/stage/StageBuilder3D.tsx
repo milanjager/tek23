@@ -625,7 +625,7 @@ function CrowdModel({ size }: { size: [number, number, number] }) {
   );
 }
 
-function ModelFor({ kind, size }: { kind: Kind; size: [number, number, number] }) {
+function ModelFor({ kind, size, variant }: { kind: Kind; size: [number, number, number]; variant?: "red" | "blue" }) {
   switch (kind) {
     case "horn": return <HornModel size={size} />;
     case "mid": return <MidModel size={size} />;
@@ -637,7 +637,7 @@ function ModelFor({ kind, size }: { kind: Kind; size: [number, number, number] }
     case "mixer": return <MixerModel size={size} />;
     case "dj": return <DJBooth size={size} />;
     case "cdj": return <CDJModel size={size} />;
-    case "korg": return <KorgModel size={size} />;
+    case "korg": return <KorgModel size={size} variant={variant} />;
     case "turntable": return <TurntableModel size={size} />;
     case "strobe": return <StrobeModel size={size} />;
     case "laser": return <LaserModel size={size} />;
