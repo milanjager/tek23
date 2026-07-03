@@ -7,12 +7,15 @@ import {
   Html,
   ContactShadows,
   Environment,
+  Line,
 } from "@react-three/drei";
 import * as THREE from "three";
 import {
   Speaker, Trash2, Save, Copy, ClipboardPaste, Group as GroupIcon, Ungroup,
   Move as MoveIcon, RotateCw, Boxes, Zap, Sparkles, Radio, Volume2,
+  Cable as CableIcon, MousePointer2,
 } from "lucide-react";
+
 
 /* ============================================================
    Types & Catalog
@@ -73,8 +76,58 @@ interface Placed {
 
 type PresetKind = "mayapur" | "badtekk" | "namel" | "toroid" | "dub" | "techno" | "club" | "freetekno";
 
-const STORAGE = "stagerig3d:v1";
+type CableType = "signal" | "speaker" | "power" | "dmx";
+
+interface Cable {
+  id: string;
+  from: string; // item id
+  to: string;   // item id
+  type: CableType;
+}
+
+const CABLE_META: Record<CableType, { label: string; short: string; color: string; width: number }> = {
+  signal:  { label: "Signál (XLR / jack)",  short: "SIG",   color: "#a3ff12", width: 1.6 },
+  speaker: { label: "Repro (Speakon)",       short: "SPK",   color: "#05d9e8", width: 3.0 },
+  power:   { label: "Silový (230V)",         short: "PWR",   color: "#ff2a6d", width: 2.4 },
+  dmx:     { label: "DMX / světla",          short: "DMX",   color: "#f4c11a", width: 1.4 },
+};
+
+const STORAGE = "stagerig3d:v2";
 const uid = () => Math.random().toString(36).slice(2, 10);
+
+// Anchor point on a placed item where cables plug in.
+// Signal/DMX = top-back, Power = bottom-back, Speaker = top-front.
+function anchorFor(item: Placed, type: CableType): [number, number, number] {
+  const s = SPECS[item.kind].size;
+  const [x, y, z] = item.pos;
+  const cs = Math.cos(item.rotY), sn = Math.sin(item.rotY);
+  let lx = 0, ly = s[1] * 0.9, lz = -s[2] * 0.35;
+  if (type === "power")   { ly = s[1] * 0.15; lz = -s[2] * 0.4; }
+  if (type === "speaker") { ly = s[1] * 0.75; lz =  s[2] * 0.4; }
+  if (type === "dmx")     { ly = s[1] * 0.95; lz = -s[2] * 0.2; lx = s[0] * 0.3; }
+  // Rotate around Y
+  const wx = lx * cs + lz * sn;
+  const wz = -lx * sn + lz * cs;
+  return [x + wx, y + ly, z + wz];
+}
+
+// Sample a hanging catenary-ish curve between two 3D points.
+function cablePoints(a: [number, number, number], b: [number, number, number], segs = 24): [number, number, number][] {
+  const ax = a[0], ay = a[1], az = a[2];
+  const bx = b[0], by = b[1], bz = b[2];
+  const dx = bx - ax, dy = by - ay, dz = bz - az;
+  const dist = Math.hypot(dx, dy, dz);
+  const sag = Math.min(0.9, dist * 0.18); // meters
+  const pts: [number, number, number][] = [];
+  for (let i = 0; i <= segs; i++) {
+    const t = i / segs;
+    // Parabolic sag: y_offset = -4 * sag * t * (1 - t)
+    const yOff = -4 * sag * t * (1 - t);
+    pts.push([ax + dx * t, ay + dy * t + yOff, az + dz * t]);
+  }
+  return pts;
+}
+
 
 /* ============================================================
    3D Models — parametric low-poly per kind
@@ -667,10 +720,11 @@ function ModelFor({ kind, size, variant }: { kind: Kind; size: [number, number, 
    ============================================================ */
 
 const ItemObject = ({
-  item, selected, onSelect, onRegister,
+  item, selected, pending, onSelect, onRegister,
 }: {
   item: Placed;
   selected: boolean;
+  pending?: boolean;
   onSelect: (id: string, additive: boolean) => void;
   onRegister: (id: string, obj: THREE.Object3D | null) => void;
 }) => {
@@ -708,6 +762,13 @@ const ItemObject = ({
           <meshBasicMaterial color="#a3ff12" transparent opacity={0.9} />
         </mesh>
       )}
+      {/* Pending source for cable */}
+      {pending && (
+        <mesh position={[0, 0.006, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+          <ringGeometry args={[Math.max(spec.size[0], spec.size[2]) * 0.55, Math.max(spec.size[0], spec.size[2]) * 0.9, 48]} />
+          <meshBasicMaterial color="#f4c11a" transparent opacity={0.6} />
+        </mesh>
+      )}
       {/* Custom label above the box */}
       {item.label && (
         <Html position={[0, spec.size[1] + 0.25, 0]} center distanceFactor={8} occlude={false}>
@@ -719,6 +780,7 @@ const ItemObject = ({
     </group>
   );
 };
+
 
 /* ============================================================
    Snap / stacking
@@ -764,13 +826,21 @@ function stackY(moving: Placed, others: Placed[]): number {
 
 function SceneContent({
   items, setItems, selection, setSelection, tool,
+  cables, setCables, mode, cableType, pendingFrom, setPendingFrom,
 }: {
   items: Placed[];
   setItems: React.Dispatch<React.SetStateAction<Placed[]>>;
   selection: string[];
   setSelection: React.Dispatch<React.SetStateAction<string[]>>;
   tool: "translate" | "rotate";
+  cables: Cable[];
+  setCables: React.Dispatch<React.SetStateAction<Cable[]>>;
+  mode: "select" | "cable";
+  cableType: CableType;
+  pendingFrom: string | null;
+  setPendingFrom: React.Dispatch<React.SetStateAction<string | null>>;
 }) {
+
   const objectsRef = useRef<Map<string, THREE.Object3D>>(new Map());
   const orbitRef = useRef<any>(null);
   const transformRef = useRef<any>(null);
@@ -877,7 +947,10 @@ function SceneContent({
         rotation={[-Math.PI / 2, 0, 0]}
         receiveShadow
         onPointerDown={(e) => {
-          if (e.button === 0) setSelection([]);
+          if (e.button === 0) {
+            if (mode === "cable") setPendingFrom(null);
+            else setSelection([]);
+          }
         }}
       >
         <planeGeometry args={[100, 100]} />
@@ -900,10 +973,22 @@ function SceneContent({
         <ItemObject
           key={it.id}
           item={it}
-          selected={selection.includes(it.id)}
-          onSelect={(id, additive) =>
+          selected={mode === "select" && selection.includes(it.id)}
+          pending={mode === "cable" && pendingFrom === it.id}
+          onSelect={(id, additive) => {
+            if (mode === "cable") {
+              if (!pendingFrom) {
+                setPendingFrom(id);
+              } else if (pendingFrom === id) {
+                setPendingFrom(null);
+              } else {
+                const from = pendingFrom, to = id;
+                setCables((cs) => [...cs, { id: uid(), from, to, type: cableType }]);
+                setPendingFrom(null);
+              }
+              return;
+            }
             setSelection((prev) => {
-              // If member of a group, select whole group
               const target = items.find((x) => x.id === id);
               const groupMembers = target?.groupId
                 ? items.filter((x) => x.groupId === target.groupId).map((x) => x.id)
@@ -916,13 +1001,48 @@ function SceneContent({
                 return [...set];
               }
               return groupMembers;
-            })
-          }
+            });
+          }}
           onRegister={registerObject}
         />
       ))}
 
-      {primaryObj && (
+      {/* Cables */}
+      {cables.map((c) => {
+        const a = items.find((i) => i.id === c.from);
+        const b = items.find((i) => i.id === c.to);
+        if (!a || !b) return null;
+        const meta = CABLE_META[c.type];
+        const p1 = anchorFor(a, c.type);
+        const p2 = anchorFor(b, c.type);
+        const pts = cablePoints(p1, p2, 28);
+        return (
+          <group key={c.id}>
+            <Line
+              points={pts as unknown as [number, number, number][]}
+              color={meta.color}
+              lineWidth={meta.width}
+              transparent
+              opacity={0.95}
+              onClick={(e) => {
+                e.stopPropagation();
+                if (mode === "cable") setCables((cs) => cs.filter((x) => x.id !== c.id));
+              }}
+            />
+            {/* connector caps */}
+            <mesh position={p1}>
+              <sphereGeometry args={[0.05, 12, 8]} />
+              <meshStandardMaterial color={meta.color} emissive={meta.color} emissiveIntensity={0.6} />
+            </mesh>
+            <mesh position={p2}>
+              <sphereGeometry args={[0.05, 12, 8]} />
+              <meshStandardMaterial color={meta.color} emissive={meta.color} emissiveIntensity={0.6} />
+            </mesh>
+          </group>
+        );
+      })}
+
+      {mode === "select" && primaryObj && (
         <TransformControls
           ref={transformRef}
           object={primaryObj}
@@ -946,6 +1066,7 @@ function SceneContent({
         dampingFactor={0.1}
       />
     </>
+
   );
 }
 
@@ -1155,15 +1276,56 @@ function loadPreset(kind: PresetKind): Placed[] {
 }
 
 /* ============================================================
+   Palette thumbnail — mini 3D preview per catalog item
+   ============================================================ */
+
+function ThumbLookAt() {
+  const { camera } = useThree();
+  useEffect(() => { camera.lookAt(0, 0, 0); }, [camera]);
+  return null;
+}
+
+function PaletteThumb({ kind }: { kind: Kind }) {
+  const spec = SPECS[kind];
+  const [w, h, d] = spec.size;
+  const maxDim = Math.max(w, h, d);
+  const camDist = maxDim * 2.2 + 0.4;
+  return (
+    <div className="pointer-events-none h-16 w-full overflow-hidden rounded bg-gradient-to-b from-neutral-950 to-neutral-900">
+      <Canvas
+        dpr={[1, 1.5]}
+        camera={{ position: [camDist * 0.9, camDist * 0.75, camDist], fov: 32 }}
+        gl={{ antialias: true, alpha: true, powerPreference: "low-power" }}
+        shadows={false}
+        frameloop="demand"
+      >
+        <ThumbLookAt />
+        <ambientLight intensity={0.7} />
+        <hemisphereLight args={["#a3ff12", "#221100", 0.4]} />
+        <directionalLight position={[3, 4, 3]} intensity={1.1} />
+        <group position={[0, -h / 2, 0]}>
+          <ModelFor kind={kind} size={spec.size} />
+        </group>
+      </Canvas>
+    </div>
+  );
+}
+
+/* ============================================================
    Main component
    ============================================================ */
 
 export function StageBuilder3D() {
   const [items, setItems] = useState<Placed[]>([]);
+  const [cables, setCables] = useState<Cable[]>([]);
   const [selection, setSelection] = useState<string[]>([]);
   const [tool, setTool] = useState<"translate" | "rotate">("translate");
+  const [mode, setMode] = useState<"select" | "cable">("select");
+  const [cableType, setCableType] = useState<CableType>("signal");
+  const [pendingFrom, setPendingFrom] = useState<string | null>(null);
   const [category, setCategory] = useState<Category>("sound");
   const [clipboard, setClipboard] = useState<Placed[]>([]);
+
 
   // Load from storage
   useEffect(() => {
@@ -1172,6 +1334,7 @@ export function StageBuilder3D() {
       if (raw) {
         const parsed = JSON.parse(raw);
         if (Array.isArray(parsed.items)) setItems(parsed.items);
+        if (Array.isArray(parsed.cables)) setCables(parsed.cables);
       } else {
         setItems(loadPreset("techno"));
       }
@@ -1179,8 +1342,9 @@ export function StageBuilder3D() {
   }, []);
 
   useEffect(() => {
-    localStorage.setItem(STORAGE, JSON.stringify({ items }));
-  }, [items]);
+    localStorage.setItem(STORAGE, JSON.stringify({ items, cables }));
+  }, [items, cables]);
+
 
   const addItem = (kind: Kind) => {
     const s = SPECS[kind].size;
@@ -1198,9 +1362,12 @@ export function StageBuilder3D() {
 
   const deleteSelection = useCallback(() => {
     if (!selection.length) return;
-    setItems((cur) => cur.filter((i) => !selection.includes(i.id)));
+    const del = new Set(selection);
+    setItems((cur) => cur.filter((i) => !del.has(i.id)));
+    setCables((cs) => cs.filter((c) => !del.has(c.from) && !del.has(c.to)));
     setSelection([]);
   }, [selection]);
+
 
   const copySelection = useCallback(() => {
     setClipboard(items.filter((i) => selection.includes(i.id)));
@@ -1269,9 +1436,11 @@ export function StageBuilder3D() {
       else if (meta && e.key.toLowerCase() === "d") { duplicateSelection(); e.preventDefault(); }
       else if (meta && e.shiftKey && e.key.toLowerCase() === "g") { ungroupSelection(); e.preventDefault(); }
       else if (meta && e.key.toLowerCase() === "g") { groupSelection(); e.preventDefault(); }
-      else if (e.key === "Escape") setSelection([]);
-      else if (e.key.toLowerCase() === "t") setTool("translate");
-      else if (e.key.toLowerCase() === "r") setTool("rotate");
+      else if (e.key === "Escape") { setSelection([]); setPendingFrom(null); }
+      else if (e.key.toLowerCase() === "t") { setMode("select"); setTool("translate"); }
+      else if (e.key.toLowerCase() === "r") { setMode("select"); setTool("rotate"); }
+      else if (e.key.toLowerCase() === "c" && !meta) { setMode((m) => (m === "cable" ? "select" : "cable")); setSelection([]); setPendingFrom(null); }
+
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
@@ -1299,9 +1468,28 @@ export function StageBuilder3D() {
         <button onClick={() => setItems(loadPreset("club"))} className="rounded bg-neutral-800 px-2 py-1 hover:bg-neutral-700">Malý klub</button>
         <button onClick={() => setItems(loadPreset("freetekno"))} className="rounded bg-teal-700/70 px-2 py-1 hover:bg-teal-600"><Zap size={12} className="inline" /> Freetekno wall</button>
         <div className="mx-3 h-5 w-px bg-neutral-700" />
-        <button onClick={() => setTool("translate")} className={`flex items-center gap-1 rounded px-2 py-1 ${tool === "translate" ? "bg-lime-500 text-neutral-950" : "bg-neutral-800 hover:bg-neutral-700"}`}><MoveIcon size={12} /> Posun (T)</button>
-        <button onClick={() => setTool("rotate")} className={`flex items-center gap-1 rounded px-2 py-1 ${tool === "rotate" ? "bg-lime-500 text-neutral-950" : "bg-neutral-800 hover:bg-neutral-700"}`}><RotateCw size={12} /> Rotace (R)</button>
-        <div className="mx-3 h-5 w-px bg-neutral-700" />
+        <button onClick={() => { setMode("select"); setPendingFrom(null); }} className={`flex items-center gap-1 rounded px-2 py-1 ${mode === "select" ? "bg-lime-500 text-neutral-950" : "bg-neutral-800 hover:bg-neutral-700"}`}><MousePointer2 size={12} /> Výběr</button>
+        <button onClick={() => setTool("translate")} disabled={mode !== "select"} className={`flex items-center gap-1 rounded px-2 py-1 ${tool === "translate" && mode === "select" ? "bg-lime-500 text-neutral-950" : "bg-neutral-800 hover:bg-neutral-700"} disabled:opacity-40`}><MoveIcon size={12} /> Posun (T)</button>
+        <button onClick={() => setTool("rotate")} disabled={mode !== "select"} className={`flex items-center gap-1 rounded px-2 py-1 ${tool === "rotate" && mode === "select" ? "bg-lime-500 text-neutral-950" : "bg-neutral-800 hover:bg-neutral-700"} disabled:opacity-40`}><RotateCw size={12} /> Rotace (R)</button>
+        <div className="mx-2 h-5 w-px bg-neutral-700" />
+        <button onClick={() => { setMode("cable"); setSelection([]); }} className={`flex items-center gap-1 rounded px-2 py-1 ${mode === "cable" ? "bg-lime-500 text-neutral-950" : "bg-neutral-800 hover:bg-neutral-700"}`}><CableIcon size={12} /> Kabely</button>
+        {mode === "cable" && (
+          <div className="flex items-center gap-1 rounded bg-neutral-800 p-0.5">
+            {(Object.keys(CABLE_META) as CableType[]).map((t) => (
+              <button
+                key={t}
+                onClick={() => setCableType(t)}
+                className={`rounded px-2 py-0.5 text-[11px] font-bold ${cableType === t ? "text-neutral-950" : "text-neutral-300 hover:text-white"}`}
+                style={cableType === t ? { backgroundColor: CABLE_META[t].color } : { backgroundColor: "transparent" }}
+                title={CABLE_META[t].label}
+              >
+                <span className="mr-1 inline-block h-2 w-2 rounded-sm" style={{ backgroundColor: CABLE_META[t].color }} />
+                {CABLE_META[t].short}
+              </button>
+            ))}
+          </div>
+        )}
+
         <button onClick={duplicateSelection} disabled={!selection.length} className="flex items-center gap-1 rounded bg-neutral-800 px-2 py-1 hover:bg-neutral-700 disabled:opacity-40"><Copy size={12} /> Duplikovat</button>
         <button onClick={copySelection} disabled={!selection.length} className="rounded bg-neutral-800 px-2 py-1 hover:bg-neutral-700 disabled:opacity-40">Kopírovat</button>
         <button onClick={pasteSelection} disabled={!clipboard.length} className="flex items-center gap-1 rounded bg-neutral-800 px-2 py-1 hover:bg-neutral-700 disabled:opacity-40"><ClipboardPaste size={12} /> Vložit</button>
@@ -1309,9 +1497,10 @@ export function StageBuilder3D() {
         <button onClick={ungroupSelection} disabled={!selection.length} className="flex items-center gap-1 rounded bg-neutral-800 px-2 py-1 hover:bg-neutral-700 disabled:opacity-40"><Ungroup size={12} /> Ungroup</button>
         <button onClick={deleteSelection} disabled={!selection.length} className="flex items-center gap-1 rounded bg-red-900/70 px-2 py-1 hover:bg-red-800 disabled:opacity-40"><Trash2 size={12} /> Smazat</button>
         <div className="ml-auto flex items-center gap-2 text-xs text-neutral-400">
-          <span>{items.length} prvků · {selection.length} vybráno</span>
-          <button onClick={() => localStorage.setItem(STORAGE, JSON.stringify({ items }))} className="flex items-center gap-1 rounded bg-neutral-800 px-2 py-1 hover:bg-neutral-700"><Save size={12} /> Uložit</button>
-          <button onClick={() => { if (confirm("Vymazat vše?")) { setItems([]); setSelection([]); }}} className="rounded bg-neutral-800 px-2 py-1 hover:bg-neutral-700">Vyčistit</button>
+          <span>{items.length} prvků · {cables.length} kabelů · {selection.length} vybráno</span>
+          <button onClick={() => localStorage.setItem(STORAGE, JSON.stringify({ items, cables }))} className="flex items-center gap-1 rounded bg-neutral-800 px-2 py-1 hover:bg-neutral-700"><Save size={12} /> Uložit</button>
+          <button onClick={() => { if (confirm("Vymazat vše?")) { setItems([]); setCables([]); setSelection([]); }}} className="rounded bg-neutral-800 px-2 py-1 hover:bg-neutral-700">Vyčistit</button>
+
         </div>
       </div>
 
@@ -1337,23 +1526,27 @@ export function StageBuilder3D() {
               <button
                 key={k}
                 onClick={() => addItem(k)}
-                className="mb-2 w-full rounded border border-neutral-800 bg-neutral-900 p-2 text-left transition hover:border-lime-500/50 hover:bg-neutral-800"
+                className="mb-2 block w-full overflow-hidden rounded border border-neutral-800 bg-neutral-900 text-left transition hover:border-lime-500/60 hover:bg-neutral-800"
               >
-                <div className="text-sm font-semibold">{s.label}</div>
-                <div className="text-[10px] text-neutral-500">{s.hint}</div>
-                <div className="mt-1 font-mono text-[10px] text-neutral-600">
-                  {s.size[0].toFixed(2)}×{s.size[1].toFixed(2)}×{s.size[2].toFixed(2)} m
+                <PaletteThumb kind={k} />
+                <div className="px-2 py-1.5">
+                  <div className="text-xs font-semibold text-neutral-100">{s.label}</div>
+                  <div className="text-[10px] text-neutral-500">{s.hint}</div>
+                  <div className="mt-0.5 font-mono text-[9px] text-neutral-600">
+                    {s.size[0].toFixed(2)}×{s.size[1].toFixed(2)}×{s.size[2].toFixed(2)} m
+                  </div>
                 </div>
               </button>
             ))}
           </div>
           <div className="border-t border-neutral-800 p-2 text-[10px] text-neutral-500">
-            <div><b>T/R</b> — posun/rotace</div>
+            <div><b>T/R</b> — posun/rotace · <b>C</b> — kabely</div>
             <div><b>Ctrl+C/V/D</b> — kopie / vložit / duplikovat</div>
             <div><b>Ctrl+G / Ctrl+Shift+G</b> — group / ungroup</div>
-            <div><b>Shift+klik</b> — přidat do výběru</div>
-            <div><b>Del</b> — smazat výběr</div>
+            <div><b>Shift+klik</b> — přidat do výběru · <b>Del</b> — smazat</div>
+            <div className="mt-1 text-neutral-400">V režimu Kabely: klik na první bednu → klik na druhou. Klik na kabel = smazat.</div>
           </div>
+
         </aside>
 
         {/* 3D Canvas */}
@@ -1370,11 +1563,20 @@ export function StageBuilder3D() {
               selection={selection}
               setSelection={setSelection}
               tool={tool}
+              cables={cables}
+              setCables={setCables}
+              mode={mode}
+              cableType={cableType}
+              pendingFrom={pendingFrom}
+              setPendingFrom={setPendingFrom}
             />
           </Canvas>
           <div className="pointer-events-none absolute bottom-2 left-2 rounded bg-neutral-900/80 px-2 py-1 text-[10px] text-neutral-400">
-            Levé tlačítko: rotace · Pravé: pan · Kolečko: zoom · Klik na bednu: výběr
+            {mode === "cable"
+              ? (pendingFrom ? "Kabely: klik na druhou bednu (Esc / klik do prázdna zruší)" : `Kabely (${CABLE_META[cableType].short}): klik na zdrojovou bednu`)
+              : "Levé tl.: rotace · Pravé: pan · Kolečko: zoom · Klik na bednu: výběr"}
           </div>
+
         </div>
       </div>
     </div>
