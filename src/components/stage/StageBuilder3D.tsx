@@ -424,8 +424,14 @@ function CDJModel({ size }: { size: [number, number, number] }) {
   );
 }
 
-function KorgModel({ size }: { size: [number, number, number] }) {
+function KorgModel({ size, variant }: { size: [number, number, number]; variant?: "red" | "blue" }) {
   const [w, h, d] = size;
+  const palette =
+    variant === "red"
+      ? ["#ff2a6d", "#ff1744", "#d50000", "#ff5252"]
+      : variant === "blue"
+      ? ["#05d9e8", "#2979ff", "#00b0ff", "#82b1ff"]
+      : ["#ff2a6d", "#05d9e8", "#d1f7ff", "#a3ff12"];
   return (
     <group>
       <mesh castShadow position={[0, h / 2, 0]}>
@@ -444,8 +450,8 @@ function KorgModel({ size }: { size: [number, number, number] }) {
           >
             <boxGeometry args={[0.06, 0.006, 0.06]} />
             <meshStandardMaterial
-              color={["#ff2a6d", "#05d9e8", "#d1f7ff", "#a3ff12"][(i + j) % 4]}
-              emissive={["#ff2a6d", "#05d9e8", "#d1f7ff", "#a3ff12"][(i + j) % 4]}
+              color={palette[(i + j) % 4]}
+              emissive={palette[(i + j) % 4]}
               emissiveIntensity={1.2}
             />
           </mesh>
