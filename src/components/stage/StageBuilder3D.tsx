@@ -70,7 +70,7 @@ interface Placed {
   label?: string;
 }
 
-type PresetKind = "mayapur" | "badtekk" | "namel" | "toroid" | "dub" | "techno" | "club";
+type PresetKind = "mayapur" | "badtekk" | "namel" | "toroid" | "dub" | "techno" | "club" | "freetekno";
 
 const STORAGE = "stagerig3d:v1";
 const uid = () => Math.random().toString(36).slice(2, 10);
