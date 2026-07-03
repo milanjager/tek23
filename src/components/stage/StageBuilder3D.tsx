@@ -23,7 +23,9 @@ import {
 
 type Kind =
   | "horn" | "mid" | "bass" | "sub" | "linearray" | "monitor"
-  | "amp" | "mixer" | "dj" | "cdj" | "korg" | "turntable"
+  | "badtekk_sub" | "badtekk_bass" | "badtekk_top"
+  | "amp" | "powersoft" | "mixer" | "dj" | "cdj"
+  | "korg" | "korg_red" | "korg_blue" | "turntable"
   | "strobe" | "laser" | "movinghead"
   | "bar" | "generator" | "crowd";
 
@@ -33,30 +35,39 @@ interface Spec {
   label: string;
   category: Category;
   size: [number, number, number]; // w, h, d (meters)
-  stackable: boolean; // can host others on top / be stacked
+  stackable: boolean;
   hint: string;
+  defaultLabel?: string;
+  defaultVariant?: "red" | "blue";
 }
 
 const SPECS: Record<Kind, Spec> = {
-  horn:       { label: "Horn",         category: "sound",  size: [0.60, 0.40, 0.40], stackable: true,  hint: "Výškový horn" },
-  mid:        { label: "Mid",          category: "sound",  size: [0.60, 0.60, 0.50], stackable: true,  hint: "Střední pásmo" },
-  bass:       { label: "Bass bin",     category: "sound",  size: [0.80, 0.60, 0.70], stackable: true,  hint: "Basová bedna" },
-  sub:        { label: "Sub 2×18",     category: "sound",  size: [1.20, 0.80, 0.90], stackable: true,  hint: "Sub-bass" },
-  linearray:  { label: "Line array",   category: "sound",  size: [0.90, 0.28, 0.55], stackable: true,  hint: "Line array element" },
-  monitor:    { label: "Stage monitor",category: "sound",  size: [0.60, 0.40, 0.45], stackable: true,  hint: "Wedge odposlech" },
-  amp:        { label: "Amp rack",     category: "infra",  size: [0.60, 0.90, 0.60], stackable: true,  hint: "Rack zesilovačů" },
-  mixer:      { label: "Mixer",        category: "infra",  size: [0.80, 0.15, 0.55], stackable: false, hint: "Mixážní pult" },
-  dj:         { label: "DJ booth",     category: "infra",  size: [1.60, 1.00, 0.70], stackable: false, hint: "DJ pult" },
-  cdj:        { label: "CDJ",          category: "infra",  size: [0.35, 0.10, 0.42], stackable: false, hint: "CDJ přehrávač" },
-  korg:       { label: "Korg live",    category: "infra",  size: [0.75, 0.10, 0.40], stackable: false, hint: "Korg groovebox" },
-  turntable:  { label: "Gramofon",     category: "infra",  size: [0.45, 0.15, 0.35], stackable: false, hint: "Vinyl deck" },
-  strobe:     { label: "Strobo",       category: "lights", size: [0.45, 0.30, 0.20], stackable: false, hint: "Stroboskop" },
-  laser:      { label: "Laser",        category: "lights", size: [0.40, 0.25, 0.35], stackable: false, hint: "Laser" },
-  movinghead: { label: "Moving head",  category: "lights", size: [0.35, 0.55, 0.35], stackable: false, hint: "Otočná hlava" },
-  bar:        { label: "Bar",          category: "infra",  size: [2.40, 1.10, 0.65], stackable: false, hint: "Bar pult" },
-  generator:  { label: "Aggregát",     category: "infra",  size: [1.50, 1.20, 0.85], stackable: false, hint: "Diesel generátor" },
-  crowd:      { label: "Dancefloor",   category: "infra",  size: [4.00, 0.02, 4.00], stackable: false, hint: "Prostor pro dav" },
+  horn:         { label: "Horn",             category: "sound",  size: [0.60, 0.40, 0.40], stackable: true,  hint: "Výškový horn" },
+  mid:          { label: "Mid",              category: "sound",  size: [0.60, 0.60, 0.50], stackable: true,  hint: "Střední pásmo" },
+  bass:         { label: "Bass bin",         category: "sound",  size: [0.80, 0.60, 0.70], stackable: true,  hint: "Basová bedna" },
+  sub:          { label: "Sub 2×18",         category: "sound",  size: [1.20, 0.80, 0.90], stackable: true,  hint: "Sub-bass" },
+  linearray:    { label: "Line array",       category: "sound",  size: [0.90, 0.28, 0.55], stackable: true,  hint: "Line array element" },
+  monitor:      { label: "Stage monitor",    category: "sound",  size: [0.60, 0.40, 0.45], stackable: true,  hint: "Wedge odposlech" },
+  badtekk_sub:  { label: "Badtekk Sub",      category: "sound",  size: [1.20, 0.80, 0.90], stackable: true,  hint: "Badtekk 2×18\" sub", defaultLabel: "Badtekk Sub" },
+  badtekk_bass: { label: "Badtekk Bass",     category: "sound",  size: [0.90, 0.65, 0.75], stackable: true,  hint: "Badtekk 2×15\" bass", defaultLabel: "Badtekk Bass" },
+  badtekk_top:  { label: "Badtekk Top",      category: "sound",  size: [0.65, 0.55, 0.45], stackable: true,  hint: "Badtekk W-bin top", defaultLabel: "Badtekk Top" },
+  amp:          { label: "Amp rack",         category: "infra",  size: [0.60, 0.90, 0.60], stackable: true,  hint: "Rack zesilovačů" },
+  powersoft:    { label: "Powersoft K20",    category: "infra",  size: [0.60, 0.90, 0.60], stackable: true,  hint: "Powersoft výkonový amp", defaultLabel: "Powersoft" },
+  mixer:        { label: "Mixer",            category: "infra",  size: [0.80, 0.15, 0.55], stackable: false, hint: "Mixážní pult" },
+  dj:           { label: "DJ booth",         category: "infra",  size: [1.60, 1.00, 0.70], stackable: false, hint: "DJ pult" },
+  cdj:          { label: "CDJ",              category: "infra",  size: [0.35, 0.10, 0.42], stackable: false, hint: "CDJ přehrávač" },
+  korg:         { label: "Korg live",        category: "infra",  size: [0.75, 0.10, 0.40], stackable: false, hint: "Korg groovebox" },
+  korg_red:     { label: "Korg červený",     category: "infra",  size: [0.75, 0.10, 0.40], stackable: false, hint: "Korg groovebox – červený", defaultLabel: "Korg červený", defaultVariant: "red" },
+  korg_blue:    { label: "Korg modrý",       category: "infra",  size: [0.75, 0.10, 0.40], stackable: false, hint: "Korg groovebox – modrý",   defaultLabel: "Korg modrý",   defaultVariant: "blue" },
+  turntable:    { label: "Gramofon",         category: "infra",  size: [0.45, 0.15, 0.35], stackable: false, hint: "Vinyl deck" },
+  strobe:       { label: "Strobo",           category: "lights", size: [0.45, 0.30, 0.20], stackable: false, hint: "Stroboskop" },
+  laser:        { label: "Laser",            category: "lights", size: [0.40, 0.25, 0.35], stackable: false, hint: "Laser" },
+  movinghead:   { label: "Moving head",      category: "lights", size: [0.35, 0.55, 0.35], stackable: false, hint: "Otočná hlava" },
+  bar:          { label: "Bar",              category: "infra",  size: [2.40, 1.10, 0.65], stackable: false, hint: "Bar pult" },
+  generator:    { label: "Aggregát",         category: "infra",  size: [1.50, 1.20, 0.85], stackable: false, hint: "Diesel generátor" },
+  crowd:        { label: "Dancefloor",       category: "infra",  size: [4.00, 0.02, 4.00], stackable: false, hint: "Prostor pro dav" },
 };
+
 
 const CATEGORIES: { id: Category; label: string; icon: typeof Speaker }[] = [
   { id: "sound",  label: "Sound",  icon: Volume2 },
@@ -391,33 +402,44 @@ function MonitorModel({ size }: { size: [number, number, number] }) {
   );
 }
 
-function AmpRack({ size }: { size: [number, number, number] }) {
+function AmpRack({ size, brand = "generic" }: { size: [number, number, number]; brand?: "generic" | "powersoft" }) {
   const [w, h, d] = size;
+  const isPS = brand === "powersoft";
+  const ledColor = isPS ? "#05d9e8" : "#f43f5e";
+  const rackColor = isPS ? "#141a22" : "#1e1e1e";
   return (
     <group>
       <mesh castShadow receiveShadow position={[0, h / 2, 0]}>
         <boxGeometry args={[w, h, d]} />
-        <meshStandardMaterial color="#111" roughness={0.5} metalness={0.5} />
+        <meshStandardMaterial color={isPS ? "#0a0f14" : "#111"} roughness={0.5} metalness={0.55} />
       </mesh>
       {/* Rack units */}
       {[0, 1, 2, 3].map((i) => (
         <group key={i} position={[0, 0.15 + i * (h - 0.3) / 4 + (h - 0.3) / 8, d / 2 + 0.001]}>
           <mesh>
             <planeGeometry args={[w * 0.9, (h - 0.3) / 4 * 0.85]} />
-            <meshStandardMaterial color="#1e1e1e" metalness={0.7} roughness={0.35} />
+            <meshStandardMaterial color={rackColor} metalness={0.7} roughness={0.35} />
           </mesh>
           {/* LEDs */}
           {[-1, 0, 1].map((k) => (
             <mesh key={k} position={[k * w * 0.15, 0, 0.005]}>
               <sphereGeometry args={[0.012, 8, 8]} />
-              <meshStandardMaterial color="#f43f5e" emissive="#f43f5e" emissiveIntensity={2} />
+              <meshStandardMaterial color={ledColor} emissive={ledColor} emissiveIntensity={2} />
             </mesh>
           ))}
+          {/* Powersoft cyan branding stripe on top rack unit */}
+          {isPS && i === 3 && (
+            <mesh position={[w * 0.28, 0, 0.006]}>
+              <planeGeometry args={[w * 0.35, 0.015]} />
+              <meshStandardMaterial color="#05d9e8" emissive="#05d9e8" emissiveIntensity={1.2} />
+            </mesh>
+          )}
         </group>
       ))}
     </group>
   );
 }
+
 
 function MixerModel({ size }: { size: [number, number, number] }) {
   const [w, h, d] = size;
@@ -698,13 +720,19 @@ function ModelFor({ kind, size, variant }: { kind: Kind; size: [number, number, 
     case "mid": return <MidModel size={size} />;
     case "bass": return <BassModel size={size} />;
     case "sub": return <SubModel size={size} />;
+    case "badtekk_sub": return <SubModel size={size} />;
+    case "badtekk_bass": return <BassModel size={size} />;
+    case "badtekk_top": return <HornModel size={size} />;
     case "linearray": return <LineArrayModel size={size} />;
     case "monitor": return <MonitorModel size={size} />;
     case "amp": return <AmpRack size={size} />;
+    case "powersoft": return <AmpRack size={size} brand="powersoft" />;
     case "mixer": return <MixerModel size={size} />;
     case "dj": return <DJBooth size={size} />;
     case "cdj": return <CDJModel size={size} />;
     case "korg": return <KorgModel size={size} variant={variant} />;
+    case "korg_red": return <KorgModel size={size} variant="red" />;
+    case "korg_blue": return <KorgModel size={size} variant="blue" />;
     case "turntable": return <TurntableModel size={size} />;
     case "strobe": return <StrobeModel size={size} />;
     case "laser": return <LaserModel size={size} />;
@@ -714,6 +742,7 @@ function ModelFor({ kind, size, variant }: { kind: Kind; size: [number, number, 
     case "crowd": return <CrowdModel size={size} />;
   }
 }
+
 
 /* ============================================================
    Item mesh — receives selection + click
@@ -1147,52 +1176,48 @@ function loadPreset(kind: PresetKind): Placed[] {
   }
 
   if (kind === "badtekk") {
-    // Reference: indoor hall, symmetric wall — side towers (2 subs + 2 bass + 2 tops,
-    // outer tops angled outward), lower center stack (2 subs + 2 bass) with DJ + CDJs
-    // sitting on top, lighting truss spanning the whole width with moving heads.
-    const s = SPECS.sub.size, b = SPECS.bass.size, m = SPECS.mid.size, h = SPECS.horn.size;
+    const s = SPECS.badtekk_sub.size, b = SPECS.badtekk_bass.size;
     const arr: Placed[] = [];
     const Z = -1.6;
 
-    // ---- LEFT tower (2 columns × 3 rows) ----
-    for (const [ix, sx] of [[-1, -3.8], [-1, -2.55]] as [number, number][]) {
-      arr.push({ ...mk("sub", sx, 0, Z), label: ix < 0 && sx < -3 ? "2×18\" Sub" : undefined });
-      arr.push(mk("bass", sx, s[1], Z));
-      // outer top angled outward, inner top straight
-      const rot = sx < -3 ? 0.35 : 0.1;
+    // ---- LEFT tower ----
+    for (const sx of [-3.8, -2.55]) {
+      arr.push(mk("badtekk_sub", sx, 0, Z));
+      arr.push(mk("badtekk_bass", sx, s[1], Z));
       const isOuter = sx < -3;
-      arr.push({ ...mk(isOuter ? "horn" : "mid", sx, s[1] + b[1], Z, rot), label: isOuter ? "Top W-bin" : undefined });
+      const rot = isOuter ? 0.35 : 0.1;
+      arr.push(mk("badtekk_top", sx, s[1] + b[1], Z, rot));
     }
 
     // ---- RIGHT tower (mirror) ----
     for (const sx of [2.55, 3.8]) {
-      arr.push(mk("sub", sx, 0, Z));
-      arr.push(mk("bass", sx, s[1], Z));
-      const rot = sx > 3 ? -0.35 : -0.1;
+      arr.push(mk("badtekk_sub", sx, 0, Z));
+      arr.push(mk("badtekk_bass", sx, s[1], Z));
       const isOuter = sx > 3;
-      arr.push({ ...mk(isOuter ? "horn" : "mid", sx, s[1] + b[1], Z, rot), label: isOuter ? "Top W-bin" : undefined });
+      const rot = isOuter ? -0.35 : -0.1;
+      arr.push(mk("badtekk_top", sx, s[1] + b[1], Z, rot));
     }
 
-    // ---- CENTER stack (lower, DJ sits on top) ----
+    // ---- CENTER lower stack (DJ sits on top) ----
     for (const sx of [-0.65, 0.65]) {
-      arr.push(mk("sub", sx, 0, Z));
-      arr.push(mk("bass", sx, s[1], Z));
+      arr.push(mk("badtekk_sub", sx, 0, Z));
+      arr.push(mk("badtekk_bass", sx, s[1], Z));
     }
-    // DJ platform on top of center stack (~1.4 m high)
     const djY = s[1] + b[1];
     arr.push({ ...mk("dj", 0, djY, Z + 0.15), label: "Badtekk DJ" });
     arr.push(mk("cdj", -0.55, djY + 1.0, Z + 0.05));
     arr.push(mk("cdj", 0.55, djY + 1.0, Z + 0.05));
     arr.push(mk("mixer", 0, djY + 1.0, Z + 0.25));
 
-    // ---- Amp racks on the flanks (front-of-house sides) ----
-    arr.push({ ...mk("amp", -5.2, 0, 0.4), label: "Powersoft" });
-    arr.push({ ...mk("amp", -4.6, 0, 0.4), label: "Powersoft" });
-    arr.push({ ...mk("amp",  4.6, 0, 0.4), label: "Powersoft" });
-    arr.push({ ...mk("amp",  5.2, 0, 0.4), label: "Powersoft" });
+    // ---- Powersoft amp racks on the flanks ----
+    arr.push(mk("powersoft", -5.2, 0, 0.4));
+    arr.push(mk("powersoft", -4.6, 0, 0.4));
+    arr.push(mk("powersoft",  4.6, 0, 0.4));
+    arr.push(mk("powersoft",  5.2, 0, 0.4));
+
 
     // ---- Lighting truss (moving heads + strobes across the top) ----
-    const trussY = s[1] + b[1] + m[1] + 1.3;
+    const trussY = s[1] + b[1] + SPECS.badtekk_top.size[1] + 1.3;
     for (const tx of [-4, -2, 0, 2, 4]) {
       arr.push(mk("movinghead", tx, trussY, Z + 0.2));
     }
@@ -1219,15 +1244,16 @@ function loadPreset(kind: PresetKind): Placed[] {
     return [
       ...stack(-2, 0.25),
       ...stack(2, -0.25),
-      { ...mk("amp", -1.5, 0, 1.5), label: "Powersoft" },
-      { ...mk("amp", 1.5, 0, 1.5), label: "Powersoft" },
+      mk("powersoft", -1.5, 0, 1.5),
+      mk("powersoft", 1.5, 0, 1.5),
       mk("turntable", 0, 0.15, 2.2),
-      { ...mk("korg", -0.4, 0.1, 2.9), label: "Korg červený", variant: "red" },
-      { ...mk("korg", 0.4, 0.1, 2.9), label: "Korg modrý", variant: "blue" },
+      mk("korg_red", -0.4, 0.1, 2.9),
+      mk("korg_blue", 0.4, 0.1, 2.9),
       mk("generator", -5, 0, 2),
       mk("crowd", 0, 0, 5),
     ];
   }
+
 
   if (kind === "toroid") {
     const arr: Placed[] = [];
@@ -1375,18 +1401,20 @@ export function StageBuilder3D() {
 
 
   const addItem = (kind: Kind) => {
-    const s = SPECS[kind].size;
+    const spec = SPECS[kind];
     const it: Placed = {
       id: uid(), kind,
       pos: [0, 0, 2 + Math.random() * 0.4],
       rotY: 0,
+      ...(spec.defaultLabel ? { label: spec.defaultLabel } : {}),
+      ...(spec.defaultVariant ? { variant: spec.defaultVariant } : {}),
     };
-    // Snap to any stack top if placed on existing footprint
     const y = stackY(it, items);
     it.pos = [it.pos[0], y, it.pos[2]];
     setItems((cur) => [...cur, it]);
     setSelection([it.id]);
   };
+
 
   const deleteSelection = useCallback(() => {
     if (!selection.length) return;
