@@ -685,7 +685,7 @@ const ItemObject = ({
         </group>
       )}
       <group position={[0, spec.category === "sound" && item.pos[1] < 0.05 && item.kind !== "linearray" && item.kind !== "monitor" ? 0.14 : 0, 0]}>
-        <ModelFor kind={item.kind} size={spec.size} />
+        <ModelFor kind={item.kind} size={spec.size} variant={item.variant} />
       </group>
       {/* Selection halo */}
       {selected && (
