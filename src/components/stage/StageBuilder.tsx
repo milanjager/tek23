@@ -354,49 +354,112 @@ function Glyph({ kind, selected, label }: { kind: ComponentKind; selected: boole
     ring: "#3a2f24",
   };
 
-  // Reusable cabinet defs — wood-grain gradient, mesh dot grid, rivet detail
+  // Reusable cabinet defs — wood-grain gradient, mesh dot grid, metal rivet, driver cone
   const CabinetDefs = ({ id }: { id: string }) => (
     <defs>
-      <linearGradient id={`wood-${id}`} x1="0" y1="0" x2="1" y2="1">
-        <stop offset="0%" stopColor={CAB.woodLight} />
-        <stop offset="45%" stopColor={CAB.wood} />
-        <stop offset="100%" stopColor={CAB.woodDark} />
+      {/* Base plywood: warmish top-lit → darker bottom, with subtle angled highlight */}
+      <linearGradient id={`wood-${id}`} x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stopColor="#2a221c" />
+        <stop offset="15%" stopColor="#1c1815" />
+        <stop offset="55%" stopColor="#100e0c" />
+        <stop offset="100%" stopColor="#050403" />
       </linearGradient>
-      <linearGradient id={`grain-${id}`} x1="0" y1="0" x2="0" y2="1">
-        <stop offset="0%" stopColor="#000" stopOpacity="0" />
-        <stop offset="50%" stopColor="#000" stopOpacity="0.25" />
-        <stop offset="100%" stopColor="#000" stopOpacity="0" />
+      {/* Vertical grain streaks — thin repeating darker/lighter lines */}
+      <pattern id={`grain-${id}`} x="0" y="0" width="6" height="24" patternUnits="userSpaceOnUse">
+        <rect width="6" height="24" fill="transparent" />
+        <line x1="1" y1="0" x2="1" y2="24" stroke="#000" strokeOpacity="0.35" strokeWidth="0.4" />
+        <line x1="3" y1="0" x2="3" y2="24" stroke="#3a2e24" strokeOpacity="0.18" strokeWidth="0.3" />
+        <line x1="5" y1="0" x2="5" y2="24" stroke="#000" strokeOpacity="0.22" strokeWidth="0.35" />
+      </pattern>
+      {/* Top-lit specular highlight along upper edge */}
+      <linearGradient id={`toplit-${id}`} x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stopColor="#fff" stopOpacity="0.14" />
+        <stop offset="8%" stopColor="#fff" stopOpacity="0.04" />
+        <stop offset="100%" stopColor="#fff" stopOpacity="0" />
       </linearGradient>
-      <radialGradient id={`cone-${id}`} cx="50%" cy="50%" r="50%">
-        <stop offset="0%" stopColor="#2a2521" />
-        <stop offset="60%" stopColor="#0e0c0a" />
+      {/* Ambient occlusion halo — dark inner shadow near cabinet edges */}
+      <radialGradient id={`ao-${id}`} cx="50%" cy="55%" r="72%">
+        <stop offset="60%" stopColor="#000" stopOpacity="0" />
+        <stop offset="100%" stopColor="#000" stopOpacity="0.7" />
+      </radialGradient>
+      {/* Driver cone: dark center with rim shadow, matte paper look */}
+      <radialGradient id={`cone-${id}`} cx="50%" cy="42%" r="55%">
+        <stop offset="0%" stopColor="#3a332d" />
+        <stop offset="45%" stopColor="#141110" />
+        <stop offset="85%" stopColor="#050404" />
         <stop offset="100%" stopColor="#000" />
       </radialGradient>
-      <pattern id={`mesh-${id}`} x="0" y="0" width="3" height="3" patternUnits="userSpaceOnUse">
-        <rect width="3" height="3" fill={CAB.mesh} />
-        <circle cx="1.5" cy="1.5" r="0.55" fill="#1e1a17" />
+      {/* Dust cap with soft specular highlight */}
+      <radialGradient id={`cap-${id}`} cx="38%" cy="34%" r="70%">
+        <stop offset="0%" stopColor="#4a4038" />
+        <stop offset="55%" stopColor="#181513" />
+        <stop offset="100%" stopColor="#000" />
+      </radialGradient>
+      {/* Metal chrome rivet — brushed with tiny hot spot */}
+      <radialGradient id={`rivet-${id}`} cx="35%" cy="30%" r="70%">
+        <stop offset="0%" stopColor="#c9b89a" />
+        <stop offset="45%" stopColor="#6b5a44" />
+        <stop offset="100%" stopColor="#20180f" />
+      </radialGradient>
+      {/* Perforated metal mesh — fine dot grid + slight vertical shading */}
+      <pattern id={`mesh-${id}`} x="0" y="0" width="2.4" height="2.4" patternUnits="userSpaceOnUse">
+        <rect width="2.4" height="2.4" fill="#0a0908" />
+        <circle cx="1.2" cy="1.2" r="0.55" fill="#2a2420" />
+        <circle cx="1.2" cy="1.2" r="0.28" fill="#050404" />
       </pattern>
     </defs>
   );
 
-  // Corner rivets — 4 small dots hinting at cabinet hardware
-  const Rivets = ({ w, h, inset = 5 }: { w: number; h: number; inset?: number }) => (
-    <g fill={CAB.rivet} opacity="0.85">
-      <circle cx={inset} cy={inset} r="1.1" />
-      <circle cx={w - inset} cy={inset} r="1.1" />
-      <circle cx={inset} cy={h - inset} r="1.1" />
-      <circle cx={w - inset} cy={h - inset} r="1.1" />
+  // Corner rivets — chrome/steel with radial gradient highlight
+  const Rivets = ({ w, h, inset = 5, id }: { w: number; h: number; inset?: number; id: string }) => (
+    <g>
+      {[[inset, inset], [w - inset, inset], [inset, h - inset], [w - inset, h - inset]].map(([x, y], i) => (
+        <g key={i}>
+          <circle cx={x} cy={y} r="1.9" fill="#000" opacity="0.55" />
+          <circle cx={x} cy={y} r="1.6" fill={`url(#rivet-${id})`} />
+          <circle cx={x - 0.4} cy={y - 0.5} r="0.35" fill="#f4e6c8" opacity="0.85" />
+        </g>
+      ))}
     </g>
   );
 
-  // A single speaker driver with mesh grille, cone, dust cap and rim
+  // Wood panel: gradient + grain + top-lit highlight + AO vignette + edge line
+  const WoodPanel = ({ w, h, id, r = 2 }: { w: number; h: number; id: string; r?: number }) => (
+    <g>
+      <rect x="0.5" y="0.5" width={w - 1} height={h - 1} rx={r} fill={`url(#wood-${id})`} stroke="#000" strokeWidth="1" />
+      <rect x="0.5" y="0.5" width={w - 1} height={h - 1} rx={r} fill={`url(#grain-${id})`} opacity="0.55" />
+      <rect x="0.5" y="0.5" width={w - 1} height={h - 1} rx={r} fill={`url(#ao-${id})`} />
+      <rect x="0.5" y="0.5" width={w - 1} height={h - 1} rx={r} fill={`url(#toplit-${id})`} />
+      {/* inner black bevel */}
+      <rect x="1.5" y="1.5" width={w - 3} height={h - 3} rx={Math.max(1, r - 1)} fill="none" stroke="#000" strokeOpacity="0.5" strokeWidth="0.6" />
+    </g>
+  );
+
+  // A speaker driver with metal rim, mesh grille, cone shading, dust cap with spec
   const Driver = ({ cx, cy, r, id }: { cx: number; cy: number; r: number; id: string }) => (
     <g>
-      <circle cx={cx} cy={cy} r={r + 1.5} fill={CAB.ring} />
+      {/* soft contact shadow beneath the driver */}
+      <ellipse cx={cx} cy={cy + r * 0.15} rx={r + 2} ry={r * 0.35} fill="#000" opacity="0.35" />
+      {/* metal mounting ring */}
+      <circle cx={cx} cy={cy} r={r + 2.2} fill="#000" />
+      <circle cx={cx} cy={cy} r={r + 1.8} fill={`url(#rivet-${id})`} opacity="0.55" />
+      {/* mesh grille */}
       <circle cx={cx} cy={cy} r={r} fill={`url(#mesh-${id})`} />
-      <circle cx={cx} cy={cy} r={r} fill={`url(#cone-${id})`} opacity="0.55" />
-      <circle cx={cx} cy={cy} r={r * 0.28} fill={CAB.cap} stroke="#000" strokeWidth="0.6" />
-      <circle cx={cx} cy={cy} r={r} fill="none" stroke="#000" strokeWidth="0.8" opacity="0.7" />
+      {/* cone shading over the mesh */}
+      <circle cx={cx} cy={cy} r={r * 0.95} fill={`url(#cone-${id})`} opacity="0.85" />
+      {/* concentric cone ribs */}
+      <circle cx={cx} cy={cy} r={r * 0.72} fill="none" stroke="#000" strokeOpacity="0.5" strokeWidth="0.35" />
+      <circle cx={cx} cy={cy} r={r * 0.5} fill="none" stroke="#000" strokeOpacity="0.55" strokeWidth="0.35" />
+      {/* dust cap */}
+      <circle cx={cx} cy={cy} r={r * 0.3} fill={`url(#cap-${id})`} stroke="#000" strokeWidth="0.5" />
+      {/* rim outer line + tiny mounting screws around perimeter */}
+      <circle cx={cx} cy={cy} r={r + 1.8} fill="none" stroke="#000" strokeWidth="0.6" opacity="0.85" />
+      {Array.from({ length: 8 }).map((_, i) => {
+        const a = (i / 8) * Math.PI * 2;
+        const px = cx + Math.cos(a) * (r + 1.4);
+        const py = cy + Math.sin(a) * (r + 1.4);
+        return <circle key={i} cx={px} cy={py} r="0.55" fill="#8a7355" opacity="0.9" />;
+      })}
     </g>
   );
 
@@ -406,17 +469,18 @@ function Glyph({ kind, selected, label }: { kind: ComponentKind; selected: boole
       return (
         <svg viewBox="0 0 96 72" className="h-full w-full" {...common}>
           <CabinetDefs id={uid} />
-          <rect x="1" y="1" width="94" height="70" rx="2" fill={`url(#wood-${uid})`} stroke="#000" strokeWidth="1" />
-          <rect x="1" y="1" width="94" height="70" rx="2" fill={`url(#grain-${uid})`} />
-          {/* two horn mouths */}
-          <path d="M6 10 L44 6 L44 66 L6 62 Z" fill="#050505" stroke={CAB.edge} strokeWidth="0.8" />
-          <path d="M52 6 L90 10 L90 62 L52 66 Z" fill="#050505" stroke={CAB.edge} strokeWidth="0.8" />
-          <path d="M12 14 L40 11 L40 61 L12 58 Z" fill={`url(#mesh-${uid})`} opacity="0.9" />
-          <path d="M56 11 L84 14 L84 58 L56 61 Z" fill={`url(#mesh-${uid})`} opacity="0.9" />
+          <WoodPanel w={96} h={72} id={uid} />
+          {/* two horn mouths cut into the cabinet — deep black rebate + inset mesh throat */}
+          <path d="M6 10 L44 6 L44 66 L6 62 Z" fill="#000" />
+          <path d="M52 6 L90 10 L90 62 L52 66 Z" fill="#000" />
+          <path d="M8 12 L42 8 L42 64 L8 60 Z" fill="none" stroke="#3b302a" strokeWidth="0.6" opacity="0.9" />
+          <path d="M54 8 L88 12 L88 60 L54 64 Z" fill="none" stroke="#3b302a" strokeWidth="0.6" opacity="0.9" />
+          <path d="M12 14 L40 11 L40 61 L12 58 Z" fill={`url(#mesh-${uid})`} opacity="0.92" />
+          <path d="M56 11 L84 14 L84 58 L56 61 Z" fill={`url(#mesh-${uid})`} opacity="0.92" />
           {/* driver throats visible in mouths */}
-          <ellipse cx="26" cy="36" rx="4" ry="14" fill="#000" opacity="0.7" />
-          <ellipse cx="70" cy="36" rx="4" ry="14" fill="#000" opacity="0.7" />
-          <Rivets w={96} h={72} inset={4} />
+          <ellipse cx="26" cy="36" rx="4" ry="14" fill="#000" opacity="0.85" />
+          <ellipse cx="70" cy="36" rx="4" ry="14" fill="#000" opacity="0.85" />
+          <Rivets w={96} h={72} inset={4} id={uid} />
         </svg>
       );
     case "mid":
@@ -424,17 +488,17 @@ function Glyph({ kind, selected, label }: { kind: ComponentKind; selected: boole
       return (
         <svg viewBox="0 0 96 96" className="h-full w-full" {...common}>
           <CabinetDefs id={uid} />
-          <rect x="1" y="1" width="94" height="94" rx="2" fill={`url(#wood-${uid})`} stroke="#000" strokeWidth="1" />
-          <rect x="1" y="1" width="94" height="94" rx="2" fill={`url(#grain-${uid})`} />
-          {/* bass reflex vents on top */}
-          <rect x="10" y="6" width="76" height="4" rx="1" fill="#000" opacity="0.75" />
+          <WoodPanel w={96} h={96} id={uid} />
+          {/* bass reflex vents on top — inset black slit with rim */}
+          <rect x="10" y="6" width="76" height="4" rx="1" fill="#000" />
+          <rect x="10" y="6" width="76" height="1" fill="#fff" opacity="0.05" />
           {/* two mid drivers */}
           <Driver cx={28} cy={52} r={18} id={uid} />
           <Driver cx={68} cy={52} r={18} id={uid} />
-          {/* label plate */}
-          <rect x="30" y="80" width="36" height="10" rx="1" fill="#000" opacity="0.6" />
-          <text x="48" y="87" textAnchor="middle" fontSize="6" fontFamily="ui-monospace, monospace" fill="#8a7a66" style={{ letterSpacing: "0.2em" }}>MID</text>
-          <Rivets w={96} h={96} inset={4} />
+          {/* label plate — metal badge */}
+          <rect x="30" y="80" width="36" height="10" rx="1" fill="#0a0908" stroke="#3a2f24" strokeWidth="0.4" />
+          <text x="48" y="87" textAnchor="middle" fontSize="6" fontFamily="ui-monospace, monospace" fill="#c9b89a" style={{ letterSpacing: "0.25em" }}>MID</text>
+          <Rivets w={96} h={96} inset={4} id={uid} />
         </svg>
       );
     case "bass":
@@ -442,14 +506,15 @@ function Glyph({ kind, selected, label }: { kind: ComponentKind; selected: boole
       return (
         <svg viewBox="0 0 120 96" className="h-full w-full" {...common}>
           <CabinetDefs id={uid} />
-          <rect x="1" y="1" width="118" height="94" rx="2" fill={`url(#wood-${uid})`} stroke="#000" strokeWidth="1" />
-          <rect x="1" y="1" width="118" height="94" rx="2" fill={`url(#grain-${uid})`} />
+          <WoodPanel w={120} h={96} id={uid} />
           {/* upper: 15" driver */}
           <Driver cx={60} cy={34} r={26} id={uid} />
           {/* lower: scoop opening (the visible hollow) */}
-          <path d="M8 60 L112 60 L112 92 L94 92 L82 70 L38 70 L26 92 L8 92 Z" fill="#000" opacity="0.92" />
-          <path d="M38 70 L82 70 L94 92 L26 92 Z" fill="#0a0908" stroke={CAB.edge} strokeWidth="0.5" />
-          <Rivets w={120} h={96} inset={4} />
+          <path d="M8 60 L112 60 L112 92 L94 92 L82 70 L38 70 L26 92 L8 92 Z" fill="#000" />
+          <path d="M38 70 L82 70 L94 92 L26 92 Z" fill="#0a0908" stroke="#3a2f24" strokeWidth="0.5" />
+          {/* scoop interior shading — subtle gradient of depth */}
+          <path d="M38 70 L82 70 L84 74 L36 74 Z" fill="#fff" opacity="0.04" />
+          <Rivets w={120} h={96} inset={4} id={uid} />
         </svg>
       );
     case "sub":
@@ -457,19 +522,21 @@ function Glyph({ kind, selected, label }: { kind: ComponentKind; selected: boole
       return (
         <svg viewBox="0 0 168 120" className="h-full w-full" {...common}>
           <CabinetDefs id={uid} />
-          <rect x="1" y="1" width="166" height="118" rx="2" fill={`url(#wood-${uid})`} stroke="#000" strokeWidth="1" />
-          <rect x="1" y="1" width="166" height="118" rx="2" fill={`url(#grain-${uid})`} />
+          <WoodPanel w={168} h={120} id={uid} />
           {/* vertical seam between two cabinets */}
-          <line x1="84" y1="4" x2="84" y2="116" stroke="#000" strokeWidth="1.5" opacity="0.85" />
+          <line x1="84" y1="4" x2="84" y2="116" stroke="#000" strokeWidth="1.5" opacity="0.95" />
+          <line x1="85" y1="4" x2="85" y2="116" stroke="#3a2f24" strokeWidth="0.5" opacity="0.6" />
           {/* two 18" drivers */}
           <Driver cx={42} cy={48} r={34} id={uid} />
           <Driver cx={126} cy={48} r={34} id={uid} />
           {/* bottom scoop shelves like Zongo bass bins */}
-          <rect x="6" y="94" width="76" height="22" fill="#000" opacity="0.92" />
-          <rect x="86" y="94" width="76" height="22" fill="#000" opacity="0.92" />
-          <line x1="6" y1="102" x2="82" y2="102" stroke={CAB.edge} strokeWidth="0.6" opacity="0.8" />
-          <line x1="86" y1="102" x2="162" y2="102" stroke={CAB.edge} strokeWidth="0.6" opacity="0.8" />
-          <Rivets w={168} h={120} inset={5} />
+          <rect x="6" y="94" width="76" height="22" fill="#000" />
+          <rect x="86" y="94" width="76" height="22" fill="#000" />
+          <line x1="6" y1="102" x2="82" y2="102" stroke="#2a231d" strokeWidth="0.6" opacity="0.9" />
+          <line x1="86" y1="102" x2="162" y2="102" stroke="#2a231d" strokeWidth="0.6" opacity="0.9" />
+          <rect x="6" y="94" width="76" height="2" fill="#fff" opacity="0.05" />
+          <rect x="86" y="94" width="76" height="2" fill="#fff" opacity="0.05" />
+          <Rivets w={168} h={120} inset={5} id={uid} />
         </svg>
       );
     case "amp":
@@ -1669,6 +1736,23 @@ export function StageBuilder() {
                     isSel ? "z-20" : "z-10"
                   }`}
                 >
+                  {/* Ground contact shadow — sits flat on the floor plane, darker under sound cabinets */}
+                  {tilt > 4 && (
+                    <div
+                      aria-hidden
+                      className="pointer-events-none absolute"
+                      style={{
+                        left: -spec.w * 0.15,
+                        top: spec.h - 8,
+                        width: spec.w * 1.3,
+                        height: spec.h * 0.7,
+                        background: "radial-gradient(ellipse at 50% 20%, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0.25) 45%, rgba(0,0,0,0) 75%)",
+                        transform: `translateZ(${-depth}px) rotateX(-90deg)`,
+                        transformOrigin: "50% 0%",
+                        filter: "blur(2px)",
+                      }}
+                    />
+                  )}
                   {/* Extrusion slices — stack of thin layers behind the front face for a real cabinet look */}
                   {slices > 0 && Array.from({ length: slices }).map((_, i) => {
                     const t = (i + 1) / slices;
@@ -1676,10 +1760,12 @@ export function StageBuilder() {
                     const isSound = spec.category === "sound";
                     // Sound cabinets = black stained plywood; other gear keeps the tinted look
                     const border = isSound
-                      ? `rgba(${20 + i * 4}, ${16 + i * 3}, ${14 + i * 3}, 1)`
+                      ? `rgba(${18 + i * 3}, ${14 + i * 2}, ${12 + i * 2}, 1)`
                       : `color-mix(in oklch, ${COLOR_VAR[spec.color]} ${18 - i * 2}%, oklch(0.14 0.02 280))`;
+                    // Side-lit gradient: light hits from the top-left, deeper slices get darker
+                    const shade = isSound ? Math.max(0, 0.9 - t * 0.55) : 1;
                     const bg = isSound
-                      ? `linear-gradient(180deg, #1a1613 0%, #0d0b09 55%, #050403 100%)`
+                      ? `linear-gradient(135deg, rgba(${28 * shade | 0}, ${22 * shade | 0}, ${18 * shade | 0}, 1) 0%, rgba(${14 * shade | 0}, ${11 * shade | 0}, ${9 * shade | 0}, 1) 60%, rgba(0,0,0,1) 100%)`
                       : `color-mix(in oklch, ${COLOR_VAR[spec.color]} 8%, oklch(0.10 0.02 280 / ${0.55 - t * 0.35}))`;
                     return (
                       <div
@@ -1690,7 +1776,9 @@ export function StageBuilder() {
                           transform: `translateZ(${z}px)`,
                           borderColor: border,
                           background: bg,
-                          boxShadow: i === slices - 1 ? "0 6px 14px rgba(0,0,0,0.7)" : undefined,
+                          boxShadow: i === slices - 1
+                            ? "0 8px 18px rgba(0,0,0,0.75), inset 0 1px 0 rgba(255,255,255,0.03)"
+                            : "inset 0 1px 0 rgba(255,255,255,0.02)",
                         }}
                       />
                     );
