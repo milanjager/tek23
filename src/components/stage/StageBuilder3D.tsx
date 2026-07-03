@@ -620,6 +620,45 @@ function DJBooth({ size }: { size: [number, number, number] }) {
   );
 }
 
+function DJTable({ size }: { size: [number, number, number] }) {
+  const [w, h, d] = size;
+  const legR = 0.04;
+  const topT = 0.05;
+  const skirtH = 0.08;
+  return (
+    <group>
+      {/* Four legs */}
+      {[[-1, -1], [1, -1], [-1, 1], [1, 1]].map(([sx, sz], i) => (
+        <mesh key={i} castShadow position={[sx * (w / 2 - legR - 0.02), (h - topT) / 2, sz * (d / 2 - legR - 0.02)]}>
+          <cylinderGeometry args={[legR, legR, h - topT, 12]} />
+          <meshStandardMaterial color="#111" metalness={0.7} roughness={0.35} />
+        </mesh>
+      ))}
+      {/* Cross-brace under the top */}
+      <mesh position={[0, h - topT - skirtH / 2, 0]}>
+        <boxGeometry args={[w - 0.1, skirtH, 0.04]} />
+        <meshStandardMaterial color="#0a0a0a" metalness={0.6} roughness={0.5} />
+      </mesh>
+      {/* Table top */}
+      <mesh castShadow receiveShadow position={[0, h - topT / 2, 0]}>
+        <boxGeometry args={[w, topT, d]} />
+        <meshStandardMaterial color="#141414" metalness={0.55} roughness={0.4} />
+      </mesh>
+      {/* Front skirt/scrim — black cloth stretched below the top */}
+      <mesh position={[0, (h - topT) / 2, d / 2 - 0.005]}>
+        <planeGeometry args={[w - 0.06, h - topT]} />
+        <meshStandardMaterial color="#050505" roughness={0.95} side={THREE.DoubleSide} />
+      </mesh>
+      {/* Subtle LED strip under the front lip */}
+      <mesh position={[0, h - topT - 0.005, d / 2 + 0.002]}>
+        <planeGeometry args={[w * 0.85, 0.015]} />
+        <meshStandardMaterial color="#05d9e8" emissive="#05d9e8" emissiveIntensity={1.6} />
+      </mesh>
+    </group>
+  );
+}
+
+
 function CDJModel({ size }: { size: [number, number, number] }) {
   const [w, h, d] = size;
   return (
