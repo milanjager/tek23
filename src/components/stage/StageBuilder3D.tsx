@@ -1404,18 +1404,20 @@ export function StageBuilder3D() {
 
 
   const addItem = (kind: Kind) => {
-    const s = SPECS[kind].size;
+    const spec = SPECS[kind];
     const it: Placed = {
       id: uid(), kind,
       pos: [0, 0, 2 + Math.random() * 0.4],
       rotY: 0,
+      ...(spec.defaultLabel ? { label: spec.defaultLabel } : {}),
+      ...(spec.defaultVariant ? { variant: spec.defaultVariant } : {}),
     };
-    // Snap to any stack top if placed on existing footprint
     const y = stackY(it, items);
     it.pos = [it.pos[0], y, it.pos[2]];
     setItems((cur) => [...cur, it]);
     setSelection([it.id]);
   };
+
 
   const deleteSelection = useCallback(() => {
     if (!selection.length) return;
