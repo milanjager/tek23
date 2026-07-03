@@ -1524,23 +1524,27 @@ export function StageBuilder3D() {
               <button
                 key={k}
                 onClick={() => addItem(k)}
-                className="mb-2 w-full rounded border border-neutral-800 bg-neutral-900 p-2 text-left transition hover:border-lime-500/50 hover:bg-neutral-800"
+                className="mb-2 block w-full overflow-hidden rounded border border-neutral-800 bg-neutral-900 text-left transition hover:border-lime-500/60 hover:bg-neutral-800"
               >
-                <div className="text-sm font-semibold">{s.label}</div>
-                <div className="text-[10px] text-neutral-500">{s.hint}</div>
-                <div className="mt-1 font-mono text-[10px] text-neutral-600">
-                  {s.size[0].toFixed(2)}×{s.size[1].toFixed(2)}×{s.size[2].toFixed(2)} m
+                <PaletteThumb kind={k} />
+                <div className="px-2 py-1.5">
+                  <div className="text-xs font-semibold text-neutral-100">{s.label}</div>
+                  <div className="text-[10px] text-neutral-500">{s.hint}</div>
+                  <div className="mt-0.5 font-mono text-[9px] text-neutral-600">
+                    {s.size[0].toFixed(2)}×{s.size[1].toFixed(2)}×{s.size[2].toFixed(2)} m
+                  </div>
                 </div>
               </button>
             ))}
           </div>
           <div className="border-t border-neutral-800 p-2 text-[10px] text-neutral-500">
-            <div><b>T/R</b> — posun/rotace</div>
+            <div><b>T/R</b> — posun/rotace · <b>C</b> — kabely</div>
             <div><b>Ctrl+C/V/D</b> — kopie / vložit / duplikovat</div>
             <div><b>Ctrl+G / Ctrl+Shift+G</b> — group / ungroup</div>
-            <div><b>Shift+klik</b> — přidat do výběru</div>
-            <div><b>Del</b> — smazat výběr</div>
+            <div><b>Shift+klik</b> — přidat do výběru · <b>Del</b> — smazat</div>
+            <div className="mt-1 text-neutral-400">V režimu Kabely: klik na první bednu → klik na druhou. Klik na kabel = smazat.</div>
           </div>
+
         </aside>
 
         {/* 3D Canvas */}
