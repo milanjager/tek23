@@ -1362,9 +1362,12 @@ export function StageBuilder3D() {
 
   const deleteSelection = useCallback(() => {
     if (!selection.length) return;
-    setItems((cur) => cur.filter((i) => !selection.includes(i.id)));
+    const del = new Set(selection);
+    setItems((cur) => cur.filter((i) => !del.has(i.id)));
+    setCables((cs) => cs.filter((c) => !del.has(c.from) && !del.has(c.to)));
     setSelection([]);
   }, [selection]);
+
 
   const copySelection = useCallback(() => {
     setClipboard(items.filter((i) => selection.includes(i.id)));
