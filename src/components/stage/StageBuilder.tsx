@@ -201,8 +201,28 @@ const GRID = 24;
 const SNAP_THRESHOLD = 12;
 
 const STORAGE = "stagerig:v3";
-const PORT_SNAP = 24;
+const PORT_SNAP = 28;
 const PORT_R = 6;
+
+// Depth (in px) for pseudo-3D extrusion — makes devices look like real cabinets.
+const DEPTH: Record<ComponentKind, number> = {
+  horn: 34,
+  mid: 46,
+  bass: 62,
+  sub: 84,
+  amp: 44,
+  mixer: 26,
+  dj: 30,
+  korg: 22,
+  turntable: 18,
+  custom: 30,
+  strobe: 28,
+  laser: 26,
+  movinghead: 38,
+  bar: 40,
+  generator: 70,
+  crowd: 4,
+};
 
 
 /* ---------- Helpers ---------- */
@@ -871,9 +891,9 @@ export function StageBuilder() {
       const x = (e.clientX - rect.left - rect.width / 2 - pan.x) / zoom + rect.width / 2;
       const y = (e.clientY - rect.top - rect.height / 2 - pan.y) / zoom + rect.height / 2;
 
-      // find nearest compatible port
+      // find nearest compatible port — snap radius grows when zoomed out so edges are easy to catch
       let hover: { itemId: string; portId: string } | null = null;
-      let bestD = PORT_SNAP;
+      let bestD = PORT_SNAP / Math.max(0.45, zoom);
       for (const it of items) {
         if (it.id === pending.itemId) continue;
         for (const p of SPECS[it.kind].ports) {
@@ -1443,14 +1463,25 @@ export function StageBuilder() {
                 const my = (a.y + b.y) / 2 + 30;
                 const col = PORT_COLOR[pending.type];
                 return (
-                  <path
-                    d={`M ${a.x} ${a.y} Q ${mx} ${my} ${b.x} ${b.y}`}
-                    stroke={col}
-                    strokeWidth={2.5}
-                    fill="none"
-                    strokeDasharray={pending.hover ? "0" : "6 4"}
-                    strokeOpacity={pending.hover ? 1 : 0.7}
-                  />
+                  <g>
+                    <path
+                      d={`M ${a.x} ${a.y} Q ${mx} ${my} ${b.x} ${b.y}`}
+                      stroke={col}
+                      strokeWidth={2.5}
+                      fill="none"
+                      strokeDasharray={pending.hover ? "0" : "6 4"}
+                      strokeOpacity={pending.hover ? 1 : 0.7}
+                    />
+                    {/* Landing crosshair — always shows exact landing point (snaps to port when hovering) */}
+                    <g style={{ pointerEvents: "none" }}>
+                      <circle cx={b.x} cy={b.y} r={pending.hover ? 11 : 7} fill="none" stroke={col} strokeWidth={pending.hover ? 2 : 1.2} opacity={pending.hover ? 1 : 0.75} />
+                      <circle cx={b.x} cy={b.y} r={pending.hover ? 3 : 2} fill={col} />
+                      <line x1={b.x - 14} y1={b.y} x2={b.x - 6} y2={b.y} stroke={col} strokeWidth={1} opacity={0.7} />
+                      <line x1={b.x + 6} y1={b.y} x2={b.x + 14} y2={b.y} stroke={col} strokeWidth={1} opacity={0.7} />
+                      <line x1={b.x} y1={b.y - 14} x2={b.x} y2={b.y - 6} stroke={col} strokeWidth={1} opacity={0.7} />
+                      <line x1={b.x} y1={b.y + 6} x2={b.x} y2={b.y + 14} stroke={col} strokeWidth={1} opacity={0.7} />
+                    </g>
+                  </g>
                 );
               })()}
 
@@ -1523,6 +1554,9 @@ export function StageBuilder() {
                 tilt > 0
                   ? `drop-shadow(0 ${Math.max(2, tilt * 0.35)}px ${Math.max(4, tilt * 0.6)}px rgba(0,0,0,0.55))`
                   : undefined;
+              const depth = DEPTH[it.kind] ?? 24;
+              // Number of extrusion slices — more = smoother "cabinet" look
+              const slices = tilt > 4 ? 6 : 0;
               return (
                 <div
                   key={it.id}
@@ -1533,7 +1567,8 @@ export function StageBuilder() {
                     top: it.y,
                     width: spec.w,
                     height: spec.h,
-                    transform: `rotate(${it.rot}deg)`,
+                    transform: `rotate(${it.rot}deg) translateZ(${depth / 2}px)`,
+                    transformStyle: "preserve-3d",
                     touchAction: "none",
                     filter: shadow,
                   }}
@@ -1541,6 +1576,25 @@ export function StageBuilder() {
                     isSel ? "z-20" : "z-10"
                   }`}
                 >
+                  {/* Extrusion slices — stack of thin layers behind the front face for a real cabinet look */}
+                  {slices > 0 && Array.from({ length: slices }).map((_, i) => {
+                    const t = (i + 1) / slices;
+                    const z = -depth * t;
+                    const shade = 0.55 - t * 0.35; // darker further back
+                    return (
+                      <div
+                        key={`slice-${i}`}
+                        aria-hidden
+                        className="pointer-events-none absolute inset-0 rounded-md border"
+                        style={{
+                          transform: `translateZ(${z}px)`,
+                          borderColor: `color-mix(in oklch, ${COLOR_VAR[spec.color]} ${18 - i * 2}%, oklch(0.14 0.02 280))`,
+                          background: `color-mix(in oklch, ${COLOR_VAR[spec.color]} ${8}%, oklch(0.10 0.02 280 / ${shade}))`,
+                          boxShadow: i === slices - 1 ? "0 0 0 1px rgba(0,0,0,0.35)" : undefined,
+                        }}
+                      />
+                    );
+                  })}
                   {isSnapped && (
                     <div
                       className="pointer-events-none absolute -inset-1.5 rounded-md border-2 animate-pulse"
@@ -1615,7 +1669,8 @@ export function StageBuilder() {
                     (p.type === pending.type && p.dir !== pending.dir && it.id !== pending.itemId);
                   const r = isHover ? PORT_R * 1.7 : isSource ? PORT_R * 1.3 : PORT_R;
                   const op = compat ? 1 : 0.2;
-                  const hitR = Math.max(18, (r + 6) / Math.max(0.5, zoom));
+                  // Hit area scales inversely with zoom so ports on the edges stay easy to grab
+                  const hitR = Math.max(22, (r + 10) / Math.max(0.45, zoom));
                   return (
                     <g
                       key={`${it.id}:${p.id}`}
