@@ -1041,8 +1041,8 @@ function loadPreset(kind: PresetKind): Placed[] {
     return [
       ...stack(-2, 0.25),
       ...stack(2, -0.25),
-      mk("amp", -1.5, 0, 1.5),
-      mk("amp", 1.5, 0, 1.5),
+      { ...mk("amp", -1.5, 0, 1.5), label: "Powersoft" },
+      { ...mk("amp", 1.5, 0, 1.5), label: "Powersoft" },
       mk("turntable", 0, 0.15, 2.2),
       mk("korg", 0, 0.1, 2.9),
       mk("generator", -5, 0, 2),
