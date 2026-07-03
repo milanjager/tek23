@@ -891,9 +891,9 @@ export function StageBuilder() {
       const x = (e.clientX - rect.left - rect.width / 2 - pan.x) / zoom + rect.width / 2;
       const y = (e.clientY - rect.top - rect.height / 2 - pan.y) / zoom + rect.height / 2;
 
-      // find nearest compatible port
+      // find nearest compatible port — snap radius grows when zoomed out so edges are easy to catch
       let hover: { itemId: string; portId: string } | null = null;
-      let bestD = PORT_SNAP;
+      let bestD = PORT_SNAP / Math.max(0.45, zoom);
       for (const it of items) {
         if (it.id === pending.itemId) continue;
         for (const p of SPECS[it.kind].ports) {
