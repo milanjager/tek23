@@ -106,8 +106,133 @@ const CABLE_META: Record<CableType, { label: string; short: string; color: strin
 const STORAGE = "stagerig3d:v2";
 const uid = () => Math.random().toString(36).slice(2, 10);
 
-// Anchor point on a placed item where cables plug in.
-// Signal/DMX = top-back, Power = bottom-back, Speaker = top-front.
+// ---- Connector catalog ------------------------------------------------------
+// Each Kind exposes specific plug points (SIG / SPK / PWR / DMX) with role
+// ("in" = female / input, "out" = male / output) and a local offset relative
+// to the item's bottom-center. Cables snap onto real connectors, so routing
+// on scene matches how the gear is actually wired.
+
+type ConnRole = "in" | "out";
+interface Connector {
+  type: CableType;
+  role: ConnRole;
+  offset: [number, number, number]; // local (before rotation)
+}
+
+function connectorsFor(kind: Kind): Connector[] {
+  const [bx, by, bz] = SPECS[kind].size;
+  const passiveSpeaker: Connector[] = [
+    { type: "speaker", role: "in", offset: [ bx * 0.28, by * 0.85, -bz * 0.45] },
+  ];
+  switch (kind) {
+    // Passive PA cabinets — one Speakon input on the back.
+    case "horn":
+    case "mid":
+    case "bass":
+    case "sub":
+    case "badtekk_sub":
+    case "badtekk_bass":
+    case "badtekk_top":
+    case "linearray":
+    case "monitor":
+      return passiveSpeaker;
+
+    // Power amps — SIG in, SPK out, PWR in.
+    case "amp":
+    case "powersoft":
+      return [
+        { type: "signal",  role: "in",  offset: [-bx * 0.30, by * 0.82, -bz * 0.50] },
+        { type: "speaker", role: "out", offset: [ bx * 0.30, by * 0.82, -bz * 0.50] },
+        { type: "power",   role: "in",  offset: [ 0,         by * 0.15, -bz * 0.50] },
+      ];
+
+    // Mixer — signal in/out + power.
+    case "mixer":
+      return [
+        { type: "signal", role: "in",  offset: [-bx * 0.35, by * 0.55, -bz * 0.50] },
+        { type: "signal", role: "out", offset: [ bx * 0.35, by * 0.55, -bz * 0.50] },
+        { type: "power",  role: "in",  offset: [ 0,         by * 0.10, -bz * 0.50] },
+      ];
+
+    // DJ deck / grooveboxes — signal out + power in.
+    case "dj":
+      return [
+        { type: "signal", role: "out", offset: [ bx * 0.35, by * 0.90, -bz * 0.40] },
+        { type: "power",  role: "in",  offset: [-bx * 0.35, by * 0.10, -bz * 0.40] },
+      ];
+    case "cdj":
+    case "turntable":
+    case "korg":
+    case "korg_red":
+    case "korg_blue":
+      return [
+        { type: "signal", role: "out", offset: [ bx * 0.35, by * 0.55, -bz * 0.50] },
+        { type: "power",  role: "in",  offset: [-bx * 0.35, by * 0.55, -bz * 0.50] },
+      ];
+
+    // Lights — DMX in + power in.
+    case "movinghead":
+      return [
+        { type: "dmx",   role: "in", offset: [ bx * 0.30, by * 0.15, -bz * 0.40] },
+        { type: "power", role: "in", offset: [-bx * 0.30, by * 0.15, -bz * 0.40] },
+      ];
+    case "strobe":
+    case "laser":
+      return [
+        { type: "dmx",   role: "in", offset: [ bx * 0.30, by * 0.55, -bz * 0.50] },
+        { type: "power", role: "in", offset: [-bx * 0.30, by * 0.55, -bz * 0.50] },
+      ];
+
+    // Generator — pure PWR source.
+    case "generator":
+      return [
+        { type: "power", role: "out", offset: [ bx * 0.35, by * 0.35,  bz * 0.50] },
+        { type: "power", role: "out", offset: [-bx * 0.35, by * 0.35,  bz * 0.50] },
+      ];
+
+    // Passive furniture — no connectors.
+    case "bar":
+    case "crowd":
+      return [];
+  }
+}
+
+function localToWorld(
+  item: Placed,
+  local: [number, number, number],
+): [number, number, number] {
+  const cs = Math.cos(item.rotY), sn = Math.sin(item.rotY);
+  const [lx, ly, lz] = local;
+  return [
+    item.pos[0] + lx * cs + lz * sn,
+    item.pos[1] + ly,
+    item.pos[2] + (-lx * sn + lz * cs),
+  ];
+}
+
+function hasConnector(kind: Kind, type: CableType): boolean {
+  return connectorsFor(kind).some((c) => c.type === type);
+}
+
+// Pick the best pair of connectors between a and b for the given cable type.
+// Prefers OUT on source, IN on target. Falls back to any connector of that
+// type, then to the generic anchorFor() so legacy items still route.
+function bestAnchorPair(
+  a: Placed,
+  b: Placed,
+  type: CableType,
+): { p1: [number, number, number]; p2: [number, number, number] } {
+  const ca = connectorsFor(a.kind).filter((c) => c.type === type);
+  const cb = connectorsFor(b.kind).filter((c) => c.type === type);
+  if (ca.length && cb.length) {
+    const outA = ca.find((c) => c.role === "out") ?? ca[0];
+    const inB  = cb.find((c) => c.role === "in")  ?? cb[0];
+    return { p1: localToWorld(a, outA.offset), p2: localToWorld(b, inB.offset) };
+  }
+  return { p1: anchorFor(a, type), p2: anchorFor(b, type) };
+}
+
+// Legacy generic anchor — kept as fallback for items with no specific plug.
 function anchorFor(item: Placed, type: CableType): [number, number, number] {
   const s = SPECS[item.kind].size;
   const [x, y, z] = item.pos;
@@ -116,7 +241,6 @@ function anchorFor(item: Placed, type: CableType): [number, number, number] {
   if (type === "power")   { ly = s[1] * 0.15; lz = -s[2] * 0.4; }
   if (type === "speaker") { ly = s[1] * 0.75; lz =  s[2] * 0.4; }
   if (type === "dmx")     { ly = s[1] * 0.95; lz = -s[2] * 0.2; lx = s[0] * 0.3; }
-  // Rotate around Y
   const wx = lx * cs + lz * sn;
   const wz = -lx * sn + lz * cs;
   return [x + wx, y + ly, z + wz];
@@ -132,12 +256,12 @@ function cablePoints(a: [number, number, number], b: [number, number, number], s
   const pts: [number, number, number][] = [];
   for (let i = 0; i <= segs; i++) {
     const t = i / segs;
-    // Parabolic sag: y_offset = -4 * sag * t * (1 - t)
     const yOff = -4 * sag * t * (1 - t);
     pts.push([ax + dx * t, ay + dy * t + yOff, az + dz * t]);
   }
   return pts;
 }
+
 
 
 /* ============================================================
@@ -749,21 +873,28 @@ function ModelFor({ kind, size, variant }: { kind: Kind; size: [number, number, 
    ============================================================ */
 
 const ItemObject = ({
-  item, selected, pending, onSelect, onRegister,
+  item, selected, pending, showConnectors, activeCableType, onSelect, onRegister,
 }: {
   item: Placed;
   selected: boolean;
   pending?: boolean;
+  showConnectors?: boolean;
+  activeCableType?: CableType;
   onSelect: (id: string, additive: boolean) => void;
   onRegister: (id: string, obj: THREE.Object3D | null) => void;
 }) => {
   const spec = SPECS[item.kind];
   const ref = useRef<THREE.Group>(null!);
+  const connectors = useMemo(() => connectorsFor(item.kind), [item.kind]);
 
   useEffect(() => {
     onRegister(item.id, ref.current);
     return () => onRegister(item.id, null);
   }, [item.id, onRegister]);
+
+  // Where the ModelFor group actually renders (accounts for pallet lift).
+  const onPallet = spec.category === "sound" && item.pos[1] < 0.05 && item.kind !== "linearray" && item.kind !== "monitor";
+  const modelYOffset = onPallet ? 0.14 : 0;
 
   return (
     <group
@@ -775,13 +906,12 @@ const ItemObject = ({
         onSelect(item.id, e.shiftKey || e.metaKey || e.ctrlKey);
       }}
     >
-      {/* Pallet under sound cabinets sitting on the ground */}
-      {spec.category === "sound" && item.pos[1] < 0.05 && item.kind !== "linearray" && item.kind !== "monitor" && (
+      {onPallet && (
         <group position={[0, 0, 0]}>
           <Pallet w={spec.size[0] * 1.02} d={spec.size[2] * 1.02} />
         </group>
       )}
-      <group position={[0, spec.category === "sound" && item.pos[1] < 0.05 && item.kind !== "linearray" && item.kind !== "monitor" ? 0.14 : 0, 0]}>
+      <group position={[0, modelYOffset, 0]}>
         <ModelFor kind={item.kind} size={spec.size} variant={item.variant} />
       </group>
       {/* Selection halo */}
@@ -798,6 +928,38 @@ const ItemObject = ({
           <meshBasicMaterial color="#f4c11a" transparent opacity={0.6} />
         </mesh>
       )}
+      {/* Connector plugs — visible in cable mode so users see exactly where cables snap */}
+      {showConnectors && connectors.map((c, i) => {
+        const meta = CABLE_META[c.type];
+        const isActive = activeCableType === c.type;
+        return (
+          <group key={i} position={[c.offset[0], modelYOffset + c.offset[1], c.offset[2]]}>
+            <mesh>
+              <boxGeometry args={[0.09, 0.09, 0.05]} />
+              <meshStandardMaterial
+                color={meta.color}
+                emissive={meta.color}
+                emissiveIntensity={isActive ? 1.1 : 0.35}
+                transparent
+                opacity={isActive ? 1 : 0.55}
+              />
+            </mesh>
+            <Html position={[0, 0.13, 0]} center distanceFactor={10} occlude={false}>
+              <div
+                className="pointer-events-none rounded px-1 font-mono text-[9px] font-bold uppercase leading-none"
+                style={{
+                  color: meta.color,
+                  background: "rgba(0,0,0,.75)",
+                  opacity: isActive ? 1 : 0.6,
+                  border: `1px solid ${meta.color}`,
+                }}
+              >
+                {meta.short}{c.role === "out" ? "▶" : "◀"}
+              </div>
+            </Html>
+          </group>
+        );
+      })}
       {/* Custom label above the box */}
       {item.label && (
         <Html position={[0, spec.size[1] + 0.25, 0]} center distanceFactor={8} occlude={false}>
@@ -809,6 +971,7 @@ const ItemObject = ({
     </group>
   );
 };
+
 
 
 /* ============================================================
@@ -1004,15 +1167,27 @@ function SceneContent({
           item={it}
           selected={mode === "select" && selection.includes(it.id)}
           pending={mode === "cable" && pendingFrom === it.id}
+          showConnectors={mode === "cable"}
+          activeCableType={cableType}
           onSelect={(id, additive) => {
             if (mode === "cable") {
+              const target = items.find((x) => x.id === id);
+              if (!target) return;
+              if (!hasConnector(target.kind, cableType)) {
+                // No matching plug on this item — bail so user gets visual cue.
+                return;
+              }
               if (!pendingFrom) {
                 setPendingFrom(id);
               } else if (pendingFrom === id) {
                 setPendingFrom(null);
               } else {
-                const from = pendingFrom, to = id;
-                setCables((cs) => [...cs, { id: uid(), from, to, type: cableType }]);
+                const source = items.find((x) => x.id === pendingFrom);
+                if (!source || !hasConnector(source.kind, cableType)) {
+                  setPendingFrom(id);
+                  return;
+                }
+                setCables((cs) => [...cs, { id: uid(), from: pendingFrom!, to: id, type: cableType }]);
                 setPendingFrom(null);
               }
               return;
@@ -1042,9 +1217,9 @@ function SceneContent({
         const b = items.find((i) => i.id === c.to);
         if (!a || !b) return null;
         const meta = CABLE_META[c.type];
-        const p1 = anchorFor(a, c.type);
-        const p2 = anchorFor(b, c.type);
+        const { p1, p2 } = bestAnchorPair(a, b, c.type);
         const pts = cablePoints(p1, p2, 28);
+
         return (
           <group key={c.id}>
             <Line
