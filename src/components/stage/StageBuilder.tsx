@@ -1381,7 +1381,7 @@ export function StageBuilder() {
   };
 
   /* base preset — two stacks (L/R) + amps + mixer + generator, fully wired */
-  type PresetKind = "dub" | "techno" | "club";
+  type PresetKind = "dub" | "techno" | "club" | "mayapur" | "badtekk" | "namel" | "toroid";
   const loadPreset = (preset: PresetKind) => {
     if (items.length > 0 && !confirm("Nahradit aktuální stage vybraným presetem?")) return;
     const mk = (kind: ComponentKind, x: number, y: number, rot = 0): Placed =>
