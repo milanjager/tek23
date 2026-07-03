@@ -947,7 +947,10 @@ function SceneContent({
         rotation={[-Math.PI / 2, 0, 0]}
         receiveShadow
         onPointerDown={(e) => {
-          if (e.button === 0) setSelection([]);
+          if (e.button === 0) {
+            if (mode === "cable") setPendingFrom(null);
+            else setSelection([]);
+          }
         }}
       >
         <planeGeometry args={[100, 100]} />
@@ -970,10 +973,22 @@ function SceneContent({
         <ItemObject
           key={it.id}
           item={it}
-          selected={selection.includes(it.id)}
-          onSelect={(id, additive) =>
+          selected={mode === "select" && selection.includes(it.id)}
+          pending={mode === "cable" && pendingFrom === it.id}
+          onSelect={(id, additive) => {
+            if (mode === "cable") {
+              if (!pendingFrom) {
+                setPendingFrom(id);
+              } else if (pendingFrom === id) {
+                setPendingFrom(null);
+              } else {
+                const from = pendingFrom, to = id;
+                setCables((cs) => [...cs, { id: uid(), from, to, type: cableType }]);
+                setPendingFrom(null);
+              }
+              return;
+            }
             setSelection((prev) => {
-              // If member of a group, select whole group
               const target = items.find((x) => x.id === id);
               const groupMembers = target?.groupId
                 ? items.filter((x) => x.groupId === target.groupId).map((x) => x.id)
@@ -986,13 +1001,48 @@ function SceneContent({
                 return [...set];
               }
               return groupMembers;
-            })
-          }
+            });
+          }}
           onRegister={registerObject}
         />
       ))}
 
-      {primaryObj && (
+      {/* Cables */}
+      {cables.map((c) => {
+        const a = items.find((i) => i.id === c.from);
+        const b = items.find((i) => i.id === c.to);
+        if (!a || !b) return null;
+        const meta = CABLE_META[c.type];
+        const p1 = anchorFor(a, c.type);
+        const p2 = anchorFor(b, c.type);
+        const pts = cablePoints(p1, p2, 28);
+        return (
+          <group key={c.id}>
+            <Line
+              points={pts as unknown as [number, number, number][]}
+              color={meta.color}
+              lineWidth={meta.width}
+              transparent
+              opacity={0.95}
+              onClick={(e) => {
+                e.stopPropagation();
+                if (mode === "cable") setCables((cs) => cs.filter((x) => x.id !== c.id));
+              }}
+            />
+            {/* connector caps */}
+            <mesh position={p1}>
+              <sphereGeometry args={[0.05, 12, 8]} />
+              <meshStandardMaterial color={meta.color} emissive={meta.color} emissiveIntensity={0.6} />
+            </mesh>
+            <mesh position={p2}>
+              <sphereGeometry args={[0.05, 12, 8]} />
+              <meshStandardMaterial color={meta.color} emissive={meta.color} emissiveIntensity={0.6} />
+            </mesh>
+          </group>
+        );
+      })}
+
+      {mode === "select" && primaryObj && (
         <TransformControls
           ref={transformRef}
           object={primaryObj}
@@ -1016,6 +1066,7 @@ function SceneContent({
         dampingFactor={0.1}
       />
     </>
+
   );
 }
 
