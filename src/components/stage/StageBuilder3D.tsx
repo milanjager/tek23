@@ -687,6 +687,14 @@ const ItemObject = ({
           <meshBasicMaterial color="#a3ff12" transparent opacity={0.9} />
         </mesh>
       )}
+      {/* Custom label above the box */}
+      {item.label && (
+        <Html position={[0, spec.size[1] + 0.25, 0]} center distanceFactor={8} occlude={false}>
+          <div className="pointer-events-none rounded bg-black/80 px-1.5 py-0.5 font-mono text-[10px] font-bold uppercase tracking-wider text-lime-400 shadow-lg">
+            {item.label}
+          </div>
+        </Html>
+      )}
     </group>
   );
 };
