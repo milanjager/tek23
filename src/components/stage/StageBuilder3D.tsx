@@ -1222,13 +1222,22 @@ function SceneContent({
           showConnectors={mode === "cable"}
           activeCableType={cableType}
           onSelect={(id, additive) => {
+            // Reconnect flow — replace one endpoint of the selected cable.
+            if (reconnect) {
+              const cable = cables.find((c) => c.id === reconnect.cableId);
+              const target = items.find((x) => x.id === id);
+              if (!cable || !target || !hasConnector(target.kind, cable.type)) return;
+              // Avoid connecting a cable's two ends to the same item.
+              const other = reconnect.end === "from" ? cable.to : cable.from;
+              if (other === id) return;
+              setCables((cs) => cs.map((c) => c.id === cable.id ? { ...c, [reconnect.end]: id } : c));
+              setReconnect(null);
+              return;
+            }
             if (mode === "cable") {
               const target = items.find((x) => x.id === id);
               if (!target) return;
-              if (!hasConnector(target.kind, cableType)) {
-                // No matching plug on this item — bail so user gets visual cue.
-                return;
-              }
+              if (!hasConnector(target.kind, cableType)) return;
               if (!pendingFrom) {
                 setPendingFrom(id);
               } else if (pendingFrom === id) {
@@ -1244,6 +1253,7 @@ function SceneContent({
               }
               return;
             }
+
             setSelection((prev) => {
               const target = items.find((x) => x.id === id);
               const groupMembers = target?.groupId
