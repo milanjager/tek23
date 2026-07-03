@@ -76,8 +76,58 @@ interface Placed {
 
 type PresetKind = "mayapur" | "badtekk" | "namel" | "toroid" | "dub" | "techno" | "club" | "freetekno";
 
-const STORAGE = "stagerig3d:v1";
+type CableType = "signal" | "speaker" | "power" | "dmx";
+
+interface Cable {
+  id: string;
+  from: string; // item id
+  to: string;   // item id
+  type: CableType;
+}
+
+const CABLE_META: Record<CableType, { label: string; short: string; color: string; width: number }> = {
+  signal:  { label: "Signál (XLR / jack)",  short: "SIG",   color: "#a3ff12", width: 1.6 },
+  speaker: { label: "Repro (Speakon)",       short: "SPK",   color: "#05d9e8", width: 3.0 },
+  power:   { label: "Silový (230V)",         short: "PWR",   color: "#ff2a6d", width: 2.4 },
+  dmx:     { label: "DMX / světla",          short: "DMX",   color: "#f4c11a", width: 1.4 },
+};
+
+const STORAGE = "stagerig3d:v2";
 const uid = () => Math.random().toString(36).slice(2, 10);
+
+// Anchor point on a placed item where cables plug in.
+// Signal/DMX = top-back, Power = bottom-back, Speaker = top-front.
+function anchorFor(item: Placed, type: CableType): [number, number, number] {
+  const s = SPECS[item.kind].size;
+  const [x, y, z] = item.pos;
+  const cs = Math.cos(item.rotY), sn = Math.sin(item.rotY);
+  let lx = 0, ly = s[1] * 0.9, lz = -s[2] * 0.35;
+  if (type === "power")   { ly = s[1] * 0.15; lz = -s[2] * 0.4; }
+  if (type === "speaker") { ly = s[1] * 0.75; lz =  s[2] * 0.4; }
+  if (type === "dmx")     { ly = s[1] * 0.95; lz = -s[2] * 0.2; lx = s[0] * 0.3; }
+  // Rotate around Y
+  const wx = lx * cs + lz * sn;
+  const wz = -lx * sn + lz * cs;
+  return [x + wx, y + ly, z + wz];
+}
+
+// Sample a hanging catenary-ish curve between two 3D points.
+function cablePoints(a: [number, number, number], b: [number, number, number], segs = 24): [number, number, number][] {
+  const ax = a[0], ay = a[1], az = a[2];
+  const bx = b[0], by = b[1], bz = b[2];
+  const dx = bx - ax, dy = by - ay, dz = bz - az;
+  const dist = Math.hypot(dx, dy, dz);
+  const sag = Math.min(0.9, dist * 0.18); // meters
+  const pts: [number, number, number][] = [];
+  for (let i = 0; i <= segs; i++) {
+    const t = i / segs;
+    // Parabolic sag: y_offset = -4 * sag * t * (1 - t)
+    const yOff = -4 * sag * t * (1 - t);
+    pts.push([ax + dx * t, ay + dy * t + yOff, az + dz * t]);
+  }
+  return pts;
+}
+
 
 /* ============================================================
    3D Models — parametric low-poly per kind
