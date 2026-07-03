@@ -1466,9 +1466,28 @@ export function StageBuilder3D() {
         <button onClick={() => setItems(loadPreset("club"))} className="rounded bg-neutral-800 px-2 py-1 hover:bg-neutral-700">Malý klub</button>
         <button onClick={() => setItems(loadPreset("freetekno"))} className="rounded bg-teal-700/70 px-2 py-1 hover:bg-teal-600"><Zap size={12} className="inline" /> Freetekno wall</button>
         <div className="mx-3 h-5 w-px bg-neutral-700" />
-        <button onClick={() => setTool("translate")} className={`flex items-center gap-1 rounded px-2 py-1 ${tool === "translate" ? "bg-lime-500 text-neutral-950" : "bg-neutral-800 hover:bg-neutral-700"}`}><MoveIcon size={12} /> Posun (T)</button>
-        <button onClick={() => setTool("rotate")} className={`flex items-center gap-1 rounded px-2 py-1 ${tool === "rotate" ? "bg-lime-500 text-neutral-950" : "bg-neutral-800 hover:bg-neutral-700"}`}><RotateCw size={12} /> Rotace (R)</button>
-        <div className="mx-3 h-5 w-px bg-neutral-700" />
+        <button onClick={() => { setMode("select"); setPendingFrom(null); }} className={`flex items-center gap-1 rounded px-2 py-1 ${mode === "select" ? "bg-lime-500 text-neutral-950" : "bg-neutral-800 hover:bg-neutral-700"}`}><MousePointer2 size={12} /> Výběr</button>
+        <button onClick={() => setTool("translate")} disabled={mode !== "select"} className={`flex items-center gap-1 rounded px-2 py-1 ${tool === "translate" && mode === "select" ? "bg-lime-500 text-neutral-950" : "bg-neutral-800 hover:bg-neutral-700"} disabled:opacity-40`}><MoveIcon size={12} /> Posun (T)</button>
+        <button onClick={() => setTool("rotate")} disabled={mode !== "select"} className={`flex items-center gap-1 rounded px-2 py-1 ${tool === "rotate" && mode === "select" ? "bg-lime-500 text-neutral-950" : "bg-neutral-800 hover:bg-neutral-700"} disabled:opacity-40`}><RotateCw size={12} /> Rotace (R)</button>
+        <div className="mx-2 h-5 w-px bg-neutral-700" />
+        <button onClick={() => { setMode("cable"); setSelection([]); }} className={`flex items-center gap-1 rounded px-2 py-1 ${mode === "cable" ? "bg-lime-500 text-neutral-950" : "bg-neutral-800 hover:bg-neutral-700"}`}><CableIcon size={12} /> Kabely</button>
+        {mode === "cable" && (
+          <div className="flex items-center gap-1 rounded bg-neutral-800 p-0.5">
+            {(Object.keys(CABLE_META) as CableType[]).map((t) => (
+              <button
+                key={t}
+                onClick={() => setCableType(t)}
+                className={`rounded px-2 py-0.5 text-[11px] font-bold ${cableType === t ? "text-neutral-950" : "text-neutral-300 hover:text-white"}`}
+                style={cableType === t ? { backgroundColor: CABLE_META[t].color } : { backgroundColor: "transparent" }}
+                title={CABLE_META[t].label}
+              >
+                <span className="mr-1 inline-block h-2 w-2 rounded-sm" style={{ backgroundColor: CABLE_META[t].color }} />
+                {CABLE_META[t].short}
+              </button>
+            ))}
+          </div>
+        )}
+
         <button onClick={duplicateSelection} disabled={!selection.length} className="flex items-center gap-1 rounded bg-neutral-800 px-2 py-1 hover:bg-neutral-700 disabled:opacity-40"><Copy size={12} /> Duplikovat</button>
         <button onClick={copySelection} disabled={!selection.length} className="rounded bg-neutral-800 px-2 py-1 hover:bg-neutral-700 disabled:opacity-40">Kopírovat</button>
         <button onClick={pasteSelection} disabled={!clipboard.length} className="flex items-center gap-1 rounded bg-neutral-800 px-2 py-1 hover:bg-neutral-700 disabled:opacity-40"><ClipboardPaste size={12} /> Vložit</button>
