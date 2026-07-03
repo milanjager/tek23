@@ -82,32 +82,80 @@ const uid = () => Math.random().toString(36).slice(2, 10);
 const WOOD = "#3a2416";
 const WOOD_DARK = "#241408";
 const GRILLE = "#0a0a0a";
+const WOOD = "#1a1a1a";        // freetekno cabinets are black
+const WOOD_DARK = "#0a0a0a";
+const GRILLE = "#050505";
 const METAL = "#1a1a1a";
 const CHROME = "#8a8f95";
+const TEAL = "#0d8a8a";        // signature teal/cyan grille frame
+const YELLOW = "#f4c11a";      // freetekno yellow crosshair
+const PALLET_WOOD = "#7a5a30";
+
+function Pallet({ w, d }: { w: number; d: number }) {
+  // EUR pallet-ish: 3 top planks, 3 bottom blocks
+  const H = 0.14;
+  return (
+    <group position={[0, H / 2, 0]}>
+      {[-1, 0, 1].map((i) => (
+        <mesh key={`t${i}`} position={[0, H * 0.3, i * (d / 3)]} castShadow receiveShadow>
+          <boxGeometry args={[w, H * 0.35, d / 3.4]} />
+          <meshStandardMaterial color={PALLET_WOOD} roughness={0.95} />
+        </mesh>
+      ))}
+      {[-1, 0, 1].map((i) => (
+        <mesh key={`b${i}`} position={[i * (w / 3), -H * 0.25, 0]} castShadow receiveShadow>
+          <boxGeometry args={[w / 4, H * 0.5, d]} />
+          <meshStandardMaterial color={"#5a3f20"} roughness={0.95} />
+        </mesh>
+      ))}
+    </group>
+  );
+}
 
 function Cabinet({
-  size, color = WOOD, grilleColor = GRILLE, cornerColor = CHROME,
-  frontDetail,
+  size, color = WOOD, grilleColor = GRILLE, cornerColor = TEAL,
+  frontDetail, tealFrame = true, yellowCross = true, onPallet = false,
 }: {
   size: [number, number, number];
   color?: string;
   grilleColor?: string;
   cornerColor?: string;
   frontDetail?: React.ReactNode;
+  tealFrame?: boolean;
+  yellowCross?: boolean;
+  onPallet?: boolean;
 }) {
   const [w, h, d] = size;
+  const palletH = onPallet ? 0.14 : 0;
   return (
-    <group>
+    <group position={[0, palletH, 0]}>
+      {onPallet && <group position={[0, -palletH, 0]}><Pallet w={w * 1.02} d={d * 1.02} /></group>}
       {/* Body */}
       <mesh castShadow receiveShadow position={[0, h / 2, 0]}>
         <boxGeometry args={[w, h, d]} />
-        <meshStandardMaterial color={color} roughness={0.85} metalness={0.05} />
+        <meshStandardMaterial color={color} roughness={0.9} metalness={0.05} />
       </mesh>
       {/* Front grille panel */}
       <mesh position={[0, h / 2, d / 2 + 0.001]}>
         <planeGeometry args={[w * 0.9, h * 0.9]} />
-        <meshStandardMaterial color={grilleColor} roughness={0.95} metalness={0.1} />
+        <meshStandardMaterial color={grilleColor} roughness={0.98} metalness={0.05} />
       </mesh>
+      {/* Teal frame around grille (4 bars) */}
+      {tealFrame && (
+        <group position={[0, h / 2, d / 2 + 0.003]}>
+          <mesh position={[0, h * 0.44, 0]}><boxGeometry args={[w * 0.95, 0.03, 0.015]} /><meshStandardMaterial color={TEAL} roughness={0.6} metalness={0.3} /></mesh>
+          <mesh position={[0, -h * 0.44, 0]}><boxGeometry args={[w * 0.95, 0.03, 0.015]} /><meshStandardMaterial color={TEAL} roughness={0.6} metalness={0.3} /></mesh>
+          <mesh position={[w * 0.46, 0, 0]}><boxGeometry args={[0.03, h * 0.92, 0.015]} /><meshStandardMaterial color={TEAL} roughness={0.6} metalness={0.3} /></mesh>
+          <mesh position={[-w * 0.46, 0, 0]}><boxGeometry args={[0.03, h * 0.92, 0.015]} /><meshStandardMaterial color={TEAL} roughness={0.6} metalness={0.3} /></mesh>
+        </group>
+      )}
+      {/* Yellow crosshair (spray-paint) */}
+      {yellowCross && (
+        <group position={[0, h / 2, d / 2 + 0.004]}>
+          <mesh><boxGeometry args={[w * 0.55, 0.025, 0.005]} /><meshStandardMaterial color={YELLOW} emissive={YELLOW} emissiveIntensity={0.2} roughness={0.8} /></mesh>
+          <mesh><boxGeometry args={[0.025, h * 0.55, 0.005]} /><meshStandardMaterial color={YELLOW} emissive={YELLOW} emissiveIntensity={0.2} roughness={0.8} /></mesh>
+        </group>
+      )}
       {/* Corner protectors (8) */}
       {([-1, 1] as const).map((sx) =>
         ([-1, 1] as const).map((sy) =>
@@ -117,17 +165,18 @@ function Cabinet({
               position={[sx * (w / 2 - 0.04), h / 2 + sy * (h / 2 - 0.04), sz * (d / 2 - 0.04)]}
             >
               <boxGeometry args={[0.08, 0.08, 0.08]} />
-              <meshStandardMaterial color={cornerColor} metalness={0.7} roughness={0.4} />
+              <meshStandardMaterial color={cornerColor} metalness={0.5} roughness={0.5} />
             </mesh>
           ))
         )
       )}
       {frontDetail && (
-        <group position={[0, h / 2, d / 2 + 0.005]}>{frontDetail}</group>
+        <group position={[0, h / 2, d / 2 + 0.006]}>{frontDetail}</group>
       )}
     </group>
   );
 }
+
 
 function Cone({ radius, depth, color = "#0e0e0e" }: { radius: number; depth: number; color?: string }) {
   return (
