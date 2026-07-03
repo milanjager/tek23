@@ -1561,11 +1561,20 @@ export function StageBuilder3D() {
               selection={selection}
               setSelection={setSelection}
               tool={tool}
+              cables={cables}
+              setCables={setCables}
+              mode={mode}
+              cableType={cableType}
+              pendingFrom={pendingFrom}
+              setPendingFrom={setPendingFrom}
             />
           </Canvas>
           <div className="pointer-events-none absolute bottom-2 left-2 rounded bg-neutral-900/80 px-2 py-1 text-[10px] text-neutral-400">
-            Levé tlačítko: rotace · Pravé: pan · Kolečko: zoom · Klik na bednu: výběr
+            {mode === "cable"
+              ? (pendingFrom ? "Kabely: klik na druhou bednu (Esc / klik do prázdna zruší)" : `Kabely (${CABLE_META[cableType].short}): klik na zdrojovou bednu`)
+              : "Levé tl.: rotace · Pravé: pan · Kolečko: zoom · Klik na bednu: výběr"}
           </div>
+
         </div>
       </div>
     </div>
