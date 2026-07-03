@@ -479,7 +479,7 @@ function Glyph({ kind, selected, label }: { kind: ComponentKind; selected: boole
           {/* driver throats visible in mouths */}
           <ellipse cx="26" cy="36" rx="4" ry="14" fill="#000" opacity="0.7" />
           <ellipse cx="70" cy="36" rx="4" ry="14" fill="#000" opacity="0.7" />
-          <Rivets w={96} h={72} inset={4} />
+          <Rivets w={96} h={72} inset={4} id={uid} />
         </svg>
       );
     case "mid":
@@ -497,7 +497,7 @@ function Glyph({ kind, selected, label }: { kind: ComponentKind; selected: boole
           {/* label plate */}
           <rect x="30" y="80" width="36" height="10" rx="1" fill="#000" opacity="0.6" />
           <text x="48" y="87" textAnchor="middle" fontSize="6" fontFamily="ui-monospace, monospace" fill="#8a7a66" style={{ letterSpacing: "0.2em" }}>MID</text>
-          <Rivets w={96} h={96} inset={4} />
+          <Rivets w={96} h={96} inset={4} id={uid} />
         </svg>
       );
     case "bass":
@@ -512,7 +512,7 @@ function Glyph({ kind, selected, label }: { kind: ComponentKind; selected: boole
           {/* lower: scoop opening (the visible hollow) */}
           <path d="M8 60 L112 60 L112 92 L94 92 L82 70 L38 70 L26 92 L8 92 Z" fill="#000" opacity="0.92" />
           <path d="M38 70 L82 70 L94 92 L26 92 Z" fill="#0a0908" stroke={CAB.edge} strokeWidth="0.5" />
-          <Rivets w={120} h={96} inset={4} />
+          <Rivets w={120} h={96} inset={4} id={uid} />
         </svg>
       );
     case "sub":
@@ -532,7 +532,7 @@ function Glyph({ kind, selected, label }: { kind: ComponentKind; selected: boole
           <rect x="86" y="94" width="76" height="22" fill="#000" opacity="0.92" />
           <line x1="6" y1="102" x2="82" y2="102" stroke={CAB.edge} strokeWidth="0.6" opacity="0.8" />
           <line x1="86" y1="102" x2="162" y2="102" stroke={CAB.edge} strokeWidth="0.6" opacity="0.8" />
-          <Rivets w={168} h={120} inset={5} />
+          <Rivets w={168} h={120} inset={5} id={uid} />
         </svg>
       );
     case "amp":
