@@ -873,21 +873,28 @@ function ModelFor({ kind, size, variant }: { kind: Kind; size: [number, number, 
    ============================================================ */
 
 const ItemObject = ({
-  item, selected, pending, onSelect, onRegister,
+  item, selected, pending, showConnectors, activeCableType, onSelect, onRegister,
 }: {
   item: Placed;
   selected: boolean;
   pending?: boolean;
+  showConnectors?: boolean;
+  activeCableType?: CableType;
   onSelect: (id: string, additive: boolean) => void;
   onRegister: (id: string, obj: THREE.Object3D | null) => void;
 }) => {
   const spec = SPECS[item.kind];
   const ref = useRef<THREE.Group>(null!);
+  const connectors = useMemo(() => connectorsFor(item.kind), [item.kind]);
 
   useEffect(() => {
     onRegister(item.id, ref.current);
     return () => onRegister(item.id, null);
   }, [item.id, onRegister]);
+
+  // Where the ModelFor group actually renders (accounts for pallet lift).
+  const onPallet = spec.category === "sound" && item.pos[1] < 0.05 && item.kind !== "linearray" && item.kind !== "monitor";
+  const modelYOffset = onPallet ? 0.14 : 0;
 
   return (
     <group
@@ -899,13 +906,12 @@ const ItemObject = ({
         onSelect(item.id, e.shiftKey || e.metaKey || e.ctrlKey);
       }}
     >
-      {/* Pallet under sound cabinets sitting on the ground */}
-      {spec.category === "sound" && item.pos[1] < 0.05 && item.kind !== "linearray" && item.kind !== "monitor" && (
+      {onPallet && (
         <group position={[0, 0, 0]}>
           <Pallet w={spec.size[0] * 1.02} d={spec.size[2] * 1.02} />
         </group>
       )}
-      <group position={[0, spec.category === "sound" && item.pos[1] < 0.05 && item.kind !== "linearray" && item.kind !== "monitor" ? 0.14 : 0, 0]}>
+      <group position={[0, modelYOffset, 0]}>
         <ModelFor kind={item.kind} size={spec.size} variant={item.variant} />
       </group>
       {/* Selection halo */}
@@ -922,6 +928,38 @@ const ItemObject = ({
           <meshBasicMaterial color="#f4c11a" transparent opacity={0.6} />
         </mesh>
       )}
+      {/* Connector plugs — visible in cable mode so users see exactly where cables snap */}
+      {showConnectors && connectors.map((c, i) => {
+        const meta = CABLE_META[c.type];
+        const isActive = activeCableType === c.type;
+        return (
+          <group key={i} position={[c.offset[0], modelYOffset + c.offset[1], c.offset[2]]}>
+            <mesh>
+              <boxGeometry args={[0.09, 0.09, 0.05]} />
+              <meshStandardMaterial
+                color={meta.color}
+                emissive={meta.color}
+                emissiveIntensity={isActive ? 1.1 : 0.35}
+                transparent
+                opacity={isActive ? 1 : 0.55}
+              />
+            </mesh>
+            <Html position={[0, 0.13, 0]} center distanceFactor={10} occlude={false}>
+              <div
+                className="pointer-events-none rounded px-1 font-mono text-[9px] font-bold uppercase leading-none"
+                style={{
+                  color: meta.color,
+                  background: "rgba(0,0,0,.75)",
+                  opacity: isActive ? 1 : 0.6,
+                  border: `1px solid ${meta.color}`,
+                }}
+              >
+                {meta.short}{c.role === "out" ? "▶" : "◀"}
+              </div>
+            </Html>
+          </group>
+        );
+      })}
       {/* Custom label above the box */}
       {item.label && (
         <Html position={[0, spec.size[1] + 0.25, 0]} center distanceFactor={8} occlude={false}>
@@ -933,6 +971,7 @@ const ItemObject = ({
     </group>
   );
 };
+
 
 
 /* ============================================================
