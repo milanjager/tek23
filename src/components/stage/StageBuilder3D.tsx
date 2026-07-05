@@ -1251,12 +1251,20 @@ function SceneContent({
             if (reconnect) {
               const cable = cables.find((c) => c.id === reconnect.cableId);
               const target = items.find((x) => x.id === id);
-              if (!cable || !target || !hasConnector(target.kind, cable.type)) return;
-              // Avoid connecting a cable's two ends to the same item.
+              if (!cable || !target) return;
               const other = reconnect.end === "from" ? cable.to : cable.from;
-              if (other === id) return;
+              if (other === id) {
+                setReconnectError("Nelze zapojit oba konce kabelu do stejné bedny.");
+                return;
+              }
+              const reason = connectorIncompatibility(target, cable.type, reconnect.end);
+              if (reason) {
+                setReconnectError(reason);
+                return;
+              }
               setCables((cs) => cs.map((c) => c.id === cable.id ? { ...c, [reconnect.end]: id } : c));
               setReconnect(null);
+              setReconnectError(null);
               return;
             }
             if (mode === "cable") {
