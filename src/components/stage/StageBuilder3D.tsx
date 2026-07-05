@@ -1145,6 +1145,7 @@ function stackY(moving: Placed, others: Placed[]): number {
 function SceneContent({
   items, setItems, selection, setSelection, tool,
   cables, setCables, mode, cableType, pendingFrom, setPendingFrom,
+  showConnectorLabels, showCableLabels,
 }: {
   items: Placed[];
   setItems: React.Dispatch<React.SetStateAction<Placed[]>>;
@@ -1157,6 +1158,8 @@ function SceneContent({
   cableType: CableType;
   pendingFrom: string | null;
   setPendingFrom: React.Dispatch<React.SetStateAction<string | null>>;
+  showConnectorLabels: boolean;
+  showCableLabels: boolean;
 }) {
 
   const objectsRef = useRef<Map<string, THREE.Object3D>>(new Map());
