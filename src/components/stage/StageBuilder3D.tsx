@@ -2205,6 +2205,7 @@ export function StageBuilder3D() {
         <button onClick={() => setItems(loadPreset("freetekno"))} className="rounded bg-teal-700/70 px-2 py-1 hover:bg-teal-600"><Zap size={12} className="inline" /> Freetekno wall</button>
         <button onClick={() => { const it = loadPreset("wetfield"); setItems(it); setCables(autoWireCables(it)); }} className="rounded bg-amber-700/70 px-2 py-1 hover:bg-amber-600"><Zap size={12} className="inline" /> Wetfield</button>
         <button onClick={() => setItems(loadPreset("rotor"))} className="rounded bg-red-700/70 px-2 py-1 hover:bg-red-600"><Zap size={12} className="inline" /> Rotor</button>
+        <button onClick={() => { const it = loadPreset("raptor"); setItems(it); setCables(autoWireCables(it)); }} className="rounded bg-neutral-800 px-2 py-1 text-neutral-50 hover:bg-neutral-900"><Zap size={12} className="inline" /> Raptor</button>
         <div className="mx-3 h-5 w-px bg-neutral-700" />
         <button onClick={() => { setMode("select"); setPendingFrom(null); }} className={`flex items-center gap-1 rounded px-2 py-1 ${mode === "select" ? "bg-lime-500 text-neutral-950" : "bg-neutral-100 hover:bg-neutral-200"}`}><MousePointer2 size={12} /> Výběr</button>
         <button onClick={() => setTool("translate")} disabled={mode !== "select"} className={`flex items-center gap-1 rounded px-2 py-1 ${tool === "translate" && mode === "select" ? "bg-lime-500 text-neutral-950" : "bg-neutral-100 hover:bg-neutral-200"} disabled:opacity-40`}><MoveIcon size={12} /> Posun (T)</button>
