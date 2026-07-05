@@ -292,6 +292,61 @@ function cablePoints(a: [number, number, number], b: [number, number, number], s
   return pts;
 }
 
+// Highlighted connector endpoint drawn at a cable's plug position.
+// Grows and pulses when the user is picking a new target for reconnect,
+// gently glows when the cable is selected or hovered.
+function CableEndpoint({
+  position,
+  color,
+  state,
+}: {
+  position: [number, number, number];
+  color: string;
+  state: "idle" | "hover" | "selected" | "active";
+}) {
+  const inner = useRef<THREE.Mesh>(null);
+  const ring = useRef<THREE.Mesh>(null);
+  const ringMat = useRef<THREE.MeshBasicMaterial>(null);
+  const baseSize = state === "idle" ? 0.05 : state === "hover" ? 0.07 : 0.09;
+  const emissive = state === "active" ? 2.4 : state === "selected" ? 1.4 : state === "hover" ? 1.0 : 0.55;
+
+  useFrame((_, dt) => {
+    if (state === "active" && inner.current) {
+      const t = performance.now() / 1000;
+      const s = 1 + Math.sin(t * 6) * 0.35;
+      inner.current.scale.setScalar(s);
+    } else if (inner.current) {
+      inner.current.scale.setScalar(1);
+    }
+    if (ring.current && ringMat.current) {
+      if (state === "active" || state === "selected") {
+        const t = (performance.now() / 1000) % 1.2;
+        const p = t / 1.2;
+        const s = 1 + p * (state === "active" ? 4 : 2.5);
+        ring.current.scale.setScalar(s);
+        ringMat.current.opacity = (1 - p) * (state === "active" ? 0.9 : 0.55);
+      } else {
+        ringMat.current.opacity = 0;
+      }
+    }
+  });
+
+  return (
+    <group position={position}>
+      <mesh ref={inner}>
+        <sphereGeometry args={[baseSize, 16, 12]} />
+        <meshStandardMaterial color={color} emissive={color} emissiveIntensity={emissive} />
+      </mesh>
+      <mesh ref={ring} rotation={[Math.PI / 2, 0, 0]}>
+        <ringGeometry args={[baseSize * 1.4, baseSize * 1.7, 24]} />
+        <meshBasicMaterial ref={ringMat} color={color} transparent opacity={0} side={THREE.DoubleSide} depthWrite={false} />
+      </mesh>
+    </group>
+  );
+}
+
+
+
 
 
 /* ============================================================
