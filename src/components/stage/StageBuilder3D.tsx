@@ -2258,6 +2258,8 @@ export function StageBuilder3D() {
               cableType={cableType}
               pendingFrom={pendingFrom}
               setPendingFrom={setPendingFrom}
+              showConnectorLabels={showConnectorLabels}
+              showCableLabels={showCableLabels}
             />
           </Canvas>
           <div className="pointer-events-none absolute bottom-2 left-2 rounded bg-neutral-50/80 px-2 py-1 text-[10px] text-neutral-500">
