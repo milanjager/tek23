@@ -1198,12 +1198,12 @@ function SceneContent({
         }}
       >
         <planeGeometry args={[100, 100]} />
-        <meshStandardMaterial color="#0a0a0a" roughness={0.95} />
+        <meshStandardMaterial color="#e8e8e8" roughness={0.95} />
       </mesh>
       <Grid
         args={[60, 60]}
-        cellColor="#222"
-        sectionColor="#3a2416"
+        cellColor="#cccccc"
+        sectionColor="#999999"
         sectionSize={1}
         cellSize={0.25}
         fadeDistance={40}
@@ -1211,7 +1211,7 @@ function SceneContent({
         infiniteGrid
         position={[0, 0.001, 0]}
       />
-      <ContactShadows position={[0, 0.002, 0]} opacity={0.5} scale={40} blur={2} far={10} />
+      <ContactShadows position={[0, 0.002, 0]} opacity={0.25} scale={40} blur={2} far={10} />
 
       {items.map((it) => (
         <ItemObject
