@@ -2277,6 +2277,13 @@ export function StageBuilder3D() {
         <div className="mx-3 h-5 w-px bg-neutral-700" />
         <button onClick={() => { setMode("select"); setPendingFrom(null); setMarqueeMode(false); }} className={`flex items-center gap-1 rounded px-2 py-1 ${mode === "select" && !marqueeMode ? "bg-lime-500 text-neutral-950" : "bg-neutral-100 hover:bg-neutral-200"}`}><MousePointer2 size={12} /> Výběr</button>
         <button onClick={() => { setMode("select"); setPendingFrom(null); setMarqueeMode((v) => !v); }} className={`flex items-center gap-1 rounded px-2 py-1 ${marqueeMode ? "bg-lime-500 text-neutral-950" : "bg-neutral-100 hover:bg-neutral-200"}`} title="Táhni myší přes bedny (Shift = přidat k výběru)"><BoxSelect size={12} /> Skupinový výběr</button>
+        <button
+          onClick={() => setRealistic((v) => !v)}
+          className={`flex items-center gap-1 rounded px-2 py-1 ${realistic ? "bg-amber-400 text-neutral-950" : "bg-neutral-100 hover:bg-neutral-200"}`}
+          title="Přepnout PBR osvětlení + ACES tone mapping pro realističtější zobrazení"
+        >
+          <Sparkles size={12} /> {realistic ? "Realistický" : "Realističtější vzhled"}
+        </button>
         <button onClick={() => setTool("translate")} disabled={mode !== "select"} className={`flex items-center gap-1 rounded px-2 py-1 ${tool === "translate" && mode === "select" ? "bg-lime-500 text-neutral-950" : "bg-neutral-100 hover:bg-neutral-200"} disabled:opacity-40`}><MoveIcon size={12} /> Posun (T)</button>
         <button onClick={() => setTool("rotate")} disabled={mode !== "select"} className={`flex items-center gap-1 rounded px-2 py-1 ${tool === "rotate" && mode === "select" ? "bg-lime-500 text-neutral-950" : "bg-neutral-100 hover:bg-neutral-200"} disabled:opacity-40`}><RotateCw size={12} /> Rotace (R)</button>
         <div className="mx-2 h-5 w-px bg-neutral-700" />
