@@ -2178,6 +2178,29 @@ export function StageBuilder3D() {
             ))}
           </div>
         )}
+        <button
+          onClick={() => setCables(autoWireCables(items))}
+          className="rounded bg-lime-100 px-2 py-1 text-neutral-900 hover:bg-lime-200"
+          title="Vygeneruje SIG / PWR / DMX kabeláž podle typů komponent"
+        >
+          <CableIcon size={12} className="inline" /> Auto-kabely
+        </button>
+        <div className="mx-2 h-5 w-px bg-neutral-700" />
+        <button
+          onClick={() => setShowConnectorLabels((v) => !v)}
+          className={`rounded px-2 py-1 text-[11px] ${showConnectorLabels ? "bg-lime-500 text-neutral-950" : "bg-neutral-100 text-neutral-500 hover:bg-neutral-200"}`}
+          title="Zobrazit / skrýt popisky konektorů (SIG▶, PWR◀, …)"
+        >
+          Popisky konektorů
+        </button>
+        <button
+          onClick={() => setShowCableLabels((v) => !v)}
+          className={`rounded px-2 py-1 text-[11px] ${showCableLabels ? "bg-lime-500 text-neutral-950" : "bg-neutral-100 text-neutral-500 hover:bg-neutral-200"}`}
+          title="Zobrazit / skrýt popisky kabelů uprostřed"
+        >
+          Popisky kabelů
+        </button>
+
 
         <button onClick={duplicateSelection} disabled={!selection.length} className="flex items-center gap-1 rounded bg-neutral-100 px-2 py-1 hover:bg-neutral-200 disabled:opacity-40"><Copy size={12} /> Duplikovat</button>
         <button onClick={copySelection} disabled={!selection.length} className="rounded bg-neutral-100 px-2 py-1 hover:bg-neutral-200 disabled:opacity-40">Kopírovat</button>
