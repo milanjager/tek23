@@ -2191,9 +2191,16 @@ export function StageBuilder3D() {
   return (
     <div className="fixed inset-0 flex flex-col bg-white text-neutral-900">
       {/* Top toolbar */}
-      <div className="flex items-center gap-2 border-b border-neutral-200 bg-neutral-50/95 px-3 py-2 text-sm">
+      <div className="flex flex-wrap items-center gap-1.5 border-b border-neutral-200 bg-neutral-50/95 px-2 py-2 text-sm sm:gap-2 sm:px-3">
+        <button
+          onClick={() => setPaletteOpen((v) => !v)}
+          className="flex items-center gap-1 rounded bg-neutral-100 px-2 py-1 hover:bg-neutral-200 md:hidden"
+          aria-label="Toggle palette"
+        >
+          {paletteOpen ? <X size={14} /> : <Menu size={14} />}
+        </button>
         <div className="flex items-center gap-1 font-bold text-lime-600">
-          <Boxes size={16} /> STAGE RIG 3D
+          <Boxes size={16} /> <span className="hidden xs:inline sm:inline">STAGE RIG 3D</span>
         </div>
         <div className="mx-3 h-5 w-px bg-neutral-700" />
         <button onClick={() => setItems(loadPreset("mayapur"))} className="rounded bg-neutral-100 px-2 py-1 hover:bg-neutral-200"><Zap size={12} className="inline" /> Mayapur</button>
