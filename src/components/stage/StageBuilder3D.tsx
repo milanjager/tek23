@@ -1153,6 +1153,33 @@ function CameraExposer({ cameraRef }: { cameraRef: React.MutableRefObject<THREE.
   return null;
 }
 
+/** Tunes renderer + material envMap intensity for the "realistic look" toggle. */
+function RealisticTuner({ enabled }: { enabled: boolean }) {
+  const { gl, scene } = useThree();
+  useEffect(() => {
+    gl.toneMapping = enabled ? THREE.ACESFilmicToneMapping : THREE.NoToneMapping;
+    gl.toneMappingExposure = enabled ? 1.05 : 1.0;
+    gl.outputColorSpace = THREE.SRGBColorSpace;
+  }, [enabled, gl]);
+  useFrame(() => {
+    const target = enabled ? 1.15 : 0.35;
+    scene.traverse((o) => {
+      const mesh = o as THREE.Mesh;
+      const mat = (mesh as any).material as THREE.Material | THREE.Material[] | undefined;
+      if (!mat) return;
+      const list = Array.isArray(mat) ? mat : [mat];
+      for (const m of list) {
+        if ((m as any).isMeshStandardMaterial) {
+          const sm = m as THREE.MeshStandardMaterial;
+          if (sm.envMapIntensity !== target) sm.envMapIntensity = target;
+        }
+      }
+    });
+  });
+  return null;
+}
+
+
 function SceneContent({
   items, setItems, selection, setSelection, tool,
   cables, setCables, mode, cableType, pendingFrom, setPendingFrom,
