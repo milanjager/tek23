@@ -1892,6 +1892,66 @@ function loadPreset(kind: PresetKind): Placed[] {
 }
 
 /* ============================================================
+   Auto-cabling — derive SIG / PWR / DMX routing from item types
+   ============================================================ */
+
+// Groups items by kind category and creates the cables a rider tech would
+// actually run: generator distributes 230V to every powered box, sources feed
+// the mixer which feeds every amp, and DMX daisy-chains all lighting fixtures.
+// Speaker (SPK) cables are intentionally skipped — those are already implied
+// by the physical stacking of amps under their boxes.
+function autoWireCables(items: Placed[]): Cable[] {
+  const cables: Cable[] = [];
+  const of = (ks: Kind[]) => items.filter((i) => ks.includes(i.kind));
+
+  const generator = of(["generator"])[0];
+  const mixer = of(["mixer"])[0];
+  const amps = of(["amp", "powersoft"]);
+  const sources = of(["dj", "cdj", "turntable", "korg", "korg_red", "korg_blue"]);
+  const dmxFixtures = of(["movinghead", "strobe", "laser"]);
+
+  // Everything that expects 230V.
+  const powered = items.filter((i) =>
+    connectorsFor(i.kind).some((c) => c.type === "power" && c.role === "in"),
+  );
+
+  // PWR — one radial run per powered device from the generator.
+  if (generator) {
+    for (const p of powered) {
+      cables.push({ id: uid(), from: generator.id, to: p.id, type: "power" });
+    }
+  }
+
+  // SIG — sources → mixer → amps. If no mixer, sources go straight to amps.
+  if (mixer) {
+    for (const s of sources) {
+      cables.push({ id: uid(), from: s.id, to: mixer.id, type: "signal" });
+    }
+    for (const a of amps) {
+      cables.push({ id: uid(), from: mixer.id, to: a.id, type: "signal" });
+    }
+  } else if (sources[0]) {
+    for (const a of amps) {
+      cables.push({ id: uid(), from: sources[0].id, to: a.id, type: "signal" });
+    }
+  }
+
+  // DMX — daisy-chain all lighting fixtures.
+  for (let i = 0; i < dmxFixtures.length - 1; i++) {
+    cables.push({
+      id: uid(),
+      from: dmxFixtures[i].id,
+      to: dmxFixtures[i + 1].id,
+      type: "dmx",
+    });
+  }
+
+  return cables;
+}
+
+
+
+/* ============================================================
    Palette thumbnail — mini 3D preview per catalog item
    ============================================================ */
 
