@@ -1903,7 +1903,7 @@ export function StageBuilder3D() {
   );
 
   return (
-    <div className="fixed inset-0 flex flex-col bg-neutral-950 text-neutral-100">
+    <div className="fixed inset-0 flex flex-col bg-white text-neutral-900">
       {/* Top toolbar */}
       <div className="flex items-center gap-2 border-b border-neutral-800 bg-neutral-900/95 px-3 py-2 text-sm">
         <div className="flex items-center gap-1 font-bold text-lime-400">
