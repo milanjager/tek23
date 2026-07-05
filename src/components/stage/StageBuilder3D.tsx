@@ -1332,6 +1332,7 @@ function SceneContent({
                 e.stopPropagation();
                 setSelectedCableId((cur) => (cur === c.id ? null : c.id));
                 setReconnect(null);
+                setReconnectError(null);
               }}
             />
             {/* connector caps */}
