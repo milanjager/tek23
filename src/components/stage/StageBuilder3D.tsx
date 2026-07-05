@@ -2062,6 +2062,10 @@ export function StageBuilder3D() {
   const [category, setCategory] = useState<Category>("sound");
   const [clipboard, setClipboard] = useState<Placed[]>([]);
   const [paletteOpen, setPaletteOpen] = useState(false);
+  const [marqueeMode, setMarqueeMode] = useState(false);
+  const [marquee, setMarquee] = useState<null | { x1: number; y1: number; x2: number; y2: number; additive: boolean }>(null);
+  const cameraRef = useRef<THREE.Camera | null>(null);
+  const canvasWrapRef = useRef<HTMLDivElement>(null);
 
 
   // Load from storage
