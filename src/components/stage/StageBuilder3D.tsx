@@ -219,6 +219,31 @@ function hasConnector(kind: Kind, type: CableType): boolean {
   return connectorsFor(kind).some((c) => c.type === type);
 }
 
+// Returns null when target can accept this cable end, otherwise a human-readable
+// reason why the connection is incompatible (shown in the cable inspector).
+function connectorIncompatibility(
+  target: Placed,
+  type: CableType,
+  end: "from" | "to",
+): string | null {
+  const cs = connectorsFor(target.kind);
+  const label = SPECS[target.kind].label;
+  const short = CABLE_META[type].short;
+  const full = CABLE_META[type].label;
+  if (!cs.length) return `${label} nemá žádné konektory.`;
+  const matches = cs.filter((c) => c.type === type);
+  if (!matches.length) {
+    const available = Array.from(new Set(cs.map((c) => CABLE_META[c.type].short))).join(", ");
+    return `${label} nemá konektor typu ${short} (${full}). Dostupné: ${available}.`;
+  }
+  const neededRole: "in" | "out" = end === "from" ? "out" : "in";
+  if (!matches.some((c) => c.role === neededRole)) {
+    const have = matches[0].role.toUpperCase();
+    return `${label} má ${short} pouze jako ${have}, pro ${end === "from" ? "zdroj" : "cíl"} je potřeba ${neededRole.toUpperCase()}.`;
+  }
+  return null;
+}
+
 // Pick the best pair of connectors between a and b for the given cable type.
 // Prefers OUT on source, IN on target. Falls back to any connector of that
 // type, then to the generic anchorFor() so legacy items still route.
