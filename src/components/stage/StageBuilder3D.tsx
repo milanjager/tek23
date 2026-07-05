@@ -1307,6 +1307,7 @@ function SceneContent({
           selected={mode === "select" && selection.includes(it.id)}
           pending={mode === "cable" && pendingFrom === it.id}
           showConnectors={mode === "cable"}
+          showConnectorLabels={showConnectorLabels}
           activeCableType={cableType}
           onSelect={(id, additive) => {
             // Reconnect flow — replace one endpoint of the selected cable.
