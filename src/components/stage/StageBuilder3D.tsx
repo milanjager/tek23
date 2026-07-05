@@ -1176,6 +1176,7 @@ function SceneContent({
   const [selectedCableId, setSelectedCableId] = useState<string | null>(null);
   const [reconnect, setReconnect] = useState<null | { cableId: string; end: "from" | "to" }>(null);
   const [reconnectError, setReconnectError] = useState<string | null>(null);
+  const [hoveredCableId, setHoveredCableId] = useState<string | null>(null);
 
   const itemLabel = (it: Placed) => it.label ?? SPECS[it.kind].defaultLabel ?? SPECS[it.kind].label;
 
