@@ -1454,6 +1454,55 @@ function loadPreset(kind: PresetKind): Placed[] {
     id: uid(), kind: k, pos: [x, y, z], rotY: rot,
   });
 
+  if (kind === "wetfield") {
+    // Inspired by Wetfield-style freetekno wall:
+    // 3 columns × 2 rows of white scoop-style subs on EUR pallets at the bottom,
+    // a row of 3 large mid bins across the top of the sub wall,
+    // 3 angled tops on top of that, big truss with lights, DJ + amps on flanks.
+    const s = SPECS.sub.size, b = SPECS.bass.size, m = SPECS.mid.size;
+    const arr: Placed[] = [];
+    const Z = -1.4;
+    const colGap = 0.04;
+    const colW = s[0] + colGap;
+    const cols = [-colW, 0, colW];
+
+    // Bottom row of scoop subs (3 columns)
+    for (const cx of cols) arr.push({ ...mk("sub", cx, 0, Z), label: "Wetfield Scoop" });
+    // Second row of scoop subs on top
+    for (const cx of cols) arr.push({ ...mk("sub", cx, s[1], Z), label: "Wetfield Scoop" });
+    // Row of large mid/bass bins across the top of the sub wall
+    for (const cx of cols) arr.push({ ...mk("bass", cx, s[1] * 2, Z), label: "Wetfield Mid" });
+    // 3 angled tops on the very top
+    const topY = s[1] * 2 + b[1];
+    arr.push({ ...mk("mid", -m[0] * 1.05, topY, Z, 0.18), label: "Wetfield Top L" });
+    arr.push({ ...mk("mid", 0, topY, Z, 0), label: "Wetfield Top C" });
+    arr.push({ ...mk("mid",  m[0] * 1.05, topY, Z, -0.18), label: "Wetfield Top R" });
+
+    // Powersoft amp racks on the flanks
+    arr.push(mk("powersoft", -3.6, 0, 0.4));
+    arr.push(mk("powersoft", -3.0, 0, 0.4));
+    arr.push(mk("powersoft",  3.0, 0, 0.4));
+    arr.push(mk("powersoft",  3.6, 0, 0.4));
+
+    // Truss with moving heads + strobes + laser
+    const trussY = topY + m[1] + 1.2;
+    for (const tx of [-3, -1.5, 0, 1.5, 3]) arr.push(mk("movinghead", tx, trussY, Z + 0.1));
+    arr.push(mk("strobe", -2.2, trussY - 0.1, Z + 0.25));
+    arr.push(mk("strobe",  2.2, trussY - 0.1, Z + 0.25));
+    arr.push(mk("laser", 0, trussY - 0.1, Z + 0.25));
+
+    // DJ booth behind the wall
+    arr.push({ ...mk("dj", 0, 0, 2.4), label: "Wetfield DJ" });
+    arr.push(mk("cdj", -0.55, 1.0, 2.3));
+    arr.push(mk("cdj",  0.55, 1.0, 2.3));
+    arr.push(mk("mixer", 0, 1.0, 2.5));
+
+    // Generator + crowd
+    arr.push(mk("generator", -5.2, 0, 2.8));
+    arr.push(mk("crowd", 0, 0, 5));
+    return arr;
+  }
+
   if (kind === "freetekno") {
     // Wall inspired by the reference photo: pallets + row of subs at bottom,
     // mid bins in middle, big teal-front tops on the outside, horns/mids stacked.
