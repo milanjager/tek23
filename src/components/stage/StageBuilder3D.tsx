@@ -1284,14 +1284,15 @@ function SceneContent({
 
   return (
     <>
-      <color attach="background" args={["#ffffff"]} />
-      <fog attach="fog" args={["#f5f5f5", 20, 60]} />
+      <color attach="background" args={[realistic ? "#e9ecef" : "#ffffff"]} />
+      <fog attach="fog" args={[realistic ? "#dfe3e8" : "#f5f5f5", realistic ? 25 : 20, realistic ? 80 : 60]} />
 
-      <ambientLight intensity={0.85} />
-      <hemisphereLight args={["#ffffff", "#e8e8e8", 0.6]} />
+      <ambientLight intensity={realistic ? 0.25 : 0.85} />
+      <hemisphereLight args={["#e8f0ff", "#3a3a3a", realistic ? 0.35 : 0.6]} />
       <directionalLight
         position={[8, 12, 6]}
-        intensity={1.4}
+        intensity={realistic ? 2.2 : 1.4}
+        color={realistic ? "#fff2dc" : "#ffffff"}
         castShadow
         shadow-mapSize-width={2048}
         shadow-mapSize-height={2048}
@@ -1301,13 +1302,19 @@ function SceneContent({
         shadow-camera-bottom={-15}
         shadow-camera-near={0.1}
         shadow-camera-far={50}
+        shadow-bias={-0.0005}
+        shadow-normalBias={0.02}
       />
-      <pointLight position={[0, 4, 4]} intensity={8} color="#ff2a6d" distance={12} />
-      <pointLight position={[-6, 4, -3]} intensity={6} color="#05d9e8" distance={12} />
-      <pointLight position={[6, 4, -3]} intensity={6} color="#a3ff12" distance={12} />
+      {!realistic && (
+        <>
+          <pointLight position={[0, 4, 4]} intensity={8} color="#ff2a6d" distance={12} />
+          <pointLight position={[-6, 4, -3]} intensity={6} color="#05d9e8" distance={12} />
+          <pointLight position={[6, 4, -3]} intensity={6} color="#a3ff12" distance={12} />
+        </>
+      )}
 
       <Suspense fallback={null}>
-        <Environment preset="warehouse" background={false} />
+        <Environment preset={realistic ? "city" : "warehouse"} background={false} />
       </Suspense>
 
       {/* Floor */}
@@ -1322,12 +1329,16 @@ function SceneContent({
         }}
       >
         <planeGeometry args={[100, 100]} />
-        <meshStandardMaterial color="#e8e8e8" roughness={0.95} />
+        <meshStandardMaterial
+          color={realistic ? "#d0d3d6" : "#e8e8e8"}
+          roughness={realistic ? 0.75 : 0.95}
+          metalness={realistic ? 0.1 : 0}
+        />
       </mesh>
       <Grid
         args={[60, 60]}
-        cellColor="#cccccc"
-        sectionColor="#999999"
+        cellColor={realistic ? "#b8bcc0" : "#cccccc"}
+        sectionColor={realistic ? "#7d8288" : "#999999"}
         sectionSize={1}
         cellSize={0.25}
         fadeDistance={40}
@@ -1335,7 +1346,14 @@ function SceneContent({
         infiniteGrid
         position={[0, 0.001, 0]}
       />
-      <ContactShadows position={[0, 0.002, 0]} opacity={0.25} scale={40} blur={2} far={10} />
+      <ContactShadows
+        position={[0, 0.002, 0]}
+        opacity={realistic ? 0.55 : 0.25}
+        scale={40}
+        blur={realistic ? 2.6 : 2}
+        far={10}
+      />
+
 
       {items.map((it) => (
         <ItemObject
