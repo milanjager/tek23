@@ -2059,6 +2059,7 @@ export function StageBuilder3D() {
   const [pendingFrom, setPendingFrom] = useState<string | null>(null);
   const [category, setCategory] = useState<Category>("sound");
   const [clipboard, setClipboard] = useState<Placed[]>([]);
+  const [paletteOpen, setPaletteOpen] = useState(false);
 
 
   // Load from storage
