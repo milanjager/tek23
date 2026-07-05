@@ -1009,7 +1009,7 @@ const ItemObject = ({
       {/* Custom label above the box */}
       {item.label && (
         <Html position={[0, spec.size[1] + 0.25, 0]} center distanceFactor={8} occlude={false}>
-          <div className="pointer-events-none rounded bg-black/80 px-1.5 py-0.5 font-mono text-[10px] font-bold uppercase tracking-wider text-lime-400 shadow-lg">
+          <div className="pointer-events-none rounded bg-black/80 px-1.5 py-0.5 font-mono text-[10px] font-bold uppercase tracking-wider text-lime-600 shadow-lg">
             {item.label}
           </div>
         </Html>
@@ -1160,14 +1160,14 @@ function SceneContent({
 
   return (
     <>
-      <color attach="background" args={["#050505"]} />
-      <fog attach="fog" args={["#050505", 20, 60]} />
+      <color attach="background" args={["#ffffff"]} />
+      <fog attach="fog" args={["#f5f5f5", 20, 60]} />
 
-      <ambientLight intensity={0.35} />
-      <hemisphereLight args={["#8899ff", "#221100", 0.35]} />
+      <ambientLight intensity={0.85} />
+      <hemisphereLight args={["#ffffff", "#e8e8e8", 0.6]} />
       <directionalLight
         position={[8, 12, 6]}
-        intensity={1.2}
+        intensity={1.4}
         castShadow
         shadow-mapSize-width={2048}
         shadow-mapSize-height={2048}
@@ -1178,9 +1178,9 @@ function SceneContent({
         shadow-camera-near={0.1}
         shadow-camera-far={50}
       />
-      <pointLight position={[0, 4, 4]} intensity={20} color="#ff2a6d" distance={12} />
-      <pointLight position={[-6, 4, -3]} intensity={15} color="#05d9e8" distance={12} />
-      <pointLight position={[6, 4, -3]} intensity={15} color="#a3ff12" distance={12} />
+      <pointLight position={[0, 4, 4]} intensity={8} color="#ff2a6d" distance={12} />
+      <pointLight position={[-6, 4, -3]} intensity={6} color="#05d9e8" distance={12} />
+      <pointLight position={[6, 4, -3]} intensity={6} color="#a3ff12" distance={12} />
 
       <Suspense fallback={null}>
         <Environment preset="warehouse" background={false} />
@@ -1198,12 +1198,12 @@ function SceneContent({
         }}
       >
         <planeGeometry args={[100, 100]} />
-        <meshStandardMaterial color="#0a0a0a" roughness={0.95} />
+        <meshStandardMaterial color="#e8e8e8" roughness={0.95} />
       </mesh>
       <Grid
         args={[60, 60]}
-        cellColor="#222"
-        sectionColor="#3a2416"
+        cellColor="#cccccc"
+        sectionColor="#999999"
         sectionSize={1}
         cellSize={0.25}
         fadeDistance={40}
@@ -1211,7 +1211,7 @@ function SceneContent({
         infiniteGrid
         position={[0, 0.001, 0]}
       />
-      <ContactShadows position={[0, 0.002, 0]} opacity={0.5} scale={40} blur={2} far={10} />
+      <ContactShadows position={[0, 0.002, 0]} opacity={0.25} scale={40} blur={2} far={10} />
 
       {items.map((it) => (
         <ItemObject
@@ -1338,7 +1338,7 @@ function SceneContent({
               <Html position={mid} center distanceFactor={8} occlude={false} zIndexRange={[100, 0]}>
                 <div
                   onPointerDown={(e) => e.stopPropagation()}
-                  className="w-64 rounded-md border bg-neutral-950/95 p-2 font-mono text-[10px] text-neutral-100 shadow-2xl backdrop-blur"
+                  className="w-64 rounded-md border bg-white/95 p-2 font-mono text-[10px] text-neutral-900 shadow-2xl backdrop-blur"
                   style={{ borderColor: meta.color }}
                 >
                   <div className="mb-1.5 flex items-center justify-between">
@@ -1350,27 +1350,27 @@ function SceneContent({
                       <span className="font-bold uppercase" style={{ color: meta.color }}>
                         {meta.short}
                       </span>
-                      <span className="text-neutral-400">{meta.label}</span>
+                      <span className="text-neutral-500">{meta.label}</span>
                     </div>
                     <button
                       onClick={() => { setSelectedCableId(null); setReconnect(null); }}
-                      className="rounded px-1 text-neutral-500 hover:bg-neutral-800 hover:text-white"
+                      className="rounded px-1 text-neutral-500 hover:bg-neutral-100 hover:text-white"
                     >
                       ✕
                     </button>
                   </div>
 
-                  <div className="mb-1 rounded bg-neutral-900 p-1.5">
+                  <div className="mb-1 rounded bg-neutral-50 p-1.5">
                     <div className="text-[8px] uppercase tracking-wider text-neutral-500">Zdroj (OUT)</div>
-                    <div className="truncate font-bold text-lime-400">{fromName}</div>
+                    <div className="truncate font-bold text-lime-600">{fromName}</div>
                     <div className="text-[9px] text-neutral-500">
                       {SPECS[a.kind].label} · plug {meta.short}▶
                     </div>
                   </div>
 
-                  <div className="mb-1.5 rounded bg-neutral-900 p-1.5">
+                  <div className="mb-1.5 rounded bg-neutral-50 p-1.5">
                     <div className="text-[8px] uppercase tracking-wider text-neutral-500">Cíl (IN)</div>
-                    <div className="truncate font-bold text-cyan-400">{toName}</div>
+                    <div className="truncate font-bold text-cyan-600">{toName}</div>
                     <div className="text-[9px] text-neutral-500">
                       {SPECS[b.kind].label} · plug {meta.short}◀
                     </div>
@@ -1388,13 +1388,13 @@ function SceneContent({
                   <div className="grid grid-cols-2 gap-1">
                     <button
                       onClick={() => setReconnect({ cableId: c.id, end: "from" })}
-                      className={`rounded px-1 py-1 text-[9px] font-bold uppercase ${reconnect?.end === "from" ? "bg-yellow-500 text-black" : "bg-neutral-800 text-neutral-200 hover:bg-neutral-700"}`}
+                      className={`rounded px-1 py-1 text-[9px] font-bold uppercase ${reconnect?.end === "from" ? "bg-yellow-500 text-black" : "bg-neutral-100 text-neutral-700 hover:bg-neutral-200"}`}
                     >
                       Přepojit zdroj
                     </button>
                     <button
                       onClick={() => setReconnect({ cableId: c.id, end: "to" })}
-                      className={`rounded px-1 py-1 text-[9px] font-bold uppercase ${reconnect?.end === "to" ? "bg-yellow-500 text-black" : "bg-neutral-800 text-neutral-200 hover:bg-neutral-700"}`}
+                      className={`rounded px-1 py-1 text-[9px] font-bold uppercase ${reconnect?.end === "to" ? "bg-yellow-500 text-black" : "bg-neutral-100 text-neutral-700 hover:bg-neutral-200"}`}
                     >
                       Přepojit cíl
                     </button>
@@ -1404,7 +1404,7 @@ function SceneContent({
                         setSelectedCableId(null);
                         setReconnect(null);
                       }}
-                      className="col-span-2 rounded bg-red-900/80 px-1 py-1 text-[9px] font-bold uppercase text-red-100 hover:bg-red-800"
+                      className="col-span-2 rounded bg-red-100 px-1 py-1 text-[9px] font-bold uppercase text-red-100 hover:bg-red-200"
                     >
                       Smazat kabel
                     </button>
@@ -1740,7 +1740,7 @@ function PaletteThumb({ kind }: { kind: Kind }) {
   const maxDim = Math.max(w, h, d);
   const camDist = maxDim * 2.2 + 0.4;
   return (
-    <div className="pointer-events-none h-16 w-full overflow-hidden rounded bg-gradient-to-b from-neutral-950 to-neutral-900">
+    <div className="pointer-events-none h-16 w-full overflow-hidden rounded bg-gradient-to-b from-neutral-100 to-white">
       <Canvas
         dpr={[1, 1.5]}
         camera={{ position: [camDist * 0.9, camDist * 0.75, camDist], fov: 32 }}
@@ -1903,35 +1903,35 @@ export function StageBuilder3D() {
   );
 
   return (
-    <div className="fixed inset-0 flex flex-col bg-neutral-950 text-neutral-100">
+    <div className="fixed inset-0 flex flex-col bg-white text-neutral-900">
       {/* Top toolbar */}
-      <div className="flex items-center gap-2 border-b border-neutral-800 bg-neutral-900/95 px-3 py-2 text-sm">
-        <div className="flex items-center gap-1 font-bold text-lime-400">
+      <div className="flex items-center gap-2 border-b border-neutral-200 bg-neutral-50/95 px-3 py-2 text-sm">
+        <div className="flex items-center gap-1 font-bold text-lime-600">
           <Boxes size={16} /> STAGE RIG 3D
         </div>
         <div className="mx-3 h-5 w-px bg-neutral-700" />
-        <button onClick={() => setItems(loadPreset("mayapur"))} className="rounded bg-neutral-800 px-2 py-1 hover:bg-neutral-700"><Zap size={12} className="inline" /> Mayapur</button>
-        <button onClick={() => setItems(loadPreset("badtekk"))} className="rounded bg-neutral-800 px-2 py-1 hover:bg-neutral-700"><Zap size={12} className="inline" /> Badtekk</button>
-        <button onClick={() => setItems(loadPreset("namel"))} className="rounded bg-neutral-800 px-2 py-1 hover:bg-neutral-700"><Zap size={12} className="inline" /> Namel</button>
-        <button onClick={() => setItems(loadPreset("toroid"))} className="rounded bg-neutral-800 px-2 py-1 hover:bg-neutral-700"><Zap size={12} className="inline" /> Toroid</button>
-        <button onClick={() => setItems(loadPreset("dub"))} className="rounded bg-neutral-800 px-2 py-1 hover:bg-neutral-700">Dub wall</button>
-        <button onClick={() => setItems(loadPreset("techno"))} className="rounded bg-neutral-800 px-2 py-1 hover:bg-neutral-700">Techno rig</button>
-        <button onClick={() => setItems(loadPreset("club"))} className="rounded bg-neutral-800 px-2 py-1 hover:bg-neutral-700">Malý klub</button>
+        <button onClick={() => setItems(loadPreset("mayapur"))} className="rounded bg-neutral-100 px-2 py-1 hover:bg-neutral-200"><Zap size={12} className="inline" /> Mayapur</button>
+        <button onClick={() => setItems(loadPreset("badtekk"))} className="rounded bg-neutral-100 px-2 py-1 hover:bg-neutral-200"><Zap size={12} className="inline" /> Badtekk</button>
+        <button onClick={() => setItems(loadPreset("namel"))} className="rounded bg-neutral-100 px-2 py-1 hover:bg-neutral-200"><Zap size={12} className="inline" /> Namel</button>
+        <button onClick={() => setItems(loadPreset("toroid"))} className="rounded bg-neutral-100 px-2 py-1 hover:bg-neutral-200"><Zap size={12} className="inline" /> Toroid</button>
+        <button onClick={() => setItems(loadPreset("dub"))} className="rounded bg-neutral-100 px-2 py-1 hover:bg-neutral-200">Dub wall</button>
+        <button onClick={() => setItems(loadPreset("techno"))} className="rounded bg-neutral-100 px-2 py-1 hover:bg-neutral-200">Techno rig</button>
+        <button onClick={() => setItems(loadPreset("club"))} className="rounded bg-neutral-100 px-2 py-1 hover:bg-neutral-200">Malý klub</button>
         <button onClick={() => setItems(loadPreset("freetekno"))} className="rounded bg-teal-700/70 px-2 py-1 hover:bg-teal-600"><Zap size={12} className="inline" /> Freetekno wall</button>
         <button onClick={() => setItems(loadPreset("wetfield"))} className="rounded bg-amber-700/70 px-2 py-1 hover:bg-amber-600"><Zap size={12} className="inline" /> Wetfield</button>
         <div className="mx-3 h-5 w-px bg-neutral-700" />
-        <button onClick={() => { setMode("select"); setPendingFrom(null); }} className={`flex items-center gap-1 rounded px-2 py-1 ${mode === "select" ? "bg-lime-500 text-neutral-950" : "bg-neutral-800 hover:bg-neutral-700"}`}><MousePointer2 size={12} /> Výběr</button>
-        <button onClick={() => setTool("translate")} disabled={mode !== "select"} className={`flex items-center gap-1 rounded px-2 py-1 ${tool === "translate" && mode === "select" ? "bg-lime-500 text-neutral-950" : "bg-neutral-800 hover:bg-neutral-700"} disabled:opacity-40`}><MoveIcon size={12} /> Posun (T)</button>
-        <button onClick={() => setTool("rotate")} disabled={mode !== "select"} className={`flex items-center gap-1 rounded px-2 py-1 ${tool === "rotate" && mode === "select" ? "bg-lime-500 text-neutral-950" : "bg-neutral-800 hover:bg-neutral-700"} disabled:opacity-40`}><RotateCw size={12} /> Rotace (R)</button>
+        <button onClick={() => { setMode("select"); setPendingFrom(null); }} className={`flex items-center gap-1 rounded px-2 py-1 ${mode === "select" ? "bg-lime-500 text-neutral-950" : "bg-neutral-100 hover:bg-neutral-200"}`}><MousePointer2 size={12} /> Výběr</button>
+        <button onClick={() => setTool("translate")} disabled={mode !== "select"} className={`flex items-center gap-1 rounded px-2 py-1 ${tool === "translate" && mode === "select" ? "bg-lime-500 text-neutral-950" : "bg-neutral-100 hover:bg-neutral-200"} disabled:opacity-40`}><MoveIcon size={12} /> Posun (T)</button>
+        <button onClick={() => setTool("rotate")} disabled={mode !== "select"} className={`flex items-center gap-1 rounded px-2 py-1 ${tool === "rotate" && mode === "select" ? "bg-lime-500 text-neutral-950" : "bg-neutral-100 hover:bg-neutral-200"} disabled:opacity-40`}><RotateCw size={12} /> Rotace (R)</button>
         <div className="mx-2 h-5 w-px bg-neutral-700" />
-        <button onClick={() => { setMode("cable"); setSelection([]); }} className={`flex items-center gap-1 rounded px-2 py-1 ${mode === "cable" ? "bg-lime-500 text-neutral-950" : "bg-neutral-800 hover:bg-neutral-700"}`}><CableIcon size={12} /> Kabely</button>
+        <button onClick={() => { setMode("cable"); setSelection([]); }} className={`flex items-center gap-1 rounded px-2 py-1 ${mode === "cable" ? "bg-lime-500 text-neutral-950" : "bg-neutral-100 hover:bg-neutral-200"}`}><CableIcon size={12} /> Kabely</button>
         {mode === "cable" && (
-          <div className="flex items-center gap-1 rounded bg-neutral-800 p-0.5">
+          <div className="flex items-center gap-1 rounded bg-neutral-100 p-0.5">
             {(Object.keys(CABLE_META) as CableType[]).map((t) => (
               <button
                 key={t}
                 onClick={() => setCableType(t)}
-                className={`rounded px-2 py-0.5 text-[11px] font-bold ${cableType === t ? "text-neutral-950" : "text-neutral-300 hover:text-white"}`}
+                className={`rounded px-2 py-0.5 text-[11px] font-bold ${cableType === t ? "text-neutral-950" : "text-neutral-600 hover:text-white"}`}
                 style={cableType === t ? { backgroundColor: CABLE_META[t].color } : { backgroundColor: "transparent" }}
                 title={CABLE_META[t].label}
               >
@@ -1942,31 +1942,31 @@ export function StageBuilder3D() {
           </div>
         )}
 
-        <button onClick={duplicateSelection} disabled={!selection.length} className="flex items-center gap-1 rounded bg-neutral-800 px-2 py-1 hover:bg-neutral-700 disabled:opacity-40"><Copy size={12} /> Duplikovat</button>
-        <button onClick={copySelection} disabled={!selection.length} className="rounded bg-neutral-800 px-2 py-1 hover:bg-neutral-700 disabled:opacity-40">Kopírovat</button>
-        <button onClick={pasteSelection} disabled={!clipboard.length} className="flex items-center gap-1 rounded bg-neutral-800 px-2 py-1 hover:bg-neutral-700 disabled:opacity-40"><ClipboardPaste size={12} /> Vložit</button>
-        <button onClick={groupSelection} disabled={selection.length < 2} className="flex items-center gap-1 rounded bg-neutral-800 px-2 py-1 hover:bg-neutral-700 disabled:opacity-40"><GroupIcon size={12} /> Group</button>
-        <button onClick={ungroupSelection} disabled={!selection.length} className="flex items-center gap-1 rounded bg-neutral-800 px-2 py-1 hover:bg-neutral-700 disabled:opacity-40"><Ungroup size={12} /> Ungroup</button>
-        <button onClick={deleteSelection} disabled={!selection.length} className="flex items-center gap-1 rounded bg-red-900/70 px-2 py-1 hover:bg-red-800 disabled:opacity-40"><Trash2 size={12} /> Smazat</button>
-        <div className="ml-auto flex items-center gap-2 text-xs text-neutral-400">
+        <button onClick={duplicateSelection} disabled={!selection.length} className="flex items-center gap-1 rounded bg-neutral-100 px-2 py-1 hover:bg-neutral-200 disabled:opacity-40"><Copy size={12} /> Duplikovat</button>
+        <button onClick={copySelection} disabled={!selection.length} className="rounded bg-neutral-100 px-2 py-1 hover:bg-neutral-200 disabled:opacity-40">Kopírovat</button>
+        <button onClick={pasteSelection} disabled={!clipboard.length} className="flex items-center gap-1 rounded bg-neutral-100 px-2 py-1 hover:bg-neutral-200 disabled:opacity-40"><ClipboardPaste size={12} /> Vložit</button>
+        <button onClick={groupSelection} disabled={selection.length < 2} className="flex items-center gap-1 rounded bg-neutral-100 px-2 py-1 hover:bg-neutral-200 disabled:opacity-40"><GroupIcon size={12} /> Group</button>
+        <button onClick={ungroupSelection} disabled={!selection.length} className="flex items-center gap-1 rounded bg-neutral-100 px-2 py-1 hover:bg-neutral-200 disabled:opacity-40"><Ungroup size={12} /> Ungroup</button>
+        <button onClick={deleteSelection} disabled={!selection.length} className="flex items-center gap-1 rounded bg-red-100 px-2 py-1 hover:bg-red-200 disabled:opacity-40"><Trash2 size={12} /> Smazat</button>
+        <div className="ml-auto flex items-center gap-2 text-xs text-neutral-500">
           <span>{items.length} prvků · {cables.length} kabelů · {selection.length} vybráno</span>
-          <button onClick={() => localStorage.setItem(STORAGE, JSON.stringify({ items, cables }))} className="flex items-center gap-1 rounded bg-neutral-800 px-2 py-1 hover:bg-neutral-700"><Save size={12} /> Uložit</button>
-          <button onClick={() => { if (confirm("Vymazat vše?")) { setItems([]); setCables([]); setSelection([]); }}} className="rounded bg-neutral-800 px-2 py-1 hover:bg-neutral-700">Vyčistit</button>
+          <button onClick={() => localStorage.setItem(STORAGE, JSON.stringify({ items, cables }))} className="flex items-center gap-1 rounded bg-neutral-100 px-2 py-1 hover:bg-neutral-200"><Save size={12} /> Uložit</button>
+          <button onClick={() => { if (confirm("Vymazat vše?")) { setItems([]); setCables([]); setSelection([]); }}} className="rounded bg-neutral-100 px-2 py-1 hover:bg-neutral-200">Vyčistit</button>
 
         </div>
       </div>
 
       <div className="flex flex-1 overflow-hidden">
         {/* Palette */}
-        <aside className="flex w-56 flex-col border-r border-neutral-800 bg-neutral-900/80">
-          <div className="flex border-b border-neutral-800">
+        <aside className="flex w-56 flex-col border-r border-neutral-200 bg-neutral-50/80">
+          <div className="flex border-b border-neutral-200">
             {CATEGORIES.map((c) => {
               const Icon = c.icon;
               return (
                 <button
                   key={c.id}
                   onClick={() => setCategory(c.id)}
-                  className={`flex flex-1 items-center justify-center gap-1 py-2 text-xs ${category === c.id ? "bg-neutral-800 text-lime-400" : "text-neutral-400 hover:text-neutral-200"}`}
+                  className={`flex flex-1 items-center justify-center gap-1 py-2 text-xs ${category === c.id ? "bg-neutral-100 text-lime-600" : "text-neutral-500 hover:text-neutral-700"}`}
                 >
                   <Icon size={12} /> {c.label}
                 </button>
@@ -1978,11 +1978,11 @@ export function StageBuilder3D() {
               <button
                 key={k}
                 onClick={() => addItem(k)}
-                className="mb-2 block w-full overflow-hidden rounded border border-neutral-800 bg-neutral-900 text-left transition hover:border-lime-500/60 hover:bg-neutral-800"
+                className="mb-2 block w-full overflow-hidden rounded border border-neutral-200 bg-neutral-50 text-left transition hover:border-lime-500/60 hover:bg-neutral-100"
               >
                 <PaletteThumb kind={k} />
                 <div className="px-2 py-1.5">
-                  <div className="text-xs font-semibold text-neutral-100">{s.label}</div>
+                  <div className="text-xs font-semibold text-neutral-900">{s.label}</div>
                   <div className="text-[10px] text-neutral-500">{s.hint}</div>
                   <div className="mt-0.5 font-mono text-[9px] text-neutral-600">
                     {s.size[0].toFixed(2)}×{s.size[1].toFixed(2)}×{s.size[2].toFixed(2)} m
@@ -1991,12 +1991,12 @@ export function StageBuilder3D() {
               </button>
             ))}
           </div>
-          <div className="border-t border-neutral-800 p-2 text-[10px] text-neutral-500">
+          <div className="border-t border-neutral-200 p-2 text-[10px] text-neutral-500">
             <div><b>T/R</b> — posun/rotace · <b>C</b> — kabely</div>
             <div><b>Ctrl+C/V/D</b> — kopie / vložit / duplikovat</div>
             <div><b>Ctrl+G / Ctrl+Shift+G</b> — group / ungroup</div>
             <div><b>Shift+klik</b> — přidat do výběru · <b>Del</b> — smazat</div>
-            <div className="mt-1 text-neutral-400">V režimu Kabely: klik na první bednu → klik na druhou. Klik na kabel = smazat.</div>
+            <div className="mt-1 text-neutral-500">V režimu Kabely: klik na první bednu → klik na druhou. Klik na kabel = smazat.</div>
           </div>
 
         </aside>
@@ -2023,7 +2023,7 @@ export function StageBuilder3D() {
               setPendingFrom={setPendingFrom}
             />
           </Canvas>
-          <div className="pointer-events-none absolute bottom-2 left-2 rounded bg-neutral-900/80 px-2 py-1 text-[10px] text-neutral-400">
+          <div className="pointer-events-none absolute bottom-2 left-2 rounded bg-neutral-50/80 px-2 py-1 text-[10px] text-neutral-500">
             {mode === "cable"
               ? (pendingFrom ? "Kabely: klik na druhou bednu (Esc / klik do prázdna zruší)" : `Kabely (${CABLE_META[cableType].short}): klik na zdrojovou bednu`)
               : "Levé tl.: rotace · Pravé: pan · Kolečko: zoom · Klik na bednu: výběr"}
@@ -2032,8 +2032,8 @@ export function StageBuilder3D() {
         </div>
 
         {/* Right inspector — per-item model / label / variant */}
-        <aside className="flex w-72 flex-col border-l border-neutral-800 bg-neutral-900/80">
-          <div className="border-b border-neutral-800 px-3 py-2 text-xs font-bold uppercase tracking-wider text-neutral-400">
+        <aside className="flex w-72 flex-col border-l border-neutral-200 bg-neutral-50/80">
+          <div className="border-b border-neutral-200 px-3 py-2 text-xs font-bold uppercase tracking-wider text-neutral-500">
             Komponenty na scéně ({items.length})
           </div>
           <div className="flex-1 overflow-y-auto p-2">
@@ -2047,7 +2047,7 @@ export function StageBuilder3D() {
               return (
                 <div
                   key={it.id}
-                  className={`mb-1.5 rounded border p-2 text-[11px] transition ${isSel ? "border-lime-500 bg-neutral-800" : "border-neutral-800 bg-neutral-900 hover:border-neutral-700"}`}
+                  className={`mb-1.5 rounded border p-2 text-[11px] transition ${isSel ? "border-lime-500 bg-neutral-100" : "border-neutral-200 bg-neutral-50 hover:border-neutral-300"}`}
                 >
                   <button
                     onClick={() => { setMode("select"); setSelection([it.id]); }}
@@ -2057,7 +2057,7 @@ export function StageBuilder3D() {
                       className="inline-block h-2 w-2 shrink-0 rounded-full"
                       style={{ backgroundColor: spec.category === "sound" ? "#a3ff12" : spec.category === "lights" ? "#f4c11a" : "#05d9e8" }}
                     />
-                    <span className="flex-1 truncate font-semibold text-neutral-100">
+                    <span className="flex-1 truncate font-semibold text-neutral-900">
                       {it.label || spec.label}
                     </span>
                     <span className="font-mono text-[9px] text-neutral-500">
@@ -2078,7 +2078,7 @@ export function StageBuilder3D() {
                           variant: SPECS[newKind].defaultVariant ?? x.variant,
                         } : x));
                       }}
-                      className="w-full rounded border border-neutral-700 bg-neutral-950 px-1.5 py-1 text-[11px] text-neutral-100 focus:border-lime-500 focus:outline-none"
+                      className="w-full rounded border border-neutral-300 bg-white px-1.5 py-1 text-[11px] text-neutral-900 focus:border-lime-500 focus:outline-none"
                     >
                       {CATEGORIES.map((cat) => (
                         <optgroup key={cat.id} label={cat.label}>
@@ -2103,7 +2103,7 @@ export function StageBuilder3D() {
                         const v = e.target.value;
                         setItems((cur) => cur.map((x) => x.id === it.id ? { ...x, label: v || undefined } : x));
                       }}
-                      className="w-full rounded border border-neutral-700 bg-neutral-950 px-1.5 py-1 font-mono text-[11px] text-lime-400 focus:border-lime-500 focus:outline-none"
+                      className="w-full rounded border border-neutral-300 bg-white px-1.5 py-1 font-mono text-[11px] text-lime-600 focus:border-lime-500 focus:outline-none"
                     />
                   </label>
 
@@ -2115,7 +2115,7 @@ export function StageBuilder3D() {
                         <button
                           key={v}
                           onClick={() => setItems((cur) => cur.map((x) => x.id === it.id ? { ...x, variant: v } : x))}
-                          className={`h-5 w-5 rounded border-2 ${it.variant === v ? "border-lime-400" : "border-neutral-700"}`}
+                          className={`h-5 w-5 rounded border-2 ${it.variant === v ? "border-lime-400" : "border-neutral-300"}`}
                           style={{ backgroundColor: v === "red" ? "#c81e2a" : "#1e5ec8" }}
                           title={v === "red" ? "Červený" : "Modrý"}
                         />
@@ -2132,7 +2132,7 @@ export function StageBuilder3D() {
                         setItems((cur) => cur.filter((x) => x.id !== it.id));
                         setCables((cs) => cs.filter((c) => c.from !== it.id && c.to !== it.id));
                       }}
-                      className="rounded bg-red-900/50 px-1.5 py-0.5 text-[10px] text-red-200 hover:bg-red-800"
+                      className="rounded bg-red-100 px-1.5 py-0.5 text-[10px] text-red-700 hover:bg-red-200"
                     >
                       <Trash2 size={10} className="inline" />
                     </button>
