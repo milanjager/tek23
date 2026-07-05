@@ -1998,6 +1998,8 @@ export function StageBuilder3D() {
   const [tool, setTool] = useState<"translate" | "rotate">("translate");
   const [mode, setMode] = useState<"select" | "cable">("select");
   const [cableType, setCableType] = useState<CableType>("signal");
+  const [showConnectorLabels, setShowConnectorLabels] = useState(true);
+  const [showCableLabels, setShowCableLabels] = useState(true);
   const [pendingFrom, setPendingFrom] = useState<string | null>(null);
   const [category, setCategory] = useState<Category>("sound");
   const [clipboard, setClipboard] = useState<Placed[]>([]);
