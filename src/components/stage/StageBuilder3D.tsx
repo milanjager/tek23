@@ -1386,7 +1386,7 @@ function SceneContent({
                       <span className="text-neutral-500">{meta.label}</span>
                     </div>
                     <button
-                      onClick={() => { setSelectedCableId(null); setReconnect(null); }}
+                      onClick={() => { setSelectedCableId(null); setReconnect(null); setReconnectError(null); }}
                       className="rounded px-1 text-neutral-500 hover:bg-neutral-100 hover:text-white"
                     >
                       ✕
@@ -1409,7 +1409,7 @@ function SceneContent({
                     </div>
                   </div>
 
-                  {reconnect && (
+                  {reconnect && !reconnectError && (
                     <div
                       className="mb-1.5 rounded p-1 text-center text-[9px] font-bold"
                       style={{ background: "rgba(244,193,26,.2)", color: "#f4c11a", border: "1px dashed #f4c11a" }}
@@ -1418,15 +1418,22 @@ function SceneContent({
                     </div>
                   )}
 
+                  {reconnectError && (
+                    <div className="mb-1.5 rounded border border-red-400 bg-red-50 p-1.5 text-[9px] font-semibold leading-snug text-red-700">
+                      <div className="mb-0.5 uppercase tracking-wider">Nekompatibilní konektor</div>
+                      <div className="font-normal">{reconnectError}</div>
+                    </div>
+                  )}
+
                   <div className="grid grid-cols-2 gap-1">
                     <button
-                      onClick={() => setReconnect({ cableId: c.id, end: "from" })}
+                      onClick={() => { setReconnect({ cableId: c.id, end: "from" }); setReconnectError(null); }}
                       className={`rounded px-1 py-1 text-[9px] font-bold uppercase ${reconnect?.end === "from" ? "bg-yellow-500 text-black" : "bg-neutral-100 text-neutral-700 hover:bg-neutral-200"}`}
                     >
                       Přepojit zdroj
                     </button>
                     <button
-                      onClick={() => setReconnect({ cableId: c.id, end: "to" })}
+                      onClick={() => { setReconnect({ cableId: c.id, end: "to" }); setReconnectError(null); }}
                       className={`rounded px-1 py-1 text-[9px] font-bold uppercase ${reconnect?.end === "to" ? "bg-yellow-500 text-black" : "bg-neutral-100 text-neutral-700 hover:bg-neutral-200"}`}
                     >
                       Přepojit cíl
@@ -1436,6 +1443,7 @@ function SceneContent({
                         setCables((cs) => cs.filter((x) => x.id !== c.id));
                         setSelectedCableId(null);
                         setReconnect(null);
+                        setReconnectError(null);
                       }}
                       className="col-span-2 rounded bg-red-100 px-1 py-1 text-[9px] font-bold uppercase text-red-100 hover:bg-red-200"
                     >
