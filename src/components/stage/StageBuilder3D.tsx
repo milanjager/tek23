@@ -8,12 +8,13 @@ import {
   ContactShadows,
   Environment,
   Line,
+  Edges,
 } from "@react-three/drei";
 import * as THREE from "three";
 import {
   Speaker, Trash2, Save, Copy, ClipboardPaste, Group as GroupIcon, Ungroup,
   Move as MoveIcon, RotateCw, Boxes, Zap, Sparkles, Radio, Volume2,
-  Cable as CableIcon, MousePointer2, Menu, X,
+  Cable as CableIcon, MousePointer2, Menu, X, BoxSelect,
 } from "lucide-react";
 
 
@@ -405,12 +406,13 @@ function Cabinet({
       {/* Body */}
       <mesh castShadow receiveShadow position={[0, h / 2, 0]}>
         <boxGeometry args={[w, h, d]} />
-        <meshStandardMaterial color={color} roughness={0.9} metalness={0.05} />
+        <meshStandardMaterial color={color} roughness={0.85} metalness={0.08} />
+        <Edges threshold={15} color="#000000" scale={1.001} />
       </mesh>
       {/* Front grille panel */}
       <mesh position={[0, h / 2, d / 2 + 0.001]}>
         <planeGeometry args={[w * 0.9, h * 0.9]} />
-        <meshStandardMaterial color={grilleColor} roughness={0.98} metalness={0.05} />
+        <meshStandardMaterial color={grilleColor} roughness={0.95} metalness={0.15} />
       </mesh>
       {/* Teal frame around grille (4 bars) */}
       {tealFrame && (
@@ -1144,6 +1146,12 @@ function stackY(moving: Placed, others: Placed[]): number {
 /* ============================================================
    Scene root with TransformControls
    ============================================================ */
+
+function CameraExposer({ cameraRef }: { cameraRef: React.MutableRefObject<THREE.Camera | null> }) {
+  const { camera } = useThree();
+  useEffect(() => { cameraRef.current = camera; }, [camera, cameraRef]);
+  return null;
+}
 
 function SceneContent({
   items, setItems, selection, setSelection, tool,
@@ -2060,6 +2068,10 @@ export function StageBuilder3D() {
   const [category, setCategory] = useState<Category>("sound");
   const [clipboard, setClipboard] = useState<Placed[]>([]);
   const [paletteOpen, setPaletteOpen] = useState(false);
+  const [marqueeMode, setMarqueeMode] = useState(false);
+  const [marquee, setMarquee] = useState<null | { x1: number; y1: number; x2: number; y2: number; additive: boolean }>(null);
+  const cameraRef = useRef<THREE.Camera | null>(null);
+  const canvasWrapRef = useRef<HTMLDivElement>(null);
 
 
   // Load from storage
@@ -2215,7 +2227,8 @@ export function StageBuilder3D() {
         <button onClick={() => setItems(loadPreset("rotor"))} className="rounded bg-red-700/70 px-2 py-1 hover:bg-red-600"><Zap size={12} className="inline" /> Rotor</button>
         <button onClick={() => { const it = loadPreset("raptor"); setItems(it); setCables(autoWireCables(it)); }} className="rounded bg-neutral-800 px-2 py-1 text-neutral-50 hover:bg-neutral-900"><Zap size={12} className="inline" /> Raptor</button>
         <div className="mx-3 h-5 w-px bg-neutral-700" />
-        <button onClick={() => { setMode("select"); setPendingFrom(null); }} className={`flex items-center gap-1 rounded px-2 py-1 ${mode === "select" ? "bg-lime-500 text-neutral-950" : "bg-neutral-100 hover:bg-neutral-200"}`}><MousePointer2 size={12} /> Výběr</button>
+        <button onClick={() => { setMode("select"); setPendingFrom(null); setMarqueeMode(false); }} className={`flex items-center gap-1 rounded px-2 py-1 ${mode === "select" && !marqueeMode ? "bg-lime-500 text-neutral-950" : "bg-neutral-100 hover:bg-neutral-200"}`}><MousePointer2 size={12} /> Výběr</button>
+        <button onClick={() => { setMode("select"); setPendingFrom(null); setMarqueeMode((v) => !v); }} className={`flex items-center gap-1 rounded px-2 py-1 ${marqueeMode ? "bg-lime-500 text-neutral-950" : "bg-neutral-100 hover:bg-neutral-200"}`} title="Táhni myší přes bedny (Shift = přidat k výběru)"><BoxSelect size={12} /> Skupinový výběr</button>
         <button onClick={() => setTool("translate")} disabled={mode !== "select"} className={`flex items-center gap-1 rounded px-2 py-1 ${tool === "translate" && mode === "select" ? "bg-lime-500 text-neutral-950" : "bg-neutral-100 hover:bg-neutral-200"} disabled:opacity-40`}><MoveIcon size={12} /> Posun (T)</button>
         <button onClick={() => setTool("rotate")} disabled={mode !== "select"} className={`flex items-center gap-1 rounded px-2 py-1 ${tool === "rotate" && mode === "select" ? "bg-lime-500 text-neutral-950" : "bg-neutral-100 hover:bg-neutral-200"} disabled:opacity-40`}><RotateCw size={12} /> Rotace (R)</button>
         <div className="mx-2 h-5 w-px bg-neutral-700" />
@@ -2327,13 +2340,14 @@ export function StageBuilder3D() {
         </aside>
 
         {/* 3D Canvas */}
-        <div className="relative flex-1">
+        <div className="relative flex-1" ref={canvasWrapRef}>
           <Canvas
             shadows
             dpr={[1, 2]}
             camera={{ position: [6, 5, 8], fov: 45, near: 0.1, far: 200 }}
             gl={{ antialias: true }}
           >
+            <CameraExposer cameraRef={cameraRef} />
             <SceneContent
               items={items}
               setItems={setItems}
@@ -2350,8 +2364,73 @@ export function StageBuilder3D() {
               showCableLabels={showCableLabels}
             />
           </Canvas>
+
+          {/* Marquee overlay — active only when Skupinový výběr is toggled on */}
+          {marqueeMode && (
+            <div
+              className="absolute inset-0 z-20 cursor-crosshair"
+              style={{ background: "transparent" }}
+              onPointerDown={(e) => {
+                if (e.button !== 0 || !canvasWrapRef.current) return;
+                const rect = canvasWrapRef.current.getBoundingClientRect();
+                const x = e.clientX - rect.left;
+                const y = e.clientY - rect.top;
+                setMarquee({ x1: x, y1: y, x2: x, y2: y, additive: e.shiftKey });
+                (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+              }}
+              onPointerMove={(e) => {
+                if (!marquee || !canvasWrapRef.current) return;
+                const rect = canvasWrapRef.current.getBoundingClientRect();
+                setMarquee({ ...marquee, x2: e.clientX - rect.left, y2: e.clientY - rect.top });
+              }}
+              onPointerUp={() => {
+                if (!marquee || !cameraRef.current || !canvasWrapRef.current) { setMarquee(null); return; }
+                const rect = canvasWrapRef.current.getBoundingClientRect();
+                const minX = Math.min(marquee.x1, marquee.x2);
+                const maxX = Math.max(marquee.x1, marquee.x2);
+                const minY = Math.min(marquee.y1, marquee.y2);
+                const maxY = Math.max(marquee.y1, marquee.y2);
+                const w = rect.width, h = rect.height;
+                const cam = cameraRef.current;
+                const v = new THREE.Vector3();
+                const picked: string[] = [];
+                for (const it of items) {
+                  const s = SPECS[it.kind].size;
+                  v.set(it.pos[0], it.pos[1] + s[1] / 2, it.pos[2]).project(cam);
+                  const sx = (v.x * 0.5 + 0.5) * w;
+                  const sy = (1 - (v.y * 0.5 + 0.5)) * h;
+                  if (sx >= minX && sx <= maxX && sy >= minY && sy <= maxY) picked.push(it.id);
+                }
+                setMode("select");
+                if (Math.abs(maxX - minX) < 4 && Math.abs(maxY - minY) < 4) {
+                  // treated as click on empty space → clear
+                  if (!marquee.additive) setSelection([]);
+                } else if (marquee.additive) {
+                  setSelection((prev) => Array.from(new Set([...prev, ...picked])));
+                } else {
+                  setSelection(picked);
+                }
+                setMarquee(null);
+              }}
+            >
+              {marquee && (
+                <div
+                  className="pointer-events-none absolute rounded-sm border-2 border-lime-500 bg-lime-400/15"
+                  style={{
+                    left: Math.min(marquee.x1, marquee.x2),
+                    top: Math.min(marquee.y1, marquee.y2),
+                    width: Math.abs(marquee.x2 - marquee.x1),
+                    height: Math.abs(marquee.y2 - marquee.y1),
+                  }}
+                />
+              )}
+            </div>
+          )}
+
           <div className="pointer-events-none absolute bottom-2 left-2 rounded bg-neutral-50/80 px-2 py-1 text-[10px] text-neutral-500">
-            {mode === "cable"
+            {marqueeMode
+              ? "Skupinový výběr: táhni myší přes bedny · Shift = přidat · vypnout tlačítkem v liště"
+              : mode === "cable"
               ? (pendingFrom ? "Kabely: klik na druhou bednu (Esc / klik do prázdna zruší)" : `Kabely (${CABLE_META[cableType].short}): klik na zdrojovou bednu`)
               : "Levé tl.: rotace · Pravé: pan · Kolečko: zoom · Klik na bednu: výběr"}
           </div>
