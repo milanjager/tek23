@@ -1163,11 +1163,11 @@ function SceneContent({
       <color attach="background" args={["#ffffff"]} />
       <fog attach="fog" args={["#f5f5f5", 20, 60]} />
 
-      <ambientLight intensity={0.35} />
-      <hemisphereLight args={["#8899ff", "#221100", 0.35]} />
+      <ambientLight intensity={0.85} />
+      <hemisphereLight args={["#ffffff", "#e8e8e8", 0.6]} />
       <directionalLight
         position={[8, 12, 6]}
-        intensity={1.2}
+        intensity={1.4}
         castShadow
         shadow-mapSize-width={2048}
         shadow-mapSize-height={2048}
@@ -1178,9 +1178,9 @@ function SceneContent({
         shadow-camera-near={0.1}
         shadow-camera-far={50}
       />
-      <pointLight position={[0, 4, 4]} intensity={20} color="#ff2a6d" distance={12} />
-      <pointLight position={[-6, 4, -3]} intensity={15} color="#05d9e8" distance={12} />
-      <pointLight position={[6, 4, -3]} intensity={15} color="#a3ff12" distance={12} />
+      <pointLight position={[0, 4, 4]} intensity={8} color="#ff2a6d" distance={12} />
+      <pointLight position={[-6, 4, -3]} intensity={6} color="#05d9e8" distance={12} />
+      <pointLight position={[6, 4, -3]} intensity={6} color="#a3ff12" distance={12} />
 
       <Suspense fallback={null}>
         <Environment preset="warehouse" background={false} />
