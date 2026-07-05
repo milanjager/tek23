@@ -2396,6 +2396,7 @@ export function StageBuilder3D() {
             gl={{ antialias: true }}
           >
             <CameraExposer cameraRef={cameraRef} />
+            <RealisticTuner enabled={realistic} />
             <SceneContent
               items={items}
               setItems={setItems}
@@ -2410,6 +2411,7 @@ export function StageBuilder3D() {
               setPendingFrom={setPendingFrom}
               showConnectorLabels={showConnectorLabels}
               showCableLabels={showCableLabels}
+              realistic={realistic}
             />
           </Canvas>
 
