@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, useCallback, Suspense } from "react";
-import { Canvas, useThree } from "@react-three/fiber";
+import { Canvas, useThree, useFrame } from "@react-three/fiber";
 import {
   OrbitControls,
   TransformControls,
@@ -291,6 +291,61 @@ function cablePoints(a: [number, number, number], b: [number, number, number], s
   }
   return pts;
 }
+
+// Highlighted connector endpoint drawn at a cable's plug position.
+// Grows and pulses when the user is picking a new target for reconnect,
+// gently glows when the cable is selected or hovered.
+function CableEndpoint({
+  position,
+  color,
+  state,
+}: {
+  position: [number, number, number];
+  color: string;
+  state: "idle" | "hover" | "selected" | "active";
+}) {
+  const inner = useRef<THREE.Mesh>(null);
+  const ring = useRef<THREE.Mesh>(null);
+  const ringMat = useRef<THREE.MeshBasicMaterial>(null);
+  const baseSize = state === "idle" ? 0.05 : state === "hover" ? 0.07 : 0.09;
+  const emissive = state === "active" ? 2.4 : state === "selected" ? 1.4 : state === "hover" ? 1.0 : 0.55;
+
+  useFrame((_, dt) => {
+    if (state === "active" && inner.current) {
+      const t = performance.now() / 1000;
+      const s = 1 + Math.sin(t * 6) * 0.35;
+      inner.current.scale.setScalar(s);
+    } else if (inner.current) {
+      inner.current.scale.setScalar(1);
+    }
+    if (ring.current && ringMat.current) {
+      if (state === "active" || state === "selected") {
+        const t = (performance.now() / 1000) % 1.2;
+        const p = t / 1.2;
+        const s = 1 + p * (state === "active" ? 4 : 2.5);
+        ring.current.scale.setScalar(s);
+        ringMat.current.opacity = (1 - p) * (state === "active" ? 0.9 : 0.55);
+      } else {
+        ringMat.current.opacity = 0;
+      }
+    }
+  });
+
+  return (
+    <group position={position}>
+      <mesh ref={inner}>
+        <sphereGeometry args={[baseSize, 16, 12]} />
+        <meshStandardMaterial color={color} emissive={color} emissiveIntensity={emissive} />
+      </mesh>
+      <mesh ref={ring} rotation={[Math.PI / 2, 0, 0]}>
+        <ringGeometry args={[baseSize * 1.4, baseSize * 1.7, 24]} />
+        <meshBasicMaterial ref={ringMat} color={color} transparent opacity={0} side={THREE.DoubleSide} depthWrite={false} />
+      </mesh>
+    </group>
+  );
+}
+
+
 
 
 
@@ -1176,6 +1231,7 @@ function SceneContent({
   const [selectedCableId, setSelectedCableId] = useState<string | null>(null);
   const [reconnect, setReconnect] = useState<null | { cableId: string; end: "from" | "to" }>(null);
   const [reconnectError, setReconnectError] = useState<string | null>(null);
+  const [hoveredCableId, setHoveredCableId] = useState<string | null>(null);
 
   const itemLabel = (it: Placed) => it.label ?? SPECS[it.kind].defaultLabel ?? SPECS[it.kind].label;
 
@@ -1320,14 +1376,28 @@ function SceneContent({
         const fromName = itemLabel(a);
         const toName = itemLabel(b);
 
+        const isHovered = hoveredCableId === c.id;
+        const fromState: "idle" | "hover" | "selected" | "active" =
+          isReconnecting && reconnect?.end === "from" ? "active"
+          : isSelected ? "selected"
+          : isHovered ? "hover"
+          : "idle";
+        const toState: "idle" | "hover" | "selected" | "active" =
+          isReconnecting && reconnect?.end === "to" ? "active"
+          : isSelected ? "selected"
+          : isHovered ? "hover"
+          : "idle";
+
         return (
           <group key={c.id}>
             <Line
               points={pts as unknown as [number, number, number][]}
               color={meta.color}
-              lineWidth={isSelected ? meta.width + 2 : meta.width}
+              lineWidth={isSelected || isHovered ? meta.width + 2 : meta.width}
               transparent
               opacity={isReconnecting ? 0.4 : 0.95}
+              onPointerOver={(e) => { e.stopPropagation(); setHoveredCableId(c.id); }}
+              onPointerOut={(e) => { e.stopPropagation(); setHoveredCableId((cur) => (cur === c.id ? null : cur)); }}
               onClick={(e) => {
                 e.stopPropagation();
                 setSelectedCableId((cur) => (cur === c.id ? null : c.id));
@@ -1335,15 +1405,10 @@ function SceneContent({
                 setReconnectError(null);
               }}
             />
-            {/* connector caps */}
-            <mesh position={p1}>
-              <sphereGeometry args={[isSelected ? 0.08 : 0.05, 12, 8]} />
-              <meshStandardMaterial color={meta.color} emissive={meta.color} emissiveIntensity={isSelected ? 1.2 : 0.6} />
-            </mesh>
-            <mesh position={p2}>
-              <sphereGeometry args={[isSelected ? 0.08 : 0.05, 12, 8]} />
-              <meshStandardMaterial color={meta.color} emissive={meta.color} emissiveIntensity={isSelected ? 1.2 : 0.6} />
-            </mesh>
+            {/* Highlighted endpoints — pulse when picking a new target */}
+            <CableEndpoint position={p1} color={meta.color} state={fromState} />
+            <CableEndpoint position={p2} color={meta.color} state={toState} />
+
 
             {/* Always-visible compact label at cable midpoint */}
             {!isSelected && (
