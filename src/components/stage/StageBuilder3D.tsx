@@ -2273,9 +2273,18 @@ export function StageBuilder3D() {
         </div>
       </div>
 
-      <div className="flex flex-1 overflow-hidden">
+      <div className="relative flex flex-1 overflow-hidden">
+        {/* Mobile palette backdrop */}
+        {paletteOpen && (
+          <div
+            className="absolute inset-0 z-20 bg-black/30 md:hidden"
+            onClick={() => setPaletteOpen(false)}
+          />
+        )}
         {/* Palette */}
-        <aside className="flex w-56 flex-col border-r border-neutral-200 bg-neutral-50/80">
+        <aside
+          className={`${paletteOpen ? "absolute inset-y-0 left-0 z-30 flex w-64 shadow-2xl" : "hidden"} flex-col border-r border-neutral-200 bg-neutral-50 md:static md:z-auto md:flex md:w-56 md:shadow-none md:bg-neutral-50/80`}
+        >
           <div className="flex border-b border-neutral-200">
             {CATEGORIES.map((c) => {
               const Icon = c.icon;
@@ -2294,7 +2303,7 @@ export function StageBuilder3D() {
             {palette.map(([k, s]) => (
               <button
                 key={k}
-                onClick={() => addItem(k)}
+                onClick={() => { addItem(k); setPaletteOpen(false); }}
                 className="mb-2 block w-full overflow-hidden rounded border border-neutral-200 bg-neutral-50 text-left transition hover:border-lime-500/60 hover:bg-neutral-100"
               >
                 <PaletteThumb kind={k} />
@@ -2308,14 +2317,13 @@ export function StageBuilder3D() {
               </button>
             ))}
           </div>
-          <div className="border-t border-neutral-200 p-2 text-[10px] text-neutral-500">
+          <div className="hidden border-t border-neutral-200 p-2 text-[10px] text-neutral-500 md:block">
             <div><b>T/R</b> — posun/rotace · <b>C</b> — kabely</div>
             <div><b>Ctrl+C/V/D</b> — kopie / vložit / duplikovat</div>
             <div><b>Ctrl+G / Ctrl+Shift+G</b> — group / ungroup</div>
             <div><b>Shift+klik</b> — přidat do výběru · <b>Del</b> — smazat</div>
             <div className="mt-1 text-neutral-500">V režimu Kabely: klik na první bednu → klik na druhou. Klik na kabel = smazat.</div>
           </div>
-
         </aside>
 
         {/* 3D Canvas */}
