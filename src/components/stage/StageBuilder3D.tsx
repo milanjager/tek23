@@ -8,12 +8,13 @@ import {
   ContactShadows,
   Environment,
   Line,
+  Edges,
 } from "@react-three/drei";
 import * as THREE from "three";
 import {
   Speaker, Trash2, Save, Copy, ClipboardPaste, Group as GroupIcon, Ungroup,
   Move as MoveIcon, RotateCw, Boxes, Zap, Sparkles, Radio, Volume2,
-  Cable as CableIcon, MousePointer2, Menu, X,
+  Cable as CableIcon, MousePointer2, Menu, X, BoxSelect,
 } from "lucide-react";
 
 
