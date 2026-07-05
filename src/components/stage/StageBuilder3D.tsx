@@ -1183,7 +1183,7 @@ function RealisticTuner({ enabled }: { enabled: boolean }) {
 function SceneContent({
   items, setItems, selection, setSelection, tool,
   cables, setCables, mode, cableType, pendingFrom, setPendingFrom,
-  showConnectorLabels, showCableLabels,
+  showConnectorLabels, showCableLabels, realistic,
 }: {
   items: Placed[];
   setItems: React.Dispatch<React.SetStateAction<Placed[]>>;
@@ -1198,7 +1198,9 @@ function SceneContent({
   setPendingFrom: React.Dispatch<React.SetStateAction<string | null>>;
   showConnectorLabels: boolean;
   showCableLabels: boolean;
+  realistic: boolean;
 }) {
+
 
   const objectsRef = useRef<Map<string, THREE.Object3D>>(new Map());
   const orbitRef = useRef<any>(null);
