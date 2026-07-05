@@ -406,12 +406,13 @@ function Cabinet({
       {/* Body */}
       <mesh castShadow receiveShadow position={[0, h / 2, 0]}>
         <boxGeometry args={[w, h, d]} />
-        <meshStandardMaterial color={color} roughness={0.9} metalness={0.05} />
+        <meshStandardMaterial color={color} roughness={0.85} metalness={0.08} />
+        <Edges threshold={15} color="#000000" scale={1.001} />
       </mesh>
       {/* Front grille panel */}
       <mesh position={[0, h / 2, d / 2 + 0.001]}>
         <planeGeometry args={[w * 0.9, h * 0.9]} />
-        <meshStandardMaterial color={grilleColor} roughness={0.98} metalness={0.05} />
+        <meshStandardMaterial color={grilleColor} roughness={0.95} metalness={0.15} />
       </mesh>
       {/* Teal frame around grille (4 bars) */}
       {tealFrame && (
