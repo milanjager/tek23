@@ -88,7 +88,7 @@ interface Placed {
   variant?: "red" | "blue";
 }
 
-type PresetKind = "mayapur" | "badtekk" | "namel" | "toroid" | "dub" | "techno" | "club" | "freetekno" | "wetfield";
+type PresetKind = "mayapur" | "badtekk" | "namel" | "toroid" | "dub" | "techno" | "club" | "freetekno" | "wetfield" | "rotor";
 
 type CableType = "signal" | "speaker" | "power" | "dmx";
 
@@ -1545,6 +1545,65 @@ function loadPreset(kind: PresetKind): Placed[] {
     return arr;
   }
 
+  if (kind === "rotor") {
+    // Rotor Sound System — freeparty wall with 3 central sub columns,
+    // outer horn towers, big truss and a DJ booth in front.
+    const s = SPECS.sub.size, b = SPECS.bass.size, m = SPECS.mid.size, h = SPECS.horn.size;
+    const arr: Placed[] = [];
+    const Z = -1.4;
+    const gap = 0.04;
+
+    // Central wall: 3 columns × 2 rows of subs (2 subs per column, side by side)
+    const colCenters = [-s[0] - gap, 0, s[0] + gap];
+    for (const cx of colCenters) {
+      // bottom row
+      arr.push({ ...mk("sub", cx - s[0] / 2, 0, Z), label: "Rotor Sub" });
+      arr.push({ ...mk("sub", cx + s[0] / 2, 0, Z), label: "Rotor Sub" });
+      // second row
+      arr.push({ ...mk("sub", cx - s[0] / 2, s[1], Z), label: "Rotor Sub" });
+      arr.push({ ...mk("sub", cx + s[0] / 2, s[1], Z), label: "Rotor Sub" });
+    }
+
+    // Mid/bass bins across the top of the central wall
+    for (const cx of colCenters) {
+      arr.push({ ...mk("bass", cx, s[1] * 2, Z), label: "Rotor Bass" });
+      arr.push({ ...mk("mid", cx, s[1] * 2 + b[1], Z), label: "Rotor Mid" });
+    }
+
+    // Outer towers: sub + bass + mid + double horn on far left & right
+    for (const sx of [-3.6, 3.6]) {
+      arr.push({ ...mk("sub", sx, 0, Z), label: "Rotor Sub" });
+      arr.push({ ...mk("bass", sx, s[1], Z), label: "Rotor Bass" });
+      arr.push({ ...mk("mid", sx, s[1] + b[1], Z), label: "Rotor Mid" });
+      arr.push({ ...mk("horn", sx, s[1] + b[1] + m[1], Z), label: "Rotor Horn" });
+      arr.push({ ...mk("horn", sx, s[1] + b[1] + m[1] + h[1] + gap, Z), label: "Rotor Horn" });
+    }
+
+    // Powersoft amp racks on the far flanks
+    arr.push(mk("powersoft", -4.8, 0, 0.4));
+    arr.push(mk("powersoft", 4.8, 0, 0.4));
+
+    // Truss with moving heads, strobes and laser
+    const trussY = s[1] * 2 + b[1] + m[1] + 1.5;
+    for (let i = 0; i < 7; i++) {
+      arr.push(mk("movinghead", -3 + i, trussY, Z + 0.1));
+    }
+    arr.push(mk("strobe", -2.5, trussY - 0.1, Z + 0.25));
+    arr.push(mk("strobe", 2.5, trussY - 0.1, Z + 0.25));
+    arr.push(mk("laser", 0, trussY - 0.1, Z + 0.25));
+
+    // DJ booth in front of the wall
+    arr.push({ ...mk("dj", 0, 0, 2.2), label: "Rotor DJ" });
+    arr.push(mk("cdj", -0.55, 1.0, 2.1));
+    arr.push(mk("cdj", 0.55, 1.0, 2.1));
+    arr.push(mk("mixer", 0, 1.0, 2.3));
+
+    // Generator + crowd
+    arr.push(mk("generator", -5.5, 0, 3));
+    arr.push(mk("crowd", 0, 0, 5.5));
+
+    return arr;
+  }
 
   if (kind === "mayapur") {
     const stack = (sx: number): Placed[] => {
@@ -1919,6 +1978,7 @@ export function StageBuilder3D() {
         <button onClick={() => setItems(loadPreset("club"))} className="rounded bg-neutral-100 px-2 py-1 hover:bg-neutral-200">Malý klub</button>
         <button onClick={() => setItems(loadPreset("freetekno"))} className="rounded bg-teal-700/70 px-2 py-1 hover:bg-teal-600"><Zap size={12} className="inline" /> Freetekno wall</button>
         <button onClick={() => setItems(loadPreset("wetfield"))} className="rounded bg-amber-700/70 px-2 py-1 hover:bg-amber-600"><Zap size={12} className="inline" /> Wetfield</button>
+        <button onClick={() => setItems(loadPreset("rotor"))} className="rounded bg-red-700/70 px-2 py-1 hover:bg-red-600"><Zap size={12} className="inline" /> Rotor</button>
         <div className="mx-3 h-5 w-px bg-neutral-700" />
         <button onClick={() => { setMode("select"); setPendingFrom(null); }} className={`flex items-center gap-1 rounded px-2 py-1 ${mode === "select" ? "bg-lime-500 text-neutral-950" : "bg-neutral-100 hover:bg-neutral-200"}`}><MousePointer2 size={12} /> Výběr</button>
         <button onClick={() => setTool("translate")} disabled={mode !== "select"} className={`flex items-center gap-1 rounded px-2 py-1 ${tool === "translate" && mode === "select" ? "bg-lime-500 text-neutral-950" : "bg-neutral-100 hover:bg-neutral-200"} disabled:opacity-40`}><MoveIcon size={12} /> Posun (T)</button>
