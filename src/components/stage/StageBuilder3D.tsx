@@ -88,7 +88,7 @@ interface Placed {
   variant?: "red" | "blue";
 }
 
-type PresetKind = "mayapur" | "badtekk" | "namel" | "toroid" | "dub" | "techno" | "club" | "freetekno";
+type PresetKind = "mayapur" | "badtekk" | "namel" | "toroid" | "dub" | "techno" | "club" | "freetekno" | "wetfield";
 
 type CableType = "signal" | "speaker" | "power" | "dmx";
 
