@@ -13,7 +13,7 @@ import * as THREE from "three";
 import {
   Speaker, Trash2, Save, Copy, ClipboardPaste, Group as GroupIcon, Ungroup,
   Move as MoveIcon, RotateCw, Boxes, Zap, Sparkles, Radio, Volume2,
-  Cable as CableIcon, MousePointer2,
+  Cable as CableIcon, MousePointer2, Menu, X,
 } from "lucide-react";
 
 
@@ -2059,6 +2059,7 @@ export function StageBuilder3D() {
   const [pendingFrom, setPendingFrom] = useState<string | null>(null);
   const [category, setCategory] = useState<Category>("sound");
   const [clipboard, setClipboard] = useState<Placed[]>([]);
+  const [paletteOpen, setPaletteOpen] = useState(false);
 
 
   // Load from storage
@@ -2190,9 +2191,16 @@ export function StageBuilder3D() {
   return (
     <div className="fixed inset-0 flex flex-col bg-white text-neutral-900">
       {/* Top toolbar */}
-      <div className="flex items-center gap-2 border-b border-neutral-200 bg-neutral-50/95 px-3 py-2 text-sm">
+      <div className="flex flex-wrap items-center gap-1.5 border-b border-neutral-200 bg-neutral-50/95 px-2 py-2 text-sm sm:gap-2 sm:px-3">
+        <button
+          onClick={() => setPaletteOpen((v) => !v)}
+          className="flex items-center gap-1 rounded bg-neutral-100 px-2 py-1 hover:bg-neutral-200 md:hidden"
+          aria-label="Toggle palette"
+        >
+          {paletteOpen ? <X size={14} /> : <Menu size={14} />}
+        </button>
         <div className="flex items-center gap-1 font-bold text-lime-600">
-          <Boxes size={16} /> STAGE RIG 3D
+          <Boxes size={16} /> <span className="hidden xs:inline sm:inline">STAGE RIG 3D</span>
         </div>
         <div className="mx-3 h-5 w-px bg-neutral-700" />
         <button onClick={() => setItems(loadPreset("mayapur"))} className="rounded bg-neutral-100 px-2 py-1 hover:bg-neutral-200"><Zap size={12} className="inline" /> Mayapur</button>
@@ -2258,17 +2266,25 @@ export function StageBuilder3D() {
         <button onClick={groupSelection} disabled={selection.length < 2} className="flex items-center gap-1 rounded bg-neutral-100 px-2 py-1 hover:bg-neutral-200 disabled:opacity-40"><GroupIcon size={12} /> Group</button>
         <button onClick={ungroupSelection} disabled={!selection.length} className="flex items-center gap-1 rounded bg-neutral-100 px-2 py-1 hover:bg-neutral-200 disabled:opacity-40"><Ungroup size={12} /> Ungroup</button>
         <button onClick={deleteSelection} disabled={!selection.length} className="flex items-center gap-1 rounded bg-red-100 px-2 py-1 hover:bg-red-200 disabled:opacity-40"><Trash2 size={12} /> Smazat</button>
-        <div className="ml-auto flex items-center gap-2 text-xs text-neutral-500">
-          <span>{items.length} prvků · {cables.length} kabelů · {selection.length} vybráno</span>
+        <div className="ml-auto flex w-full flex-wrap items-center gap-2 text-xs text-neutral-500 sm:w-auto">
+          <span className="whitespace-nowrap">{items.length} prvků · {cables.length} kabelů · {selection.length} vybráno</span>
           <button onClick={() => localStorage.setItem(STORAGE, JSON.stringify({ items, cables }))} className="flex items-center gap-1 rounded bg-neutral-100 px-2 py-1 hover:bg-neutral-200"><Save size={12} /> Uložit</button>
           <button onClick={() => { if (confirm("Vymazat vše?")) { setItems([]); setCables([]); setSelection([]); }}} className="rounded bg-neutral-100 px-2 py-1 hover:bg-neutral-200">Vyčistit</button>
-
         </div>
       </div>
 
-      <div className="flex flex-1 overflow-hidden">
+      <div className="relative flex flex-1 overflow-hidden">
+        {/* Mobile palette backdrop */}
+        {paletteOpen && (
+          <div
+            className="absolute inset-0 z-20 bg-black/30 md:hidden"
+            onClick={() => setPaletteOpen(false)}
+          />
+        )}
         {/* Palette */}
-        <aside className="flex w-56 flex-col border-r border-neutral-200 bg-neutral-50/80">
+        <aside
+          className={`${paletteOpen ? "absolute inset-y-0 left-0 z-30 flex w-64 shadow-2xl" : "hidden"} flex-col border-r border-neutral-200 bg-neutral-50 md:static md:z-auto md:flex md:w-56 md:shadow-none md:bg-neutral-50/80`}
+        >
           <div className="flex border-b border-neutral-200">
             {CATEGORIES.map((c) => {
               const Icon = c.icon;
@@ -2287,7 +2303,7 @@ export function StageBuilder3D() {
             {palette.map(([k, s]) => (
               <button
                 key={k}
-                onClick={() => addItem(k)}
+                onClick={() => { addItem(k); setPaletteOpen(false); }}
                 className="mb-2 block w-full overflow-hidden rounded border border-neutral-200 bg-neutral-50 text-left transition hover:border-lime-500/60 hover:bg-neutral-100"
               >
                 <PaletteThumb kind={k} />
@@ -2301,14 +2317,13 @@ export function StageBuilder3D() {
               </button>
             ))}
           </div>
-          <div className="border-t border-neutral-200 p-2 text-[10px] text-neutral-500">
+          <div className="hidden border-t border-neutral-200 p-2 text-[10px] text-neutral-500 md:block">
             <div><b>T/R</b> — posun/rotace · <b>C</b> — kabely</div>
             <div><b>Ctrl+C/V/D</b> — kopie / vložit / duplikovat</div>
             <div><b>Ctrl+G / Ctrl+Shift+G</b> — group / ungroup</div>
             <div><b>Shift+klik</b> — přidat do výběru · <b>Del</b> — smazat</div>
             <div className="mt-1 text-neutral-500">V režimu Kabely: klik na první bednu → klik na druhou. Klik na kabel = smazat.</div>
           </div>
-
         </aside>
 
         {/* 3D Canvas */}
