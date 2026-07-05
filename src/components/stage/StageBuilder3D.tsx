@@ -999,12 +999,13 @@ function ModelFor({ kind, size, variant }: { kind: Kind; size: [number, number, 
    ============================================================ */
 
 const ItemObject = ({
-  item, selected, pending, showConnectors, activeCableType, onSelect, onRegister,
+  item, selected, pending, showConnectors, showConnectorLabels, activeCableType, onSelect, onRegister,
 }: {
   item: Placed;
   selected: boolean;
   pending?: boolean;
   showConnectors?: boolean;
+  showConnectorLabels?: boolean;
   activeCableType?: CableType;
   onSelect: (id: string, additive: boolean) => void;
   onRegister: (id: string, obj: THREE.Object3D | null) => void;
