@@ -1147,6 +1147,12 @@ function stackY(moving: Placed, others: Placed[]): number {
    Scene root with TransformControls
    ============================================================ */
 
+function CameraExposer({ cameraRef }: { cameraRef: React.MutableRefObject<THREE.Camera | null> }) {
+  const { camera } = useThree();
+  useEffect(() => { cameraRef.current = camera; }, [camera, cameraRef]);
+  return null;
+}
+
 function SceneContent({
   items, setItems, selection, setSelection, tool,
   cables, setCables, mode, cableType, pendingFrom, setPendingFrom,
