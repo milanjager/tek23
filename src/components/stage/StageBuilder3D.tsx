@@ -999,12 +999,13 @@ function ModelFor({ kind, size, variant }: { kind: Kind; size: [number, number, 
    ============================================================ */
 
 const ItemObject = ({
-  item, selected, pending, showConnectors, activeCableType, onSelect, onRegister,
+  item, selected, pending, showConnectors, showConnectorLabels, activeCableType, onSelect, onRegister,
 }: {
   item: Placed;
   selected: boolean;
   pending?: boolean;
   showConnectors?: boolean;
+  showConnectorLabels?: boolean;
   activeCableType?: CableType;
   onSelect: (id: string, additive: boolean) => void;
   onRegister: (id: string, obj: THREE.Object3D | null) => void;
@@ -1070,19 +1071,21 @@ const ItemObject = ({
                 opacity={isActive ? 1 : 0.55}
               />
             </mesh>
-            <Html position={[0, 0.13, 0]} center distanceFactor={10} occlude={false}>
-              <div
-                className="pointer-events-none rounded px-1 font-mono text-[9px] font-bold uppercase leading-none"
-                style={{
-                  color: meta.color,
-                  background: "rgba(0,0,0,.75)",
-                  opacity: isActive ? 1 : 0.6,
-                  border: `1px solid ${meta.color}`,
-                }}
-              >
-                {meta.short}{c.role === "out" ? "▶" : "◀"}
-              </div>
-            </Html>
+            {showConnectorLabels && (
+              <Html position={[0, 0.13, 0]} center distanceFactor={10} occlude={false}>
+                <div
+                  className="pointer-events-none rounded px-1 font-mono text-[9px] font-bold uppercase leading-none"
+                  style={{
+                    color: meta.color,
+                    background: "rgba(0,0,0,.75)",
+                    opacity: isActive ? 1 : 0.6,
+                    border: `1px solid ${meta.color}`,
+                  }}
+                >
+                  {meta.short}{c.role === "out" ? "▶" : "◀"}
+                </div>
+              </Html>
+            )}
           </group>
         );
       })}
@@ -1145,6 +1148,7 @@ function stackY(moving: Placed, others: Placed[]): number {
 function SceneContent({
   items, setItems, selection, setSelection, tool,
   cables, setCables, mode, cableType, pendingFrom, setPendingFrom,
+  showConnectorLabels, showCableLabels,
 }: {
   items: Placed[];
   setItems: React.Dispatch<React.SetStateAction<Placed[]>>;
@@ -1157,6 +1161,8 @@ function SceneContent({
   cableType: CableType;
   pendingFrom: string | null;
   setPendingFrom: React.Dispatch<React.SetStateAction<string | null>>;
+  showConnectorLabels: boolean;
+  showCableLabels: boolean;
 }) {
 
   const objectsRef = useRef<Map<string, THREE.Object3D>>(new Map());
@@ -1301,6 +1307,7 @@ function SceneContent({
           selected={mode === "select" && selection.includes(it.id)}
           pending={mode === "cable" && pendingFrom === it.id}
           showConnectors={mode === "cable"}
+          showConnectorLabels={showConnectorLabels}
           activeCableType={cableType}
           onSelect={(id, additive) => {
             // Reconnect flow — replace one endpoint of the selected cable.
@@ -1411,7 +1418,7 @@ function SceneContent({
 
 
             {/* Always-visible compact label at cable midpoint */}
-            {!isSelected && (
+            {!isSelected && showCableLabels && (
               <Html position={mid} center distanceFactor={10} occlude={false} zIndexRange={[10, 0]}>
                 <div
                   onPointerDown={(e) => {
@@ -1892,6 +1899,66 @@ function loadPreset(kind: PresetKind): Placed[] {
 }
 
 /* ============================================================
+   Auto-cabling — derive SIG / PWR / DMX routing from item types
+   ============================================================ */
+
+// Groups items by kind category and creates the cables a rider tech would
+// actually run: generator distributes 230V to every powered box, sources feed
+// the mixer which feeds every amp, and DMX daisy-chains all lighting fixtures.
+// Speaker (SPK) cables are intentionally skipped — those are already implied
+// by the physical stacking of amps under their boxes.
+function autoWireCables(items: Placed[]): Cable[] {
+  const cables: Cable[] = [];
+  const of = (ks: Kind[]) => items.filter((i) => ks.includes(i.kind));
+
+  const generator = of(["generator"])[0];
+  const mixer = of(["mixer"])[0];
+  const amps = of(["amp", "powersoft"]);
+  const sources = of(["dj", "cdj", "turntable", "korg", "korg_red", "korg_blue"]);
+  const dmxFixtures = of(["movinghead", "strobe", "laser"]);
+
+  // Everything that expects 230V.
+  const powered = items.filter((i) =>
+    connectorsFor(i.kind).some((c) => c.type === "power" && c.role === "in"),
+  );
+
+  // PWR — one radial run per powered device from the generator.
+  if (generator) {
+    for (const p of powered) {
+      cables.push({ id: uid(), from: generator.id, to: p.id, type: "power" });
+    }
+  }
+
+  // SIG — sources → mixer → amps. If no mixer, sources go straight to amps.
+  if (mixer) {
+    for (const s of sources) {
+      cables.push({ id: uid(), from: s.id, to: mixer.id, type: "signal" });
+    }
+    for (const a of amps) {
+      cables.push({ id: uid(), from: mixer.id, to: a.id, type: "signal" });
+    }
+  } else if (sources[0]) {
+    for (const a of amps) {
+      cables.push({ id: uid(), from: sources[0].id, to: a.id, type: "signal" });
+    }
+  }
+
+  // DMX — daisy-chain all lighting fixtures.
+  for (let i = 0; i < dmxFixtures.length - 1; i++) {
+    cables.push({
+      id: uid(),
+      from: dmxFixtures[i].id,
+      to: dmxFixtures[i + 1].id,
+      type: "dmx",
+    });
+  }
+
+  return cables;
+}
+
+
+
+/* ============================================================
    Palette thumbnail — mini 3D preview per catalog item
    ============================================================ */
 
@@ -1938,6 +2005,8 @@ export function StageBuilder3D() {
   const [tool, setTool] = useState<"translate" | "rotate">("translate");
   const [mode, setMode] = useState<"select" | "cable">("select");
   const [cableType, setCableType] = useState<CableType>("signal");
+  const [showConnectorLabels, setShowConnectorLabels] = useState(true);
+  const [showCableLabels, setShowCableLabels] = useState(true);
   const [pendingFrom, setPendingFrom] = useState<string | null>(null);
   const [category, setCategory] = useState<Category>("sound");
   const [clipboard, setClipboard] = useState<Placed[]>([]);
@@ -2085,7 +2154,7 @@ export function StageBuilder3D() {
         <button onClick={() => setItems(loadPreset("techno"))} className="rounded bg-neutral-100 px-2 py-1 hover:bg-neutral-200">Techno rig</button>
         <button onClick={() => setItems(loadPreset("club"))} className="rounded bg-neutral-100 px-2 py-1 hover:bg-neutral-200">Malý klub</button>
         <button onClick={() => setItems(loadPreset("freetekno"))} className="rounded bg-teal-700/70 px-2 py-1 hover:bg-teal-600"><Zap size={12} className="inline" /> Freetekno wall</button>
-        <button onClick={() => setItems(loadPreset("wetfield"))} className="rounded bg-amber-700/70 px-2 py-1 hover:bg-amber-600"><Zap size={12} className="inline" /> Wetfield</button>
+        <button onClick={() => { const it = loadPreset("wetfield"); setItems(it); setCables(autoWireCables(it)); }} className="rounded bg-amber-700/70 px-2 py-1 hover:bg-amber-600"><Zap size={12} className="inline" /> Wetfield</button>
         <button onClick={() => setItems(loadPreset("rotor"))} className="rounded bg-red-700/70 px-2 py-1 hover:bg-red-600"><Zap size={12} className="inline" /> Rotor</button>
         <div className="mx-3 h-5 w-px bg-neutral-700" />
         <button onClick={() => { setMode("select"); setPendingFrom(null); }} className={`flex items-center gap-1 rounded px-2 py-1 ${mode === "select" ? "bg-lime-500 text-neutral-950" : "bg-neutral-100 hover:bg-neutral-200"}`}><MousePointer2 size={12} /> Výběr</button>
@@ -2109,6 +2178,29 @@ export function StageBuilder3D() {
             ))}
           </div>
         )}
+        <button
+          onClick={() => setCables(autoWireCables(items))}
+          className="rounded bg-lime-100 px-2 py-1 text-neutral-900 hover:bg-lime-200"
+          title="Vygeneruje SIG / PWR / DMX kabeláž podle typů komponent"
+        >
+          <CableIcon size={12} className="inline" /> Auto-kabely
+        </button>
+        <div className="mx-2 h-5 w-px bg-neutral-700" />
+        <button
+          onClick={() => setShowConnectorLabels((v) => !v)}
+          className={`rounded px-2 py-1 text-[11px] ${showConnectorLabels ? "bg-lime-500 text-neutral-950" : "bg-neutral-100 text-neutral-500 hover:bg-neutral-200"}`}
+          title="Zobrazit / skrýt popisky konektorů (SIG▶, PWR◀, …)"
+        >
+          Popisky konektorů
+        </button>
+        <button
+          onClick={() => setShowCableLabels((v) => !v)}
+          className={`rounded px-2 py-1 text-[11px] ${showCableLabels ? "bg-lime-500 text-neutral-950" : "bg-neutral-100 text-neutral-500 hover:bg-neutral-200"}`}
+          title="Zobrazit / skrýt popisky kabelů uprostřed"
+        >
+          Popisky kabelů
+        </button>
+
 
         <button onClick={duplicateSelection} disabled={!selection.length} className="flex items-center gap-1 rounded bg-neutral-100 px-2 py-1 hover:bg-neutral-200 disabled:opacity-40"><Copy size={12} /> Duplikovat</button>
         <button onClick={copySelection} disabled={!selection.length} className="rounded bg-neutral-100 px-2 py-1 hover:bg-neutral-200 disabled:opacity-40">Kopírovat</button>
@@ -2189,6 +2281,8 @@ export function StageBuilder3D() {
               cableType={cableType}
               pendingFrom={pendingFrom}
               setPendingFrom={setPendingFrom}
+              showConnectorLabels={showConnectorLabels}
+              showCableLabels={showCableLabels}
             />
           </Canvas>
           <div className="pointer-events-none absolute bottom-2 left-2 rounded bg-neutral-50/80 px-2 py-1 text-[10px] text-neutral-500">
