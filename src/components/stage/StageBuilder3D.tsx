@@ -2340,13 +2340,14 @@ export function StageBuilder3D() {
         </aside>
 
         {/* 3D Canvas */}
-        <div className="relative flex-1">
+        <div className="relative flex-1" ref={canvasWrapRef}>
           <Canvas
             shadows
             dpr={[1, 2]}
             camera={{ position: [6, 5, 8], fov: 45, near: 0.1, far: 200 }}
             gl={{ antialias: true }}
           >
+            <CameraExposer cameraRef={cameraRef} />
             <SceneContent
               items={items}
               setItems={setItems}
@@ -2363,8 +2364,73 @@ export function StageBuilder3D() {
               showCableLabels={showCableLabels}
             />
           </Canvas>
+
+          {/* Marquee overlay — active only when Skupinový výběr is toggled on */}
+          {marqueeMode && (
+            <div
+              className="absolute inset-0 z-20 cursor-crosshair"
+              style={{ background: "transparent" }}
+              onPointerDown={(e) => {
+                if (e.button !== 0 || !canvasWrapRef.current) return;
+                const rect = canvasWrapRef.current.getBoundingClientRect();
+                const x = e.clientX - rect.left;
+                const y = e.clientY - rect.top;
+                setMarquee({ x1: x, y1: y, x2: x, y2: y, additive: e.shiftKey });
+                (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+              }}
+              onPointerMove={(e) => {
+                if (!marquee || !canvasWrapRef.current) return;
+                const rect = canvasWrapRef.current.getBoundingClientRect();
+                setMarquee({ ...marquee, x2: e.clientX - rect.left, y2: e.clientY - rect.top });
+              }}
+              onPointerUp={() => {
+                if (!marquee || !cameraRef.current || !canvasWrapRef.current) { setMarquee(null); return; }
+                const rect = canvasWrapRef.current.getBoundingClientRect();
+                const minX = Math.min(marquee.x1, marquee.x2);
+                const maxX = Math.max(marquee.x1, marquee.x2);
+                const minY = Math.min(marquee.y1, marquee.y2);
+                const maxY = Math.max(marquee.y1, marquee.y2);
+                const w = rect.width, h = rect.height;
+                const cam = cameraRef.current;
+                const v = new THREE.Vector3();
+                const picked: string[] = [];
+                for (const it of items) {
+                  const s = SPECS[it.kind].size;
+                  v.set(it.pos[0], it.pos[1] + s[1] / 2, it.pos[2]).project(cam);
+                  const sx = (v.x * 0.5 + 0.5) * w;
+                  const sy = (1 - (v.y * 0.5 + 0.5)) * h;
+                  if (sx >= minX && sx <= maxX && sy >= minY && sy <= maxY) picked.push(it.id);
+                }
+                setMode("select");
+                if (Math.abs(maxX - minX) < 4 && Math.abs(maxY - minY) < 4) {
+                  // treated as click on empty space → clear
+                  if (!marquee.additive) setSelection([]);
+                } else if (marquee.additive) {
+                  setSelection((prev) => Array.from(new Set([...prev, ...picked])));
+                } else {
+                  setSelection(picked);
+                }
+                setMarquee(null);
+              }}
+            >
+              {marquee && (
+                <div
+                  className="pointer-events-none absolute rounded-sm border-2 border-lime-500 bg-lime-400/15"
+                  style={{
+                    left: Math.min(marquee.x1, marquee.x2),
+                    top: Math.min(marquee.y1, marquee.y2),
+                    width: Math.abs(marquee.x2 - marquee.x1),
+                    height: Math.abs(marquee.y2 - marquee.y1),
+                  }}
+                />
+              )}
+            </div>
+          )}
+
           <div className="pointer-events-none absolute bottom-2 left-2 rounded bg-neutral-50/80 px-2 py-1 text-[10px] text-neutral-500">
-            {mode === "cable"
+            {marqueeMode
+              ? "Skupinový výběr: táhni myší přes bedny · Shift = přidat · vypnout tlačítkem v liště"
+              : mode === "cable"
               ? (pendingFrom ? "Kabely: klik na druhou bednu (Esc / klik do prázdna zruší)" : `Kabely (${CABLE_META[cableType].short}): klik na zdrojovou bednu`)
               : "Levé tl.: rotace · Pravé: pan · Kolečko: zoom · Klik na bednu: výběr"}
           </div>
