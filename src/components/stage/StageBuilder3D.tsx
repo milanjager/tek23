@@ -1418,7 +1418,7 @@ function SceneContent({
 
 
             {/* Always-visible compact label at cable midpoint */}
-            {!isSelected && (
+            {!isSelected && showCableLabels && (
               <Html position={mid} center distanceFactor={10} occlude={false} zIndexRange={[10, 0]}>
                 <div
                   onPointerDown={(e) => {
