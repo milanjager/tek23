@@ -1160,8 +1160,8 @@ function SceneContent({
 
   return (
     <>
-      <color attach="background" args={["#050505"]} />
-      <fog attach="fog" args={["#050505", 20, 60]} />
+      <color attach="background" args={["#ffffff"]} />
+      <fog attach="fog" args={["#f5f5f5", 20, 60]} />
 
       <ambientLight intensity={0.35} />
       <hemisphereLight args={["#8899ff", "#221100", 0.35]} />
