@@ -1071,19 +1071,21 @@ const ItemObject = ({
                 opacity={isActive ? 1 : 0.55}
               />
             </mesh>
-            <Html position={[0, 0.13, 0]} center distanceFactor={10} occlude={false}>
-              <div
-                className="pointer-events-none rounded px-1 font-mono text-[9px] font-bold uppercase leading-none"
-                style={{
-                  color: meta.color,
-                  background: "rgba(0,0,0,.75)",
-                  opacity: isActive ? 1 : 0.6,
-                  border: `1px solid ${meta.color}`,
-                }}
-              >
-                {meta.short}{c.role === "out" ? "▶" : "◀"}
-              </div>
-            </Html>
+            {showConnectorLabels && (
+              <Html position={[0, 0.13, 0]} center distanceFactor={10} occlude={false}>
+                <div
+                  className="pointer-events-none rounded px-1 font-mono text-[9px] font-bold uppercase leading-none"
+                  style={{
+                    color: meta.color,
+                    background: "rgba(0,0,0,.75)",
+                    opacity: isActive ? 1 : 0.6,
+                    border: `1px solid ${meta.color}`,
+                  }}
+                >
+                  {meta.short}{c.role === "out" ? "▶" : "◀"}
+                </div>
+              </Html>
+            )}
           </group>
         );
       })}
