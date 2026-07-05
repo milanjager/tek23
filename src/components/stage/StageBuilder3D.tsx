@@ -1153,10 +1153,37 @@ function CameraExposer({ cameraRef }: { cameraRef: React.MutableRefObject<THREE.
   return null;
 }
 
+/** Tunes renderer + material envMap intensity for the "realistic look" toggle. */
+function RealisticTuner({ enabled }: { enabled: boolean }) {
+  const { gl, scene } = useThree();
+  useEffect(() => {
+    gl.toneMapping = enabled ? THREE.ACESFilmicToneMapping : THREE.NoToneMapping;
+    gl.toneMappingExposure = enabled ? 1.05 : 1.0;
+    gl.outputColorSpace = THREE.SRGBColorSpace;
+  }, [enabled, gl]);
+  useFrame(() => {
+    const target = enabled ? 1.15 : 0.35;
+    scene.traverse((o) => {
+      const mesh = o as THREE.Mesh;
+      const mat = (mesh as any).material as THREE.Material | THREE.Material[] | undefined;
+      if (!mat) return;
+      const list = Array.isArray(mat) ? mat : [mat];
+      for (const m of list) {
+        if ((m as any).isMeshStandardMaterial) {
+          const sm = m as THREE.MeshStandardMaterial;
+          if (sm.envMapIntensity !== target) sm.envMapIntensity = target;
+        }
+      }
+    });
+  });
+  return null;
+}
+
+
 function SceneContent({
   items, setItems, selection, setSelection, tool,
   cables, setCables, mode, cableType, pendingFrom, setPendingFrom,
-  showConnectorLabels, showCableLabels,
+  showConnectorLabels, showCableLabels, realistic,
 }: {
   items: Placed[];
   setItems: React.Dispatch<React.SetStateAction<Placed[]>>;
@@ -1171,7 +1198,9 @@ function SceneContent({
   setPendingFrom: React.Dispatch<React.SetStateAction<string | null>>;
   showConnectorLabels: boolean;
   showCableLabels: boolean;
+  realistic: boolean;
 }) {
+
 
   const objectsRef = useRef<Map<string, THREE.Object3D>>(new Map());
   const orbitRef = useRef<any>(null);
@@ -1255,14 +1284,15 @@ function SceneContent({
 
   return (
     <>
-      <color attach="background" args={["#ffffff"]} />
-      <fog attach="fog" args={["#f5f5f5", 20, 60]} />
+      <color attach="background" args={[realistic ? "#e9ecef" : "#ffffff"]} />
+      <fog attach="fog" args={[realistic ? "#dfe3e8" : "#f5f5f5", realistic ? 25 : 20, realistic ? 80 : 60]} />
 
-      <ambientLight intensity={0.85} />
-      <hemisphereLight args={["#ffffff", "#e8e8e8", 0.6]} />
+      <ambientLight intensity={realistic ? 0.25 : 0.85} />
+      <hemisphereLight args={["#e8f0ff", "#3a3a3a", realistic ? 0.35 : 0.6]} />
       <directionalLight
         position={[8, 12, 6]}
-        intensity={1.4}
+        intensity={realistic ? 2.2 : 1.4}
+        color={realistic ? "#fff2dc" : "#ffffff"}
         castShadow
         shadow-mapSize-width={2048}
         shadow-mapSize-height={2048}
@@ -1272,13 +1302,19 @@ function SceneContent({
         shadow-camera-bottom={-15}
         shadow-camera-near={0.1}
         shadow-camera-far={50}
+        shadow-bias={-0.0005}
+        shadow-normalBias={0.02}
       />
-      <pointLight position={[0, 4, 4]} intensity={8} color="#ff2a6d" distance={12} />
-      <pointLight position={[-6, 4, -3]} intensity={6} color="#05d9e8" distance={12} />
-      <pointLight position={[6, 4, -3]} intensity={6} color="#a3ff12" distance={12} />
+      {!realistic && (
+        <>
+          <pointLight position={[0, 4, 4]} intensity={8} color="#ff2a6d" distance={12} />
+          <pointLight position={[-6, 4, -3]} intensity={6} color="#05d9e8" distance={12} />
+          <pointLight position={[6, 4, -3]} intensity={6} color="#a3ff12" distance={12} />
+        </>
+      )}
 
       <Suspense fallback={null}>
-        <Environment preset="warehouse" background={false} />
+        <Environment preset={realistic ? "city" : "warehouse"} background={false} />
       </Suspense>
 
       {/* Floor */}
@@ -1293,12 +1329,16 @@ function SceneContent({
         }}
       >
         <planeGeometry args={[100, 100]} />
-        <meshStandardMaterial color="#e8e8e8" roughness={0.95} />
+        <meshStandardMaterial
+          color={realistic ? "#d0d3d6" : "#e8e8e8"}
+          roughness={realistic ? 0.75 : 0.95}
+          metalness={realistic ? 0.1 : 0}
+        />
       </mesh>
       <Grid
         args={[60, 60]}
-        cellColor="#cccccc"
-        sectionColor="#999999"
+        cellColor={realistic ? "#b8bcc0" : "#cccccc"}
+        sectionColor={realistic ? "#7d8288" : "#999999"}
         sectionSize={1}
         cellSize={0.25}
         fadeDistance={40}
@@ -1306,7 +1346,14 @@ function SceneContent({
         infiniteGrid
         position={[0, 0.001, 0]}
       />
-      <ContactShadows position={[0, 0.002, 0]} opacity={0.25} scale={40} blur={2} far={10} />
+      <ContactShadows
+        position={[0, 0.002, 0]}
+        opacity={realistic ? 0.55 : 0.25}
+        scale={40}
+        blur={realistic ? 2.6 : 2}
+        far={10}
+      />
+
 
       {items.map((it) => (
         <ItemObject
@@ -2069,6 +2116,7 @@ export function StageBuilder3D() {
   const [clipboard, setClipboard] = useState<Placed[]>([]);
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [marqueeMode, setMarqueeMode] = useState(false);
+  const [realistic, setRealistic] = useState(false);
   const [marquee, setMarquee] = useState<null | { x1: number; y1: number; x2: number; y2: number; additive: boolean }>(null);
   const cameraRef = useRef<THREE.Camera | null>(null);
   const canvasWrapRef = useRef<HTMLDivElement>(null);
@@ -2229,6 +2277,13 @@ export function StageBuilder3D() {
         <div className="mx-3 h-5 w-px bg-neutral-700" />
         <button onClick={() => { setMode("select"); setPendingFrom(null); setMarqueeMode(false); }} className={`flex items-center gap-1 rounded px-2 py-1 ${mode === "select" && !marqueeMode ? "bg-lime-500 text-neutral-950" : "bg-neutral-100 hover:bg-neutral-200"}`}><MousePointer2 size={12} /> Výběr</button>
         <button onClick={() => { setMode("select"); setPendingFrom(null); setMarqueeMode((v) => !v); }} className={`flex items-center gap-1 rounded px-2 py-1 ${marqueeMode ? "bg-lime-500 text-neutral-950" : "bg-neutral-100 hover:bg-neutral-200"}`} title="Táhni myší přes bedny (Shift = přidat k výběru)"><BoxSelect size={12} /> Skupinový výběr</button>
+        <button
+          onClick={() => setRealistic((v) => !v)}
+          className={`flex items-center gap-1 rounded px-2 py-1 ${realistic ? "bg-amber-400 text-neutral-950" : "bg-neutral-100 hover:bg-neutral-200"}`}
+          title="Přepnout PBR osvětlení + ACES tone mapping pro realističtější zobrazení"
+        >
+          <Sparkles size={12} /> {realistic ? "Realistický" : "Realističtější vzhled"}
+        </button>
         <button onClick={() => setTool("translate")} disabled={mode !== "select"} className={`flex items-center gap-1 rounded px-2 py-1 ${tool === "translate" && mode === "select" ? "bg-lime-500 text-neutral-950" : "bg-neutral-100 hover:bg-neutral-200"} disabled:opacity-40`}><MoveIcon size={12} /> Posun (T)</button>
         <button onClick={() => setTool("rotate")} disabled={mode !== "select"} className={`flex items-center gap-1 rounded px-2 py-1 ${tool === "rotate" && mode === "select" ? "bg-lime-500 text-neutral-950" : "bg-neutral-100 hover:bg-neutral-200"} disabled:opacity-40`}><RotateCw size={12} /> Rotace (R)</button>
         <div className="mx-2 h-5 w-px bg-neutral-700" />
@@ -2348,6 +2403,7 @@ export function StageBuilder3D() {
             gl={{ antialias: true }}
           >
             <CameraExposer cameraRef={cameraRef} />
+            <RealisticTuner enabled={realistic} />
             <SceneContent
               items={items}
               setItems={setItems}
@@ -2362,6 +2418,7 @@ export function StageBuilder3D() {
               setPendingFrom={setPendingFrom}
               showConnectorLabels={showConnectorLabels}
               showCableLabels={showCableLabels}
+              realistic={realistic}
             />
           </Canvas>
 
