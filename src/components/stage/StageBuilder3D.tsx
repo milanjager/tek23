@@ -219,6 +219,31 @@ function hasConnector(kind: Kind, type: CableType): boolean {
   return connectorsFor(kind).some((c) => c.type === type);
 }
 
+// Returns null when target can accept this cable end, otherwise a human-readable
+// reason why the connection is incompatible (shown in the cable inspector).
+function connectorIncompatibility(
+  target: Placed,
+  type: CableType,
+  end: "from" | "to",
+): string | null {
+  const cs = connectorsFor(target.kind);
+  const label = SPECS[target.kind].label;
+  const short = CABLE_META[type].short;
+  const full = CABLE_META[type].label;
+  if (!cs.length) return `${label} nemá žádné konektory.`;
+  const matches = cs.filter((c) => c.type === type);
+  if (!matches.length) {
+    const available = Array.from(new Set(cs.map((c) => CABLE_META[c.type].short))).join(", ");
+    return `${label} nemá konektor typu ${short} (${full}). Dostupné: ${available}.`;
+  }
+  const neededRole: "in" | "out" = end === "from" ? "out" : "in";
+  if (!matches.some((c) => c.role === neededRole)) {
+    const have = matches[0].role.toUpperCase();
+    return `${label} má ${short} pouze jako ${have}, pro ${end === "from" ? "zdroj" : "cíl"} je potřeba ${neededRole.toUpperCase()}.`;
+  }
+  return null;
+}
+
 // Pick the best pair of connectors between a and b for the given cable type.
 // Prefers OUT on source, IN on target. Falls back to any connector of that
 // type, then to the generic anchorFor() so legacy items still route.
@@ -1149,8 +1174,8 @@ function SceneContent({
   // Disable orbit while gizmo dragging
   const [dragging, setDragging] = useState(false);
   const [selectedCableId, setSelectedCableId] = useState<string | null>(null);
-  // When set, the next item click reconnects that endpoint of the selected cable.
   const [reconnect, setReconnect] = useState<null | { cableId: string; end: "from" | "to" }>(null);
+  const [reconnectError, setReconnectError] = useState<string | null>(null);
 
   const itemLabel = (it: Placed) => it.label ?? SPECS[it.kind].defaultLabel ?? SPECS[it.kind].label;
 
@@ -1226,12 +1251,20 @@ function SceneContent({
             if (reconnect) {
               const cable = cables.find((c) => c.id === reconnect.cableId);
               const target = items.find((x) => x.id === id);
-              if (!cable || !target || !hasConnector(target.kind, cable.type)) return;
-              // Avoid connecting a cable's two ends to the same item.
+              if (!cable || !target) return;
               const other = reconnect.end === "from" ? cable.to : cable.from;
-              if (other === id) return;
+              if (other === id) {
+                setReconnectError("Nelze zapojit oba konce kabelu do stejné bedny.");
+                return;
+              }
+              const reason = connectorIncompatibility(target, cable.type, reconnect.end);
+              if (reason) {
+                setReconnectError(reason);
+                return;
+              }
               setCables((cs) => cs.map((c) => c.id === cable.id ? { ...c, [reconnect.end]: id } : c));
               setReconnect(null);
+              setReconnectError(null);
               return;
             }
             if (mode === "cable") {
@@ -1299,6 +1332,7 @@ function SceneContent({
                 e.stopPropagation();
                 setSelectedCableId((cur) => (cur === c.id ? null : c.id));
                 setReconnect(null);
+                setReconnectError(null);
               }}
             />
             {/* connector caps */}
@@ -1319,6 +1353,7 @@ function SceneContent({
                     e.stopPropagation();
                     setSelectedCableId(c.id);
                     setReconnect(null);
+                    setReconnectError(null);
                   }}
                   className="cursor-pointer whitespace-nowrap rounded px-1.5 py-0.5 font-mono text-[9px] font-bold uppercase leading-tight shadow-lg"
                   style={{
@@ -1353,7 +1388,7 @@ function SceneContent({
                       <span className="text-neutral-500">{meta.label}</span>
                     </div>
                     <button
-                      onClick={() => { setSelectedCableId(null); setReconnect(null); }}
+                      onClick={() => { setSelectedCableId(null); setReconnect(null); setReconnectError(null); }}
                       className="rounded px-1 text-neutral-500 hover:bg-neutral-100 hover:text-white"
                     >
                       ✕
@@ -1376,7 +1411,7 @@ function SceneContent({
                     </div>
                   </div>
 
-                  {reconnect && (
+                  {reconnect && !reconnectError && (
                     <div
                       className="mb-1.5 rounded p-1 text-center text-[9px] font-bold"
                       style={{ background: "rgba(244,193,26,.2)", color: "#f4c11a", border: "1px dashed #f4c11a" }}
@@ -1385,15 +1420,22 @@ function SceneContent({
                     </div>
                   )}
 
+                  {reconnectError && (
+                    <div className="mb-1.5 rounded border border-red-400 bg-red-50 p-1.5 text-[9px] font-semibold leading-snug text-red-700">
+                      <div className="mb-0.5 uppercase tracking-wider">Nekompatibilní konektor</div>
+                      <div className="font-normal">{reconnectError}</div>
+                    </div>
+                  )}
+
                   <div className="grid grid-cols-2 gap-1">
                     <button
-                      onClick={() => setReconnect({ cableId: c.id, end: "from" })}
+                      onClick={() => { setReconnect({ cableId: c.id, end: "from" }); setReconnectError(null); }}
                       className={`rounded px-1 py-1 text-[9px] font-bold uppercase ${reconnect?.end === "from" ? "bg-yellow-500 text-black" : "bg-neutral-100 text-neutral-700 hover:bg-neutral-200"}`}
                     >
                       Přepojit zdroj
                     </button>
                     <button
-                      onClick={() => setReconnect({ cableId: c.id, end: "to" })}
+                      onClick={() => { setReconnect({ cableId: c.id, end: "to" }); setReconnectError(null); }}
                       className={`rounded px-1 py-1 text-[9px] font-bold uppercase ${reconnect?.end === "to" ? "bg-yellow-500 text-black" : "bg-neutral-100 text-neutral-700 hover:bg-neutral-200"}`}
                     >
                       Přepojit cíl
@@ -1403,6 +1445,7 @@ function SceneContent({
                         setCables((cs) => cs.filter((x) => x.id !== c.id));
                         setSelectedCableId(null);
                         setReconnect(null);
+                        setReconnectError(null);
                       }}
                       className="col-span-2 rounded bg-red-100 px-1 py-1 text-[9px] font-bold uppercase text-red-100 hover:bg-red-200"
                     >
