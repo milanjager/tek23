@@ -1376,14 +1376,28 @@ function SceneContent({
         const fromName = itemLabel(a);
         const toName = itemLabel(b);
 
+        const isHovered = hoveredCableId === c.id;
+        const fromState: "idle" | "hover" | "selected" | "active" =
+          isReconnecting && reconnect?.end === "from" ? "active"
+          : isSelected ? "selected"
+          : isHovered ? "hover"
+          : "idle";
+        const toState: "idle" | "hover" | "selected" | "active" =
+          isReconnecting && reconnect?.end === "to" ? "active"
+          : isSelected ? "selected"
+          : isHovered ? "hover"
+          : "idle";
+
         return (
           <group key={c.id}>
             <Line
               points={pts as unknown as [number, number, number][]}
               color={meta.color}
-              lineWidth={isSelected ? meta.width + 2 : meta.width}
+              lineWidth={isSelected || isHovered ? meta.width + 2 : meta.width}
               transparent
               opacity={isReconnecting ? 0.4 : 0.95}
+              onPointerOver={(e) => { e.stopPropagation(); setHoveredCableId(c.id); }}
+              onPointerOut={(e) => { e.stopPropagation(); setHoveredCableId((cur) => (cur === c.id ? null : cur)); }}
               onClick={(e) => {
                 e.stopPropagation();
                 setSelectedCableId((cur) => (cur === c.id ? null : c.id));
@@ -1391,15 +1405,10 @@ function SceneContent({
                 setReconnectError(null);
               }}
             />
-            {/* connector caps */}
-            <mesh position={p1}>
-              <sphereGeometry args={[isSelected ? 0.08 : 0.05, 12, 8]} />
-              <meshStandardMaterial color={meta.color} emissive={meta.color} emissiveIntensity={isSelected ? 1.2 : 0.6} />
-            </mesh>
-            <mesh position={p2}>
-              <sphereGeometry args={[isSelected ? 0.08 : 0.05, 12, 8]} />
-              <meshStandardMaterial color={meta.color} emissive={meta.color} emissiveIntensity={isSelected ? 1.2 : 0.6} />
-            </mesh>
+            {/* Highlighted endpoints — pulse when picking a new target */}
+            <CableEndpoint position={p1} color={meta.color} state={fromState} />
+            <CableEndpoint position={p2} color={meta.color} state={toState} />
+
 
             {/* Always-visible compact label at cable midpoint */}
             {!isSelected && (
