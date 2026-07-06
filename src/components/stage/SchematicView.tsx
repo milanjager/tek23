@@ -1,0 +1,397 @@
+import { useMemo, useState } from "react";
+import {
+  Speaker,
+  Volume2,
+  Sparkles,
+  Radio,
+  Music,
+  Sliders,
+  Zap,
+  Disc3,
+  Piano,
+  Lightbulb,
+  Fuel,
+  Grid3x3,
+} from "lucide-react";
+
+// Local mirrors of the shapes we need (kept loose on purpose so we don't have
+// to export types from the giant StageBuilder3D module).
+type CableType = "signal" | "speaker" | "power" | "dmx";
+interface Placed {
+  id: string;
+  kind: string;
+  pos: [number, number, number];
+  rotY: number;
+  groupId?: string;
+  label?: string;
+  variant?: "red" | "blue";
+}
+interface Cable {
+  id: string;
+  from: string;
+  to: string;
+  type: CableType;
+}
+
+const CABLE_META: Record<CableType, { label: string; short: string; color: string; laymanLabel: string }> = {
+  signal:  { label: "Signál (XLR / jack)",   short: "SIG", color: "#65a30d", laymanLabel: "Zvukový signál (tichý – jde do mixu/ampu)" },
+  speaker: { label: "Repro (Speakon)",        short: "SPK", color: "#0891b2", laymanLabel: "Reproduktorový kabel (hlasitý – z ampu do bedny)" },
+  power:   { label: "Silový (230V)",          short: "PWR", color: "#dc2626", laymanLabel: "Napájení 230V (ze zásuvky / aggregátu)" },
+  dmx:     { label: "DMX / světla",           short: "DMX", color: "#d97706", laymanLabel: "Ovládání světel (řídící signál)" },
+};
+
+// Column bucket used to lay devices out left-to-right in signal-flow order.
+type Column = "source" | "mixer" | "amp" | "speaker" | "light" | "infra";
+
+const COLUMN_META: { id: Column; label: string; sub: string; color: string }[] = [
+  { id: "source",  label: "1. ZDROJE ZVUKU",      sub: "Odkud jde hudba",            color: "#8b5cf6" },
+  { id: "mixer",   label: "2. MIX / EFEKTY",      sub: "Míchání signálu",            color: "#0ea5e9" },
+  { id: "amp",     label: "3. ZESILOVAČE",        sub: "Zesílí signál pro bedny",    color: "#f59e0b" },
+  { id: "speaker", label: "4. REPRODUKTORY",      sub: "Zvuk pro publikum",          color: "#10b981" },
+  { id: "light",   label: "5. SVĚTLA",            sub: "Ovládáno DMX + 230V",        color: "#eab308" },
+  { id: "infra",   label: "6. NAPÁJENÍ / OSTATNÍ", sub: "Aggregát, bar, dancefloor", color: "#64748b" },
+];
+
+function columnFor(kind: string): Column {
+  if (["generator"].includes(kind)) return "infra";
+  if (["dj", "cdj", "turntable", "korg", "korg_red", "korg_blue"].includes(kind)) return "source";
+  if (kind === "mixer") return "mixer";
+  if (["amp", "powersoft"].includes(kind)) return "amp";
+  if (["horn", "mid", "bass", "sub", "linearray", "monitor",
+       "badtekk_sub", "badtekk_bass", "badtekk_top"].includes(kind)) return "speaker";
+  if (["strobe", "laser", "movinghead"].includes(kind)) return "light";
+  return "infra";
+}
+
+function iconFor(kind: string) {
+  if (["horn", "mid", "bass", "sub", "linearray", "monitor",
+       "badtekk_sub", "badtekk_bass", "badtekk_top"].includes(kind)) return Speaker;
+  if (["amp", "powersoft"].includes(kind)) return Volume2;
+  if (kind === "mixer") return Sliders;
+  if (kind === "dj") return Music;
+  if (["cdj", "turntable"].includes(kind)) return Disc3;
+  if (["korg", "korg_red", "korg_blue"].includes(kind)) return Piano;
+  if (kind === "generator") return Fuel;
+  if (["strobe", "laser", "movinghead"].includes(kind)) return Lightbulb;
+  if (kind === "crowd") return Grid3x3;
+  return Radio;
+}
+
+// Human-friendly names for kinds so the schematic reads like a stage plan.
+const KIND_LABEL: Record<string, string> = {
+  horn: "Horn (výšky)",
+  mid: "Mid (středy)",
+  bass: "Bass bin",
+  sub: "Subwoofer 2×18\"",
+  linearray: "Line array",
+  monitor: "Monitor / odposlech",
+  badtekk_sub: "Badtekk Sub",
+  badtekk_bass: "Badtekk Bass",
+  badtekk_top: "Badtekk Top",
+  amp: "Amp rack",
+  powersoft: "Powersoft K20",
+  mixer: "Mixážní pult",
+  dj: "DJ booth",
+  dj_table: "DJ stůl",
+  cdj: "CDJ přehrávač",
+  korg: "Korg groovebox",
+  korg_red: "Korg (červený)",
+  korg_blue: "Korg (modrý)",
+  turntable: "Gramofon",
+  strobe: "Stroboskop",
+  laser: "Laser",
+  movinghead: "Moving head",
+  bar: "Bar",
+  generator: "Aggregát 230V",
+  crowd: "Dancefloor",
+};
+
+// Which cable types can hit a given kind on each side of the card.
+// IN pins on the left, OUT pins on the right — matches how any tech reads it.
+function pinsFor(kind: string): { ins: CableType[]; outs: CableType[] } {
+  const isSpeaker = ["horn","mid","bass","sub","linearray","monitor",
+                     "badtekk_sub","badtekk_bass","badtekk_top"].includes(kind);
+  if (isSpeaker)      return { ins: ["speaker"], outs: [] };
+  if (kind === "amp" || kind === "powersoft") return { ins: ["signal","power"], outs: ["speaker"] };
+  if (kind === "mixer") return { ins: ["signal","power"], outs: ["signal"] };
+  if (kind === "dj")    return { ins: ["power"], outs: ["signal"] };
+  if (["cdj","turntable","korg","korg_red","korg_blue"].includes(kind))
+                        return { ins: ["power"], outs: ["signal"] };
+  if (kind === "generator") return { ins: [], outs: ["power"] };
+  if (kind === "movinghead") return { ins: ["dmx","power"], outs: [] };
+  if (kind === "strobe" || kind === "laser") return { ins: ["dmx","power"], outs: [] };
+  return { ins: [], outs: [] };
+}
+
+interface Props {
+  items: Placed[];
+  cables: Cable[];
+  onClose?: () => void;
+}
+
+const CARD_W = 210;
+const CARD_H = 90;
+const COL_GAP = 90;
+const ROW_GAP = 28;
+const COL_HEADER_H = 46;
+
+export default function SchematicView({ items, cables }: Props) {
+  const [highlight, setHighlight] = useState<null | { id: string; kind: "item" | "cable" }>(null);
+
+  // Bucket items by column, keep original order within a column for stability.
+  const layout = useMemo(() => {
+    const cols: Record<Column, Placed[]> = {
+      source: [], mixer: [], amp: [], speaker: [], light: [], infra: [],
+    };
+    for (const it of items) cols[columnFor(it.kind)].push(it);
+
+    const positions = new Map<string, { x: number; y: number; col: Column; row: number }>();
+    let maxRows = 0;
+    COLUMN_META.forEach((col, colIdx) => {
+      const arr = cols[col.id];
+      maxRows = Math.max(maxRows, arr.length);
+      arr.forEach((it, row) => {
+        positions.set(it.id, {
+          x: 24 + colIdx * (CARD_W + COL_GAP),
+          y: COL_HEADER_H + 24 + row * (CARD_H + ROW_GAP),
+          col: col.id,
+          row,
+        });
+      });
+    });
+    const width  = 24 + COLUMN_META.length * (CARD_W + COL_GAP);
+    const height = COL_HEADER_H + 48 + Math.max(1, maxRows) * (CARD_H + ROW_GAP);
+    return { positions, width, height, cols };
+  }, [items]);
+
+  // Compute pin coordinates for a given item + cable type + role.
+  function pinPos(itemId: string, type: CableType, role: "in" | "out"): { x: number; y: number } | null {
+    const it = items.find((x) => x.id === itemId);
+    const p = layout.positions.get(itemId);
+    if (!it || !p) return null;
+    const { ins, outs } = pinsFor(it.kind);
+    const list = role === "in" ? ins : outs;
+    const idx = list.indexOf(type);
+    if (idx === -1) return null;
+    const spacing = 22;
+    const total = list.length;
+    // Vertically distribute pins along the card's left / right edge.
+    const startY = p.y + CARD_H / 2 - ((total - 1) * spacing) / 2;
+    return {
+      x: role === "in" ? p.x : p.x + CARD_W,
+      y: startY + idx * spacing,
+    };
+  }
+
+  // Build an orthogonal Manhattan-style path between two pin coords using a
+  // horizontal → vertical → horizontal pattern (like real cable trunks).
+  function orthogonalPath(a: { x: number; y: number }, b: { x: number; y: number }, seed: number): string {
+    const dx = b.x - a.x;
+    // Add a tiny per-cable jitter so parallel runs don't stack pixel-perfect.
+    const midOffset = ((seed % 5) - 2) * 6;
+    const midX = a.x + dx / 2 + midOffset;
+    return `M ${a.x} ${a.y} L ${midX} ${a.y} L ${midX} ${b.y} L ${b.x} ${b.y}`;
+  }
+
+  // Resolve source and target pin for each cable. Falls back to card edges
+  // when a specific pin isn't declared for that kind, so nothing is dropped.
+  const drawnCables = useMemo(() => {
+    return cables.map((c, i) => {
+      const a = pinPos(c.from, c.type, "out")
+             ?? pinPos(c.from, c.type, "in")
+             ?? (() => {
+               const p = layout.positions.get(c.from);
+               return p ? { x: p.x + CARD_W, y: p.y + CARD_H / 2 } : null;
+             })();
+      const b = pinPos(c.to, c.type, "in")
+             ?? pinPos(c.to, c.type, "out")
+             ?? (() => {
+               const p = layout.positions.get(c.to);
+               return p ? { x: p.x, y: p.y + CARD_H / 2 } : null;
+             })();
+      if (!a || !b) return null;
+      // If the target sits LEFT of the source, route around the card so the
+      // line still reads cleanly (mixer feeding a DJ that's east of it, etc).
+      const path = b.x >= a.x
+        ? orthogonalPath(a, b, i + 1)
+        : orthogonalPath(
+            { x: a.x, y: a.y },
+            { x: b.x, y: b.y },
+            i + 3,
+          );
+      return { c, path, a, b };
+    }).filter((x): x is NonNullable<typeof x> => x !== null);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cables, layout, items]);
+
+  return (
+    <div className="flex h-full w-full flex-col bg-neutral-50">
+      {/* Legend — reads like a technical drawing key */}
+      <div className="flex flex-wrap items-center gap-4 border-b border-neutral-200 bg-white px-4 py-2 text-[11px]">
+        <span className="font-bold uppercase tracking-wider text-neutral-700">Legenda kabelů:</span>
+        {(Object.keys(CABLE_META) as CableType[]).map((t) => (
+          <span key={t} className="flex items-center gap-1.5">
+            <span className="inline-block h-1 w-8 rounded" style={{ backgroundColor: CABLE_META[t].color }} />
+            <span className="font-bold" style={{ color: CABLE_META[t].color }}>{CABLE_META[t].short}</span>
+            <span className="text-neutral-600">{CABLE_META[t].laymanLabel}</span>
+          </span>
+        ))}
+        <span className="ml-auto flex items-center gap-3 text-neutral-600">
+          <span className="flex items-center gap-1"><span className="rounded-sm bg-neutral-300 px-1.5 text-[10px] font-bold text-neutral-800">◀ IN</span> vstup</span>
+          <span className="flex items-center gap-1"><span className="rounded-sm bg-neutral-300 px-1.5 text-[10px] font-bold text-neutral-800">OUT ▶</span> výstup</span>
+        </span>
+      </div>
+
+      {/* Scrollable schematic surface */}
+      <div className="flex-1 overflow-auto bg-[linear-gradient(#e5e7eb_1px,transparent_1px),linear-gradient(90deg,#e5e7eb_1px,transparent_1px)] bg-[size:24px_24px] bg-white">
+        {items.length === 0 ? (
+          <div className="flex h-full items-center justify-center text-neutral-500">
+            Zatím žádné komponenty. Přidej bedny v 3D pohledu a přepni sem — schéma se vygeneruje automaticky.
+          </div>
+        ) : (
+          <svg
+            width={layout.width}
+            height={layout.height}
+            style={{ minWidth: "100%", minHeight: "100%" }}
+          >
+            {/* Column headers — help a layman read the signal flow left→right */}
+            {COLUMN_META.map((col, i) => (
+              <g key={col.id} transform={`translate(${24 + i * (CARD_W + COL_GAP)}, 0)`}>
+                <rect
+                  x={0} y={4} width={CARD_W} height={COL_HEADER_H - 8}
+                  rx={6}
+                  fill={col.color} fillOpacity={0.08}
+                  stroke={col.color} strokeOpacity={0.4}
+                />
+                <text x={CARD_W / 2} y={22} textAnchor="middle" fontSize={11} fontWeight={700} fill={col.color}>
+                  {col.label}
+                </text>
+                <text x={CARD_W / 2} y={36} textAnchor="middle" fontSize={10} fill="#525252">
+                  {col.sub}
+                </text>
+              </g>
+            ))}
+
+            {/* Signal flow arrows between column headers */}
+            {COLUMN_META.slice(0, -1).map((_, i) => {
+              const x = 24 + (i + 1) * CARD_W + i * COL_GAP + COL_GAP / 2;
+              return (
+                <g key={i}>
+                  <line x1={x - 18} y1={COL_HEADER_H / 2} x2={x + 18} y2={COL_HEADER_H / 2}
+                        stroke="#9ca3af" strokeWidth={1.5} />
+                  <polygon points={`${x + 18},${COL_HEADER_H / 2} ${x + 12},${COL_HEADER_H / 2 - 5} ${x + 12},${COL_HEADER_H / 2 + 5}`}
+                           fill="#9ca3af" />
+                </g>
+              );
+            })}
+
+            {/* Cables underneath cards so pins overlap them cleanly */}
+            {drawnCables.map(({ c, path }) => {
+              const isHi = highlight?.kind === "cable" && highlight.id === c.id;
+              return (
+                <path
+                  key={c.id}
+                  d={path}
+                  fill="none"
+                  stroke={CABLE_META[c.type].color}
+                  strokeWidth={isHi ? 4 : 2.5}
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  opacity={highlight && !isHi ? 0.25 : 0.9}
+                  onMouseEnter={() => setHighlight({ id: c.id, kind: "cable" })}
+                  onMouseLeave={() => setHighlight(null)}
+                  style={{ cursor: "pointer" }}
+                />
+              );
+            })}
+
+            {/* Cards */}
+            {items.map((it) => {
+              const p = layout.positions.get(it.id);
+              if (!p) return null;
+              const pins = pinsFor(it.kind);
+              const Icon = iconFor(it.kind);
+              const col = COLUMN_META.find((c) => c.id === columnFor(it.kind))!;
+              const isHi = highlight?.kind === "item" && highlight.id === it.id;
+              const label = it.label || KIND_LABEL[it.kind] || it.kind;
+              return (
+                <g
+                  key={it.id}
+                  transform={`translate(${p.x}, ${p.y})`}
+                  onMouseEnter={() => setHighlight({ id: it.id, kind: "item" })}
+                  onMouseLeave={() => setHighlight(null)}
+                  style={{ cursor: "pointer" }}
+                >
+                  {/* Card body */}
+                  <rect
+                    width={CARD_W} height={CARD_H}
+                    rx={8}
+                    fill="#ffffff"
+                    stroke={isHi ? col.color : "#d4d4d4"}
+                    strokeWidth={isHi ? 2.5 : 1.5}
+                    filter="drop-shadow(0 1px 2px rgba(0,0,0,0.08))"
+                  />
+                  {/* Column color strip on top */}
+                  <rect width={CARD_W} height={5} rx={8} fill={col.color} />
+                  {/* Icon */}
+                  <g transform="translate(12, 22)">
+                    <foreignObject width={28} height={28}>
+                      <div style={{ color: col.color }}>
+                        <Icon size={22} />
+                      </div>
+                    </foreignObject>
+                  </g>
+                  {/* Label + subtype */}
+                  <text x={46} y={32} fontSize={13} fontWeight={700} fill="#171717">
+                    {label.length > 22 ? label.slice(0, 21) + "…" : label}
+                  </text>
+                  <text x={46} y={48} fontSize={10} fill="#737373">
+                    {KIND_LABEL[it.kind] || it.kind}
+                  </text>
+                  {/* Position hint (top-down x,z) */}
+                  <text x={CARD_W - 8} y={CARD_H - 8} fontSize={9} textAnchor="end" fill="#a3a3a3" fontFamily="monospace">
+                    {it.pos[0].toFixed(1)}, {it.pos[2].toFixed(1)} m
+                  </text>
+
+                  {/* IN pins on the left */}
+                  {pins.ins.map((t, i) => {
+                    const total = pins.ins.length;
+                    const spacing = 22;
+                    const y = CARD_H / 2 - ((total - 1) * spacing) / 2 + i * spacing;
+                    return (
+                      <g key={`in-${t}-${i}`} transform={`translate(0, ${y})`}>
+                        <circle cx={0} cy={0} r={5} fill={CABLE_META[t].color} stroke="#fff" strokeWidth={1.5} />
+                        <text x={10} y={3} fontSize={9} fontWeight={700} fill={CABLE_META[t].color}>
+                          ◀ {CABLE_META[t].short}
+                        </text>
+                      </g>
+                    );
+                  })}
+                  {/* OUT pins on the right */}
+                  {pins.outs.map((t, i) => {
+                    const total = pins.outs.length;
+                    const spacing = 22;
+                    const y = CARD_H / 2 - ((total - 1) * spacing) / 2 + i * spacing;
+                    return (
+                      <g key={`out-${t}-${i}`} transform={`translate(${CARD_W}, ${y})`}>
+                        <circle cx={0} cy={0} r={5} fill={CABLE_META[t].color} stroke="#fff" strokeWidth={1.5} />
+                        <text x={-10} y={3} fontSize={9} fontWeight={700} fill={CABLE_META[t].color} textAnchor="end">
+                          {CABLE_META[t].short} ▶
+                        </text>
+                      </g>
+                    );
+                  })}
+                </g>
+              );
+            })}
+          </svg>
+        )}
+      </div>
+
+      {/* Footer hint */}
+      <div className="border-t border-neutral-200 bg-neutral-50 px-4 py-1.5 text-[10px] text-neutral-500">
+        Schéma je automaticky generováno z 3D scény. Bedny čti zleva doprava jako <b>signal flow</b>: zdroj → mix → zesilovač → repro. Barva kabelu = typ signálu.
+      </div>
+    </div>
+  );
+}
