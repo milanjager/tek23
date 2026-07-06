@@ -245,7 +245,13 @@ export default function ElevationView({
           className="relative mx-auto"
           onClick={(e) => {
             if ((e.target as HTMLElement).closest("[data-elev-item]")) return;
+            if ((e.target as HTMLElement).closest("[data-add-popover]")) return;
             setSelectedId(null);
+            if (!onAddDeviceAt) return;
+            const rect = canvasRef.current!.getBoundingClientRect();
+            const x = snap((e.clientX - rect.left - originX) / px);
+            const z = depthFilter === "all" ? 0 : (depthFilter as number);
+            setAddAt({ x, z, clientX: e.clientX - rect.left, clientY: e.clientY - rect.top });
           }}
           style={{ width: canvasW, height: canvasH, background: "linear-gradient(to bottom,#f5f5f4 0%,#f5f5f4 82%,#e7e5e4 100%)" }}
         >
