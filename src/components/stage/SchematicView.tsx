@@ -123,6 +123,13 @@ function pinsFor(kind: string): { ins: CableType[]; outs: CableType[] } {
   return { ins: [], outs: [] };
 }
 
+export interface SchematicKindOption {
+  value: string;
+  label: string;
+  category: string;
+  supportsVariant?: boolean;
+}
+
 interface Props {
   items: Placed[];
   cables: Cable[];
@@ -132,6 +139,10 @@ interface Props {
   onAddDevice?: (kind: string) => void;
   onConnect?: (fromId: string, toId: string, type: CableType) => void;
   onRemoveCable?: (cableId: string) => void;
+  // Editing a device from the schematic — opens a detail modal on card click.
+  kindOptions?: SchematicKindOption[];
+  onUpdateItem?: (id: string, patch: Partial<Placed>) => void;
+  onDeleteItem?: (id: string) => void;
 }
 
 const CARD_W = 210;
@@ -172,11 +183,14 @@ const COLUMN_ADDS: Record<Column, { kind: string; label: string }[]> = {
   ],
 };
 
-export default function SchematicView({ items, cables, onAddDevice, onConnect, onRemoveCable }: Props) {
+export default function SchematicView({ items, cables, onAddDevice, onConnect, onRemoveCable, kindOptions, onUpdateItem, onDeleteItem }: Props) {
   const [highlight, setHighlight] = useState<null | { id: string; kind: "item" | "cable" }>(null);
   // Click-to-connect: user clicks a source OUT pin, then a target IN pin.
   const [pendingPin, setPendingPin] = useState<null | { itemId: string; type: CableType; role: "in" | "out" }>(null);
   const [connectError, setConnectError] = useState<string | null>(null);
+  // Detail editor for a device (opens modal on card click).
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const editing = editingId ? items.find((x) => x.id === editingId) ?? null : null;
 
 
   // Bucket items by column, keep original order within a column for stability.
@@ -435,9 +449,15 @@ export default function SchematicView({ items, cables, onAddDevice, onConnect, o
                   transform={`translate(${p.x}, ${p.y})`}
                   onMouseEnter={() => setHighlight({ id: it.id, kind: "item" })}
                   onMouseLeave={() => setHighlight(null)}
-                  style={{ cursor: "pointer" }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (onUpdateItem) setEditingId(it.id);
+                  }}
+                  style={{ cursor: onUpdateItem ? "pointer" : "default" }}
                 >
-                  {/* Card body */}
+                  {/* invisible full-card hit target so clicks on empty card area still open editor */}
+                  <rect width={CARD_W} height={CARD_H} fill="transparent" />
+
                   <rect
                     width={CARD_W} height={CARD_H}
                     rx={8}
@@ -584,6 +604,183 @@ export default function SchematicView({ items, cables, onAddDevice, onConnect, o
           </svg>
         )}
       </div>
+
+      {/* Device detail / edit modal — opens on card click */}
+      {editing && onUpdateItem && (() => {
+        const it = editing;
+        const isKorg = it.kind === "korg" || it.kind === "korg_red" || it.kind === "korg_blue";
+        const grouped = new Map<string, SchematicKindOption[]>();
+        (kindOptions ?? []).forEach((o) => {
+          if (!grouped.has(o.category)) grouped.set(o.category, []);
+          grouped.get(o.category)!.push(o);
+        });
+        return (
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+            onClick={() => setEditingId(null)}
+          >
+            <div
+              className="w-full max-w-md rounded-lg bg-white shadow-xl"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between border-b border-neutral-200 px-4 py-3">
+                <div>
+                  <div className="text-[10px] font-bold uppercase tracking-wider text-neutral-500">Detail zařízení</div>
+                  <div className="text-sm font-bold text-neutral-900">{it.label || KIND_LABEL[it.kind] || it.kind}</div>
+                </div>
+                <button
+                  onClick={() => setEditingId(null)}
+                  className="rounded px-2 py-1 text-lg text-neutral-500 hover:bg-neutral-100"
+                  aria-label="Zavřít"
+                >×</button>
+              </div>
+
+              <div className="space-y-3 px-4 py-4 text-[12px]">
+                <label className="block">
+                  <span className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-neutral-500">ID / Vlastní štítek</span>
+                  <input
+                    type="text"
+                    value={it.label ?? ""}
+                    placeholder={KIND_LABEL[it.kind] || it.kind}
+                    onChange={(e) => onUpdateItem(it.id, { label: e.target.value || undefined })}
+                    className="w-full rounded border border-neutral-300 bg-white px-2 py-1.5 font-mono text-[12px] text-lime-700 focus:border-lime-500 focus:outline-none"
+                  />
+                  <span className="mt-1 block font-mono text-[10px] text-neutral-400">id: {it.id}</span>
+                </label>
+
+                {kindOptions && kindOptions.length > 0 && (
+                  <label className="block">
+                    <span className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-neutral-500">Typ bedny / model</span>
+                    <select
+                      value={it.kind}
+                      onChange={(e) => onUpdateItem(it.id, { kind: e.target.value })}
+                      className="w-full rounded border border-neutral-300 bg-white px-2 py-1.5 text-[12px] focus:border-lime-500 focus:outline-none"
+                    >
+                      {[...grouped.entries()].map(([cat, opts]) => (
+                        <optgroup key={cat} label={cat}>
+                          {opts.map((o) => (
+                            <option key={o.value} value={o.value}>{o.label}</option>
+                          ))}
+                        </optgroup>
+                      ))}
+                    </select>
+                  </label>
+                )}
+
+                <div className="grid grid-cols-2 gap-3">
+                  <label className="block">
+                    <span className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-neutral-500">Stack skupina</span>
+                    <input
+                      type="text"
+                      value={it.groupId ?? ""}
+                      placeholder="např. sub-left"
+                      onChange={(e) => onUpdateItem(it.id, { groupId: e.target.value || undefined })}
+                      className="w-full rounded border border-neutral-300 bg-white px-2 py-1.5 font-mono text-[11px] focus:border-lime-500 focus:outline-none"
+                    />
+                  </label>
+                  <label className="block">
+                    <span className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-neutral-500">Výška ve stacku (Y, m)</span>
+                    <input
+                      type="number"
+                      step="0.1"
+                      value={it.pos[1]}
+                      onChange={(e) => {
+                        const y = parseFloat(e.target.value);
+                        if (!Number.isNaN(y)) onUpdateItem(it.id, { pos: [it.pos[0], y, it.pos[2]] });
+                      }}
+                      className="w-full rounded border border-neutral-300 bg-white px-2 py-1.5 font-mono text-[11px] focus:border-lime-500 focus:outline-none"
+                    />
+                  </label>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <label className="block">
+                    <span className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-neutral-500">Pozice X (m)</span>
+                    <input
+                      type="number"
+                      step="0.1"
+                      value={it.pos[0]}
+                      onChange={(e) => {
+                        const v = parseFloat(e.target.value);
+                        if (!Number.isNaN(v)) onUpdateItem(it.id, { pos: [v, it.pos[1], it.pos[2]] });
+                      }}
+                      className="w-full rounded border border-neutral-300 bg-white px-2 py-1.5 font-mono text-[11px] focus:border-lime-500 focus:outline-none"
+                    />
+                  </label>
+                  <label className="block">
+                    <span className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-neutral-500">Pozice Z (m)</span>
+                    <input
+                      type="number"
+                      step="0.1"
+                      value={it.pos[2]}
+                      onChange={(e) => {
+                        const v = parseFloat(e.target.value);
+                        if (!Number.isNaN(v)) onUpdateItem(it.id, { pos: [it.pos[0], it.pos[1], v] });
+                      }}
+                      className="w-full rounded border border-neutral-300 bg-white px-2 py-1.5 font-mono text-[11px] focus:border-lime-500 focus:outline-none"
+                    />
+                  </label>
+                </div>
+
+                <label className="block">
+                  <span className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-neutral-500">Rotace (°)</span>
+                  <input
+                    type="number"
+                    step="15"
+                    value={Math.round((it.rotY * 180) / Math.PI)}
+                    onChange={(e) => {
+                      const deg = parseFloat(e.target.value);
+                      if (!Number.isNaN(deg)) onUpdateItem(it.id, { rotY: (deg * Math.PI) / 180 });
+                    }}
+                    className="w-full rounded border border-neutral-300 bg-white px-2 py-1.5 font-mono text-[11px] focus:border-lime-500 focus:outline-none"
+                  />
+                </label>
+
+                {isKorg && (
+                  <div>
+                    <span className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-neutral-500">Barva Korgu</span>
+                    <div className="flex gap-2">
+                      {(["red", "blue"] as const).map((v) => (
+                        <button
+                          key={v}
+                          onClick={() => onUpdateItem(it.id, { variant: v })}
+                          className={`h-7 w-7 rounded border-2 ${it.variant === v ? "border-lime-500" : "border-neutral-300"}`}
+                          style={{ backgroundColor: v === "red" ? "#c81e2a" : "#1e5ec8" }}
+                          title={v === "red" ? "Červený" : "Modrý"}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div className="flex items-center justify-between border-t border-neutral-200 px-4 py-3">
+                {onDeleteItem ? (
+                  <button
+                    onClick={() => {
+                      if (confirm("Smazat toto zařízení?")) {
+                        onDeleteItem(it.id);
+                        setEditingId(null);
+                      }
+                    }}
+                    className="rounded bg-red-100 px-3 py-1.5 text-[11px] font-semibold text-red-700 hover:bg-red-200"
+                  >
+                    Smazat zařízení
+                  </button>
+                ) : <span />}
+                <button
+                  onClick={() => setEditingId(null)}
+                  className="rounded bg-neutral-900 px-3 py-1.5 text-[11px] font-semibold text-white hover:bg-neutral-700"
+                >
+                  Hotovo
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
+
 
       {/* Build-mode status bar — shown when a pin is armed or on error */}
       {(pendingPin || connectError) && (
