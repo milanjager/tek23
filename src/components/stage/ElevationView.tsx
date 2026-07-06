@@ -1,5 +1,5 @@
 import { useMemo, useRef, useState, useEffect } from "react";
-import { RotateCw, Trash2, X, ChevronUp, ChevronDown } from "lucide-react";
+import { RotateCw, Trash2, X, ChevronUp, ChevronDown, Plus } from "lucide-react";
 
 interface Placed {
   id: string;
