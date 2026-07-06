@@ -2853,7 +2853,8 @@ export function StageBuilder3D() {
               ? (pendingFrom ? "Kabely: klik na druhou bednu (Esc / klik do prázdna zruší)" : `Kabely (${CABLE_META[cableType].short}): klik na zdrojovou bednu`)
               : "Levé tl.: rotace · Pravé: pan · Kolečko: zoom · Klik na bednu: výběr"}
           </div>
-
+          </>
+          )}
         </div>
 
         {/* Right inspector — per-item model / label / variant */}
