@@ -15,9 +15,10 @@ import {
   Speaker, Trash2, Save, Copy, ClipboardPaste, Group as GroupIcon, Ungroup,
   Move as MoveIcon, RotateCw, Boxes, Zap, Sparkles, Radio, Volume2,
   Cable as CableIcon, MousePointer2, Menu, X, BoxSelect,
-  Workflow, Box as BoxIcon,
+  Workflow, Box as BoxIcon, LayoutGrid,
 } from "lucide-react";
 import SchematicView from "./SchematicView";
+import GridPlannerView from "./GridPlannerView";
 
 
 /* ============================================================
@@ -2517,7 +2518,7 @@ export function StageBuilder3D() {
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [marqueeMode, setMarqueeMode] = useState(false);
   const [realistic, setRealistic] = useState(false);
-  const [viewMode, setViewMode] = useState<"3d" | "schema">("3d");
+  const [viewMode, setViewMode] = useState<"3d" | "schema" | "grid">("3d");
   const [marquee, setMarquee] = useState<null | { x1: number; y1: number; x2: number; y2: number; additive: boolean }>(null);
   const cameraRef = useRef<THREE.Camera | null>(null);
   const canvasWrapRef = useRef<HTMLDivElement>(null);
@@ -2796,6 +2797,13 @@ export function StageBuilder3D() {
             <BoxIcon size={12} /> 3D scéna
           </button>
           <button
+            onClick={() => setViewMode("grid")}
+            className={`flex items-center gap-1 rounded px-2 py-0.5 text-[11px] font-semibold ${viewMode === "grid" ? "bg-white text-neutral-900 shadow-sm" : "text-neutral-600 hover:text-neutral-900"}`}
+            title="Půdorys stage — mřížka pro rozmístění beden z ptačí perspektivy"
+          >
+            <LayoutGrid size={12} /> Plán 2D
+          </button>
+          <button
             onClick={() => setViewMode("schema")}
             className={`flex items-center gap-1 rounded px-2 py-0.5 text-[11px] font-semibold ${viewMode === "schema" ? "bg-white text-neutral-900 shadow-sm" : "text-neutral-600 hover:text-neutral-900"}`}
           >
@@ -2924,7 +2932,34 @@ export function StageBuilder3D() {
 
         {/* 3D Canvas / Schematic view */}
         <div className="relative flex-1" ref={canvasWrapRef}>
-          {viewMode === "schema" ? (
+          {viewMode === "grid" ? (
+            <GridPlannerView
+              items={items}
+              specs={SPECS as unknown as Record<string, { label: string; category: string; size: [number, number, number] }>}
+              onUpdateItem={(id, patch) => {
+                setItems((cur) => cur.map((x) => x.id === id ? { ...x, ...patch } as Placed : x));
+              }}
+              onDeleteItem={(id) => {
+                setItems((cur) => cur.filter((x) => x.id !== id));
+                setCables((cs) => cs.filter((c) => c.from !== id && c.to !== id));
+              }}
+              onAddDeviceAt={(kind, x, z) => {
+                const k = kind as Kind;
+                const spec = SPECS[k];
+                if (!spec) return;
+                const it: Placed = {
+                  id: uid(), kind: k,
+                  pos: [x, 0, z], rotY: 0,
+                  ...(spec.defaultLabel ? { label: spec.defaultLabel } : {}),
+                  ...(spec.defaultVariant ? { variant: spec.defaultVariant } : {}),
+                };
+                const y = stackY(it, items);
+                it.pos = [it.pos[0], y, it.pos[2]];
+                setItems((cur) => [...cur, it]);
+                setSelection([it.id]);
+              }}
+            />
+          ) : viewMode === "schema" ? (
             <SchematicView
               items={items}
               cables={cables}
@@ -2957,6 +2992,7 @@ export function StageBuilder3D() {
 
           ) : (
           <>
+
 
           <Canvas
             shadows
