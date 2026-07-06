@@ -306,8 +306,8 @@ function cablePoints(
   ];
 }
 
-// Legacy hook kept for the API — some callers pass a segment count.
-function _unused_cablePointsSegs(_: number) { return _; }
+
+
 
 // Highlighted connector endpoint drawn at a cable's plug position.
 // Grows and pulses when the user is picking a new target for reconnect,
