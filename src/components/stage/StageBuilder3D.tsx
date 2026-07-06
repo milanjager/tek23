@@ -277,21 +277,37 @@ function anchorFor(item: Placed, type: CableType): [number, number, number] {
   return [x + wx, y + ly, z + wz];
 }
 
-// Sample a hanging catenary-ish curve between two 3D points.
-function cablePoints(a: [number, number, number], b: [number, number, number], segs = 24): [number, number, number][] {
-  const ax = a[0], ay = a[1], az = a[2];
-  const bx = b[0], by = b[1], bz = b[2];
-  const dx = bx - ax, dy = by - ay, dz = bz - az;
-  const dist = Math.hypot(dx, dy, dz);
-  const sag = Math.min(0.9, dist * 0.18); // meters
-  const pts: [number, number, number][] = [];
-  for (let i = 0; i <= segs; i++) {
-    const t = i / segs;
-    const yOff = -4 * sag * t * (1 - t);
-    pts.push([ax + dx * t, ay + dy * t + yOff, az + dz * t]);
-  }
-  return pts;
+// Orthogonal cable routing — like real electrical / rack cabling: rise up from
+// the source connector, run over in X, then in Z at a "bus" height above both
+// endpoints, then drop down to the target. A per-cable seed spreads parallel
+// runs so they don't stack on top of each other.
+function cablePoints(
+  a: [number, number, number],
+  b: [number, number, number],
+  seed = 0,
+): [number, number, number][] {
+  const [ax, ay, az] = a;
+  const [bx, by, bz] = b;
+  // Bus height above the taller endpoint; small per-cable offset to fan out.
+  const spread = ((seed % 7) - 3) * 0.06;
+  const busY = Math.max(ay, by) + 0.45 + Math.abs(spread);
+  const stubX = 0.05 + spread;
+  const stubZ = 0.05 - spread;
+  // Path: source → up → over-X at bus → over-Z at bus → down → target.
+  return [
+    [ax, ay, az],
+    [ax, ay + 0.06, az],           // tiny stub up out of the connector
+    [ax, busY, az],                // rise to bus
+    [bx + stubX, busY, az],        // travel in X at bus height
+    [bx + stubX, busY, bz + stubZ],// travel in Z at bus height
+    [bx, busY, bz],                // align above target
+    [bx, by + 0.06, bz],           // drop above connector
+    [bx, by, bz],                  // land on target
+  ];
 }
+
+
+
 
 // Highlighted connector endpoint drawn at a cable's plug position.
 // Grows and pulses when the user is picking a new target for reconnect,
@@ -1375,8 +1391,11 @@ function SceneContent({
   const [reconnectError, setReconnectError] = useState<string | null>(null);
   const [hoveredCableId, setHoveredCableId] = useState<string | null>(null);
   const [popupOffset, setPopupOffset] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
-  // Reset drag offset when switching between cables.
+  const [inspectedItemId, setInspectedItemId] = useState<string | null>(null);
+  const [devicePopupOffset, setDevicePopupOffset] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+  // Reset drag offset when switching between cables / devices.
   useEffect(() => { setPopupOffset({ x: 0, y: 0 }); }, [selectedCableId]);
+  useEffect(() => { setDevicePopupOffset({ x: 0, y: 0 }); }, [inspectedItemId]);
 
   const itemLabel = (it: Placed) => it.label ?? SPECS[it.kind].defaultLabel ?? SPECS[it.kind].label;
 
@@ -1519,6 +1538,10 @@ function SceneContent({
                 else groupMembers.forEach((g) => set.add(g));
                 return [...set];
               }
+              // Single click in select mode → open the device inspector modal
+              // (toggle off if clicking the same device again).
+              setInspectedItemId((cur) => (cur === id ? null : id));
+              setSelectedCableId(null);
               return groupMembers;
             });
           }}
@@ -1533,7 +1556,9 @@ function SceneContent({
         if (!a || !b) return null;
         const meta = CABLE_META[c.type];
         const { p1, p2 } = bestAnchorPair(a, b, c.type);
-        const pts = cablePoints(p1, p2, 28);
+        // Per-cable seed so parallel runs fan out at slightly different bus heights.
+        const seed = c.id.split("").reduce((s, ch) => s + ch.charCodeAt(0), 0);
+        const pts = cablePoints(p1, p2, seed);
         const mid = pts[Math.floor(pts.length / 2)];
         const isSelected = selectedCableId === c.id;
         const isReconnecting = reconnect?.cableId === c.id;
@@ -1754,6 +1779,152 @@ function SceneContent({
           </group>
         );
       })}
+
+      {/* Device inspector modal — opens on click in select mode. Shows every
+          connector, what's plugged into it, and a dropdown to wire empty ones. */}
+      {(() => {
+        if (!inspectedItemId) return null;
+        const it = items.find((x) => x.id === inspectedItemId);
+        if (!it) return null;
+        const spec = SPECS[it.kind];
+        const ports = connectorsFor(it.kind);
+        const [pw, ph] = [spec.size[0], spec.size[1]];
+        const topPos: [number, number, number] = [it.pos[0], it.pos[1] + ph + 0.5, it.pos[2]];
+        // For each port, list cables attached to this device of that type/role.
+        const cablesForPort = (type: CableType, role: ConnRole) =>
+          cables.filter((c) => c.type === type && ((role === "out" && c.from === it.id) || (role === "in" && c.to === it.id)));
+        return (
+          <Html position={topPos} center distanceFactor={7} occlude={false} zIndexRange={[200, 0]}>
+            <div
+              onPointerDown={(e) => e.stopPropagation()}
+              className="w-72 rounded-md border border-neutral-400 p-2 font-mono text-[10px] text-neutral-900 shadow-2xl backdrop-blur-md"
+              style={{
+                background: "rgba(255,255,255,0.6)",
+                transform: `translate(${devicePopupOffset.x}px, ${devicePopupOffset.y}px)`,
+              }}
+            >
+              <div
+                className="mb-2 flex cursor-grab items-center justify-between border-b border-neutral-300 pb-1 select-none active:cursor-grabbing"
+                onPointerDown={(e) => {
+                  e.stopPropagation();
+                  const start = { x: e.clientX, y: e.clientY };
+                  const base = { ...devicePopupOffset };
+                  (e.target as HTMLElement).setPointerCapture(e.pointerId);
+                  const move = (ev: PointerEvent) => setDevicePopupOffset({ x: base.x + (ev.clientX - start.x), y: base.y + (ev.clientY - start.y) });
+                  const up = () => { window.removeEventListener("pointermove", move); window.removeEventListener("pointerup", up); };
+                  window.addEventListener("pointermove", move);
+                  window.addEventListener("pointerup", up);
+                }}
+              >
+                <div className="min-w-0">
+                  <div className="truncate text-[11px] font-bold uppercase text-neutral-900">{itemLabel(it)}</div>
+                  <div className="truncate text-[9px] text-neutral-600">{spec.label} · {spec.hint}</div>
+                </div>
+                <button
+                  onPointerDown={(e) => e.stopPropagation()}
+                  onClick={() => setInspectedItemId(null)}
+                  className="rounded px-1 text-neutral-700 hover:bg-neutral-200"
+                >✕</button>
+              </div>
+
+              {ports.length === 0 && (
+                <div className="rounded bg-white/70 p-2 text-center text-[10px] text-neutral-600">
+                  Toto zařízení nemá žádné konektory.
+                </div>
+              )}
+
+              <div className="space-y-1.5">
+                {ports.map((port, i) => {
+                  const meta = CABLE_META[port.type];
+                  const attached = cablesForPort(port.type, port.role);
+                  // Candidates for a new cable = other items with matching plug.
+                  const need = port.role === "out" ? "to" : "from";
+                  const candidates = items.filter(
+                    (o) => o.id !== it.id && !connectorIncompatibility(o, port.type, need === "from" ? "from" : "to"),
+                  );
+                  const arrow = port.role === "out" ? "▶ OUT" : "◀ IN";
+                  return (
+                    <div key={i} className="rounded border p-1.5" style={{ borderColor: meta.color, background: "rgba(255,255,255,0.55)" }}>
+                      <div className="mb-1 flex items-center justify-between">
+                        <div className="flex items-center gap-1.5">
+                          <span className="inline-block h-2.5 w-2.5 rounded-sm" style={{ backgroundColor: meta.color, boxShadow: `0 0 6px ${meta.color}` }} />
+                          <span className="font-bold uppercase" style={{ color: meta.color }}>{meta.short}</span>
+                          <span className="text-[9px] text-neutral-700">{arrow}</span>
+                        </div>
+                        <span className="text-[9px] text-neutral-600">{meta.label}</span>
+                      </div>
+
+                      {/* Currently attached cables */}
+                      {attached.length > 0 ? (
+                        <div className="mb-1 space-y-0.5">
+                          {attached.map((cab) => {
+                            const otherId = port.role === "out" ? cab.to : cab.from;
+                            const other = items.find((o) => o.id === otherId);
+                            return (
+                              <div key={cab.id} className="flex items-center justify-between gap-1 rounded bg-white/70 px-1 py-0.5">
+                                <button
+                                  onClick={() => { setInspectedItemId(otherId); }}
+                                  className="min-w-0 flex-1 truncate text-left text-[10px] font-semibold text-neutral-800 hover:underline"
+                                  title="Otevřít protějšek"
+                                >
+                                  → {other ? itemLabel(other) : "?"}
+                                </button>
+                                <button
+                                  onClick={() => setCables((cs) => cs.filter((x) => x.id !== cab.id))}
+                                  className="rounded bg-red-500/70 px-1 text-[9px] font-bold uppercase text-white hover:bg-red-600"
+                                  title="Odpojit"
+                                >✕</button>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      ) : (
+                        <div className="mb-1 rounded bg-white/50 px-1 py-0.5 text-[9px] italic text-neutral-500">
+                          nezapojeno
+                        </div>
+                      )}
+
+                      {/* Add-new dropdown */}
+                      <select
+                        value=""
+                        onChange={(e) => {
+                          const otherId = e.target.value;
+                          if (!otherId) return;
+                          const newCable: Cable = port.role === "out"
+                            ? { id: uid(), from: it.id, to: otherId, type: port.type }
+                            : { id: uid(), from: otherId, to: it.id, type: port.type };
+                          setCables((cs) => [...cs, newCable]);
+                          e.target.value = "";
+                        }}
+                        onPointerDown={(ev) => ev.stopPropagation()}
+                        className="w-full rounded border border-neutral-300 bg-white/80 px-1 py-0.5 font-mono text-[10px] outline-none focus:border-neutral-500"
+                      >
+                        <option value="">＋ zapojit do…</option>
+                        {candidates.length === 0 && (
+                          <option value="" disabled>Žádné kompatibilní zařízení ve scéně</option>
+                        )}
+                        {candidates.map((o) => (
+                          <option key={o.id} value={o.id}>
+                            {itemLabel(o)} — {SPECS[o.kind].label}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  );
+                })}
+              </div>
+
+              <div className="mt-2 flex justify-between border-t border-neutral-300 pt-1 text-[9px] text-neutral-600">
+                <span>Klikni na jiné zařízení pro přepnutí.</span>
+                <button
+                  onClick={() => setInspectedItemId(null)}
+                  className="rounded bg-neutral-200/80 px-1.5 py-0.5 font-bold uppercase text-neutral-800 hover:bg-neutral-300"
+                >Zavřít</button>
+              </div>
+            </div>
+          </Html>
+        );
+      })()}
 
 
       {mode === "select" && primaryObj && (
