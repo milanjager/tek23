@@ -2835,7 +2835,15 @@ export function StageBuilder3D() {
         {/* 3D Canvas / Schematic view */}
         <div className="relative flex-1" ref={canvasWrapRef}>
           {viewMode === "schema" ? (
-            <SchematicView items={items} cables={cables} />
+            <SchematicView
+              items={items}
+              cables={cables}
+              onAddDevice={(k) => addItem(k as Kind)}
+              onConnect={(from, to, type) => {
+                setCables((cs) => [...cs, { id: uid(), from, to, type }]);
+              }}
+              onRemoveCable={(id) => setCables((cs) => cs.filter((c) => c.id !== id))}
+            />
           ) : (
           <>
 
