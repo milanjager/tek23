@@ -57,11 +57,12 @@ function footprint(it: Placed, specs: Record<string, ElevSpec>) {
 }
 
 export default function ElevationView({
-  items, specs, onUpdateItem, onDeleteItem,
+  items, specs, onUpdateItem, onDeleteItem, onAddDeviceAt,
 }: Props) {
   const canvasRef = useRef<HTMLDivElement>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [zoom, setZoom] = useState(1);
+  const [addAt, setAddAt] = useState<{ x: number; z: number; clientX: number; clientY: number } | null>(null);
   // Which "depth slice" to focus (Z coordinate). "all" = show everything, with
   // items further from the viewer drawn faded.
   const [depthFilter, setDepthFilter] = useState<"all" | number>("all");
