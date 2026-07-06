@@ -1549,7 +1549,9 @@ function SceneContent({
         if (!a || !b) return null;
         const meta = CABLE_META[c.type];
         const { p1, p2 } = bestAnchorPair(a, b, c.type);
-        const pts = cablePoints(p1, p2, 28);
+        // Per-cable seed so parallel runs fan out at slightly different bus heights.
+        const seed = c.id.split("").reduce((s, ch) => s + ch.charCodeAt(0), 0);
+        const pts = cablePoints(p1, p2, seed);
         const mid = pts[Math.floor(pts.length / 2)];
         const isSelected = selectedCableId === c.id;
         const isReconnecting = reconnect?.cableId === c.id;
