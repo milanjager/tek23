@@ -277,21 +277,37 @@ function anchorFor(item: Placed, type: CableType): [number, number, number] {
   return [x + wx, y + ly, z + wz];
 }
 
-// Sample a hanging catenary-ish curve between two 3D points.
-function cablePoints(a: [number, number, number], b: [number, number, number], segs = 24): [number, number, number][] {
-  const ax = a[0], ay = a[1], az = a[2];
-  const bx = b[0], by = b[1], bz = b[2];
-  const dx = bx - ax, dy = by - ay, dz = bz - az;
-  const dist = Math.hypot(dx, dy, dz);
-  const sag = Math.min(0.9, dist * 0.18); // meters
-  const pts: [number, number, number][] = [];
-  for (let i = 0; i <= segs; i++) {
-    const t = i / segs;
-    const yOff = -4 * sag * t * (1 - t);
-    pts.push([ax + dx * t, ay + dy * t + yOff, az + dz * t]);
-  }
-  return pts;
+// Orthogonal cable routing — like real electrical / rack cabling: rise up from
+// the source connector, run over in X, then in Z at a "bus" height above both
+// endpoints, then drop down to the target. A per-cable seed spreads parallel
+// runs so they don't stack on top of each other.
+function cablePoints(
+  a: [number, number, number],
+  b: [number, number, number],
+  seed = 0,
+): [number, number, number][] {
+  const [ax, ay, az] = a;
+  const [bx, by, bz] = b;
+  // Bus height above the taller endpoint; small per-cable offset to fan out.
+  const spread = ((seed % 7) - 3) * 0.06;
+  const busY = Math.max(ay, by) + 0.45 + Math.abs(spread);
+  const stubX = 0.05 + spread;
+  const stubZ = 0.05 - spread;
+  // Path: source → up → over-X at bus → over-Z at bus → down → target.
+  return [
+    [ax, ay, az],
+    [ax, ay + 0.06, az],           // tiny stub up out of the connector
+    [ax, busY, az],                // rise to bus
+    [bx + stubX, busY, az],        // travel in X at bus height
+    [bx + stubX, busY, bz + stubZ],// travel in Z at bus height
+    [bx, busY, bz],                // align above target
+    [bx, by + 0.06, bz],           // drop above connector
+    [bx, by, bz],                  // land on target
+  ];
 }
+
+// Legacy hook kept for the API — some callers pass a segment count.
+function _unused_cablePointsSegs(_: number) { return _; }
 
 // Highlighted connector endpoint drawn at a cable's plug position.
 // Grows and pulses when the user is picking a new target for reconnect,
