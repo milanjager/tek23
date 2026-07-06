@@ -2940,7 +2940,19 @@ export function StageBuilder3D() {
 
         {/* 3D Canvas / Schematic view */}
         <div className="relative flex-1" ref={canvasWrapRef}>
-          {viewMode === "grid" ? (
+          {viewMode === "elev" ? (
+            <ElevationView
+              items={items}
+              specs={SPECS as unknown as Record<string, { label: string; category: string; size: [number, number, number] }>}
+              onUpdateItem={(id, patch) => {
+                setItems((cur) => cur.map((x) => x.id === id ? { ...x, ...patch } as Placed : x));
+              }}
+              onDeleteItem={(id) => {
+                setItems((cur) => cur.filter((x) => x.id !== id));
+                setCables((cs) => cs.filter((c) => c.from !== id && c.to !== id));
+              }}
+            />
+          ) : viewMode === "grid" ? (
             <GridPlannerView
               items={items}
               specs={SPECS as unknown as Record<string, { label: string; category: string; size: [number, number, number] }>}
