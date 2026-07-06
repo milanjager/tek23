@@ -2664,17 +2664,40 @@ export function StageBuilder3D() {
           <Boxes size={16} /> <span className="hidden xs:inline sm:inline">STAGE RIG 3D</span>
         </div>
         <div className="mx-3 h-5 w-px bg-neutral-700" />
-        <button onClick={() => setItems(loadPreset("mayapur"))} className="rounded bg-neutral-100 px-2 py-1 hover:bg-neutral-200"><Zap size={12} className="inline" /> Mayapur</button>
-        <button onClick={() => setItems(loadPreset("badtekk"))} className="rounded bg-neutral-100 px-2 py-1 hover:bg-neutral-200"><Zap size={12} className="inline" /> Badtekk</button>
-        <button onClick={() => setItems(loadPreset("namel"))} className="rounded bg-neutral-100 px-2 py-1 hover:bg-neutral-200"><Zap size={12} className="inline" /> Namel</button>
-        <button onClick={() => setItems(loadPreset("toroid"))} className="rounded bg-neutral-100 px-2 py-1 hover:bg-neutral-200"><Zap size={12} className="inline" /> Toroid</button>
-        <button onClick={() => setItems(loadPreset("dub"))} className="rounded bg-neutral-100 px-2 py-1 hover:bg-neutral-200">Dub wall</button>
-        <button onClick={() => setItems(loadPreset("techno"))} className="rounded bg-neutral-100 px-2 py-1 hover:bg-neutral-200">Techno rig</button>
-        <button onClick={() => setItems(loadPreset("club"))} className="rounded bg-neutral-100 px-2 py-1 hover:bg-neutral-200">Malý klub</button>
-        <button onClick={() => setItems(loadPreset("freetekno"))} className="rounded bg-teal-700/70 px-2 py-1 hover:bg-teal-600"><Zap size={12} className="inline" /> Freetekno wall</button>
-        <button onClick={() => { const it = loadPreset("wetfield"); setItems(it); setCables(autoWireCables(it)); }} className="rounded bg-amber-700/70 px-2 py-1 hover:bg-amber-600"><Zap size={12} className="inline" /> Wetfield</button>
-        <button onClick={() => setItems(loadPreset("rotor"))} className="rounded bg-red-700/70 px-2 py-1 hover:bg-red-600"><Zap size={12} className="inline" /> Rotor</button>
-        <button onClick={() => { const it = loadPreset("raptor"); setItems(it); setCables(autoWireCables(it)); }} className="rounded bg-neutral-800 px-2 py-1 text-neutral-50 hover:bg-neutral-900"><Zap size={12} className="inline" /> Raptor</button>
+        <select
+          value=""
+          onChange={(e) => {
+            const v = e.target.value as PresetKind | "";
+            if (!v) return;
+            const it = loadPreset(v);
+            setItems(it);
+            // Presets that ship with auto-wired cabling regenerate it too.
+            if (v === "wetfield" || v === "raptor" || v === "toppicus") {
+              setCables(autoWireCables(it));
+            }
+            e.target.value = "";
+          }}
+          className="rounded border border-neutral-300 bg-white px-2 py-1 text-[12px] font-semibold text-neutral-800 hover:border-lime-500 focus:border-lime-500 focus:outline-none"
+          title="Načíst hotový sound-system preset"
+        >
+          <option value="">⚡ Načíst preset…</option>
+          <optgroup label="Freetekno / party rigs">
+            <option value="toppicus">Top Picus (4×LF18G401 + N401 + Delta + 14NDL88 + DCX354)</option>
+            <option value="raptor">Raptor wall</option>
+            <option value="wetfield">Wetfield</option>
+            <option value="freetekno">Freetekno wall</option>
+            <option value="rotor">Rotor</option>
+            <option value="dub">Dub wall</option>
+          </optgroup>
+          <optgroup label="Techno / klub">
+            <option value="techno">Techno rig</option>
+            <option value="club">Malý klub</option>
+            <option value="mayapur">Mayapur</option>
+            <option value="badtekk">Badtekk</option>
+            <option value="namel">Namel</option>
+            <option value="toroid">Toroid</option>
+          </optgroup>
+        </select>
         <div className="mx-3 h-5 w-px bg-neutral-700" />
         <div className="flex items-center gap-0.5 rounded bg-neutral-200 p-0.5" title="Přepni mezi 3D scénou a klasickým technickým schématem zapojení">
           <button
