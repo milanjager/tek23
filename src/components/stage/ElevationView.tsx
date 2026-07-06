@@ -107,6 +107,15 @@ export default function ElevationView({
     return Array.from(set).sort((a, b) => b - a);
   }, [items]);
 
+  const kindsByCategory = useMemo(() => {
+    const map: Record<string, { kind: string; label: string }[]> = {};
+    for (const [k, s] of Object.entries(specs)) {
+      (map[s.category] ??= []).push({ kind: k, label: s.label });
+    }
+    for (const c of Object.keys(map)) map[c].sort((a, b) => a.label.localeCompare(b.label));
+    return map;
+  }, [specs]);
+
   const visibleItems = useMemo(() => {
     if (depthFilter === "all") {
       // Sort back-to-front so nearer items overlap further ones.
