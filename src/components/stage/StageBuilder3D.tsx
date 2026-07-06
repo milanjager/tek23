@@ -1538,6 +1538,10 @@ function SceneContent({
                 else groupMembers.forEach((g) => set.add(g));
                 return [...set];
               }
+              // Single click in select mode → open the device inspector modal
+              // (toggle off if clicking the same device again).
+              setInspectedItemId((cur) => (cur === id ? null : id));
+              setSelectedCableId(null);
               return groupMembers;
             });
           }}
