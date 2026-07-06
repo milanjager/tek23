@@ -1374,6 +1374,9 @@ function SceneContent({
   const [reconnect, setReconnect] = useState<null | { cableId: string; end: "from" | "to" }>(null);
   const [reconnectError, setReconnectError] = useState<string | null>(null);
   const [hoveredCableId, setHoveredCableId] = useState<string | null>(null);
+  const [popupOffset, setPopupOffset] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+  // Reset drag offset when switching between cables.
+  useEffect(() => { setPopupOffset({ x: 0, y: 0 }); }, [selectedCableId]);
 
   const itemLabel = (it: Placed) => it.label ?? SPECS[it.kind].defaultLabel ?? SPECS[it.kind].label;
 
