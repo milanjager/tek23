@@ -574,6 +574,7 @@ export default function SchematicView({ items, cables, onAddDevice, onConnect, o
                     return (
                       <g
                         key={`out-${t}-${i}`}
+                        data-schema-pin=""
                         transform={`translate(${CARD_W}, ${y})`}
                         style={{ cursor: onConnect ? "crosshair" : "default" }}
                         onClick={(e) => {
