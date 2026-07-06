@@ -449,9 +449,15 @@ export default function SchematicView({ items, cables, onAddDevice, onConnect, o
                   transform={`translate(${p.x}, ${p.y})`}
                   onMouseEnter={() => setHighlight({ id: it.id, kind: "item" })}
                   onMouseLeave={() => setHighlight(null)}
-                  style={{ cursor: "pointer" }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (onUpdateItem) setEditingId(it.id);
+                  }}
+                  style={{ cursor: onUpdateItem ? "pointer" : "default" }}
                 >
-                  {/* Card body */}
+                  {/* invisible full-card hit target so clicks on empty card area still open editor */}
+                  <rect width={CARD_W} height={CARD_H} fill="transparent" />
+
                   <rect
                     width={CARD_W} height={CARD_H}
                     rx={8}
