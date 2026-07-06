@@ -484,6 +484,7 @@ export default function SchematicView({ items, cables, onAddDevice, onConnect, o
               return (
                 <g
                   key={it.id}
+                  data-schema-card=""
                   transform={`translate(${p.x}, ${p.y})`}
                   onMouseEnter={() => setHighlight({ id: it.id, kind: "item" })}
                   onMouseLeave={() => setHighlight(null)}
