@@ -2618,6 +2618,20 @@ export function StageBuilder3D() {
         <button onClick={() => setItems(loadPreset("rotor"))} className="rounded bg-red-700/70 px-2 py-1 hover:bg-red-600"><Zap size={12} className="inline" /> Rotor</button>
         <button onClick={() => { const it = loadPreset("raptor"); setItems(it); setCables(autoWireCables(it)); }} className="rounded bg-neutral-800 px-2 py-1 text-neutral-50 hover:bg-neutral-900"><Zap size={12} className="inline" /> Raptor</button>
         <div className="mx-3 h-5 w-px bg-neutral-700" />
+        <div className="flex items-center gap-0.5 rounded bg-neutral-200 p-0.5" title="Přepni mezi 3D scénou a klasickým technickým schématem zapojení">
+          <button
+            onClick={() => setViewMode("3d")}
+            className={`flex items-center gap-1 rounded px-2 py-0.5 text-[11px] font-semibold ${viewMode === "3d" ? "bg-white text-neutral-900 shadow-sm" : "text-neutral-600 hover:text-neutral-900"}`}
+          >
+            <BoxIcon size={12} /> 3D scéna
+          </button>
+          <button
+            onClick={() => setViewMode("schema")}
+            className={`flex items-center gap-1 rounded px-2 py-0.5 text-[11px] font-semibold ${viewMode === "schema" ? "bg-white text-neutral-900 shadow-sm" : "text-neutral-600 hover:text-neutral-900"}`}
+          >
+            <Workflow size={12} /> Schéma zapojení
+          </button>
+        </div>
         <button onClick={() => { setMode("select"); setPendingFrom(null); setMarqueeMode(false); }} className={`flex items-center gap-1 rounded px-2 py-1 ${mode === "select" && !marqueeMode ? "bg-lime-500 text-neutral-950" : "bg-neutral-100 hover:bg-neutral-200"}`}><MousePointer2 size={12} /> Výběr</button>
         <button onClick={() => { setMode("select"); setPendingFrom(null); setMarqueeMode((v) => !v); }} className={`flex items-center gap-1 rounded px-2 py-1 ${marqueeMode ? "bg-lime-500 text-neutral-950" : "bg-neutral-100 hover:bg-neutral-200"}`} title="Táhni myší přes bedny (Shift = přidat k výběru)"><BoxSelect size={12} /> Skupinový výběr</button>
         <button
