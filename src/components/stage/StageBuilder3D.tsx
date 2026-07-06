@@ -15,7 +15,9 @@ import {
   Speaker, Trash2, Save, Copy, ClipboardPaste, Group as GroupIcon, Ungroup,
   Move as MoveIcon, RotateCw, Boxes, Zap, Sparkles, Radio, Volume2,
   Cable as CableIcon, MousePointer2, Menu, X, BoxSelect,
+  Workflow, Box as BoxIcon,
 } from "lucide-react";
+import SchematicView from "./SchematicView";
 
 
 /* ============================================================
