@@ -1,58 +1,63 @@
-# Vylepšené kabelové propojování
+# Kde získat volně použitelné 3D modely reproduktorů
 
-Přidám na každou komponentu **konektory (porty)** s typy a barvami. V režimu "Kabel" se porty zvýrazní, kabel se táhne z portu do portu a snapuje se na kompatibilní cíl.
+Cíl: sehnat 3–5 GLB modelů (line array, subwoofer, top PA, stage monitor, případně bar/light) s licencí, která umožňuje použití v aplikaci, a integrovat je do `StageBuilder3D.tsx` přes `<Gltf/>` s cachováním na Lovable CDN.
 
-## Typy portů
+## 1. Zdroje modelů (seřazeno podle použitelnosti)
 
-- **AUDIO** (acid green) — signál mezi mixerem, ampem, reproduktory
-- **POWER** (amber) — z generátoru do všeho ostatního
-- **DMX** (magenta) — z mixeru/DJ do světel (strobo, laser, moving head)
+### A. CC0 / public domain (bez atribuce, nejjednodušší)
 
-Každá komponenta dostane 1–3 porty podle role, umístěné na okrajích boxu:
+| Zdroj | Co tam hledat | Poznámka |
+|---|---|---|
+| **Poly Haven** (polyhaven.com/models) | `megaphone`, `boombox` – PA line array bohužel nemá | CC0, ověřená kvalita, přímé `.glb` |
+| **ambientCG** | Reproduktory řídce, ale worth a check | CC0 |
+| **Kenney.nl** – Audio Kit | Stylizované low-poly reproduktory | CC0, minimalistický vzhled ✅ ideální pro náš styl |
+| **Quaternius** | Low-poly asset packy | CC0 |
+| **Sketchfab – filtr CC0** | `speaker`, `line array`, `subwoofer` s licencí "CC0" | Vzácné, ale existují |
 
-| Komponenta        | Porty                                   |
-| ----------------- | --------------------------------------- |
-| Generator         | 3× POWER out (pravá strana)             |
-| Amp rack          | 1× POWER in, 1× AUDIO in, 2× AUDIO out  |
-| Mixer / DJ booth  | 1× POWER in, 1× AUDIO out, 1× DMX out   |
-| Horn / Mid / Bass / Sub | 1× AUDIO in                       |
-| Strobo / Laser / Moving head | 1× POWER in, 1× DMX in       |
-| Bar               | 1× POWER in                             |
-| Crowd             | žádné                                   |
+### B. CC-BY 4.0 (s atribuce v UI/creditech)
 
-## Interakce
+| Zdroj | Kandidáti | Licence |
+|---|---|---|
+| **Sketchfab** (již proskenováno) | Line Array, Bass Bin 1, PA concert speaker clean, Stage Monitor, PA bass clean | CC-BY 4.0 |
+| **Free3D** | Search `PA speaker`, filtr Free | Různé, číst per model |
+| **TurboSquid Free** | Občas CC-BY | Číst per model |
 
-1. **Klikneš na "Kabel"** — na všech komponentách se rozsvítí porty barvou svého typu, s pulzujícím prstencem.
-2. **Podržíš pointer na portu** — kabel se z něj začne táhnout jako čára za kurzorem.
-3. **Když je kurzor blízko kompatibilního portu (do 24 px)** — cílový port se zvětší a rozzáří, kabel na něj „skočí" (magnet snap). Nekompatibilní porty ztlumí (šedivý outline).
-4. **Uvolníš na portu** — vznikne kabel v barvě typu (audio/power/dmx). Bez cíle se táhnutí zruší.
-5. Kabel se kreslí jako Bézier křivka mezi porty (ne středy komponent) v barvě typu.
+**Podmínka atribuce**: přidat sekci „Credits" v UI (např. tlačítko ⓘ v 3D toolbaru → dialog se seznamem autorů + odkazy). To je jediný požadavek CC-BY.
 
-## Vizuální detail
+### C. Vytvořit vlastní (fallback)
 
-- Port = kroužek o průměru 10 px na okraji boxu s vnitřní tečkou v barvě typu.
-- V klidu je port neviditelný. V režimu Kabel: viditelný, s glow. Když je hover cíl: 1.6× větší + silný glow.
-- Nekompatibilní porty v režimu táhnutí kabelu: opacity 0.3, bez glow.
-- Kabely dostanou barvu podle typu (audio zelený, power jantarový, DMX magenta) místo současné jednotné amber.
+Pokud nic nesedí stylově: vygenerovat jednoduché GLB v Blenderu jako one-off a commitnout do repa. Náročné, ale plně kontrolovatelné a bez licenčních starostí.
 
-## Technické detaily
+## 2. Doporučený postup (v tomto pořadí)
 
-Změny jen v `src/components/stage/StageBuilder.tsx`:
+1. **Kenney Audio Kit** – stáhnout ZIP, vybrat 3–5 vhodných modelů (speaker, subwoofer, mic stand jako proxy pro monitor). CC0, minimalistický low-poly styl **přesně odpovídá aktuálnímu vizuálu appky**.
+2. Pokud Kenney nestačí, doplnit **1–2 CC-BY modely ze Sketchfabu** (line array + sub – hi-fi varianta pro „HQ" toggle).
+3. Fallback: procedurální meshe zůstávají jako výchozí zobrazení, GLB se načítá jen když je „HQ modely" toggle zapnutý.
 
-- Nový typ `PortType = "audio" | "power" | "dmx"` a `Port = { id, type, dir: "in"|"out", ox, oy }` (offset od left/top komponenty).
-- `SPECS[kind].ports: Port[]` — statická definice pro každý `ComponentKind`.
-- Helper `absolutePort(item, port) → {x, y, type, dir}` pro absolutní pozici s ohledem na rotaci (aplikuje rotaci kolem středu boxu).
-- `CableLink` rozšířen o `fromPort: string`, `toPort: string`, `type: PortType`; migrace ze starých dat: pokud portId chybí, přeskočit render.
-- Nový state `pendingCable: { from: {itemId, portId}, x, y, hoverTarget: {itemId, portId} | null } | null`.
-- Pointer flow v režimu kabel:
-  - `onPortPointerDown` → `setPendingCable`; pointer capture.
-  - Globální `pointermove` → aktualizuje kurzor a hledá nejbližší kompatibilní port (jiná komponenta, opačný `dir`, stejný `type`, vzdálenost ≤ 24 px). Nastaví `hoverTarget`.
-  - Globální `pointerup` → pokud `hoverTarget`, přidá kabel; jinak zahodí.
-- Kompatibilita: `out → in` nebo `in → out`, ale ne dva stejné směry, a stejný `type`.
-- Rendering:
-  - Porty se kreslí v absolutních souřadnicích jako `<circle>` v SVG vrstvě nad komponentami (pointer-events: auto jen v režimu Kabel).
-  - Kabely: `<path>` s `stroke` podle `type` (audio `--acid`, power `--amber`, dmx `--magenta`).
-  - Pending kabel: dashed čára od zdrojového portu ke kurzoru (nebo k `hoverTarget` při snapu).
-- Odstranit původní klikací tok „klikni zdroj → klikni cíl". Zjednodušit stavový výstup ve status baru: „Táhni kabel z portu na kompatibilní port".
-- `STORAGE` bump na `stagerig:v3` (staré uložené kabely bez portId ignorovat).
-- Zůstává: přetahování komponent, snap, guides, keyboard shortcuts.
+## 3. Integrační plán (po schválení zdrojů)
+
+### Uložení modelů
+- Nahrát každý `.glb` přes `lovable-assets create --file <path>` → vznikne `.asset.json` pointer, soubor jde na CDN (rychlé, cachované, mimo repo).
+- Ukládat pod `src/assets/models/<name>.glb.asset.json`.
+
+### Kód (`StageBuilder3D.tsx`)
+- Přidat mapu `MODEL_URLS: Record<ComponentKind, string | null>` s URL z `.asset.json`.
+- Použít `useGLTF` z `@react-three/drei` (už používáme) s preloadem: `useGLTF.preload(url)`.
+- Nová komponenta `<RealisticModel kind={...} />`:
+  - Pokud existuje URL a je zapnutý toggle „HQ modely" → renderovat `<primitive object={gltf.scene.clone()} />` s uniform scale podle bounding boxu na cílovou velikost boxu z `SPECS`.
+  - Jinak fallback na současný procedurální mesh.
+- `<Suspense fallback={<proceduralMesh/>}>` pro plynulé načítání.
+- Nový toggle „HQ modely" vedle stávajícího „Realistický vzhled" (persistováno v localStorage).
+
+### Credits UI (jen pro CC-BY)
+- `src/components/stage/ModelCredits.tsx` – malý popover/dialog v toolbaru se seznamem: model název, autor, odkaz, licence.
+
+### Licenční metadata
+- `src/assets/models/credits.json` – strukturovaný seznam `{ kind, name, author, url, license }`, čtený komponentou Credits.
+- Pro CC-BY modely přiložit i `LICENSE.md` do `src/assets/models/`.
+
+## 4. Otevřené otázky před implementací
+
+1. **Preferuješ čistě CC0 (Kenney low-poly, žádná atribuce)** nebo **realistické CC-BY** (potřebuje credits sekci v UI)?
+2. Mám modely stáhnout sám (Kenney a Poly Haven jde přes `curl`, veřejné `.glb` odkazy) nebo je pošleš ručně (nutné pro Sketchfab kvůli OAuth stažení)?
+3. Rozsah – stačí 3 kusy (line array, sub, monitor) nebo chceš i světla / bar / DJ booth?
