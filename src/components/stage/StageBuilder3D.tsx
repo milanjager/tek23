@@ -2805,6 +2805,13 @@ export function StageBuilder3D() {
             <LayoutGrid size={12} /> Plán 2D
           </button>
           <button
+            onClick={() => setViewMode("elev")}
+            className={`flex items-center gap-1 rounded px-2 py-0.5 text-[11px] font-semibold ${viewMode === "elev" ? "bg-white text-neutral-900 shadow-sm" : "text-neutral-600 hover:text-neutral-900"}`}
+            title="Nárys — pohled zepředu, ukazuje výšku stacků a patra beden"
+          >
+            <GalleryVerticalEnd size={12} /> Nárys
+          </button>
+
             onClick={() => setViewMode("schema")}
             className={`flex items-center gap-1 rounded px-2 py-0.5 text-[11px] font-semibold ${viewMode === "schema" ? "bg-white text-neutral-900 shadow-sm" : "text-neutral-600 hover:text-neutral-900"}`}
           >
