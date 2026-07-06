@@ -2751,8 +2751,13 @@ export function StageBuilder3D() {
           </div>
         </aside>
 
-        {/* 3D Canvas */}
+        {/* 3D Canvas / Schematic view */}
         <div className="relative flex-1" ref={canvasWrapRef}>
+          {viewMode === "schema" ? (
+            <SchematicView items={items} cables={cables} />
+          ) : (
+          <>
+
           <Canvas
             shadows
             dpr={[1, 2]}
