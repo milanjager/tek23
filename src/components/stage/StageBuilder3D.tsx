@@ -2843,7 +2843,28 @@ export function StageBuilder3D() {
                 setCables((cs) => [...cs, { id: uid(), from, to, type }]);
               }}
               onRemoveCable={(id) => setCables((cs) => cs.filter((c) => c.id !== id))}
+              kindOptions={(Object.entries(SPECS) as [Kind, Spec][]).map(([k, s]) => ({
+                value: k, label: s.label, category: s.category,
+              }))}
+              onUpdateItem={(id, patch) => {
+                setItems((cur) => cur.map((x) => {
+                  if (x.id !== id) return x;
+                  const next = { ...x, ...patch } as Placed;
+                  // Changing kind: apply that kind's default variant if it has one.
+                  if (patch.kind && patch.kind !== x.kind) {
+                    const nk = patch.kind as Kind;
+                    next.kind = nk;
+                    if (SPECS[nk]?.defaultVariant) next.variant = SPECS[nk].defaultVariant;
+                  }
+                  return next;
+                }));
+              }}
+              onDeleteItem={(id) => {
+                setItems((cur) => cur.filter((x) => x.id !== id));
+                setCables((cs) => cs.filter((c) => c.from !== id && c.to !== id));
+              }}
             />
+
           ) : (
           <>
 
