@@ -2932,7 +2932,34 @@ export function StageBuilder3D() {
 
         {/* 3D Canvas / Schematic view */}
         <div className="relative flex-1" ref={canvasWrapRef}>
-          {viewMode === "schema" ? (
+          {viewMode === "grid" ? (
+            <GridPlannerView
+              items={items}
+              specs={SPECS as unknown as Record<string, { label: string; category: string; size: [number, number, number] }>}
+              onUpdateItem={(id, patch) => {
+                setItems((cur) => cur.map((x) => x.id === id ? { ...x, ...patch } as Placed : x));
+              }}
+              onDeleteItem={(id) => {
+                setItems((cur) => cur.filter((x) => x.id !== id));
+                setCables((cs) => cs.filter((c) => c.from !== id && c.to !== id));
+              }}
+              onAddDeviceAt={(kind, x, z) => {
+                const k = kind as Kind;
+                const spec = SPECS[k];
+                if (!spec) return;
+                const it: Placed = {
+                  id: uid(), kind: k,
+                  pos: [x, 0, z], rotY: 0,
+                  ...(spec.defaultLabel ? { label: spec.defaultLabel } : {}),
+                  ...(spec.defaultVariant ? { variant: spec.defaultVariant } : {}),
+                };
+                const y = stackY(it, items);
+                it.pos = [it.pos[0], y, it.pos[2]];
+                setItems((cur) => [...cur, it]);
+                setSelection([it.id]);
+              }}
+            />
+          ) : viewMode === "schema" ? (
             <SchematicView
               items={items}
               cables={cables}
@@ -2965,6 +2992,7 @@ export function StageBuilder3D() {
 
           ) : (
           <>
+
 
           <Canvas
             shadows
