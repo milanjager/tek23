@@ -463,28 +463,74 @@ export default function SchematicView({ items, cables, onAddDevice, onConnect, o
                     {it.pos[0].toFixed(1)}, {it.pos[2].toFixed(1)} m
                   </text>
 
-                  {/* IN pins on the left */}
+                  {/* IN pins on the left — clickable for build-mode wiring */}
                   {pins.ins.map((t, i) => {
                     const total = pins.ins.length;
                     const spacing = 22;
                     const y = CARD_H / 2 - ((total - 1) * spacing) / 2 + i * spacing;
+                    const isPending = pendingPin?.itemId === it.id && pendingPin.type === t && pendingPin.role === "in";
                     return (
-                      <g key={`in-${t}-${i}`} transform={`translate(0, ${y})`}>
-                        <circle cx={0} cy={0} r={5} fill={CABLE_META[t].color} stroke="#fff" strokeWidth={1.5} />
+                      <g
+                        key={`in-${t}-${i}`}
+                        transform={`translate(0, ${y})`}
+                        style={{ cursor: onConnect ? "crosshair" : "default" }}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (!onConnect) return;
+                          if (pendingPin && pendingPin.type === t && pendingPin.role === "out" && pendingPin.itemId !== it.id) {
+                            onConnect(pendingPin.itemId, it.id, t);
+                            setPendingPin(null);
+                            setConnectError(null);
+                          } else if (pendingPin) {
+                            setConnectError(pendingPin.role === "in"
+                              ? "Klikni na výstup (OUT) jiné bedny, ne na další vstup."
+                              : `Typ nesedí — čekám ${CABLE_META[pendingPin.type].short} OUT.`);
+                          } else {
+                            setPendingPin({ itemId: it.id, type: t, role: "in" });
+                            setConnectError(null);
+                          }
+                        }}
+                      >
+                        <circle cx={0} cy={0} r={isPending ? 7 : 5}
+                                fill={CABLE_META[t].color}
+                                stroke={isPending ? "#000" : "#fff"} strokeWidth={isPending ? 2 : 1.5} />
                         <text x={10} y={3} fontSize={9} fontWeight={700} fill={CABLE_META[t].color}>
                           ◀ {CABLE_META[t].short}
                         </text>
                       </g>
                     );
                   })}
-                  {/* OUT pins on the right */}
+                  {/* OUT pins on the right — clickable */}
                   {pins.outs.map((t, i) => {
                     const total = pins.outs.length;
                     const spacing = 22;
                     const y = CARD_H / 2 - ((total - 1) * spacing) / 2 + i * spacing;
+                    const isPending = pendingPin?.itemId === it.id && pendingPin.type === t && pendingPin.role === "out";
                     return (
-                      <g key={`out-${t}-${i}`} transform={`translate(${CARD_W}, ${y})`}>
-                        <circle cx={0} cy={0} r={5} fill={CABLE_META[t].color} stroke="#fff" strokeWidth={1.5} />
+                      <g
+                        key={`out-${t}-${i}`}
+                        transform={`translate(${CARD_W}, ${y})`}
+                        style={{ cursor: onConnect ? "crosshair" : "default" }}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (!onConnect) return;
+                          if (pendingPin && pendingPin.type === t && pendingPin.role === "in" && pendingPin.itemId !== it.id) {
+                            onConnect(it.id, pendingPin.itemId, t);
+                            setPendingPin(null);
+                            setConnectError(null);
+                          } else if (pendingPin) {
+                            setConnectError(pendingPin.role === "out"
+                              ? "Klikni na vstup (IN) jiné bedny, ne na další výstup."
+                              : `Typ nesedí — čekám ${CABLE_META[pendingPin.type].short} IN.`);
+                          } else {
+                            setPendingPin({ itemId: it.id, type: t, role: "out" });
+                            setConnectError(null);
+                          }
+                        }}
+                      >
+                        <circle cx={0} cy={0} r={isPending ? 7 : 5}
+                                fill={CABLE_META[t].color}
+                                stroke={isPending ? "#000" : "#fff"} strokeWidth={isPending ? 2 : 1.5} />
                         <text x={-10} y={3} fontSize={9} fontWeight={700} fill={CABLE_META[t].color} textAnchor="end">
                           {CABLE_META[t].short} ▶
                         </text>
@@ -494,9 +540,61 @@ export default function SchematicView({ items, cables, onAddDevice, onConnect, o
                 </g>
               );
             })}
+
+            {/* Per-column "+ Přidat" quick-add buttons at the bottom of each column */}
+            {onAddDevice && COLUMN_META.map((col, colIdx) => {
+              const colX = 24 + colIdx * (CARD_W + COL_GAP);
+              const colItems = layout.cols[col.id];
+              const y = COL_HEADER_H + 24 + colItems.length * (CARD_H + ROW_GAP) - 4;
+              const adds = COLUMN_ADDS[col.id];
+              return (
+                <g key={`add-${col.id}`} transform={`translate(${colX}, ${y})`}>
+                  <foreignObject width={CARD_W} height={90}>
+                    <div style={{
+                      display: "flex", flexWrap: "wrap", gap: 4, padding: 4,
+                      borderRadius: 8, border: `1.5px dashed ${col.color}55`,
+                      background: `${col.color}0A`,
+                    }}>
+                      {adds.map((a) => (
+                        <button
+                          key={a.kind}
+                          onClick={() => onAddDevice(a.kind)}
+                          style={{
+                            fontSize: 10, fontWeight: 600,
+                            padding: "3px 7px", borderRadius: 4,
+                            border: `1px solid ${col.color}55`,
+                            background: "#fff",
+                            color: col.color,
+                            cursor: "pointer",
+                          }}
+                        >
+                          + {a.label}
+                        </button>
+                      ))}
+                    </div>
+                  </foreignObject>
+                </g>
+              );
+            })}
           </svg>
         )}
       </div>
+
+      {/* Build-mode status bar — shown when a pin is armed or on error */}
+      {(pendingPin || connectError) && (
+        <div className={`border-t px-4 py-2 text-[11px] ${connectError ? "border-red-300 bg-red-50 text-red-700" : "border-lime-300 bg-lime-50 text-lime-800"}`}>
+          {connectError ? (
+            <span>⚠ {connectError} <button onClick={() => { setPendingPin(null); setConnectError(null); }} className="ml-2 rounded bg-red-200 px-2 py-0.5 text-red-800">Zrušit</button></span>
+          ) : pendingPin ? (
+            <span>
+              🔌 Vybráno: <b>{CABLE_META[pendingPin.type].short} {pendingPin.role.toUpperCase()}</b> — klikni na
+              {" "}<b>{pendingPin.role === "out" ? "vstup (IN)" : "výstup (OUT)"}</b> jiné bedny stejného typu, nebo
+              <button onClick={() => setPendingPin(null)} className="ml-2 rounded bg-neutral-200 px-2 py-0.5 text-neutral-700">Zrušit</button>
+            </span>
+          ) : null}
+        </div>
+      )}
+
 
       {/* Footer hint */}
       <div className="border-t border-neutral-200 bg-neutral-50 px-4 py-1.5 text-[10px] text-neutral-500">
