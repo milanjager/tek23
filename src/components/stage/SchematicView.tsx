@@ -164,24 +164,8 @@ export default function SchematicView({ items, cables }: Props) {
     return { positions, width, height, cols };
   }, [items]);
 
-  // Compute pin coordinates for a given item + cable type + role.
-  function pinPos(itemId: string, type: CableType, role: "in" | "out"): { x: number; y: number } | null {
-    const it = items.find((x) => x.id === itemId);
-    const p = layout.positions.get(itemId);
-    if (!it || !p) return null;
-    const { ins, outs } = pinsFor(it.kind);
-    const list = role === "in" ? ins : outs;
-    const idx = list.indexOf(type);
-    if (idx === -1) return null;
-    const spacing = 22;
-    const total = list.length;
-    // Vertically distribute pins along the card's left / right edge.
-    const startY = p.y + CARD_H / 2 - ((total - 1) * spacing) / 2;
-    return {
-      x: role === "in" ? p.x : p.x + CARD_W,
-      y: startY + idx * spacing,
-    };
-  }
+
+
 
   // Resolve source and target pin for each cable, then route it through a
   // vertical "lane" inside the gap between the two columns so parallel runs
