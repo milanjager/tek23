@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import {
   Speaker,
   Volume2,
@@ -185,12 +185,14 @@ const COLUMN_ADDS: Record<Column, { kind: string; label: string }[]> = {
 
 export default function SchematicView({ items, cables, onAddDevice, onConnect, onRemoveCable, kindOptions, onUpdateItem, onDeleteItem }: Props) {
   const [highlight, setHighlight] = useState<null | { id: string; kind: "item" | "cable" }>(null);
-  // Click-to-connect: user clicks a source OUT pin, then a target IN pin.
   const [pendingPin, setPendingPin] = useState<null | { itemId: string; type: CableType; role: "in" | "out" }>(null);
   const [connectError, setConnectError] = useState<string | null>(null);
-  // Detail editor for a device (opens modal on card click).
   const [editingId, setEditingId] = useState<string | null>(null);
   const editing = editingId ? items.find((x) => x.id === editingId) ?? null : null;
+  const scrollRef = useRef<HTMLDivElement | null>(null);
+  const [zoom, setZoom] = useState(1);
+  const panState = useRef<{ x: number; y: number; sx: number; sy: number } | null>(null);
+  const [isPanning, setIsPanning] = useState(false);
 
 
   // Bucket items by column, keep original order within a column for stability.
@@ -322,17 +324,53 @@ export default function SchematicView({ items, cables, onAddDevice, onConnect, o
         </span>
       </div>
 
-      {/* Scrollable schematic surface */}
-      <div className="flex-1 overflow-auto bg-[linear-gradient(#e5e7eb_1px,transparent_1px),linear-gradient(90deg,#e5e7eb_1px,transparent_1px)] bg-[size:24px_24px] bg-white">
+      {/* Scrollable + pannable schematic surface */}
+      <div
+        ref={scrollRef}
+        className={`flex-1 overflow-auto bg-[linear-gradient(#e5e7eb_1px,transparent_1px),linear-gradient(90deg,#e5e7eb_1px,transparent_1px)] bg-[size:24px_24px] bg-white ${isPanning ? "cursor-grabbing" : "cursor-grab"}`}
+        onPointerDown={(e) => {
+          // Pan only when dragging on empty background (not on a card/pin/button).
+          const target = e.target as HTMLElement | SVGElement;
+          const isInteractive =
+            (target as HTMLElement).closest?.("button, input, select, [data-schema-card], [data-schema-pin]");
+          // Middle-mouse always pans; left click pans only on empty area.
+          if (e.button !== 0 && e.button !== 1) return;
+          if (e.button === 0 && isInteractive) return;
+          e.preventDefault();
+          const el = scrollRef.current;
+          if (!el) return;
+          panState.current = { x: e.clientX, y: e.clientY, sx: el.scrollLeft, sy: el.scrollTop };
+          setIsPanning(true);
+          (e.currentTarget as Element).setPointerCapture(e.pointerId);
+        }}
+        onPointerMove={(e) => {
+          const s = panState.current;
+          const el = scrollRef.current;
+          if (!s || !el) return;
+          el.scrollLeft = s.sx - (e.clientX - s.x);
+          el.scrollTop  = s.sy - (e.clientY - s.y);
+        }}
+        onPointerUp={(e) => {
+          panState.current = null;
+          setIsPanning(false);
+          try { (e.currentTarget as Element).releasePointerCapture(e.pointerId); } catch { /* ignore */ }
+        }}
+        onWheel={(e) => {
+          if (!(e.ctrlKey || e.metaKey)) return;
+          e.preventDefault();
+          setZoom((z) => Math.max(0.4, Math.min(2.5, z * (e.deltaY < 0 ? 1.1 : 0.9))));
+        }}
+      >
         {items.length === 0 ? (
           <div className="flex h-full items-center justify-center text-neutral-500">
             Zatím žádné komponenty. Přidej bedny v 3D pohledu a přepni sem — schéma se vygeneruje automaticky.
           </div>
         ) : (
           <svg
-            width={layout.width}
-            height={layout.height}
-            style={{ minWidth: "100%", minHeight: "100%" }}
+            width={layout.width * zoom}
+            height={layout.height * zoom}
+            viewBox={`0 0 ${layout.width} ${layout.height}`}
+            style={{ display: "block" }}
           >
             {/* Column headers — help a layman read the signal flow left→right */}
             {COLUMN_META.map((col, i) => (
@@ -446,6 +484,7 @@ export default function SchematicView({ items, cables, onAddDevice, onConnect, o
               return (
                 <g
                   key={it.id}
+                  data-schema-card=""
                   transform={`translate(${p.x}, ${p.y})`}
                   onMouseEnter={() => setHighlight({ id: it.id, kind: "item" })}
                   onMouseLeave={() => setHighlight(null)}
@@ -497,6 +536,7 @@ export default function SchematicView({ items, cables, onAddDevice, onConnect, o
                     return (
                       <g
                         key={`in-${t}-${i}`}
+                        data-schema-pin=""
                         transform={`translate(0, ${y})`}
                         style={{ cursor: onConnect ? "crosshair" : "default" }}
                         onClick={(e) => {
@@ -534,6 +574,7 @@ export default function SchematicView({ items, cables, onAddDevice, onConnect, o
                     return (
                       <g
                         key={`out-${t}-${i}`}
+                        data-schema-pin=""
                         transform={`translate(${CARD_W}, ${y})`}
                         style={{ cursor: onConnect ? "crosshair" : "default" }}
                         onClick={(e) => {
@@ -800,7 +841,7 @@ export default function SchematicView({ items, cables, onAddDevice, onConnect, o
 
       {/* Footer hint */}
       <div className="border-t border-neutral-200 bg-neutral-50 px-4 py-1.5 text-[10px] text-neutral-500">
-        Schéma je automaticky generováno z 3D scény. Bedny čti zleva doprava jako <b>signal flow</b>: zdroj → mix → zesilovač → repro. Barva kabelu = typ signálu.
+        Táhni myší = posun · <b>Ctrl/⌘ + kolečko</b> = zoom ({Math.round(zoom * 100)}%) · <button onClick={() => setZoom(1)} className="ml-1 rounded bg-neutral-200 px-1.5 py-0.5 text-[10px] hover:bg-neutral-300">Reset</button> · Schéma se generuje z 3D scény zleva doprava jako signal flow.
       </div>
     </div>
   );
