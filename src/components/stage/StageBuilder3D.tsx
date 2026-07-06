@@ -2015,6 +2015,64 @@ function loadPreset(kind: PresetKind): Placed[] {
     return arr;
   }
 
+  if (kind === "toppicus") {
+    // Top Picus rig (from crew spec):
+    //   • 4× RCF LF18G401 subs  (bottom row)
+    //   • 4× RCF N401 subs      (second row, stacked)
+    //   • 4× 12" Eminence Delta (mid-bass row)
+    //   • 6× B&C 14NDL88        (mid row — 3 stacked pairs)
+    //   • 3× B&C DCX354         (compression driver tops on horn cabs)
+    //   • Amps: 2× Powersoft T604, 2× T902, 1× T904
+    //   • Mixer + generator + DJ deck
+    const s = SPECS.sub.size, b = SPECS.bass.size, m = SPECS.mid.size, h = SPECS.horn.size;
+    const arr: Placed[] = [];
+    const Z = -1.5;
+
+    // Bottom row — 4× RCF LF18G401
+    const colGap = 0.03;
+    const colW = s[0] + colGap;
+    const cols4 = [-1.5 * colW, -0.5 * colW, 0.5 * colW, 1.5 * colW];
+    for (const cx of cols4) arr.push({ ...mk("sub", cx, 0, Z), label: "RCF LF18G401" });
+    // Second row — 4× RCF N401 stacked on top
+    for (const cx of cols4) arr.push({ ...mk("sub", cx, s[1], Z), label: "RCF N401" });
+
+    // Mid-bass row — 4× 12" Eminence Delta cabinets
+    const bColGap = 0.04;
+    const bColW = b[0] + bColGap;
+    const cols4b = [-1.5 * bColW, -0.5 * bColW, 0.5 * bColW, 1.5 * bColW];
+    for (const cx of cols4b) arr.push({ ...mk("bass", cx, s[1] * 2, Z), label: "Eminence Delta 12\"" });
+
+    // Mid row — 6× B&C 14NDL88 (in 3 stacked pairs)
+    const midY = s[1] * 2 + b[1];
+    const mColW = m[0] + 0.04;
+    const cols3m = [-mColW, 0, mColW];
+    for (const cx of cols3m) {
+      arr.push({ ...mk("mid", cx, midY,          Z), label: "B&C 14NDL88" });
+      arr.push({ ...mk("mid", cx, midY + m[1],   Z), label: "B&C 14NDL88" });
+    }
+
+    // Tops — 3× B&C DCX354 horns on top of the mid stack
+    const topY = midY + m[1] * 2;
+    for (const cx of cols3m) arr.push({ ...mk("horn", cx, topY, Z), label: "B&C DCX354" });
+
+    // Amps on the flanks — 2× T604, 2× T902, 1× T904
+    arr.push({ ...mk("powersoft", -3.4, 0, 0.5), label: "Powersoft T604" });
+    arr.push({ ...mk("powersoft", -2.8, 0, 0.5), label: "Powersoft T604" });
+    arr.push({ ...mk("powersoft",  2.8, 0, 0.5), label: "Powersoft T902" });
+    arr.push({ ...mk("powersoft",  3.4, 0, 0.5), label: "Powersoft T902" });
+    arr.push({ ...mk("powersoft",  0.0, 0, 3.4), label: "Powersoft T904" });
+
+    // Central mix + DJ + generator + crowd
+    arr.push({ ...mk("mixer", 0, 1.0, 2.6), label: "Mixák" });
+    arr.push({ ...mk("dj", 0, 0, 3.0), label: "DJ centrála" });
+    arr.push({ ...mk("generator", -4.6, 0, 3.6), label: "Aggregát" });
+    arr.push(mk("crowd", 0, 0, 5.5));
+
+    // Suppress unused-var warning while keeping the reference readable.
+    void h;
+    return arr;
+  }
+
   if (kind === "wetfield") {
     // Inspired by Wetfield-style freetekno wall:
     // 3 columns × 2 rows of white scoop-style subs on EUR pallets at the bottom,
