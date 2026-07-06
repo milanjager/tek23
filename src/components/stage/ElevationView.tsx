@@ -465,3 +465,65 @@ function computeStackY(
   }
   return top;
 }
+
+function ElevAddPopover({
+  x, y, worldX, worldZ, kindsByCategory, onPick, onClose, onChangeZ, depthOptions,
+}: {
+  x: number; y: number;
+  worldX: number; worldZ: number;
+  kindsByCategory: Record<string, { kind: string; label: string }[]>;
+  onPick: (kind: string) => void;
+  onClose: () => void;
+  onChangeZ: (z: number) => void;
+  depthOptions: number[];
+}) {
+  const cats = Object.keys(kindsByCategory);
+  const [cat, setCat] = useState<string>(cats[0] ?? "sound");
+  return (
+    <div
+      data-add-popover
+      className="absolute z-50 w-60 rounded-md border border-neutral-300 bg-white shadow-xl"
+      style={{ left: Math.min(x + 8, 9999), top: y + 8 }}
+      onClick={(e) => e.stopPropagation()}
+    >
+      <div className="flex items-center justify-between border-b border-neutral-200 px-2 py-1">
+        <div className="text-[11px] font-semibold text-neutral-800">Přidat bednu · X {worldX.toFixed(1)} m</div>
+        <button onClick={onClose} className="rounded p-0.5 text-neutral-500 hover:bg-neutral-100"><X size={12} /></button>
+      </div>
+      <div className="flex items-center gap-1 border-b border-neutral-200 px-2 py-1 text-[10px] text-neutral-600">
+        <span>Řada Z:</span>
+        <select
+          value={String(worldZ)}
+          onChange={(e) => onChangeZ(parseFloat(e.target.value))}
+          className="flex-1 rounded border border-neutral-300 px-1 py-0.5"
+        >
+          {[...new Set([0, worldZ, ...depthOptions])].sort((a, b) => b - a).map((z) => (
+            <option key={z} value={z}>{z.toFixed(1)} m {z > 0 ? "(vpředu)" : z < 0 ? "(vzadu)" : "(střed)"}</option>
+          ))}
+        </select>
+      </div>
+      <div className="flex border-b border-neutral-200 text-[10px]">
+        {cats.map((c) => (
+          <button
+            key={c}
+            onClick={() => setCat(c)}
+            className={`flex-1 px-2 py-1 capitalize ${cat === c ? "bg-neutral-900 font-semibold text-white" : "text-neutral-600 hover:bg-neutral-100"}`}
+          >
+            {c}
+          </button>
+        ))}
+      </div>
+      <div className="max-h-56 overflow-y-auto p-1">
+        {(kindsByCategory[cat] ?? []).map((k) => (
+          <button
+            key={k.kind}
+            onClick={() => onPick(k.kind)}
+            className="flex w-full items-center gap-1.5 rounded px-2 py-1 text-left text-[11px] text-neutral-800 hover:bg-lime-100"
+          >
+            <Plus size={11} className="text-lime-600" /> {k.label}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
