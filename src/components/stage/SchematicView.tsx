@@ -164,65 +164,90 @@ export default function SchematicView({ items, cables }: Props) {
     return { positions, width, height, cols };
   }, [items]);
 
-  // Compute pin coordinates for a given item + cable type + role.
-  function pinPos(itemId: string, type: CableType, role: "in" | "out"): { x: number; y: number } | null {
-    const it = items.find((x) => x.id === itemId);
-    const p = layout.positions.get(itemId);
-    if (!it || !p) return null;
-    const { ins, outs } = pinsFor(it.kind);
-    const list = role === "in" ? ins : outs;
-    const idx = list.indexOf(type);
-    if (idx === -1) return null;
-    const spacing = 22;
-    const total = list.length;
-    // Vertically distribute pins along the card's left / right edge.
-    const startY = p.y + CARD_H / 2 - ((total - 1) * spacing) / 2;
-    return {
-      x: role === "in" ? p.x : p.x + CARD_W,
-      y: startY + idx * spacing,
-    };
-  }
 
-  // Build an orthogonal Manhattan-style path between two pin coords using a
-  // horizontal → vertical → horizontal pattern (like real cable trunks).
-  function orthogonalPath(a: { x: number; y: number }, b: { x: number; y: number }, seed: number): string {
-    const dx = b.x - a.x;
-    // Add a tiny per-cable jitter so parallel runs don't stack pixel-perfect.
-    const midOffset = ((seed % 5) - 2) * 6;
-    const midX = a.x + dx / 2 + midOffset;
-    return `M ${a.x} ${a.y} L ${midX} ${a.y} L ${midX} ${b.y} L ${b.x} ${b.y}`;
-  }
 
-  // Resolve source and target pin for each cable. Falls back to card edges
-  // when a specific pin isn't declared for that kind, so nothing is dropped.
+
+  // Resolve source and target pin for each cable, then route it through a
+  // vertical "lane" inside the gap between the two columns so parallel runs
+  // don't stack. Lanes are assigned per (fromCol → toCol, cableType) group
+  // and evenly spread inside the gap.
   const drawnCables = useMemo(() => {
-    return cables.map((c, i) => {
-      const a = pinPos(c.from, c.type, "out")
-             ?? pinPos(c.from, c.type, "in")
-             ?? (() => {
-               const p = layout.positions.get(c.from);
-               return p ? { x: p.x + CARD_W, y: p.y + CARD_H / 2 } : null;
-             })();
-      const b = pinPos(c.to, c.type, "in")
-             ?? pinPos(c.to, c.type, "out")
-             ?? (() => {
-               const p = layout.positions.get(c.to);
-               return p ? { x: p.x, y: p.y + CARD_H / 2 } : null;
-             })();
-      if (!a || !b) return null;
-      // If the target sits LEFT of the source, route around the card so the
-      // line still reads cleanly (mixer feeding a DJ that's east of it, etc).
-      const path = b.x >= a.x
-        ? orthogonalPath(a, b, i + 1)
-        : orthogonalPath(
-            { x: a.x, y: a.y },
-            { x: b.x, y: b.y },
-            i + 3,
-          );
-      return { c, path, a, b };
-    }).filter((x): x is NonNullable<typeof x> => x !== null);
+    type Prep = {
+      c: Cable;
+      a: { x: number; y: number };
+      b: { x: number; y: number };
+      fromColIdx: number;
+      toColIdx: number;
+    };
+
+    function anchorFor(id: string, type: CableType, role: "in" | "out") {
+      const it = items.find((x) => x.id === id);
+      const p = layout.positions.get(id);
+      if (!it || !p) return null;
+      const { ins, outs } = pinsFor(it.kind);
+      const list = role === "in" ? ins : outs;
+      const idx = list.indexOf(type);
+      if (idx === -1) {
+        return { x: role === "in" ? p.x : p.x + CARD_W, y: p.y + CARD_H / 2 };
+      }
+      const spacing = 22;
+      const total = list.length;
+      const startY = p.y + CARD_H / 2 - ((total - 1) * spacing) / 2;
+      return { x: role === "in" ? p.x : p.x + CARD_W, y: startY + idx * spacing };
+    }
+
+    const prepped: Prep[] = [];
+    for (const c of cables) {
+      const fromIt = items.find((x) => x.id === c.from);
+      const toIt = items.find((x) => x.id === c.to);
+      if (!fromIt || !toIt) continue;
+      const a = anchorFor(c.from, c.type, "out") ?? anchorFor(c.from, c.type, "in");
+      const b = anchorFor(c.to, c.type, "in") ?? anchorFor(c.to, c.type, "out");
+      if (!a || !b) continue;
+      const fromColIdx = COLUMN_META.findIndex((cm) => cm.id === columnFor(fromIt.kind));
+      const toColIdx   = COLUMN_META.findIndex((cm) => cm.id === columnFor(toIt.kind));
+      prepped.push({ c, a, b, fromColIdx, toColIdx });
+    }
+
+    // Assign lane index per (leftCol, rightCol, cableType) so cables of same
+    // type sharing a gap get parallel channels instead of stacking.
+    const groupCounts = new Map<string, number>();
+    const groupIdx = new Map<string, number>();
+    for (const p of prepped) {
+      const left = Math.min(p.fromColIdx, p.toColIdx);
+      const right = Math.max(p.fromColIdx, p.toColIdx);
+      const key = `${left}-${right}-${p.c.type}`;
+      groupCounts.set(key, (groupCounts.get(key) ?? 0) + 1);
+    }
+
+    return prepped.map((p) => {
+      const { a, b, c, fromColIdx, toColIdx } = p;
+      const left = Math.min(fromColIdx, toColIdx);
+      const right = Math.max(fromColIdx, toColIdx);
+      const key = `${left}-${right}-${c.type}`;
+      const total = groupCounts.get(key) ?? 1;
+      const idx = groupIdx.get(key) ?? 0;
+      groupIdx.set(key, idx + 1);
+
+      // Vertical lane sits inside the empty gap between the two columns.
+      const gapLeftX  = 24 + (left + 1) * CARD_W + left * COL_GAP;
+      const gapWidth  = COL_GAP;
+      // Center lanes with a 15% padding so they don't hug card edges.
+      const laneStep  = gapWidth * 0.7 / Math.max(1, total + 1);
+      const laneX     = gapLeftX + gapWidth * 0.15 + laneStep * (idx + 1);
+
+      // Path: from source pin → horizontal to lane → vertical to target y →
+      // horizontal to target pin. Works whether target is left or right of
+      // source (routing simply mirrors around the lane).
+      const midX = (a.x < b.x) ? laneX : laneX;
+      const path = `M ${a.x} ${a.y} L ${midX} ${a.y} L ${midX} ${b.y} L ${b.x} ${b.y}`;
+      const labelX = midX;
+      const labelY = (a.y + b.y) / 2;
+      return { c, path, a, b, labelX, labelY };
+    });
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cables, layout, items]);
+
 
   return (
     <div className="flex h-full w-full flex-col bg-neutral-50">
@@ -285,25 +310,69 @@ export default function SchematicView({ items, cables }: Props) {
               );
             })}
 
-            {/* Cables underneath cards so pins overlap them cleanly */}
+            {/* Cables — white halo underneath for readability, colored line on top */}
             {drawnCables.map(({ c, path }) => {
               const isHi = highlight?.kind === "cable" && highlight.id === c.id;
+              const dim = highlight && !isHi;
               return (
-                <path
-                  key={c.id}
-                  d={path}
-                  fill="none"
-                  stroke={CABLE_META[c.type].color}
-                  strokeWidth={isHi ? 4 : 2.5}
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  opacity={highlight && !isHi ? 0.25 : 0.9}
-                  onMouseEnter={() => setHighlight({ id: c.id, kind: "cable" })}
-                  onMouseLeave={() => setHighlight(null)}
-                  style={{ cursor: "pointer" }}
-                />
+                <g key={`halo-${c.id}`} opacity={dim ? 0.2 : 1}>
+                  <path
+                    d={path}
+                    fill="none"
+                    stroke="#ffffff"
+                    strokeWidth={isHi ? 8 : 6}
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    opacity={0.9}
+                  />
+                  <path
+                    d={path}
+                    fill="none"
+                    stroke={CABLE_META[c.type].color}
+                    strokeWidth={isHi ? 3.5 : 2.2}
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    onMouseEnter={() => setHighlight({ id: c.id, kind: "cable" })}
+                    onMouseLeave={() => setHighlight(null)}
+                    style={{ cursor: "pointer" }}
+                  />
+                </g>
               );
             })}
+
+            {/* Small cable type labels at midpoint — SIG / SPK / PWR / DMX */}
+            {drawnCables.map(({ c, labelX, labelY }) => {
+              const isHi = highlight?.kind === "cable" && highlight.id === c.id;
+              const dim = highlight && !isHi;
+              const short = CABLE_META[c.type].short;
+              const w = short.length * 6 + 8;
+              return (
+                <g
+                  key={`lbl-${c.id}`}
+                  transform={`translate(${labelX - w / 2}, ${labelY - 7})`}
+                  opacity={dim ? 0.35 : 1}
+                  style={{ pointerEvents: "none" }}
+                >
+                  <rect
+                    width={w} height={14} rx={3}
+                    fill="#ffffff"
+                    stroke={CABLE_META[c.type].color}
+                    strokeWidth={1}
+                  />
+                  <text
+                    x={w / 2} y={10}
+                    textAnchor="middle"
+                    fontSize={9}
+                    fontWeight={700}
+                    fontFamily="ui-monospace, monospace"
+                    fill={CABLE_META[c.type].color}
+                  >
+                    {short}
+                  </text>
+                </g>
+              );
+            })}
+
 
             {/* Cards */}
             {items.map((it) => {
