@@ -1780,6 +1780,152 @@ function SceneContent({
         );
       })}
 
+      {/* Device inspector modal — opens on click in select mode. Shows every
+          connector, what's plugged into it, and a dropdown to wire empty ones. */}
+      {(() => {
+        if (!inspectedItemId) return null;
+        const it = items.find((x) => x.id === inspectedItemId);
+        if (!it) return null;
+        const spec = SPECS[it.kind];
+        const ports = connectorsFor(it.kind);
+        const [pw, ph] = [spec.size[0], spec.size[1]];
+        const topPos: [number, number, number] = [it.pos[0], it.pos[1] + ph + 0.5, it.pos[2]];
+        // For each port, list cables attached to this device of that type/role.
+        const cablesForPort = (type: CableType, role: ConnRole) =>
+          cables.filter((c) => c.type === type && ((role === "out" && c.from === it.id) || (role === "in" && c.to === it.id)));
+        return (
+          <Html position={topPos} center distanceFactor={7} occlude={false} zIndexRange={[200, 0]}>
+            <div
+              onPointerDown={(e) => e.stopPropagation()}
+              className="w-72 rounded-md border border-neutral-400 p-2 font-mono text-[10px] text-neutral-900 shadow-2xl backdrop-blur-md"
+              style={{
+                background: "rgba(255,255,255,0.6)",
+                transform: `translate(${devicePopupOffset.x}px, ${devicePopupOffset.y}px)`,
+              }}
+            >
+              <div
+                className="mb-2 flex cursor-grab items-center justify-between border-b border-neutral-300 pb-1 select-none active:cursor-grabbing"
+                onPointerDown={(e) => {
+                  e.stopPropagation();
+                  const start = { x: e.clientX, y: e.clientY };
+                  const base = { ...devicePopupOffset };
+                  (e.target as HTMLElement).setPointerCapture(e.pointerId);
+                  const move = (ev: PointerEvent) => setDevicePopupOffset({ x: base.x + (ev.clientX - start.x), y: base.y + (ev.clientY - start.y) });
+                  const up = () => { window.removeEventListener("pointermove", move); window.removeEventListener("pointerup", up); };
+                  window.addEventListener("pointermove", move);
+                  window.addEventListener("pointerup", up);
+                }}
+              >
+                <div className="min-w-0">
+                  <div className="truncate text-[11px] font-bold uppercase text-neutral-900">{itemLabel(it)}</div>
+                  <div className="truncate text-[9px] text-neutral-600">{spec.label} · {spec.hint}</div>
+                </div>
+                <button
+                  onPointerDown={(e) => e.stopPropagation()}
+                  onClick={() => setInspectedItemId(null)}
+                  className="rounded px-1 text-neutral-700 hover:bg-neutral-200"
+                >✕</button>
+              </div>
+
+              {ports.length === 0 && (
+                <div className="rounded bg-white/70 p-2 text-center text-[10px] text-neutral-600">
+                  Toto zařízení nemá žádné konektory.
+                </div>
+              )}
+
+              <div className="space-y-1.5">
+                {ports.map((port, i) => {
+                  const meta = CABLE_META[port.type];
+                  const attached = cablesForPort(port.type, port.role);
+                  // Candidates for a new cable = other items with matching plug.
+                  const need = port.role === "out" ? "to" : "from";
+                  const candidates = items.filter(
+                    (o) => o.id !== it.id && !connectorIncompatibility(o, port.type, need === "from" ? "from" : "to"),
+                  );
+                  const arrow = port.role === "out" ? "▶ OUT" : "◀ IN";
+                  return (
+                    <div key={i} className="rounded border p-1.5" style={{ borderColor: meta.color, background: "rgba(255,255,255,0.55)" }}>
+                      <div className="mb-1 flex items-center justify-between">
+                        <div className="flex items-center gap-1.5">
+                          <span className="inline-block h-2.5 w-2.5 rounded-sm" style={{ backgroundColor: meta.color, boxShadow: `0 0 6px ${meta.color}` }} />
+                          <span className="font-bold uppercase" style={{ color: meta.color }}>{meta.short}</span>
+                          <span className="text-[9px] text-neutral-700">{arrow}</span>
+                        </div>
+                        <span className="text-[9px] text-neutral-600">{meta.label}</span>
+                      </div>
+
+                      {/* Currently attached cables */}
+                      {attached.length > 0 ? (
+                        <div className="mb-1 space-y-0.5">
+                          {attached.map((cab) => {
+                            const otherId = port.role === "out" ? cab.to : cab.from;
+                            const other = items.find((o) => o.id === otherId);
+                            return (
+                              <div key={cab.id} className="flex items-center justify-between gap-1 rounded bg-white/70 px-1 py-0.5">
+                                <button
+                                  onClick={() => { setInspectedItemId(otherId); }}
+                                  className="min-w-0 flex-1 truncate text-left text-[10px] font-semibold text-neutral-800 hover:underline"
+                                  title="Otevřít protějšek"
+                                >
+                                  → {other ? itemLabel(other) : "?"}
+                                </button>
+                                <button
+                                  onClick={() => setCables((cs) => cs.filter((x) => x.id !== cab.id))}
+                                  className="rounded bg-red-500/70 px-1 text-[9px] font-bold uppercase text-white hover:bg-red-600"
+                                  title="Odpojit"
+                                >✕</button>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      ) : (
+                        <div className="mb-1 rounded bg-white/50 px-1 py-0.5 text-[9px] italic text-neutral-500">
+                          nezapojeno
+                        </div>
+                      )}
+
+                      {/* Add-new dropdown */}
+                      <select
+                        value=""
+                        onChange={(e) => {
+                          const otherId = e.target.value;
+                          if (!otherId) return;
+                          const newCable: Cable = port.role === "out"
+                            ? { id: uid(), from: it.id, to: otherId, type: port.type }
+                            : { id: uid(), from: otherId, to: it.id, type: port.type };
+                          setCables((cs) => [...cs, newCable]);
+                          e.target.value = "";
+                        }}
+                        onPointerDown={(ev) => ev.stopPropagation()}
+                        className="w-full rounded border border-neutral-300 bg-white/80 px-1 py-0.5 font-mono text-[10px] outline-none focus:border-neutral-500"
+                      >
+                        <option value="">＋ zapojit do…</option>
+                        {candidates.length === 0 && (
+                          <option value="" disabled>Žádné kompatibilní zařízení ve scéně</option>
+                        )}
+                        {candidates.map((o) => (
+                          <option key={o.id} value={o.id}>
+                            {itemLabel(o)} — {SPECS[o.kind].label}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  );
+                })}
+              </div>
+
+              <div className="mt-2 flex justify-between border-t border-neutral-300 pt-1 text-[9px] text-neutral-600">
+                <span>Klikni na jiné zařízení pro přepnutí.</span>
+                <button
+                  onClick={() => setInspectedItemId(null)}
+                  className="rounded bg-neutral-200/80 px-1.5 py-0.5 font-bold uppercase text-neutral-800 hover:bg-neutral-300"
+                >Zavřít</button>
+              </div>
+            </div>
+          </Html>
+        );
+      })()}
+
 
       {mode === "select" && primaryObj && (
         <TransformControls
