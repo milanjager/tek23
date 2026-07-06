@@ -360,6 +360,21 @@ export default function ElevationView({
               Zatím nic k zobrazení. Přidej bedny v paletě vlevo nebo v režimu <b>Plán 2D</b>.
             </div>
           )}
+
+          {/* Add popover on empty click */}
+          {addAt && onAddDeviceAt && (
+            <ElevAddPopover
+              x={addAt.clientX}
+              y={addAt.clientY}
+              worldX={addAt.x}
+              worldZ={addAt.z}
+              kindsByCategory={kindsByCategory}
+              onPick={(kind) => { onAddDeviceAt(kind, addAt.x, addAt.z); setAddAt(null); }}
+              onClose={() => setAddAt(null)}
+              onChangeZ={(z) => setAddAt((a) => a ? { ...a, z } : a)}
+              depthOptions={depthOptions}
+            />
+          )}
         </div>
       </div>
 
