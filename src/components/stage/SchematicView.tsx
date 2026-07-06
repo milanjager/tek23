@@ -375,7 +375,12 @@ export default function SchematicView({ items, cables, onAddDevice, onConnect, o
                     strokeLinejoin="round"
                     onMouseEnter={() => setHighlight({ id: c.id, kind: "cable" })}
                     onMouseLeave={() => setHighlight(null)}
-                    style={{ cursor: "pointer" }}
+                    onClick={() => {
+                      if (onRemoveCable && confirm(`Smazat kabel ${CABLE_META[c.type].short}?`)) {
+                        onRemoveCable(c.id);
+                      }
+                    }}
+                    style={{ cursor: onRemoveCable ? "pointer" : "default" }}
                   />
                 </g>
               );
