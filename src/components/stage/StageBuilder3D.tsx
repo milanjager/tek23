@@ -546,28 +546,58 @@ function BassModel({ size }: { size: [number, number, number] }) {
 
 
 function SubModel({ size }: { size: [number, number, number] }) {
+  // KS28-inspired: dual 18" front drivers with a vented port between them.
   const [w, h] = size;
-  const r = Math.min(w * 0.28, h * 0.42);
+  const r = Math.min(w * 0.22, h * 0.34);
   return (
     <Cabinet
       size={size}
       color={WOOD_DARK}
       tealFrame={false}
-      yellowCross={true}
+      yellowCross={false}
       onPallet={true}
       frontDetail={
         <group>
           {[-1, 1].map((s) => (
-            <group key={s} position={[s * w * 0.22, 0, 0.01]}>
+            <group key={s} position={[s * w * 0.26, 0, 0.012]}>
+              {/* Basket */}
               <mesh rotation={[Math.PI / 2, 0, 0]}>
-                <cylinderGeometry args={[r, r * 0.75, 0.1, 32]} />
-                <meshStandardMaterial color="#050505" roughness={0.55} />
+                <cylinderGeometry args={[r * 1.05, r * 1.05, 0.02, 40]} />
+                <meshStandardMaterial color="#1a1a1a" roughness={0.6} metalness={0.5} />
               </mesh>
-              <mesh position={[0, 0, 0.06]}>
-                <sphereGeometry args={[r * 0.35, 16, 12]} />
-                <meshStandardMaterial color="#2a2a2a" roughness={0.5} metalness={0.4} />
+              {/* Cone */}
+              <mesh position={[0, 0, 0.02]} rotation={[Math.PI / 2, 0, 0]}>
+                <coneGeometry args={[r * 0.92, 0.045, 40, 1, true]} />
+                <meshStandardMaterial color="#0b0b0b" roughness={0.9} side={THREE.DoubleSide} />
               </mesh>
+              {/* Dust cap */}
+              <mesh position={[0, 0, 0.05]}>
+                <sphereGeometry args={[r * 0.38, 20, 14]} />
+                <meshStandardMaterial color="#141414" roughness={0.5} metalness={0.35} />
+              </mesh>
+              {/* Bolt ring */}
+              {Array.from({ length: 8 }).map((_, i) => {
+                const a = (i / 8) * Math.PI * 2;
+                return (
+                  <mesh key={i} position={[Math.cos(a) * r * 1.02, Math.sin(a) * r * 1.02, 0.014]}>
+                    <cylinderGeometry args={[0.006, 0.006, 0.008, 6]} />
+                    <meshStandardMaterial color={CHROME} metalness={0.9} roughness={0.25} />
+                  </mesh>
+                );
+              })}
             </group>
+          ))}
+          {/* Center bass-reflex port slot */}
+          <mesh position={[0, 0, 0.005]}>
+            <boxGeometry args={[w * 0.14, h * 0.55, 0.02]} />
+            <meshStandardMaterial color="#050505" roughness={0.95} />
+          </mesh>
+          {/* Recessed side handles */}
+          {[-1, 1].map((s) => (
+            <mesh key={s} position={[s * w * 0.46, 0, 0.005]}>
+              <boxGeometry args={[0.04, h * 0.22, 0.015]} />
+              <meshStandardMaterial color="#1a1a1a" roughness={0.7} />
+            </mesh>
           ))}
         </group>
       }
@@ -577,38 +607,107 @@ function SubModel({ size }: { size: [number, number, number] }) {
 
 
 function LineArrayModel({ size }: { size: [number, number, number] }) {
-  // 3 stacked elements
+  // K2-inspired: 3 stacked trapezoidal elements, dual LF + HF waveguide,
+  // rigging plates on sides + top frame.
   const [w, h, d] = size;
   const eH = h / 3;
   return (
     <group>
       {[0, 1, 2].map((i) => {
         const off = i * eH;
-        const shrink = 1 - i * 0.06;
+        const splay = i * 0.06;
+        const eltW = w * (1 - i * 0.02);
         return (
-          <mesh key={i} position={[0, off + eH / 2, 0]} castShadow receiveShadow>
-            <boxGeometry args={[w * shrink, eH * 0.9, d]} />
-            <meshStandardMaterial color="#0d0d0d" roughness={0.6} metalness={0.3} />
-          </mesh>
+          <group key={i} position={[0, off + eH / 2, 0]} rotation={[splay, 0, 0]}>
+            {/* Body */}
+            <mesh castShadow receiveShadow>
+              <boxGeometry args={[eltW, eH * 0.92, d]} />
+              <meshStandardMaterial color="#0a0a0a" roughness={0.55} metalness={0.35} />
+            </mesh>
+            {/* Baffle */}
+            <mesh position={[0, 0, d / 2 + 0.001]}>
+              <planeGeometry args={[eltW * 0.94, eH * 0.86]} />
+              <meshStandardMaterial color="#050505" roughness={0.85} />
+            </mesh>
+            {/* Twin LF drivers */}
+            {[-1, 1].map((s) => (
+              <group key={s} position={[s * eltW * 0.28, 0, d / 2 + 0.003]}>
+                <mesh rotation={[Math.PI / 2, 0, 0]}>
+                  <cylinderGeometry args={[eH * 0.28, eH * 0.28, 0.008, 24]} />
+                  <meshStandardMaterial color="#141414" roughness={0.55} metalness={0.45} />
+                </mesh>
+                <mesh position={[0, 0, 0.006]}>
+                  <sphereGeometry args={[eH * 0.11, 14, 10]} />
+                  <meshStandardMaterial color="#1a1a1a" roughness={0.5} metalness={0.4} />
+                </mesh>
+              </group>
+            ))}
+            {/* HF waveguide slot */}
+            <mesh position={[0, 0, d / 2 + 0.004]}>
+              <boxGeometry args={[eltW * 0.08, eH * 0.55, 0.008]} />
+              <meshStandardMaterial color={CHROME} metalness={0.85} roughness={0.3} />
+            </mesh>
+            {/* Rigging plates */}
+            {[-1, 1].map((s) => (
+              <mesh key={s} position={[s * (eltW / 2 + 0.008), 0, 0]}>
+                <boxGeometry args={[0.012, eH * 0.7, d * 0.85]} />
+                <meshStandardMaterial color="#2a2a2a" metalness={0.75} roughness={0.35} />
+              </mesh>
+            ))}
+          </group>
         );
       })}
+      {/* Top rigging frame */}
+      <mesh position={[0, h + 0.02, 0]}>
+        <boxGeometry args={[w * 0.9, 0.03, d * 0.9]} />
+        <meshStandardMaterial color="#333" metalness={0.8} roughness={0.35} />
+      </mesh>
     </group>
   );
 }
 
 function MonitorModel({ size }: { size: [number, number, number] }) {
+  // X15-style stage wedge with 15" LF + horn.
   const [w, h, d] = size;
-  // Wedge: tilted trapezoid
+  const r = Math.min(h * 0.34, w * 0.26);
   return (
-    <group rotation={[-0.35, 0, 0]} position={[0, h * 0.15, 0]}>
-      <Cabinet size={[w, h, d]} color="#0e0e0e"
-        frontDetail={
-          <mesh position={[0, 0, 0.01]} rotation={[Math.PI / 2, 0, 0]}>
-            <cylinderGeometry args={[h * 0.3, h * 0.24, 0.05, 20]} />
-            <meshStandardMaterial color="#050505" />
-          </mesh>
-        }
-      />
+    <group rotation={[-0.38, 0, 0]} position={[0, h * 0.18, 0]}>
+      <mesh castShadow receiveShadow position={[0, h / 2, 0]}>
+        <boxGeometry args={[w, h, d]} />
+        <meshStandardMaterial color="#0d0d0d" roughness={0.6} metalness={0.3} />
+      </mesh>
+      {/* Front grille */}
+      <mesh position={[0, h / 2, d / 2 + 0.002]}>
+        <planeGeometry args={[w * 0.94, h * 0.86]} />
+        <meshStandardMaterial color="#050505" roughness={0.9} />
+      </mesh>
+      {/* 15" LF */}
+      <group position={[0, h * 0.4, d / 2 + 0.005]}>
+        <mesh rotation={[Math.PI / 2, 0, 0]}>
+          <cylinderGeometry args={[r, r, 0.01, 32]} />
+          <meshStandardMaterial color="#141414" roughness={0.55} metalness={0.45} />
+        </mesh>
+        <mesh position={[0, 0, 0.008]} rotation={[Math.PI / 2, 0, 0]}>
+          <coneGeometry args={[r * 0.85, 0.035, 32, 1, true]} />
+          <meshStandardMaterial color="#0b0b0b" roughness={0.9} side={THREE.DoubleSide} />
+        </mesh>
+        <mesh position={[0, 0, 0.032]}>
+          <sphereGeometry args={[r * 0.32, 16, 12]} />
+          <meshStandardMaterial color="#1a1a1a" roughness={0.5} metalness={0.4} />
+        </mesh>
+      </group>
+      {/* HF horn */}
+      <mesh position={[0, h * 0.82, d / 2 + 0.005]}>
+        <boxGeometry args={[w * 0.55, h * 0.18, 0.02]} />
+        <meshStandardMaterial color={CHROME} metalness={0.85} roughness={0.3} />
+      </mesh>
+      {/* Side handles */}
+      {[-1, 1].map((s) => (
+        <mesh key={s} position={[s * (w / 2 - 0.005), h * 0.5, 0]}>
+          <boxGeometry args={[0.012, 0.05, d * 0.35]} />
+          <meshStandardMaterial color="#1a1a1a" roughness={0.7} />
+        </mesh>
+      ))}
     </group>
   );
 }
