@@ -2797,6 +2797,13 @@ export function StageBuilder3D() {
             <BoxIcon size={12} /> 3D scéna
           </button>
           <button
+            onClick={() => setViewMode("grid")}
+            className={`flex items-center gap-1 rounded px-2 py-0.5 text-[11px] font-semibold ${viewMode === "grid" ? "bg-white text-neutral-900 shadow-sm" : "text-neutral-600 hover:text-neutral-900"}`}
+            title="Půdorys stage — mřížka pro rozmístění beden z ptačí perspektivy"
+          >
+            <LayoutGrid size={12} /> Plán 2D
+          </button>
+          <button
             onClick={() => setViewMode("schema")}
             className={`flex items-center gap-1 rounded px-2 py-0.5 text-[11px] font-semibold ${viewMode === "schema" ? "bg-white text-neutral-900 shadow-sm" : "text-neutral-600 hover:text-neutral-900"}`}
           >
