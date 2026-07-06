@@ -15,10 +15,11 @@ import {
   Speaker, Trash2, Save, Copy, ClipboardPaste, Group as GroupIcon, Ungroup,
   Move as MoveIcon, RotateCw, Boxes, Zap, Sparkles, Radio, Volume2,
   Cable as CableIcon, MousePointer2, Menu, X, BoxSelect,
-  Workflow, Box as BoxIcon, LayoutGrid,
+  Workflow, Box as BoxIcon, LayoutGrid, GalleryVerticalEnd,
 } from "lucide-react";
 import SchematicView from "./SchematicView";
 import GridPlannerView from "./GridPlannerView";
+import ElevationView from "./ElevationView";
 
 
 /* ============================================================
@@ -2518,7 +2519,7 @@ export function StageBuilder3D() {
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [marqueeMode, setMarqueeMode] = useState(false);
   const [realistic, setRealistic] = useState(false);
-  const [viewMode, setViewMode] = useState<"3d" | "schema" | "grid">("3d");
+  const [viewMode, setViewMode] = useState<"3d" | "schema" | "grid" | "elev">("3d");
   const [marquee, setMarquee] = useState<null | { x1: number; y1: number; x2: number; y2: number; additive: boolean }>(null);
   const cameraRef = useRef<THREE.Camera | null>(null);
   const canvasWrapRef = useRef<HTMLDivElement>(null);
@@ -2804,6 +2805,13 @@ export function StageBuilder3D() {
             <LayoutGrid size={12} /> Plán 2D
           </button>
           <button
+            onClick={() => setViewMode("elev")}
+            className={`flex items-center gap-1 rounded px-2 py-0.5 text-[11px] font-semibold ${viewMode === "elev" ? "bg-white text-neutral-900 shadow-sm" : "text-neutral-600 hover:text-neutral-900"}`}
+            title="Nárys — pohled zepředu, ukazuje výšku stacků a patra beden"
+          >
+            <GalleryVerticalEnd size={12} /> Nárys
+          </button>
+          <button
             onClick={() => setViewMode("schema")}
             className={`flex items-center gap-1 rounded px-2 py-0.5 text-[11px] font-semibold ${viewMode === "schema" ? "bg-white text-neutral-900 shadow-sm" : "text-neutral-600 hover:text-neutral-900"}`}
           >
@@ -2932,7 +2940,19 @@ export function StageBuilder3D() {
 
         {/* 3D Canvas / Schematic view */}
         <div className="relative flex-1" ref={canvasWrapRef}>
-          {viewMode === "grid" ? (
+          {viewMode === "elev" ? (
+            <ElevationView
+              items={items}
+              specs={SPECS as unknown as Record<string, { label: string; category: string; size: [number, number, number] }>}
+              onUpdateItem={(id, patch) => {
+                setItems((cur) => cur.map((x) => x.id === id ? { ...x, ...patch } as Placed : x));
+              }}
+              onDeleteItem={(id) => {
+                setItems((cur) => cur.filter((x) => x.id !== id));
+                setCables((cs) => cs.filter((c) => c.from !== id && c.to !== id));
+              }}
+            />
+          ) : viewMode === "grid" ? (
             <GridPlannerView
               items={items}
               specs={SPECS as unknown as Record<string, { label: string; category: string; size: [number, number, number] }>}
