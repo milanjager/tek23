@@ -123,6 +123,13 @@ function pinsFor(kind: string): { ins: CableType[]; outs: CableType[] } {
   return { ins: [], outs: [] };
 }
 
+export interface SchematicKindOption {
+  value: string;
+  label: string;
+  category: string;
+  supportsVariant?: boolean;
+}
+
 interface Props {
   items: Placed[];
   cables: Cable[];
@@ -132,6 +139,10 @@ interface Props {
   onAddDevice?: (kind: string) => void;
   onConnect?: (fromId: string, toId: string, type: CableType) => void;
   onRemoveCable?: (cableId: string) => void;
+  // Editing a device from the schematic — opens a detail modal on card click.
+  kindOptions?: SchematicKindOption[];
+  onUpdateItem?: (id: string, patch: Partial<Placed>) => void;
+  onDeleteItem?: (id: string) => void;
 }
 
 const CARD_W = 210;
