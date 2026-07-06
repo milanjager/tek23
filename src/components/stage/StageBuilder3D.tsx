@@ -1597,93 +1597,160 @@ function SceneContent({
               </Html>
             )}
 
-            {/* Expanded inspector popup when selected */}
-            {isSelected && (
-              <Html position={mid} center distanceFactor={8} occlude={false} zIndexRange={[100, 0]}>
-                <div
-                  onPointerDown={(e) => e.stopPropagation()}
-                  className="w-64 rounded-md border bg-white/95 p-2 font-mono text-[10px] text-neutral-900 shadow-2xl backdrop-blur"
-                  style={{ borderColor: meta.color }}
-                >
-                  <div className="mb-1.5 flex items-center justify-between">
-                    <div className="flex items-center gap-1.5">
-                      <span
-                        className="inline-block h-2.5 w-2.5 rounded-sm"
-                        style={{ backgroundColor: meta.color, boxShadow: `0 0 6px ${meta.color}` }}
-                      />
-                      <span className="font-bold uppercase" style={{ color: meta.color }}>
-                        {meta.short}
-                      </span>
-                      <span className="text-neutral-500">{meta.label}</span>
-                    </div>
-                    <button
-                      onClick={() => { setSelectedCableId(null); setReconnect(null); setReconnectError(null); }}
-                      className="rounded px-1 text-neutral-500 hover:bg-neutral-100 hover:text-white"
-                    >
-                      ✕
-                    </button>
-                  </div>
-
-                  <div className="mb-1 rounded bg-neutral-50 p-1.5">
-                    <div className="text-[8px] uppercase tracking-wider text-neutral-500">Zdroj (OUT)</div>
-                    <div className="truncate font-bold text-lime-600">{fromName}</div>
-                    <div className="text-[9px] text-neutral-500">
-                      {SPECS[a.kind].label} · plug {meta.short}▶
-                    </div>
-                  </div>
-
-                  <div className="mb-1.5 rounded bg-neutral-50 p-1.5">
-                    <div className="text-[8px] uppercase tracking-wider text-neutral-500">Cíl (IN)</div>
-                    <div className="truncate font-bold text-cyan-600">{toName}</div>
-                    <div className="text-[9px] text-neutral-500">
-                      {SPECS[b.kind].label} · plug {meta.short}◀
-                    </div>
-                  </div>
-
-                  {reconnect && !reconnectError && (
+            {/* Expanded inspector popup when selected — draggable, translucent */}
+            {isSelected && (() => {
+              // Candidates for each end: items with a compatible plug.
+              const sourceCandidates = items.filter(
+                (it) => it.id !== c.to && !connectorIncompatibility(it, c.type, "from"),
+              );
+              const targetCandidates = items.filter(
+                (it) => it.id !== c.from && !connectorIncompatibility(it, c.type, "to"),
+              );
+              const swapEndpoint = (end: "from" | "to", newId: string) => {
+                const other = end === "from" ? c.to : c.from;
+                if (newId === other) { setReconnectError("Nelze zapojit oba konce do stejné bedny."); return; }
+                const target = items.find((x) => x.id === newId);
+                if (!target) return;
+                const reason = connectorIncompatibility(target, c.type, end);
+                if (reason) { setReconnectError(reason); return; }
+                setCables((cs) => cs.map((x) => x.id === c.id ? { ...x, [end]: newId } : x));
+                setReconnect(null);
+                setReconnectError(null);
+              };
+              return (
+                <Html position={mid} center distanceFactor={8} occlude={false} zIndexRange={[100, 0]}>
+                  <div
+                    onPointerDown={(e) => e.stopPropagation()}
+                    className="w-64 rounded-md border p-2 font-mono text-[10px] text-neutral-900 shadow-2xl backdrop-blur-md"
+                    style={{
+                      borderColor: meta.color,
+                      background: "rgba(255,255,255,0.55)",
+                      transform: `translate(${popupOffset.x}px, ${popupOffset.y}px)`,
+                    }}
+                  >
+                    {/* Drag handle */}
                     <div
-                      className="mb-1.5 rounded p-1 text-center text-[9px] font-bold"
-                      style={{ background: "rgba(244,193,26,.2)", color: "#f4c11a", border: "1px dashed #f4c11a" }}
-                    >
-                      Klikni na novou bednu pro {reconnect.end === "from" ? "zdroj" : "cíl"}…
-                    </div>
-                  )}
-
-                  {reconnectError && (
-                    <div className="mb-1.5 rounded border border-red-400 bg-red-50 p-1.5 text-[9px] font-semibold leading-snug text-red-700">
-                      <div className="mb-0.5 uppercase tracking-wider">Nekompatibilní konektor</div>
-                      <div className="font-normal">{reconnectError}</div>
-                    </div>
-                  )}
-
-                  <div className="grid grid-cols-2 gap-1">
-                    <button
-                      onClick={() => { setReconnect({ cableId: c.id, end: "from" }); setReconnectError(null); }}
-                      className={`rounded px-1 py-1 text-[9px] font-bold uppercase ${reconnect?.end === "from" ? "bg-yellow-500 text-black" : "bg-neutral-100 text-neutral-700 hover:bg-neutral-200"}`}
-                    >
-                      Přepojit zdroj
-                    </button>
-                    <button
-                      onClick={() => { setReconnect({ cableId: c.id, end: "to" }); setReconnectError(null); }}
-                      className={`rounded px-1 py-1 text-[9px] font-bold uppercase ${reconnect?.end === "to" ? "bg-yellow-500 text-black" : "bg-neutral-100 text-neutral-700 hover:bg-neutral-200"}`}
-                    >
-                      Přepojit cíl
-                    </button>
-                    <button
-                      onClick={() => {
-                        setCables((cs) => cs.filter((x) => x.id !== c.id));
-                        setSelectedCableId(null);
-                        setReconnect(null);
-                        setReconnectError(null);
+                      className="mb-1.5 flex cursor-grab items-center justify-between active:cursor-grabbing select-none"
+                      onPointerDown={(e) => {
+                        e.stopPropagation();
+                        const start = { x: e.clientX, y: e.clientY };
+                        const base = { ...popupOffset };
+                        (e.target as HTMLElement).setPointerCapture(e.pointerId);
+                        const move = (ev: PointerEvent) => {
+                          setPopupOffset({ x: base.x + (ev.clientX - start.x), y: base.y + (ev.clientY - start.y) });
+                        };
+                        const up = () => {
+                          window.removeEventListener("pointermove", move);
+                          window.removeEventListener("pointerup", up);
+                        };
+                        window.addEventListener("pointermove", move);
+                        window.addEventListener("pointerup", up);
                       }}
-                      className="col-span-2 rounded bg-red-100 px-1 py-1 text-[9px] font-bold uppercase text-red-100 hover:bg-red-200"
                     >
-                      Smazat kabel
-                    </button>
+                      <div className="flex items-center gap-1.5">
+                        <span
+                          className="inline-block h-2.5 w-2.5 rounded-sm"
+                          style={{ backgroundColor: meta.color, boxShadow: `0 0 6px ${meta.color}` }}
+                        />
+                        <span className="font-bold uppercase" style={{ color: meta.color }}>
+                          {meta.short}
+                        </span>
+                        <span className="text-neutral-600">{meta.label}</span>
+                      </div>
+                      <button
+                        onPointerDown={(e) => e.stopPropagation()}
+                        onClick={() => { setSelectedCableId(null); setReconnect(null); setReconnectError(null); }}
+                        className="rounded px-1 text-neutral-600 hover:bg-neutral-200"
+                      >
+                        ✕
+                      </button>
+                    </div>
+
+                    {/* Source dropdown */}
+                    <div className="mb-1 rounded bg-white/60 p-1.5">
+                      <div className="text-[8px] uppercase tracking-wider text-neutral-600">Zdroj (OUT · {meta.short}▶)</div>
+                      <select
+                        value={c.from}
+                        onChange={(e) => swapEndpoint("from", e.target.value)}
+                        onPointerDown={(ev) => ev.stopPropagation()}
+                        className="mt-0.5 w-full rounded border border-neutral-300 bg-white/80 px-1 py-0.5 font-mono text-[10px] font-bold text-lime-700 outline-none focus:border-lime-500"
+                      >
+                        {sourceCandidates.length === 0 && (
+                          <option value={c.from}>{fromName}</option>
+                        )}
+                        {sourceCandidates.map((it) => (
+                          <option key={it.id} value={it.id}>
+                            {itemLabel(it)} — {SPECS[it.kind].label}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* Target dropdown */}
+                    <div className="mb-1.5 rounded bg-white/60 p-1.5">
+                      <div className="text-[8px] uppercase tracking-wider text-neutral-600">Cíl (IN · {meta.short}◀)</div>
+                      <select
+                        value={c.to}
+                        onChange={(e) => swapEndpoint("to", e.target.value)}
+                        onPointerDown={(ev) => ev.stopPropagation()}
+                        className="mt-0.5 w-full rounded border border-neutral-300 bg-white/80 px-1 py-0.5 font-mono text-[10px] font-bold text-cyan-700 outline-none focus:border-cyan-500"
+                      >
+                        {targetCandidates.length === 0 && (
+                          <option value={c.to}>{toName}</option>
+                        )}
+                        {targetCandidates.map((it) => (
+                          <option key={it.id} value={it.id}>
+                            {itemLabel(it)} — {SPECS[it.kind].label}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {reconnect && !reconnectError && (
+                      <div
+                        className="mb-1.5 rounded p-1 text-center text-[9px] font-bold"
+                        style={{ background: "rgba(244,193,26,.2)", color: "#8a6a00", border: "1px dashed #f4c11a" }}
+                      >
+                        Klikni na novou bednu pro {reconnect.end === "from" ? "zdroj" : "cíl"}…
+                      </div>
+                    )}
+
+                    {reconnectError && (
+                      <div className="mb-1.5 rounded border border-red-400 bg-red-50/90 p-1.5 text-[9px] font-semibold leading-snug text-red-700">
+                        <div className="mb-0.5 uppercase tracking-wider">Nekompatibilní konektor</div>
+                        <div className="font-normal">{reconnectError}</div>
+                      </div>
+                    )}
+
+                    <div className="grid grid-cols-2 gap-1">
+                      <button
+                        onClick={() => { setReconnect({ cableId: c.id, end: "from" }); setReconnectError(null); }}
+                        className={`rounded px-1 py-1 text-[9px] font-bold uppercase ${reconnect?.end === "from" ? "bg-yellow-500 text-black" : "bg-white/70 text-neutral-800 hover:bg-white"}`}
+                      >
+                        Pick ve scéně (zdroj)
+                      </button>
+                      <button
+                        onClick={() => { setReconnect({ cableId: c.id, end: "to" }); setReconnectError(null); }}
+                        className={`rounded px-1 py-1 text-[9px] font-bold uppercase ${reconnect?.end === "to" ? "bg-yellow-500 text-black" : "bg-white/70 text-neutral-800 hover:bg-white"}`}
+                      >
+                        Pick ve scéně (cíl)
+                      </button>
+                      <button
+                        onClick={() => {
+                          setCables((cs) => cs.filter((x) => x.id !== c.id));
+                          setSelectedCableId(null);
+                          setReconnect(null);
+                          setReconnectError(null);
+                        }}
+                        className="col-span-2 rounded bg-red-500/80 px-1 py-1 text-[9px] font-bold uppercase text-white hover:bg-red-600"
+                      >
+                        Smazat kabel
+                      </button>
+                    </div>
                   </div>
-                </div>
-              </Html>
-            )}
+                </Html>
+              );
+            })()}
           </group>
         );
       })}
