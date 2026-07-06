@@ -2622,6 +2622,95 @@ export function StageBuilder3D() {
     setItems((cur) => cur.map((i) => selection.includes(i.id) ? { ...i, groupId: undefined } : i));
   }, [selection]);
 
+  // Auto-layout: place all items on the ground in tidy rows by category so
+  // nothing overlaps. Stacks (shared groupId) are kept together as one unit;
+  // vertical Y positions inside a stack are preserved.
+  const autoLayout = useCallback(() => {
+    setItems((cur) => {
+      if (cur.length === 0) return cur;
+      const units = new Map<string, Placed[]>();
+      for (const it of cur) {
+        const key = it.groupId ?? it.id;
+        if (!units.has(key)) units.set(key, []);
+        units.get(key)!.push(it);
+      }
+      const CAT_ORDER: Array<Spec["category"]> = ["sound", "infra", "lights"];
+      const catRank = (k: string) => {
+        const c = SPECS[k as Kind]?.category ?? "infra";
+        const i = CAT_ORDER.indexOf(c);
+        return i === -1 ? CAT_ORDER.length : i;
+      };
+      type Unit = { key: string; ids: string[]; w: number; d: number; cat: number; primaryKind: string };
+      const unitList: Unit[] = [];
+      units.forEach((arr, key) => {
+        let w = 0, d = 0;
+        for (const it of arr) {
+          const s = SPECS[it.kind as Kind]?.size ?? [0.5, 0.5, 0.5];
+          if (s[0] > w) w = s[0];
+          if (s[2] > d) d = s[2];
+        }
+        arr.sort((a, b) => a.pos[1] - b.pos[1]);
+        unitList.push({
+          key, ids: arr.map((i) => i.id), w, d,
+          cat: catRank(arr[0].kind),
+          primaryKind: arr[0].kind,
+        });
+      });
+      unitList.sort((a, b) => a.cat - b.cat || a.primaryKind.localeCompare(b.primaryKind));
+
+      const MAX_W = 14;
+      const GAP = 0.4;
+      const ROW_GAP = 1.5;
+      type Row = { units: Unit[]; width: number; depth: number };
+      const rows: Row[] = [];
+      let row: Row = { units: [], width: 0, depth: 0 };
+      let curCat = unitList[0]?.cat ?? 0;
+      for (const u of unitList) {
+        const needed = row.width + (row.units.length ? GAP : 0) + u.w;
+        if (u.cat !== curCat || needed > MAX_W) {
+          if (row.units.length) rows.push(row);
+          row = { units: [], width: 0, depth: 0 };
+          curCat = u.cat;
+        }
+        row.units.push(u);
+        row.width += (row.units.length > 1 ? GAP : 0) + u.w;
+        if (u.d > row.depth) row.depth = u.d;
+      }
+      if (row.units.length) rows.push(row);
+
+      let z = 0;
+      const rowZ: number[] = [];
+      for (const r of rows) {
+        rowZ.push(z + r.depth / 2);
+        z += r.depth + ROW_GAP;
+      }
+      const totalDepth = Math.max(0, z - ROW_GAP);
+      const zOffset = -totalDepth / 2;
+
+      const posByUnit = new Map<string, { x: number; z: number }>();
+      rows.forEach((r, ri) => {
+        let x = -r.width / 2;
+        for (const u of r.units) {
+          const cx = x + u.w / 2;
+          posByUnit.set(u.key, { x: cx, z: rowZ[ri] + zOffset });
+          x += u.w + GAP;
+        }
+      });
+
+      const byId = new Map<string, { x: number; z: number }>();
+      unitList.forEach((u) => {
+        const p = posByUnit.get(u.key)!;
+        for (const id of u.ids) byId.set(id, p);
+      });
+      return cur.map((it) => {
+        const p = byId.get(it.id);
+        if (!p) return it;
+        return { ...it, pos: [p.x, it.pos[1], p.z] as [number, number, number], rotY: 0 };
+      });
+    });
+    setSelection([]);
+  }, []);
+
   // Keyboard shortcuts
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -2774,6 +2863,7 @@ export function StageBuilder3D() {
         <button onClick={deleteSelection} disabled={!selection.length} className="flex items-center gap-1 rounded bg-red-100 px-2 py-1 hover:bg-red-200 disabled:opacity-40"><Trash2 size={12} /> Smazat</button>
         <div className="ml-auto flex w-full flex-wrap items-center gap-2 text-xs text-neutral-500 sm:w-auto">
           <span className="whitespace-nowrap">{items.length} prvků · {cables.length} kabelů · {selection.length} vybráno</span>
+          <button onClick={autoLayout} disabled={!items.length} title="Rozmístí všechny bedny do přehledných řad, aby se nepřekrývaly" className="rounded bg-lime-100 px-2 py-1 font-semibold text-lime-800 hover:bg-lime-200 disabled:opacity-40">⇹ Auto rozmístit</button>
           <button onClick={() => localStorage.setItem(STORAGE, JSON.stringify({ items, cables }))} className="flex items-center gap-1 rounded bg-neutral-100 px-2 py-1 hover:bg-neutral-200"><Save size={12} /> Uložit</button>
           <button onClick={() => { if (confirm("Vymazat vše?")) { setItems([]); setCables([]); setSelection([]); }}} className="rounded bg-neutral-100 px-2 py-1 hover:bg-neutral-200">Vyčistit</button>
         </div>
