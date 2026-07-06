@@ -15,10 +15,11 @@ import {
   Speaker, Trash2, Save, Copy, ClipboardPaste, Group as GroupIcon, Ungroup,
   Move as MoveIcon, RotateCw, Boxes, Zap, Sparkles, Radio, Volume2,
   Cable as CableIcon, MousePointer2, Menu, X, BoxSelect,
-  Workflow, Box as BoxIcon, LayoutGrid,
+  Workflow, Box as BoxIcon, LayoutGrid, GalleryVerticalEnd,
 } from "lucide-react";
 import SchematicView from "./SchematicView";
 import GridPlannerView from "./GridPlannerView";
+import ElevationView from "./ElevationView";
 
 
 /* ============================================================
