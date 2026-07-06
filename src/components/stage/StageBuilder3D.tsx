@@ -2811,7 +2811,7 @@ export function StageBuilder3D() {
           >
             <GalleryVerticalEnd size={12} /> Nárys
           </button>
-
+          <button
             onClick={() => setViewMode("schema")}
             className={`flex items-center gap-1 rounded px-2 py-0.5 text-[11px] font-semibold ${viewMode === "schema" ? "bg-white text-neutral-900 shadow-sm" : "text-neutral-600 hover:text-neutral-900"}`}
           >
