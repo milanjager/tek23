@@ -2519,7 +2519,7 @@ export function StageBuilder3D() {
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [marqueeMode, setMarqueeMode] = useState(false);
   const [realistic, setRealistic] = useState(false);
-  const [viewMode, setViewMode] = useState<"3d" | "schema" | "grid">("3d");
+  const [viewMode, setViewMode] = useState<"3d" | "schema" | "grid" | "elev">("3d");
   const [marquee, setMarquee] = useState<null | { x1: number; y1: number; x2: number; y2: number; additive: boolean }>(null);
   const cameraRef = useRef<THREE.Camera | null>(null);
   const canvasWrapRef = useRef<HTMLDivElement>(null);
