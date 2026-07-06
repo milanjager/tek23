@@ -326,25 +326,69 @@ export default function SchematicView({ items, cables }: Props) {
               );
             })}
 
-            {/* Cables underneath cards so pins overlap them cleanly */}
+            {/* Cables — white halo underneath for readability, colored line on top */}
             {drawnCables.map(({ c, path }) => {
               const isHi = highlight?.kind === "cable" && highlight.id === c.id;
+              const dim = highlight && !isHi;
               return (
-                <path
-                  key={c.id}
-                  d={path}
-                  fill="none"
-                  stroke={CABLE_META[c.type].color}
-                  strokeWidth={isHi ? 4 : 2.5}
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  opacity={highlight && !isHi ? 0.25 : 0.9}
-                  onMouseEnter={() => setHighlight({ id: c.id, kind: "cable" })}
-                  onMouseLeave={() => setHighlight(null)}
-                  style={{ cursor: "pointer" }}
-                />
+                <g key={`halo-${c.id}`} opacity={dim ? 0.2 : 1}>
+                  <path
+                    d={path}
+                    fill="none"
+                    stroke="#ffffff"
+                    strokeWidth={isHi ? 8 : 6}
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    opacity={0.9}
+                  />
+                  <path
+                    d={path}
+                    fill="none"
+                    stroke={CABLE_META[c.type].color}
+                    strokeWidth={isHi ? 3.5 : 2.2}
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    onMouseEnter={() => setHighlight({ id: c.id, kind: "cable" })}
+                    onMouseLeave={() => setHighlight(null)}
+                    style={{ cursor: "pointer" }}
+                  />
+                </g>
               );
             })}
+
+            {/* Small cable type labels at midpoint — SIG / SPK / PWR / DMX */}
+            {drawnCables.map(({ c, labelX, labelY }) => {
+              const isHi = highlight?.kind === "cable" && highlight.id === c.id;
+              const dim = highlight && !isHi;
+              const short = CABLE_META[c.type].short;
+              const w = short.length * 6 + 8;
+              return (
+                <g
+                  key={`lbl-${c.id}`}
+                  transform={`translate(${labelX - w / 2}, ${labelY - 7})`}
+                  opacity={dim ? 0.35 : 1}
+                  style={{ pointerEvents: "none" }}
+                >
+                  <rect
+                    width={w} height={14} rx={3}
+                    fill="#ffffff"
+                    stroke={CABLE_META[c.type].color}
+                    strokeWidth={1}
+                  />
+                  <text
+                    x={w / 2} y={10}
+                    textAnchor="middle"
+                    fontSize={9}
+                    fontWeight={700}
+                    fontFamily="ui-monospace, monospace"
+                    fill={CABLE_META[c.type].color}
+                  >
+                    {short}
+                  </text>
+                </g>
+              );
+            })}
+
 
             {/* Cards */}
             {items.map((it) => {
