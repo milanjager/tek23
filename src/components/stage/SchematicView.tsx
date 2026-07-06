@@ -324,17 +324,53 @@ export default function SchematicView({ items, cables, onAddDevice, onConnect, o
         </span>
       </div>
 
-      {/* Scrollable schematic surface */}
-      <div className="flex-1 overflow-auto bg-[linear-gradient(#e5e7eb_1px,transparent_1px),linear-gradient(90deg,#e5e7eb_1px,transparent_1px)] bg-[size:24px_24px] bg-white">
+      {/* Scrollable + pannable schematic surface */}
+      <div
+        ref={scrollRef}
+        className={`flex-1 overflow-auto bg-[linear-gradient(#e5e7eb_1px,transparent_1px),linear-gradient(90deg,#e5e7eb_1px,transparent_1px)] bg-[size:24px_24px] bg-white ${isPanning ? "cursor-grabbing" : "cursor-grab"}`}
+        onPointerDown={(e) => {
+          // Pan only when dragging on empty background (not on a card/pin/button).
+          const target = e.target as HTMLElement | SVGElement;
+          const isInteractive =
+            (target as HTMLElement).closest?.("button, input, select, [data-schema-card], [data-schema-pin]");
+          // Middle-mouse always pans; left click pans only on empty area.
+          if (e.button !== 0 && e.button !== 1) return;
+          if (e.button === 0 && isInteractive) return;
+          e.preventDefault();
+          const el = scrollRef.current;
+          if (!el) return;
+          panState.current = { x: e.clientX, y: e.clientY, sx: el.scrollLeft, sy: el.scrollTop };
+          setIsPanning(true);
+          (e.currentTarget as Element).setPointerCapture(e.pointerId);
+        }}
+        onPointerMove={(e) => {
+          const s = panState.current;
+          const el = scrollRef.current;
+          if (!s || !el) return;
+          el.scrollLeft = s.sx - (e.clientX - s.x);
+          el.scrollTop  = s.sy - (e.clientY - s.y);
+        }}
+        onPointerUp={(e) => {
+          panState.current = null;
+          setIsPanning(false);
+          try { (e.currentTarget as Element).releasePointerCapture(e.pointerId); } catch { /* ignore */ }
+        }}
+        onWheel={(e) => {
+          if (!(e.ctrlKey || e.metaKey)) return;
+          e.preventDefault();
+          setZoom((z) => Math.max(0.4, Math.min(2.5, z * (e.deltaY < 0 ? 1.1 : 0.9))));
+        }}
+      >
         {items.length === 0 ? (
           <div className="flex h-full items-center justify-center text-neutral-500">
             Zatím žádné komponenty. Přidej bedny v 3D pohledu a přepni sem — schéma se vygeneruje automaticky.
           </div>
         ) : (
           <svg
-            width={layout.width}
-            height={layout.height}
-            style={{ minWidth: "100%", minHeight: "100%" }}
+            width={layout.width * zoom}
+            height={layout.height * zoom}
+            viewBox={`0 0 ${layout.width} ${layout.height}`}
+            style={{ display: "block" }}
           >
             {/* Column headers — help a layman read the signal flow left→right */}
             {COLUMN_META.map((col, i) => (
