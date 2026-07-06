@@ -15,7 +15,9 @@ import {
   Speaker, Trash2, Save, Copy, ClipboardPaste, Group as GroupIcon, Ungroup,
   Move as MoveIcon, RotateCw, Boxes, Zap, Sparkles, Radio, Volume2,
   Cable as CableIcon, MousePointer2, Menu, X, BoxSelect,
+  Workflow, Box as BoxIcon,
 } from "lucide-react";
+import SchematicView from "./SchematicView";
 
 
 /* ============================================================
@@ -2457,6 +2459,7 @@ export function StageBuilder3D() {
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [marqueeMode, setMarqueeMode] = useState(false);
   const [realistic, setRealistic] = useState(false);
+  const [viewMode, setViewMode] = useState<"3d" | "schema">("3d");
   const [marquee, setMarquee] = useState<null | { x1: number; y1: number; x2: number; y2: number; additive: boolean }>(null);
   const cameraRef = useRef<THREE.Camera | null>(null);
   const canvasWrapRef = useRef<HTMLDivElement>(null);
@@ -2615,6 +2618,20 @@ export function StageBuilder3D() {
         <button onClick={() => setItems(loadPreset("rotor"))} className="rounded bg-red-700/70 px-2 py-1 hover:bg-red-600"><Zap size={12} className="inline" /> Rotor</button>
         <button onClick={() => { const it = loadPreset("raptor"); setItems(it); setCables(autoWireCables(it)); }} className="rounded bg-neutral-800 px-2 py-1 text-neutral-50 hover:bg-neutral-900"><Zap size={12} className="inline" /> Raptor</button>
         <div className="mx-3 h-5 w-px bg-neutral-700" />
+        <div className="flex items-center gap-0.5 rounded bg-neutral-200 p-0.5" title="Přepni mezi 3D scénou a klasickým technickým schématem zapojení">
+          <button
+            onClick={() => setViewMode("3d")}
+            className={`flex items-center gap-1 rounded px-2 py-0.5 text-[11px] font-semibold ${viewMode === "3d" ? "bg-white text-neutral-900 shadow-sm" : "text-neutral-600 hover:text-neutral-900"}`}
+          >
+            <BoxIcon size={12} /> 3D scéna
+          </button>
+          <button
+            onClick={() => setViewMode("schema")}
+            className={`flex items-center gap-1 rounded px-2 py-0.5 text-[11px] font-semibold ${viewMode === "schema" ? "bg-white text-neutral-900 shadow-sm" : "text-neutral-600 hover:text-neutral-900"}`}
+          >
+            <Workflow size={12} /> Schéma zapojení
+          </button>
+        </div>
         <button onClick={() => { setMode("select"); setPendingFrom(null); setMarqueeMode(false); }} className={`flex items-center gap-1 rounded px-2 py-1 ${mode === "select" && !marqueeMode ? "bg-lime-500 text-neutral-950" : "bg-neutral-100 hover:bg-neutral-200"}`}><MousePointer2 size={12} /> Výběr</button>
         <button onClick={() => { setMode("select"); setPendingFrom(null); setMarqueeMode((v) => !v); }} className={`flex items-center gap-1 rounded px-2 py-1 ${marqueeMode ? "bg-lime-500 text-neutral-950" : "bg-neutral-100 hover:bg-neutral-200"}`} title="Táhni myší přes bedny (Shift = přidat k výběru)"><BoxSelect size={12} /> Skupinový výběr</button>
         <button
@@ -2734,8 +2751,13 @@ export function StageBuilder3D() {
           </div>
         </aside>
 
-        {/* 3D Canvas */}
+        {/* 3D Canvas / Schematic view */}
         <div className="relative flex-1" ref={canvasWrapRef}>
+          {viewMode === "schema" ? (
+            <SchematicView items={items} cables={cables} />
+          ) : (
+          <>
+
           <Canvas
             shadows
             dpr={[1, 2]}
@@ -2831,7 +2853,8 @@ export function StageBuilder3D() {
               ? (pendingFrom ? "Kabely: klik na druhou bednu (Esc / klik do prázdna zruší)" : `Kabely (${CABLE_META[cableType].short}): klik na zdrojovou bednu`)
               : "Levé tl.: rotace · Pravé: pan · Kolečko: zoom · Klik na bednu: výběr"}
           </div>
-
+          </>
+          )}
         </div>
 
         {/* Right inspector — per-item model / label / variant */}
