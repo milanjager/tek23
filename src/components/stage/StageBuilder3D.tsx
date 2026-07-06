@@ -2951,6 +2951,21 @@ export function StageBuilder3D() {
                 setItems((cur) => cur.filter((x) => x.id !== id));
                 setCables((cs) => cs.filter((c) => c.from !== id && c.to !== id));
               }}
+              onAddDeviceAt={(kind, x, z) => {
+                const k = kind as Kind;
+                const spec = SPECS[k];
+                if (!spec) return;
+                const it: Placed = {
+                  id: uid(), kind: k,
+                  pos: [x, 0, z], rotY: 0,
+                  ...(spec.defaultLabel ? { label: spec.defaultLabel } : {}),
+                  ...(spec.defaultVariant ? { variant: spec.defaultVariant } : {}),
+                };
+                const y = stackY(it, items);
+                it.pos = [it.pos[0], y, it.pos[2]];
+                setItems((cur) => [...cur, it]);
+                setSelection([it.id]);
+              }}
             />
           ) : viewMode === "grid" ? (
             <GridPlannerView

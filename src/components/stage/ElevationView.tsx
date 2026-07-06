@@ -1,5 +1,5 @@
 import { useMemo, useRef, useState, useEffect } from "react";
-import { RotateCw, Trash2, X, ChevronUp, ChevronDown } from "lucide-react";
+import { RotateCw, Trash2, X, ChevronUp, ChevronDown, Plus } from "lucide-react";
 
 interface Placed {
   id: string;
@@ -22,6 +22,7 @@ interface Props {
   specs: Record<string, ElevSpec>;
   onUpdateItem: (id: string, patch: Partial<Placed>) => void;
   onDeleteItem: (id: string) => void;
+  onAddDeviceAt?: (kind: string, x: number, z: number) => void;
 }
 
 const CAT_COLOR: Record<string, { bg: string; border: string; text: string }> = {
@@ -56,11 +57,12 @@ function footprint(it: Placed, specs: Record<string, ElevSpec>) {
 }
 
 export default function ElevationView({
-  items, specs, onUpdateItem, onDeleteItem,
+  items, specs, onUpdateItem, onDeleteItem, onAddDeviceAt,
 }: Props) {
   const canvasRef = useRef<HTMLDivElement>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [zoom, setZoom] = useState(1);
+  const [addAt, setAddAt] = useState<{ x: number; z: number; clientX: number; clientY: number } | null>(null);
   // Which "depth slice" to focus (Z coordinate). "all" = show everything, with
   // items further from the viewer drawn faded.
   const [depthFilter, setDepthFilter] = useState<"all" | number>("all");
@@ -104,6 +106,15 @@ export default function ElevationView({
     for (const it of items) set.add(snap(it.pos[2]));
     return Array.from(set).sort((a, b) => b - a);
   }, [items]);
+
+  const kindsByCategory = useMemo(() => {
+    const map: Record<string, { kind: string; label: string }[]> = {};
+    for (const [k, s] of Object.entries(specs)) {
+      (map[s.category] ??= []).push({ kind: k, label: s.label });
+    }
+    for (const c of Object.keys(map)) map[c].sort((a, b) => a.label.localeCompare(b.label));
+    return map;
+  }, [specs]);
 
   const visibleItems = useMemo(() => {
     if (depthFilter === "all") {
@@ -243,7 +254,13 @@ export default function ElevationView({
           className="relative mx-auto"
           onClick={(e) => {
             if ((e.target as HTMLElement).closest("[data-elev-item]")) return;
+            if ((e.target as HTMLElement).closest("[data-add-popover]")) return;
             setSelectedId(null);
+            if (!onAddDeviceAt) return;
+            const rect = canvasRef.current!.getBoundingClientRect();
+            const x = snap((e.clientX - rect.left - originX) / px);
+            const z = depthFilter === "all" ? 0 : (depthFilter as number);
+            setAddAt({ x, z, clientX: e.clientX - rect.left, clientY: e.clientY - rect.top });
           }}
           style={{ width: canvasW, height: canvasH, background: "linear-gradient(to bottom,#f5f5f4 0%,#f5f5f4 82%,#e7e5e4 100%)" }}
         >
@@ -343,6 +360,21 @@ export default function ElevationView({
               Zatím nic k zobrazení. Přidej bedny v paletě vlevo nebo v režimu <b>Plán 2D</b>.
             </div>
           )}
+
+          {/* Add popover on empty click */}
+          {addAt && onAddDeviceAt && (
+            <ElevAddPopover
+              x={addAt.clientX}
+              y={addAt.clientY}
+              worldX={addAt.x}
+              worldZ={addAt.z}
+              kindsByCategory={kindsByCategory}
+              onPick={(kind) => { onAddDeviceAt(kind, addAt.x, addAt.z); setAddAt(null); }}
+              onClose={() => setAddAt(null)}
+              onChangeZ={(z) => setAddAt((a) => a ? { ...a, z } : a)}
+              depthOptions={depthOptions}
+            />
+          )}
         </div>
       </div>
 
@@ -432,4 +464,66 @@ function computeStackY(
     }
   }
   return top;
+}
+
+function ElevAddPopover({
+  x, y, worldX, worldZ, kindsByCategory, onPick, onClose, onChangeZ, depthOptions,
+}: {
+  x: number; y: number;
+  worldX: number; worldZ: number;
+  kindsByCategory: Record<string, { kind: string; label: string }[]>;
+  onPick: (kind: string) => void;
+  onClose: () => void;
+  onChangeZ: (z: number) => void;
+  depthOptions: number[];
+}) {
+  const cats = Object.keys(kindsByCategory);
+  const [cat, setCat] = useState<string>(cats[0] ?? "sound");
+  return (
+    <div
+      data-add-popover
+      className="absolute z-50 w-60 rounded-md border border-neutral-300 bg-white shadow-xl"
+      style={{ left: Math.min(x + 8, 9999), top: y + 8 }}
+      onClick={(e) => e.stopPropagation()}
+    >
+      <div className="flex items-center justify-between border-b border-neutral-200 px-2 py-1">
+        <div className="text-[11px] font-semibold text-neutral-800">Přidat bednu · X {worldX.toFixed(1)} m</div>
+        <button onClick={onClose} className="rounded p-0.5 text-neutral-500 hover:bg-neutral-100"><X size={12} /></button>
+      </div>
+      <div className="flex items-center gap-1 border-b border-neutral-200 px-2 py-1 text-[10px] text-neutral-600">
+        <span>Řada Z:</span>
+        <select
+          value={String(worldZ)}
+          onChange={(e) => onChangeZ(parseFloat(e.target.value))}
+          className="flex-1 rounded border border-neutral-300 px-1 py-0.5"
+        >
+          {[...new Set([0, worldZ, ...depthOptions])].sort((a, b) => b - a).map((z) => (
+            <option key={z} value={z}>{z.toFixed(1)} m {z > 0 ? "(vpředu)" : z < 0 ? "(vzadu)" : "(střed)"}</option>
+          ))}
+        </select>
+      </div>
+      <div className="flex border-b border-neutral-200 text-[10px]">
+        {cats.map((c) => (
+          <button
+            key={c}
+            onClick={() => setCat(c)}
+            className={`flex-1 px-2 py-1 capitalize ${cat === c ? "bg-neutral-900 font-semibold text-white" : "text-neutral-600 hover:bg-neutral-100"}`}
+          >
+            {c}
+          </button>
+        ))}
+      </div>
+      <div className="max-h-56 overflow-y-auto p-1">
+        {(kindsByCategory[cat] ?? []).map((k) => (
+          <button
+            key={k.kind}
+            onClick={() => onPick(k.kind)}
+            className="flex w-full items-center gap-1.5 rounded px-2 py-1 text-left text-[11px] text-neutral-800 hover:bg-lime-100"
+          >
+            <Plus size={11} className="text-lime-600" /> {k.label}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
 }
