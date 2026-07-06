@@ -185,12 +185,14 @@ const COLUMN_ADDS: Record<Column, { kind: string; label: string }[]> = {
 
 export default function SchematicView({ items, cables, onAddDevice, onConnect, onRemoveCable, kindOptions, onUpdateItem, onDeleteItem }: Props) {
   const [highlight, setHighlight] = useState<null | { id: string; kind: "item" | "cable" }>(null);
-  // Click-to-connect: user clicks a source OUT pin, then a target IN pin.
   const [pendingPin, setPendingPin] = useState<null | { itemId: string; type: CableType; role: "in" | "out" }>(null);
   const [connectError, setConnectError] = useState<string | null>(null);
-  // Detail editor for a device (opens modal on card click).
   const [editingId, setEditingId] = useState<string | null>(null);
   const editing = editingId ? items.find((x) => x.id === editingId) ?? null : null;
+  const scrollRef = useRef<HTMLDivElement | null>(null);
+  const [zoom, setZoom] = useState(1);
+  const panState = useRef<{ x: number; y: number; sx: number; sy: number } | null>(null);
+  const [isPanning, setIsPanning] = useState(false);
 
 
   // Bucket items by column, keep original order within a column for stability.
