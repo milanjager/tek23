@@ -127,6 +127,11 @@ interface Props {
   items: Placed[];
   cables: Cable[];
   onClose?: () => void;
+  // Building via schematic: add a new device of the given kind, and connect
+  // two items with a cable. Parent (StageBuilder3D) owns the actual state.
+  onAddDevice?: (kind: string) => void;
+  onConnect?: (fromId: string, toId: string, type: CableType) => void;
+  onRemoveCable?: (cableId: string) => void;
 }
 
 const CARD_W = 210;
@@ -135,8 +140,44 @@ const COL_GAP = 90;
 const ROW_GAP = 28;
 const COL_HEADER_H = 46;
 
-export default function SchematicView({ items, cables }: Props) {
+// Suggested "quick add" devices per column — one click builds the rig.
+const COLUMN_ADDS: Record<Column, { kind: string; label: string }[]> = {
+  source:  [
+    { kind: "dj",         label: "DJ booth" },
+    { kind: "cdj",        label: "CDJ" },
+    { kind: "turntable",  label: "Gramofon" },
+    { kind: "korg",       label: "Korg" },
+  ],
+  mixer:   [{ kind: "mixer", label: "Mixák" }],
+  amp:     [
+    { kind: "powersoft",  label: "Powersoft" },
+    { kind: "amp",        label: "Amp rack" },
+  ],
+  speaker: [
+    { kind: "sub",        label: "Sub" },
+    { kind: "bass",       label: "Bass bin" },
+    { kind: "mid",        label: "Mid" },
+    { kind: "horn",       label: "Horn" },
+    { kind: "monitor",    label: "Monitor" },
+  ],
+  light:   [
+    { kind: "movinghead", label: "Moving head" },
+    { kind: "strobe",     label: "Strobo" },
+    { kind: "laser",      label: "Laser" },
+  ],
+  infra:   [
+    { kind: "generator",  label: "Aggregát" },
+    { kind: "bar",        label: "Bar" },
+    { kind: "crowd",      label: "Dancefloor" },
+  ],
+};
+
+export default function SchematicView({ items, cables, onAddDevice, onConnect, onRemoveCable }: Props) {
   const [highlight, setHighlight] = useState<null | { id: string; kind: "item" | "cable" }>(null);
+  // Click-to-connect: user clicks a source OUT pin, then a target IN pin.
+  const [pendingPin, setPendingPin] = useState<null | { itemId: string; type: CableType; role: "in" | "out" }>(null);
+  const [connectError, setConnectError] = useState<string | null>(null);
+
 
   // Bucket items by column, keep original order within a column for stability.
   const layout = useMemo(() => {
