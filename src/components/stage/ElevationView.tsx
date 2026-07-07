@@ -174,6 +174,10 @@ export default function ElevationView({
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && placing) {
+        setPlacing(null);
+        return;
+      }
       if (!selected) return;
       const tag = (e.target as HTMLElement)?.tagName;
       if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
@@ -188,7 +192,8 @@ export default function ElevationView({
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [selected, items, specs, onUpdateItem, onDeleteItem]);
+  }, [selected, items, specs, onUpdateItem, onDeleteItem, placing]);
+
 
   // Restack: for the selected item's column, reorder items by desired level.
   const moveInStack = (dir: -1 | 1) => {
