@@ -147,6 +147,11 @@ function connectorsFor(kind: Kind): Connector[] {
     case "badtekk_sub":
     case "badtekk_bass":
     case "badtekk_top":
+    case "img_0838":
+    case "img_0839":
+    case "img_0841":
+    case "img_0842":
+    case "img_0843":
     case "linearray":
     case "monitor":
       return passiveSpeaker;
