@@ -1234,6 +1234,11 @@ function ModelFor({ kind, size, variant }: { kind: Kind; size: [number, number, 
     case "badtekk_sub": return <SubModel size={size} />;
     case "badtekk_bass": return <BassModel size={size} />;
     case "badtekk_top": return <HornModel size={size} />;
+    case "img_0838": return <PicusBinModel size={size} cols={1} rows={2} hasTopVent />;
+    case "img_0839": return <PicusBinModel size={size} cols={1} rows={2} hasTopVent />;
+    case "img_0841": return <PicusBinModel size={size} cols={2} rows={2} hasTopVent={false} />;
+    case "img_0842": return <PicusBinModel size={size} cols={1} rows={3} hasTopVent />;
+    case "img_0843": return <PicusTopGrillModel size={size} />;
     case "linearray": return <LineArrayModel size={size} />;
     case "monitor": return <MonitorModel size={size} />;
     case "amp": return <AmpRack size={size} />;
