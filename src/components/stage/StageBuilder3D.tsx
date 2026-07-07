@@ -1114,7 +1114,7 @@ function PicusBinModel({
   const bodyTop = h - ventH;
   const cellsH = bodyTop - bodyBottom;
 
-  const cells: JSX.Element[] = [];
+  const cells: React.ReactNode[] = [];
   // Yellow crosses inside each big opening
   for (let r = 0; r < rows; r++) {
     for (let c = 0; c < cols; c++) {
