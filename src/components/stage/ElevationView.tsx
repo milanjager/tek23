@@ -63,9 +63,11 @@ export default function ElevationView({
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [zoom, setZoom] = useState(1);
   const [addAt, setAddAt] = useState<{ x: number; z: number; clientX: number; clientY: number } | null>(null);
-  // Which "depth slice" to focus (Z coordinate). "all" = show everything, with
-  // items further from the viewer drawn faded.
+  // Ghost placement: after picking a device kind, user drags along the grid
+  // and clicks to confirm final X position (Z fixed from popover).
+  const [placing, setPlacing] = useState<{ kind: string; x: number; z: number } | null>(null);
   const [depthFilter, setDepthFilter] = useState<"all" | number>("all");
+
 
   const px = PX_PER_M * zoom;
   const canvasW = VIEW_W_M * px + 200;
