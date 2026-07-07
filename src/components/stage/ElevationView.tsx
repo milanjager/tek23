@@ -63,9 +63,11 @@ export default function ElevationView({
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [zoom, setZoom] = useState(1);
   const [addAt, setAddAt] = useState<{ x: number; z: number; clientX: number; clientY: number } | null>(null);
-  // Which "depth slice" to focus (Z coordinate). "all" = show everything, with
-  // items further from the viewer drawn faded.
+  // Ghost placement: after picking a device kind, user drags along the grid
+  // and clicks to confirm final X position (Z fixed from popover).
+  const [placing, setPlacing] = useState<{ kind: string; x: number; z: number } | null>(null);
   const [depthFilter, setDepthFilter] = useState<"all" | number>("all");
+
 
   const px = PX_PER_M * zoom;
   const canvasW = VIEW_W_M * px + 200;
@@ -172,6 +174,10 @@ export default function ElevationView({
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && placing) {
+        setPlacing(null);
+        return;
+      }
       if (!selected) return;
       const tag = (e.target as HTMLElement)?.tagName;
       if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
@@ -186,7 +192,8 @@ export default function ElevationView({
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [selected, items, specs, onUpdateItem, onDeleteItem]);
+  }, [selected, items, specs, onUpdateItem, onDeleteItem, placing]);
+
 
   // Restack: for the selected item's column, reorder items by desired level.
   const moveInStack = (dir: -1 | 1) => {
@@ -252,9 +259,21 @@ export default function ElevationView({
         <div
           ref={canvasRef}
           className="relative mx-auto"
+          style={{ width: canvasW, height: canvasH, background: "linear-gradient(to bottom,#f5f5f4 0%,#f5f5f4 82%,#e7e5e4 100%)", cursor: placing ? "crosshair" : undefined }}
+          onMouseMove={(e) => {
+            if (!placing) return;
+            const rect = canvasRef.current!.getBoundingClientRect();
+            const nx = snap((e.clientX - rect.left - originX) / px);
+            if (nx !== placing.x) setPlacing({ ...placing, x: nx });
+          }}
           onClick={(e) => {
             if ((e.target as HTMLElement).closest("[data-elev-item]")) return;
             if ((e.target as HTMLElement).closest("[data-add-popover]")) return;
+            if (placing && onAddDeviceAt) {
+              onAddDeviceAt(placing.kind, placing.x, placing.z);
+              setPlacing(null);
+              return;
+            }
             setSelectedId(null);
             if (!onAddDeviceAt) return;
             const rect = canvasRef.current!.getBoundingClientRect();
@@ -262,8 +281,8 @@ export default function ElevationView({
             const z = depthFilter === "all" ? 0 : (depthFilter as number);
             setAddAt({ x, z, clientX: e.clientX - rect.left, clientY: e.clientY - rect.top });
           }}
-          style={{ width: canvasW, height: canvasH, background: "linear-gradient(to bottom,#f5f5f4 0%,#f5f5f4 82%,#e7e5e4 100%)" }}
         >
+
           {/* Grid + rulers */}
           <svg className="pointer-events-none absolute inset-0" width={canvasW} height={canvasH}>
             <defs>
@@ -354,27 +373,65 @@ export default function ElevationView({
             );
           })}
 
+          {/* Ghost preview for placement */}
+          {placing && specs[placing.kind] && (() => {
+            const s = specs[placing.kind].size;
+            const wPx = s[0] * px;
+            const hPx = s[1] * px;
+            const y = computeStackY(items, specs, placing.kind, placing.x, placing.z, 0);
+            const left = originX + placing.x * px - wPx / 2;
+            const top = groundY - (y + s[1]) * px;
+            const color = CAT_COLOR[specs[placing.kind].category] ?? CAT_COLOR.infra;
+            return (
+              <div
+                className="pointer-events-none absolute rounded border-2 border-dashed"
+                style={{
+                  left, top, width: wPx, height: hPx,
+                  background: color.bg,
+                  borderColor: color.border,
+                  color: color.text,
+                  opacity: 0.7,
+                  zIndex: 9999,
+                  boxShadow: "0 0 0 3px rgba(132,204,22,0.35)",
+                }}
+              >
+                <div className="flex h-full w-full flex-col items-center justify-center px-1 text-center text-[10px] font-bold leading-tight">
+                  <div className="truncate">{specs[placing.kind].label}</div>
+                  <div className="font-mono text-[9px] opacity-80">X {placing.x.toFixed(1)} · Y {y.toFixed(1)}</div>
+                </div>
+              </div>
+            );
+          })()}
+
+          {/* Placement hint bar */}
+          {placing && (
+            <div className="pointer-events-none sticky bottom-2 left-1/2 z-[10000] mx-auto w-fit -translate-x-1/2 rounded-full bg-neutral-900/90 px-3 py-1 text-[11px] text-white shadow-lg">
+              Táhni myší po mřížce · <b>klik</b> potvrdí umístění · <b>Esc</b> zruší
+            </div>
+          )}
+
           {/* Empty state */}
-          {items.length === 0 && (
+          {items.length === 0 && !placing && (
             <div className="absolute inset-x-0 top-1/3 text-center text-sm text-neutral-500">
               Zatím nic k zobrazení. Přidej bedny v paletě vlevo nebo v režimu <b>Plán 2D</b>.
             </div>
           )}
 
           {/* Add popover on empty click */}
-          {addAt && onAddDeviceAt && (
+          {addAt && onAddDeviceAt && !placing && (
             <ElevAddPopover
               x={addAt.clientX}
               y={addAt.clientY}
               worldX={addAt.x}
               worldZ={addAt.z}
               kindsByCategory={kindsByCategory}
-              onPick={(kind) => { onAddDeviceAt(kind, addAt.x, addAt.z); setAddAt(null); }}
+              onPick={(kind) => { setPlacing({ kind, x: addAt.x, z: addAt.z }); setAddAt(null); }}
               onClose={() => setAddAt(null)}
               onChangeZ={(z) => setAddAt((a) => a ? { ...a, z } : a)}
               depthOptions={depthOptions}
             />
           )}
+
         </div>
       </div>
 
