@@ -29,6 +29,7 @@ import ElevationView from "./ElevationView";
 type Kind =
   | "horn" | "mid" | "bass" | "sub" | "linearray" | "monitor"
   | "badtekk_sub" | "badtekk_bass" | "badtekk_top"
+  | "img_0838" | "img_0839" | "img_0841" | "img_0842" | "img_0843"
   | "amp" | "powersoft" | "mixer" | "dj" | "dj_table" | "cdj"
   | "korg" | "korg_red" | "korg_blue" | "turntable"
   | "strobe" | "laser" | "movinghead"
