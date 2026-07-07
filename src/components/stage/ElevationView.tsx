@@ -259,9 +259,21 @@ export default function ElevationView({
         <div
           ref={canvasRef}
           className="relative mx-auto"
+          style={{ width: canvasW, height: canvasH, background: "linear-gradient(to bottom,#f5f5f4 0%,#f5f5f4 82%,#e7e5e4 100%)", cursor: placing ? "crosshair" : undefined }}
+          onMouseMove={(e) => {
+            if (!placing) return;
+            const rect = canvasRef.current!.getBoundingClientRect();
+            const nx = snap((e.clientX - rect.left - originX) / px);
+            if (nx !== placing.x) setPlacing({ ...placing, x: nx });
+          }}
           onClick={(e) => {
             if ((e.target as HTMLElement).closest("[data-elev-item]")) return;
             if ((e.target as HTMLElement).closest("[data-add-popover]")) return;
+            if (placing && onAddDeviceAt) {
+              onAddDeviceAt(placing.kind, placing.x, placing.z);
+              setPlacing(null);
+              return;
+            }
             setSelectedId(null);
             if (!onAddDeviceAt) return;
             const rect = canvasRef.current!.getBoundingClientRect();
@@ -269,8 +281,8 @@ export default function ElevationView({
             const z = depthFilter === "all" ? 0 : (depthFilter as number);
             setAddAt({ x, z, clientX: e.clientX - rect.left, clientY: e.clientY - rect.top });
           }}
-          style={{ width: canvasW, height: canvasH, background: "linear-gradient(to bottom,#f5f5f4 0%,#f5f5f4 82%,#e7e5e4 100%)" }}
         >
+
           {/* Grid + rulers */}
           <svg className="pointer-events-none absolute inset-0" width={canvasW} height={canvasH}>
             <defs>
