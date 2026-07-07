@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, useCallback, Suspense } from "react";
+import React, { useEffect, useMemo, useRef, useState, useCallback, Suspense } from "react";
 import { Canvas, useThree, useFrame } from "@react-three/fiber";
 import {
   OrbitControls,
@@ -1094,6 +1094,137 @@ function CrowdModel({ size }: { size: [number, number, number] }) {
   );
 }
 
+function PicusBinModel({
+  size,
+  cols = 2,
+  rows = 1,
+  hasTopVent = true,
+}: {
+  size: [number, number, number];
+  cols?: number;
+  rows?: number;
+  hasTopVent?: boolean;
+}) {
+  const [w, h, d] = size;
+  const YELLOW = "#f4c11a";
+  const BAR = 0.028; // yellow strip thickness
+  const front = d / 2 + 0.003;
+  const ventH = hasTopVent ? h * 0.12 : 0;
+  const bodyBottom = 0;
+  const bodyTop = h - ventH;
+  const cellsH = bodyTop - bodyBottom;
+
+  const cells: React.ReactNode[] = [];
+  // Yellow crosses inside each big opening
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      const cx = -w / 2 + (c + 0.5) * (w / cols);
+      const cy = bodyBottom + (r + 0.5) * (cellsH / rows);
+      const cw = w / cols;
+      const ch = cellsH / rows;
+      // vertical bar
+      cells.push(
+        <mesh key={`v-${r}-${c}`} position={[cx, cy, front]}>
+          <planeGeometry args={[BAR, ch * 0.96]} />
+          <meshStandardMaterial color={YELLOW} emissive={YELLOW} emissiveIntensity={0.35} />
+        </mesh>,
+      );
+      // horizontal bar
+      cells.push(
+        <mesh key={`h-${r}-${c}`} position={[cx, cy, front]}>
+          <planeGeometry args={[cw * 0.96, BAR]} />
+          <meshStandardMaterial color={YELLOW} emissive={YELLOW} emissiveIntensity={0.35} />
+        </mesh>,
+      );
+    }
+  }
+
+  return (
+    <group>
+      {/* Cabinet body */}
+      <mesh castShadow receiveShadow position={[0, h / 2, 0]}>
+        <boxGeometry args={[w, h, d]} />
+        <meshStandardMaterial color="#0a0a0a" roughness={0.85} metalness={0.15} />
+      </mesh>
+      {/* Front face – dark recess */}
+      <mesh position={[0, h / 2, d / 2 + 0.001]}>
+        <planeGeometry args={[w * 0.995, h * 0.995]} />
+        <meshStandardMaterial color="#050505" roughness={0.95} />
+      </mesh>
+      {/* Top vent slot with two yellow vertical bars */}
+      {hasTopVent && (
+        <group position={[0, bodyTop + ventH / 2, front]}>
+          <mesh>
+            <planeGeometry args={[w * 0.92, ventH * 0.55]} />
+            <meshStandardMaterial color="#020202" roughness={1} />
+          </mesh>
+          {[-1, 1].map((s) => (
+            <mesh key={s} position={[s * w * 0.14, 0, 0.001]}>
+              <planeGeometry args={[BAR, ventH * 0.5]} />
+              <meshStandardMaterial color={YELLOW} emissive={YELLOW} emissiveIntensity={0.35} />
+            </mesh>
+          ))}
+          {/* horizontal bottom edge of vent */}
+          <mesh position={[0, -ventH * 0.3, 0.001]}>
+            <planeGeometry args={[w * 0.94, BAR]} />
+            <meshStandardMaterial color={YELLOW} emissive={YELLOW} emissiveIntensity={0.35} />
+          </mesh>
+        </group>
+      )}
+      {/* Vertical divider between columns */}
+      {cols > 1 &&
+        Array.from({ length: cols - 1 }).map((_, i) => {
+          const x = -w / 2 + (i + 1) * (w / cols);
+          return (
+            <mesh key={`div-${i}`} position={[x, bodyBottom + cellsH / 2, front]}>
+              <planeGeometry args={[BAR, cellsH * 0.98]} />
+              <meshStandardMaterial color={YELLOW} emissive={YELLOW} emissiveIntensity={0.35} />
+            </mesh>
+          );
+        })}
+      {/* Horizontal divider between rows */}
+      {rows > 1 &&
+        Array.from({ length: rows - 1 }).map((_, i) => {
+          const y = bodyBottom + (i + 1) * (cellsH / rows);
+          return (
+            <mesh key={`hdiv-${i}`} position={[0, y, front]}>
+              <planeGeometry args={[w * 0.98, BAR]} />
+              <meshStandardMaterial color={YELLOW} emissive={YELLOW} emissiveIntensity={0.35} />
+            </mesh>
+          );
+        })}
+      {cells}
+      {/* Outer yellow frame */}
+      <mesh position={[0, h / 2, front - 0.0005]}>
+        <planeGeometry args={[w * 0.995, BAR]} />
+        <meshStandardMaterial color={YELLOW} emissive={YELLOW} emissiveIntensity={0.25} />
+      </mesh>
+    </group>
+  );
+}
+
+function PicusTopGrillModel({ size }: { size: [number, number, number] }) {
+  const [w, h, d] = size;
+  return (
+    <group>
+      <mesh castShadow receiveShadow position={[0, h / 2, 0]}>
+        <boxGeometry args={[w, h, d]} />
+        <meshStandardMaterial color="#0a0a0a" roughness={0.7} metalness={0.35} />
+      </mesh>
+      {/* Perforated silver grill */}
+      <mesh position={[0, h / 2, d / 2 + 0.002]}>
+        <planeGeometry args={[w * 0.95, h * 0.9]} />
+        <meshStandardMaterial color="#8a8a8a" metalness={0.85} roughness={0.45} />
+      </mesh>
+      {/* Subtle center logo strip */}
+      <mesh position={[0, h * 0.5, d / 2 + 0.004]}>
+        <planeGeometry args={[w * 0.35, 0.02]} />
+        <meshStandardMaterial color="#1a1a1a" roughness={0.6} />
+      </mesh>
+    </group>
+  );
+}
+
 function ModelFor({ kind, size, variant }: { kind: Kind; size: [number, number, number]; variant?: "red" | "blue" }) {
   switch (kind) {
     case "horn": return <HornModel size={size} />;
@@ -1103,6 +1234,11 @@ function ModelFor({ kind, size, variant }: { kind: Kind; size: [number, number, 
     case "badtekk_sub": return <SubModel size={size} />;
     case "badtekk_bass": return <BassModel size={size} />;
     case "badtekk_top": return <HornModel size={size} />;
+    case "img_0838": return <PicusBinModel size={size} cols={1} rows={2} hasTopVent />;
+    case "img_0839": return <PicusBinModel size={size} cols={1} rows={2} hasTopVent />;
+    case "img_0841": return <PicusBinModel size={size} cols={2} rows={2} hasTopVent={false} />;
+    case "img_0842": return <PicusBinModel size={size} cols={1} rows={3} hasTopVent />;
+    case "img_0843": return <PicusTopGrillModel size={size} />;
     case "linearray": return <LineArrayModel size={size} />;
     case "monitor": return <MonitorModel size={size} />;
     case "amp": return <AmpRack size={size} />;
