@@ -373,27 +373,65 @@ export default function ElevationView({
             );
           })}
 
+          {/* Ghost preview for placement */}
+          {placing && specs[placing.kind] && (() => {
+            const s = specs[placing.kind].size;
+            const wPx = s[0] * px;
+            const hPx = s[1] * px;
+            const y = computeStackY(items, specs, placing.kind, placing.x, placing.z, 0);
+            const left = originX + placing.x * px - wPx / 2;
+            const top = groundY - (y + s[1]) * px;
+            const color = CAT_COLOR[specs[placing.kind].category] ?? CAT_COLOR.infra;
+            return (
+              <div
+                className="pointer-events-none absolute rounded border-2 border-dashed"
+                style={{
+                  left, top, width: wPx, height: hPx,
+                  background: color.bg,
+                  borderColor: color.border,
+                  color: color.text,
+                  opacity: 0.7,
+                  zIndex: 9999,
+                  boxShadow: "0 0 0 3px rgba(132,204,22,0.35)",
+                }}
+              >
+                <div className="flex h-full w-full flex-col items-center justify-center px-1 text-center text-[10px] font-bold leading-tight">
+                  <div className="truncate">{specs[placing.kind].label}</div>
+                  <div className="font-mono text-[9px] opacity-80">X {placing.x.toFixed(1)} · Y {y.toFixed(1)}</div>
+                </div>
+              </div>
+            );
+          })()}
+
+          {/* Placement hint bar */}
+          {placing && (
+            <div className="pointer-events-none sticky bottom-2 left-1/2 z-[10000] mx-auto w-fit -translate-x-1/2 rounded-full bg-neutral-900/90 px-3 py-1 text-[11px] text-white shadow-lg">
+              Táhni myší po mřížce · <b>klik</b> potvrdí umístění · <b>Esc</b> zruší
+            </div>
+          )}
+
           {/* Empty state */}
-          {items.length === 0 && (
+          {items.length === 0 && !placing && (
             <div className="absolute inset-x-0 top-1/3 text-center text-sm text-neutral-500">
               Zatím nic k zobrazení. Přidej bedny v paletě vlevo nebo v režimu <b>Plán 2D</b>.
             </div>
           )}
 
           {/* Add popover on empty click */}
-          {addAt && onAddDeviceAt && (
+          {addAt && onAddDeviceAt && !placing && (
             <ElevAddPopover
               x={addAt.clientX}
               y={addAt.clientY}
               worldX={addAt.x}
               worldZ={addAt.z}
               kindsByCategory={kindsByCategory}
-              onPick={(kind) => { onAddDeviceAt(kind, addAt.x, addAt.z); setAddAt(null); }}
+              onPick={(kind) => { setPlacing({ kind, x: addAt.x, z: addAt.z }); setAddAt(null); }}
               onClose={() => setAddAt(null)}
               onChangeZ={(z) => setAddAt((a) => a ? { ...a, z } : a)}
               depthOptions={depthOptions}
             />
           )}
+
         </div>
       </div>
 
