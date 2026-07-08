@@ -1430,7 +1430,8 @@ function ModelFor({ kind, size, variant }: { kind: Kind; size: [number, number, 
    ============================================================ */
 
 const ItemObject = ({
-  item, selected, pending, showConnectors, showConnectorLabels, activeCableType, onSelect, onRegister,
+  item, selected, pending, showConnectors, showConnectorLabels, activeCableType, pendingItemId,
+  onSelect, onRegister, onConnectorPick,
 }: {
   item: Placed;
   selected: boolean;
@@ -1438,8 +1439,10 @@ const ItemObject = ({
   showConnectors?: boolean;
   showConnectorLabels?: boolean;
   activeCableType?: CableType;
+  pendingItemId?: string | null;
   onSelect: (id: string, additive: boolean) => void;
   onRegister: (id: string, obj: THREE.Object3D | null) => void;
+  onConnectorPick?: (itemId: string, connector: Connector) => void;
 }) => {
   const spec = SPECS[item.kind];
   const ref = useRef<THREE.Group>(null!);
@@ -1489,28 +1492,57 @@ const ItemObject = ({
       {/* Connector plugs — visible in cable mode so users see exactly where cables snap */}
       {showConnectors && connectors.map((c, i) => {
         const meta = CABLE_META[c.type];
-        const isActive = activeCableType === c.type;
+        const isTypeActive = activeCableType === c.type;
+        // While a pending source exists, other items' compatible IN-plugs of
+        // the pending cable's type should pulse as valid drop targets.
+        const isPendingElsewhere = !!pendingItemId && pendingItemId !== item.id;
+        const isCompatibleTarget =
+          isPendingElsewhere && isTypeActive && (c.role === "in" || connectors.filter(x => x.type === c.type).every(x => x.role !== "in"));
+        const isSourceCandidate = !pendingItemId && isTypeActive;
+        const highlight = isCompatibleTarget || isSourceCandidate;
+        const size = highlight ? 0.14 : 0.11;
+
         return (
           <group key={i} position={[c.offset[0], modelYOffset + c.offset[1], c.offset[2]]}>
+            {/* Larger invisible hit area so plugs are easy to click on mobile too. */}
+            <mesh
+              onPointerDown={(e) => {
+                if (!onConnectorPick) return;
+                e.stopPropagation();
+                onConnectorPick(item.id, c);
+              }}
+              onPointerOver={(e) => { e.stopPropagation(); document.body.style.cursor = "crosshair"; }}
+              onPointerOut={(e) => { e.stopPropagation(); document.body.style.cursor = ""; }}
+            >
+              <sphereGeometry args={[0.18, 12, 8]} />
+              <meshBasicMaterial transparent opacity={0} depthWrite={false} />
+            </mesh>
+            {/* Visible plug body */}
             <mesh>
-              <boxGeometry args={[0.09, 0.09, 0.05]} />
+              <boxGeometry args={[size, size, size * 0.55]} />
               <meshStandardMaterial
                 color={meta.color}
                 emissive={meta.color}
-                emissiveIntensity={isActive ? 1.1 : 0.35}
-                transparent
-                opacity={isActive ? 1 : 0.55}
+                emissiveIntensity={highlight ? 1.4 : isTypeActive ? 0.9 : 0.35}
+                metalness={0.5}
+                roughness={0.35}
               />
             </mesh>
-            {showConnectorLabels && (
-              <Html position={[0, 0.13, 0]} center distanceFactor={10} occlude={false}>
+            {/* Pulsing halo ring when this plug is a valid target */}
+            {isCompatibleTarget && (
+              <PulseRing color={meta.color} size={size} />
+            )}
+            {/* Role badge */}
+            {(showConnectorLabels || highlight) && (
+              <Html position={[0, 0.16, 0]} center distanceFactor={10} occlude={false}>
                 <div
                   className="pointer-events-none rounded px-1 font-mono text-[9px] font-bold uppercase leading-none"
                   style={{
                     color: meta.color,
-                    background: "rgba(0,0,0,.75)",
-                    opacity: isActive ? 1 : 0.6,
+                    background: "rgba(0,0,0,.85)",
+                    opacity: 1,
                     border: `1px solid ${meta.color}`,
+                    boxShadow: highlight ? `0 0 8px ${meta.color}` : undefined,
                   }}
                 >
                   {meta.short}{c.role === "out" ? "▶" : "◀"}
@@ -1531,6 +1563,26 @@ const ItemObject = ({
     </group>
   );
 };
+
+// Pulsing ring shown around compatible target plugs during cable drag.
+function PulseRing({ color, size }: { color: string; size: number }) {
+  const ring = useRef<THREE.Mesh>(null);
+  const mat = useRef<THREE.MeshBasicMaterial>(null);
+  useFrame(() => {
+    if (!ring.current || !mat.current) return;
+    const t = (performance.now() / 1000) % 1.1;
+    const p = t / 1.1;
+    ring.current.scale.setScalar(1 + p * 3.2);
+    mat.current.opacity = (1 - p) * 0.85;
+  });
+  return (
+    <mesh ref={ring} rotation={[Math.PI / 2, 0, 0]}>
+      <ringGeometry args={[size * 0.9, size * 1.15, 28]} />
+      <meshBasicMaterial ref={mat} color={color} transparent opacity={0.6} side={THREE.DoubleSide} depthWrite={false} />
+    </mesh>
+  );
+}
+
 
 
 
@@ -1611,7 +1663,7 @@ function RealisticTuner({ enabled }: { enabled: boolean }) {
 
 function SceneContent({
   items, setItems, selection, setSelection, tool,
-  cables, setCables, mode, cableType, pendingFrom, setPendingFrom,
+  cables, setCables, mode, cableType, setCableType, pendingFrom, setPendingFrom,
   showConnectorLabels, showCableLabels, realistic,
 }: {
   items: Placed[];
@@ -1623,12 +1675,14 @@ function SceneContent({
   setCables: React.Dispatch<React.SetStateAction<Cable[]>>;
   mode: "select" | "cable";
   cableType: CableType;
+  setCableType: React.Dispatch<React.SetStateAction<CableType>>;
   pendingFrom: string | null;
   setPendingFrom: React.Dispatch<React.SetStateAction<string | null>>;
   showConnectorLabels: boolean;
   showCableLabels: boolean;
   realistic: boolean;
 }) {
+
 
 
   const objectsRef = useRef<Map<string, THREE.Object3D>>(new Map());
@@ -1707,9 +1761,28 @@ function SceneContent({
   const [popupOffset, setPopupOffset] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
   const [inspectedItemId, setInspectedItemId] = useState<string | null>(null);
   const [devicePopupOffset, setDevicePopupOffset] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+  // Ghost cable state while dragging from a connector.
+  const [cursorWorld, setCursorWorld] = useState<[number, number, number] | null>(null);
+  const [pendingSourceConnector, setPendingSourceConnector] = useState<Connector | null>(null);
   // Reset drag offset when switching between cables / devices.
   useEffect(() => { setPopupOffset({ x: 0, y: 0 }); }, [selectedCableId]);
   useEffect(() => { setDevicePopupOffset({ x: 0, y: 0 }); }, [inspectedItemId]);
+  // Clear ghost when leaving cable mode or clearing the pending source.
+  useEffect(() => {
+    if (mode !== "cable" || !pendingFrom) {
+      setCursorWorld(null);
+      setPendingSourceConnector(null);
+    }
+  }, [mode, pendingFrom]);
+  // ESC cancels a pending cable drag.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") { setPendingFrom(null); setCursorWorld(null); setPendingSourceConnector(null); }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [setPendingFrom]);
+
 
   const itemLabel = (it: Placed) => it.label ?? SPECS[it.kind].defaultLabel ?? SPECS[it.kind].label;
 
@@ -1756,9 +1829,14 @@ function SceneContent({
       <mesh
         rotation={[-Math.PI / 2, 0, 0]}
         receiveShadow
+        onPointerMove={(e) => {
+          if (mode === "cable" && pendingFrom) {
+            setCursorWorld([e.point.x, Math.max(e.point.y, 0.05), e.point.z]);
+          }
+        }}
         onPointerDown={(e) => {
           if (e.button === 0) {
-            if (mode === "cable") setPendingFrom(null);
+            if (mode === "cable") { setPendingFrom(null); setCursorWorld(null); setPendingSourceConnector(null); }
             else setSelection([]);
           }
         }}
@@ -1770,6 +1848,7 @@ function SceneContent({
           metalness={realistic ? 0.1 : 0}
         />
       </mesh>
+
       <Grid
         args={[60, 60]}
         cellColor={realistic ? "#b8bcc0" : "#cccccc"}
@@ -1799,6 +1878,39 @@ function SceneContent({
           showConnectors={mode === "cable"}
           showConnectorLabels={showConnectorLabels}
           activeCableType={cableType}
+          pendingItemId={pendingFrom}
+          onConnectorPick={(itemId, conn) => {
+            // Reconnect flow — pick the specific plug to reroute to.
+            if (reconnect) {
+              const cable = cables.find((c) => c.id === reconnect.cableId);
+              const target = items.find((x) => x.id === itemId);
+              if (!cable || !target) return;
+              const other = reconnect.end === "from" ? cable.to : cable.from;
+              if (other === itemId) { setReconnectError("Nelze zapojit oba konce do stejné bedny."); return; }
+              if (conn.type !== cable.type) { setReconnectError(`Konektor je ${CABLE_META[conn.type].short}, kabel je ${CABLE_META[cable.type].short}.`); return; }
+              setCables((cs) => cs.map((c) => c.id === cable.id ? { ...c, [reconnect.end]: itemId } : c));
+              setReconnect(null); setReconnectError(null);
+              return;
+            }
+            if (!pendingFrom) {
+              // Start a cable drag from this plug.
+              setPendingFrom(itemId);
+              setPendingSourceConnector(conn);
+              // Auto-switch the active cable type to match the plug the user grabbed.
+              if (conn.type !== cableType) setCableType(conn.type);
+              const src = items.find((x) => x.id === itemId);
+              if (src) setCursorWorld(localToWorld(src, conn.offset));
+              return;
+            }
+            if (pendingFrom === itemId) return; // ignore same-item second click
+            // Complete: type must match the pending cable type.
+            if (conn.type !== cableType) return;
+            setCables((cs) => [...cs, { id: uid(), from: pendingFrom!, to: itemId, type: cableType }]);
+            setPendingFrom(null);
+            setPendingSourceConnector(null);
+            setCursorWorld(null);
+          }}
+
           onSelect={(id, additive) => {
             // Reconnect flow — replace one endpoint of the selected cable.
             if (reconnect) {
@@ -1863,7 +1975,41 @@ function SceneContent({
         />
       ))}
 
+      {/* Ghost cable — visible while the user is dragging a plug to a target */}
+      {mode === "cable" && pendingFrom && cursorWorld && (() => {
+        const src = items.find((i) => i.id === pendingFrom);
+        if (!src) return null;
+        const meta = CABLE_META[cableType];
+        const srcLocal =
+          pendingSourceConnector?.offset ??
+          (connectorsFor(src.kind).find((c) => c.type === cableType && c.role === "out")
+            ?? connectorsFor(src.kind).find((c) => c.type === cableType))?.offset;
+        const p1 = srcLocal ? localToWorld(src, srcLocal) : anchorFor(src, cableType);
+        const seed = pendingFrom.split("").reduce((s, ch) => s + ch.charCodeAt(0), 0);
+        const pts = cablePoints(p1, cursorWorld, seed);
+        return (
+          <group>
+            <Line
+              points={pts as unknown as [number, number, number][]}
+              color={meta.color}
+              lineWidth={meta.width + 1}
+              dashed
+              dashSize={0.18}
+              gapSize={0.12}
+              transparent
+              opacity={0.85}
+            />
+            <CableEndpoint position={p1} color={meta.color} state="active" />
+            <mesh position={cursorWorld}>
+              <sphereGeometry args={[0.09, 16, 12]} />
+              <meshBasicMaterial color={meta.color} transparent opacity={0.65} />
+            </mesh>
+          </group>
+        );
+      })()}
+
       {/* Cables */}
+
       {cables.map((c) => {
         const a = items.find((i) => i.id === c.from);
         const b = items.find((i) => i.id === c.to);
@@ -3357,6 +3503,8 @@ export function StageBuilder3D() {
               setCables={setCables}
               mode={mode}
               cableType={cableType}
+              setCableType={setCableType}
+
               pendingFrom={pendingFrom}
               setPendingFrom={setPendingFrom}
               showConnectorLabels={showConnectorLabels}
@@ -3431,7 +3579,7 @@ export function StageBuilder3D() {
             {marqueeMode
               ? "Skupinový výběr: táhni myší přes bedny · Shift = přidat · vypnout tlačítkem v liště"
               : mode === "cable"
-              ? (pendingFrom ? "Kabely: klik na druhou bednu (Esc / klik do prázdna zruší)" : `Kabely (${CABLE_META[cableType].short}): klik na zdrojovou bednu`)
+              ? (pendingFrom ? "Táhni na svítící konektor druhé bedny (Esc / klik do prázdna zruší)" : `Kabely (${CABLE_META[cableType].short}): klikni na barevný konektor bedny – typ kabelu se přepne automaticky`)
               : "Levé tl.: rotace · Pravé: pan · Kolečko: zoom · Klik na bednu: výběr"}
           </div>
           </>
