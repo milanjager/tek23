@@ -1759,9 +1759,28 @@ function SceneContent({
   const [popupOffset, setPopupOffset] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
   const [inspectedItemId, setInspectedItemId] = useState<string | null>(null);
   const [devicePopupOffset, setDevicePopupOffset] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+  // Ghost cable state while dragging from a connector.
+  const [cursorWorld, setCursorWorld] = useState<[number, number, number] | null>(null);
+  const [pendingSourceConnector, setPendingSourceConnector] = useState<Connector | null>(null);
   // Reset drag offset when switching between cables / devices.
   useEffect(() => { setPopupOffset({ x: 0, y: 0 }); }, [selectedCableId]);
   useEffect(() => { setDevicePopupOffset({ x: 0, y: 0 }); }, [inspectedItemId]);
+  // Clear ghost when leaving cable mode or clearing the pending source.
+  useEffect(() => {
+    if (mode !== "cable" || !pendingFrom) {
+      setCursorWorld(null);
+      setPendingSourceConnector(null);
+    }
+  }, [mode, pendingFrom]);
+  // ESC cancels a pending cable drag.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") { setPendingFrom(null); setCursorWorld(null); setPendingSourceConnector(null); }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [setPendingFrom]);
+
 
   const itemLabel = (it: Placed) => it.label ?? SPECS[it.kind].defaultLabel ?? SPECS[it.kind].label;
 
