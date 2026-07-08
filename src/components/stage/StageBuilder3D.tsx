@@ -3579,7 +3579,7 @@ export function StageBuilder3D() {
             {marqueeMode
               ? "Skupinový výběr: táhni myší přes bedny · Shift = přidat · vypnout tlačítkem v liště"
               : mode === "cable"
-              ? (pendingFrom ? "Kabely: klik na druhou bednu (Esc / klik do prázdna zruší)" : `Kabely (${CABLE_META[cableType].short}): klik na zdrojovou bednu`)
+              ? (pendingFrom ? "Táhni na svítící konektor druhé bedny (Esc / klik do prázdna zruší)" : `Kabely (${CABLE_META[cableType].short}): klikni na barevný konektor bedny – typ kabelu se přepne automaticky`)
               : "Levé tl.: rotace · Pravé: pan · Kolečko: zoom · Klik na bednu: výběr"}
           </div>
           </>
