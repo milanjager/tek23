@@ -158,7 +158,7 @@ const CARD_W = 210;
 const CARD_H = 90;
 const COL_GAP = 90;
 const ROW_GAP = 28;
-const COL_HEADER_H = 46;
+const COL_HEADER_H = 72;
 
 // Suggested "quick add" devices per column — one click builds the rig.
 const COLUMN_ADDS: Record<Column, { kind: string; label: string }[]> = {
