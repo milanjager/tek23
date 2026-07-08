@@ -43,13 +43,22 @@ const CABLE_META: Record<CableType, { label: string; short: string; color: strin
 // Column bucket used to lay devices out left-to-right in signal-flow order.
 type Column = "source" | "mixer" | "amp" | "speaker" | "light" | "infra";
 
-const COLUMN_META: { id: Column; label: string; sub: string; color: string }[] = [
-  { id: "source",  label: "1. ZDROJE ZVUKU",      sub: "Odkud jde hudba",            color: "#8b5cf6" },
-  { id: "mixer",   label: "2. MIX / EFEKTY",      sub: "Míchání signálu",            color: "#0ea5e9" },
-  { id: "amp",     label: "3. ZESILOVAČE",        sub: "Zesílí signál pro bedny",    color: "#f59e0b" },
-  { id: "speaker", label: "4. REPRODUKTORY",      sub: "Zvuk pro publikum",          color: "#10b981" },
-  { id: "light",   label: "5. SVĚTLA",            sub: "Ovládáno DMX + 230V",        color: "#eab308" },
-  { id: "infra",   label: "6. NAPÁJENÍ / OSTATNÍ", sub: "Aggregát, bar, dancefloor", color: "#64748b" },
+const COLUMN_META: { id: Column; label: string; sub: string; role: string; color: string }[] = [
+  { id: "source",  label: "1. ZDROJE ZVUKU",       sub: "CDJ, gramofony, mikrofony", role: "Vstupní signál", color: "#8b5cf6" },
+  { id: "mixer",   label: "2. FOH MIXPULT",        sub: "hlavní mix, efekty, sendy", role: "Míchání + DSP",   color: "#0ea5e9" },
+  { id: "amp",     label: "3. ZESILOVAČE",         sub: "výkonové koncové stupně",   role: "Zesílení signálu", color: "#f59e0b" },
+  { id: "speaker", label: "4. REPRODUKTORY",       sub: "Subs · Tops · Monitory",    role: "Zvuk pro publikum", color: "#10b981" },
+  { id: "light",   label: "5. SVĚTLA (DMX)",       sub: "movinghead, laser, strobo", role: "Ovládáno DMX + 230V", color: "#eab308" },
+  { id: "infra",   label: "6. NAPÁJENÍ",           sub: "Aggregát → rozvaděč → jištění", role: "Zdroj el. energie", color: "#64748b" },
+];
+
+// Descriptive separators between columns — explain what happens between stages.
+const FLOW_SEPARATORS: { fromCol: number; label: string; sub: string }[] = [
+  { fromCol: 0, label: "audio kabely",  sub: "XLR / jack, mic level → line level" },
+  { fromCol: 1, label: "DSP → amp",     sub: "crossover, limiter, EQ" },
+  { fromCol: 2, label: "výkonový okruh", sub: "Speakon, vysoký proud" },
+  { fromCol: 3, label: "sálem",         sub: "zvuková vlna k publiku" },
+  { fromCol: 4, label: "světelný pult", sub: "DMX 512 řízení" },
 ];
 
 function columnFor(kind: string): Column {
