@@ -1808,9 +1808,14 @@ function SceneContent({
       <mesh
         rotation={[-Math.PI / 2, 0, 0]}
         receiveShadow
+        onPointerMove={(e) => {
+          if (mode === "cable" && pendingFrom) {
+            setCursorWorld([e.point.x, Math.max(e.point.y, 0.05), e.point.z]);
+          }
+        }}
         onPointerDown={(e) => {
           if (e.button === 0) {
-            if (mode === "cable") setPendingFrom(null);
+            if (mode === "cable") { setPendingFrom(null); setCursorWorld(null); setPendingSourceConnector(null); }
             else setSelection([]);
           }
         }}
@@ -1822,6 +1827,7 @@ function SceneContent({
           metalness={realistic ? 0.1 : 0}
         />
       </mesh>
+
       <Grid
         args={[60, 60]}
         cellColor={realistic ? "#b8bcc0" : "#cccccc"}
