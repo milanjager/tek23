@@ -390,24 +390,38 @@ export default function SchematicView({ items, cables, onAddDevice, onConnect, o
                   fill={col.color} fillOpacity={0.08}
                   stroke={col.color} strokeOpacity={0.4}
                 />
-                <text x={CARD_W / 2} y={22} textAnchor="middle" fontSize={11} fontWeight={700} fill={col.color}>
+                <text x={CARD_W / 2} y={20} textAnchor="middle" fontSize={11} fontWeight={700} fill={col.color}>
                   {col.label}
                 </text>
-                <text x={CARD_W / 2} y={36} textAnchor="middle" fontSize={10} fill="#525252">
+                <text x={CARD_W / 2} y={34} textAnchor="middle" fontSize={9.5} fontWeight={600} fill="#171717">
                   {col.sub}
+                </text>
+                <text x={CARD_W / 2} y={46} textAnchor="middle" fontSize={9} fill="#737373" fontStyle="italic">
+                  {col.role}
                 </text>
               </g>
             ))}
 
-            {/* Signal flow arrows between column headers */}
-            {COLUMN_META.slice(0, -1).map((_, i) => {
+            {/* Descriptive signal-flow separators between columns */}
+            {FLOW_SEPARATORS.map((sep, i) => {
               const x = 24 + (i + 1) * CARD_W + i * COL_GAP + COL_GAP / 2;
+              const midY = COL_HEADER_H / 2;
               return (
                 <g key={i}>
-                  <line x1={x - 18} y1={COL_HEADER_H / 2} x2={x + 18} y2={COL_HEADER_H / 2}
+                  {/* arrow */}
+                  <line x1={x - 22} y1={midY - 6} x2={x + 22} y2={midY - 6}
                         stroke="#9ca3af" strokeWidth={1.5} />
-                  <polygon points={`${x + 18},${COL_HEADER_H / 2} ${x + 12},${COL_HEADER_H / 2 - 5} ${x + 12},${COL_HEADER_H / 2 + 5}`}
+                  <polygon points={`${x + 22},${midY - 6} ${x + 15},${midY - 10} ${x + 15},${midY - 2}`}
                            fill="#9ca3af" />
+                  {/* descriptive label pill */}
+                  <rect x={x - 46} y={midY + 2} width={92} height={26} rx={4}
+                        fill="#fafafa" stroke="#e5e5e5" strokeWidth={1} />
+                  <text x={x} y={midY + 12} textAnchor="middle" fontSize={8.5} fontWeight={700} fill="#404040">
+                    {sep.label}
+                  </text>
+                  <text x={x} y={midY + 23} textAnchor="middle" fontSize={7.5} fill="#737373">
+                    {sep.sub}
+                  </text>
                 </g>
               );
             })}
