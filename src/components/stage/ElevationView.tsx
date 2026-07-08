@@ -732,24 +732,42 @@ export default function ElevationView({
                 Pohled zepředu (od publika)  ·  osa X vodorovně, osa Y výška
               </text>
 
-              {/* Drag preview vertical guide */}
-              {dragPreviewX && (
-                <>
-                  <line
-                    x1={originX + dragPreviewX.x * px}
-                    y1={0}
-                    x2={originX + dragPreviewX.x * px}
-                    y2={groundY}
-                    stroke="#84cc16"
-                    strokeWidth={1}
-                    strokeDasharray="3 3"
-                  />
-                  <rect x={originX + dragPreviewX.x * px - 24} y={groundY + 4} width={48} height={16} rx={3} fill="#84cc16" />
-                  <text x={originX + dragPreviewX.x * px} y={groundY + 16} textAnchor="middle" fontSize={10} fontWeight={700} fill="#1a2e05">
-                    X {dragPreviewX.x.toFixed(1)}
-                  </text>
-                </>
-              )}
+              {/* Drag preview vertical guide (with collision detection) */}
+              {dragPreviewX && (() => {
+                const dragged = items.find((i) => i.id === dragPreviewX.id);
+                if (!dragged) return null;
+                const f = footprint(dragged, specs);
+                const testFp = { x: dragPreviewX.x, z: f.z, w: f.w, d: f.d };
+                let overlap = false, near = false;
+                for (const o of items) {
+                  if (o.id === dragged.id) continue;
+                  const of = footprint(o, specs);
+                  if (overlapsXZ(testFp, of)) { overlap = true; break; }
+                  if (Math.abs(of.x - testFp.x) < (of.w + testFp.w) / 2 + 0.4 &&
+                      Math.abs(of.z - testFp.z) < (of.d + testFp.d) / 2 + 0.4) near = true;
+                }
+                const color = overlap ? "#dc2626" : near ? "#f59e0b" : "#84cc16";
+                const textColor = overlap ? "#450a0a" : near ? "#78350f" : "#1a2e05";
+                const msg = overlap ? "překryv → stack" : near ? "těsně vedle" : `X ${dragPreviewX.x.toFixed(1)}`;
+                const boxW = overlap || near ? 96 : 48;
+                return (
+                  <>
+                    <line
+                      x1={originX + dragPreviewX.x * px}
+                      y1={0}
+                      x2={originX + dragPreviewX.x * px}
+                      y2={groundY}
+                      stroke={color}
+                      strokeWidth={overlap ? 2 : 1}
+                      strokeDasharray="3 3"
+                    />
+                    <rect x={originX + dragPreviewX.x * px - boxW / 2} y={groundY + 4} width={boxW} height={16} rx={3} fill={color} />
+                    <text x={originX + dragPreviewX.x * px} y={groundY + 16} textAnchor="middle" fontSize={10} fontWeight={700} fill={textColor}>
+                      {msg}
+                    </text>
+                  </>
+                );
+              })()}
             </svg>
 
             {/* Items */}
@@ -785,7 +803,7 @@ export default function ElevationView({
               );
             })}
 
-            {/* Ghost preview for placement */}
+            {/* Ghost preview for placement (with collision warning) */}
             {placing && specs[placing.kind] && (() => {
               const s = specs[placing.kind].size;
               const wPx = s[0] * px;
@@ -795,22 +813,39 @@ export default function ElevationView({
               const top = groundY - (y + s[1]) * px;
               const color = CAT_COLOR[specs[placing.kind].category] ?? CAT_COLOR.infra;
               const fam = classify(placing.kind, specs[placing.kind].category);
+              // collision detection
+              const testFp = { x: placing.x, z: placing.z, w: s[0], d: s[2] };
+              const conflicts = items.filter((o) => overlapsXZ(testFp, footprint(o, specs)));
+              const nearby = items.filter((o) => {
+                const of = footprint(o, specs);
+                if (overlapsXZ(testFp, of)) return false;
+                return Math.abs(of.x - testFp.x) < (of.w + testFp.w) / 2 + 0.4 &&
+                       Math.abs(of.z - testFp.z) < (of.d + testFp.d) / 2 + 0.4;
+              });
+              const warn = conflicts.length > 0 ? "overlap" : nearby.length > 0 ? "near" : "ok";
+              const ringColor = warn === "overlap" ? "#dc2626" : warn === "near" ? "#f59e0b" : "#84cc16";
+              const glow = warn === "overlap" ? "rgba(220,38,38,0.7)" : warn === "near" ? "rgba(245,158,11,0.6)" : "rgba(132,204,22,0.7)";
               return (
                 <div
                   className="pointer-events-none absolute rounded"
                   style={{
                     left, top, width: wPx, height: hPx,
-                    opacity: 0.7,
+                    opacity: 0.75,
                     zIndex: 9999,
-                    filter: "drop-shadow(0 0 6px rgba(132,204,22,0.7))",
+                    filter: `drop-shadow(0 0 6px ${glow})`,
                   }}
                 >
                   <svg width={wPx} height={hPx} style={{ overflow: "visible" }}>
                     <DeviceGraphic fam={fam} w={wPx} h={hPx} border={color.border} accent={color.accent} bg={color.bg} />
-                    <rect x={1} y={1} width={wPx - 2} height={hPx - 2} rx={4} fill="none" stroke="#84cc16" strokeWidth={2} strokeDasharray="4 3" />
+                    <rect x={1} y={1} width={wPx - 2} height={hPx - 2} rx={4} fill="none" stroke={ringColor} strokeWidth={2} strokeDasharray="4 3" />
                   </svg>
-                  <div className="absolute -bottom-4 left-1/2 -translate-x-1/2 whitespace-nowrap rounded bg-neutral-900/90 px-1.5 py-0.5 text-[9px] font-bold text-white">
+                  <div
+                    className="absolute -bottom-4 left-1/2 -translate-x-1/2 whitespace-nowrap rounded px-1.5 py-0.5 text-[9px] font-bold text-white"
+                    style={{ background: warn === "ok" ? "rgba(23,23,23,0.9)" : ringColor }}
+                  >
                     {specs[placing.kind].label} · X {placing.x.toFixed(1)} · Y {y.toFixed(1)}
+                    {warn === "overlap" && ` · ⚠ překryv (${conflicts.length}) → stack Y ${y.toFixed(1)}m`}
+                    {warn === "near" && ` · ⓘ těsně u ${nearby.length} ${nearby.length === 1 ? "bedny" : "beden"}`}
                   </div>
                 </div>
               );

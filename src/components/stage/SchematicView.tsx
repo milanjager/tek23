@@ -43,13 +43,22 @@ const CABLE_META: Record<CableType, { label: string; short: string; color: strin
 // Column bucket used to lay devices out left-to-right in signal-flow order.
 type Column = "source" | "mixer" | "amp" | "speaker" | "light" | "infra";
 
-const COLUMN_META: { id: Column; label: string; sub: string; color: string }[] = [
-  { id: "source",  label: "1. ZDROJE ZVUKU",      sub: "Odkud jde hudba",            color: "#8b5cf6" },
-  { id: "mixer",   label: "2. MIX / EFEKTY",      sub: "Míchání signálu",            color: "#0ea5e9" },
-  { id: "amp",     label: "3. ZESILOVAČE",        sub: "Zesílí signál pro bedny",    color: "#f59e0b" },
-  { id: "speaker", label: "4. REPRODUKTORY",      sub: "Zvuk pro publikum",          color: "#10b981" },
-  { id: "light",   label: "5. SVĚTLA",            sub: "Ovládáno DMX + 230V",        color: "#eab308" },
-  { id: "infra",   label: "6. NAPÁJENÍ / OSTATNÍ", sub: "Aggregát, bar, dancefloor", color: "#64748b" },
+const COLUMN_META: { id: Column; label: string; sub: string; role: string; color: string }[] = [
+  { id: "source",  label: "1. ZDROJE ZVUKU",       sub: "CDJ, gramofony, mikrofony", role: "Vstupní signál", color: "#8b5cf6" },
+  { id: "mixer",   label: "2. FOH MIXPULT",        sub: "hlavní mix, efekty, sendy", role: "Míchání + DSP",   color: "#0ea5e9" },
+  { id: "amp",     label: "3. ZESILOVAČE",         sub: "výkonové koncové stupně",   role: "Zesílení signálu", color: "#f59e0b" },
+  { id: "speaker", label: "4. REPRODUKTORY",       sub: "Subs · Tops · Monitory",    role: "Zvuk pro publikum", color: "#10b981" },
+  { id: "light",   label: "5. SVĚTLA (DMX)",       sub: "movinghead, laser, strobo", role: "Ovládáno DMX + 230V", color: "#eab308" },
+  { id: "infra",   label: "6. NAPÁJENÍ",           sub: "Aggregát → rozvaděč → jištění", role: "Zdroj el. energie", color: "#64748b" },
+];
+
+// Descriptive separators between columns — explain what happens between stages.
+const FLOW_SEPARATORS: { fromCol: number; label: string; sub: string }[] = [
+  { fromCol: 0, label: "audio kabely",  sub: "XLR / jack, mic level → line level" },
+  { fromCol: 1, label: "DSP → amp",     sub: "crossover, limiter, EQ" },
+  { fromCol: 2, label: "výkonový okruh", sub: "Speakon, vysoký proud" },
+  { fromCol: 3, label: "sálem",         sub: "zvuková vlna k publiku" },
+  { fromCol: 4, label: "světelný pult", sub: "DMX 512 řízení" },
 ];
 
 function columnFor(kind: string): Column {
@@ -149,7 +158,7 @@ const CARD_W = 210;
 const CARD_H = 90;
 const COL_GAP = 90;
 const ROW_GAP = 28;
-const COL_HEADER_H = 46;
+const COL_HEADER_H = 72;
 
 // Suggested "quick add" devices per column — one click builds the rig.
 const COLUMN_ADDS: Record<Column, { kind: string; label: string }[]> = {
@@ -381,24 +390,38 @@ export default function SchematicView({ items, cables, onAddDevice, onConnect, o
                   fill={col.color} fillOpacity={0.08}
                   stroke={col.color} strokeOpacity={0.4}
                 />
-                <text x={CARD_W / 2} y={22} textAnchor="middle" fontSize={11} fontWeight={700} fill={col.color}>
+                <text x={CARD_W / 2} y={20} textAnchor="middle" fontSize={11} fontWeight={700} fill={col.color}>
                   {col.label}
                 </text>
-                <text x={CARD_W / 2} y={36} textAnchor="middle" fontSize={10} fill="#525252">
+                <text x={CARD_W / 2} y={34} textAnchor="middle" fontSize={9.5} fontWeight={600} fill="#171717">
                   {col.sub}
+                </text>
+                <text x={CARD_W / 2} y={46} textAnchor="middle" fontSize={9} fill="#737373" fontStyle="italic">
+                  {col.role}
                 </text>
               </g>
             ))}
 
-            {/* Signal flow arrows between column headers */}
-            {COLUMN_META.slice(0, -1).map((_, i) => {
+            {/* Descriptive signal-flow separators between columns */}
+            {FLOW_SEPARATORS.map((sep, i) => {
               const x = 24 + (i + 1) * CARD_W + i * COL_GAP + COL_GAP / 2;
+              const midY = COL_HEADER_H / 2;
               return (
                 <g key={i}>
-                  <line x1={x - 18} y1={COL_HEADER_H / 2} x2={x + 18} y2={COL_HEADER_H / 2}
+                  {/* arrow */}
+                  <line x1={x - 22} y1={midY - 6} x2={x + 22} y2={midY - 6}
                         stroke="#9ca3af" strokeWidth={1.5} />
-                  <polygon points={`${x + 18},${COL_HEADER_H / 2} ${x + 12},${COL_HEADER_H / 2 - 5} ${x + 12},${COL_HEADER_H / 2 + 5}`}
+                  <polygon points={`${x + 22},${midY - 6} ${x + 15},${midY - 10} ${x + 15},${midY - 2}`}
                            fill="#9ca3af" />
+                  {/* descriptive label pill */}
+                  <rect x={x - 46} y={midY + 2} width={92} height={26} rx={4}
+                        fill="#fafafa" stroke="#e5e5e5" strokeWidth={1} />
+                  <text x={x} y={midY + 12} textAnchor="middle" fontSize={8.5} fontWeight={700} fill="#404040">
+                    {sep.label}
+                  </text>
+                  <text x={x} y={midY + 23} textAnchor="middle" fontSize={7.5} fill="#737373">
+                    {sep.sub}
+                  </text>
                 </g>
               );
             })}
