@@ -1990,14 +1990,16 @@ export function StageBuilder() {
 
 
       <div className="relative flex flex-1 overflow-hidden">
-        {/* Mobile palette toggle */}
-        <button
-          onClick={() => setPaletteOpen((v) => !v)}
-          className="absolute left-3 top-3 z-40 flex items-center gap-1.5 rounded-sm border border-[color:var(--acid)]/60 bg-background/80 px-3 py-1.5 font-mono text-[10px] uppercase tracking-widest text-[color:var(--acid)] backdrop-blur md:hidden"
-        >
-          {paletteOpen ? <X className="h-3.5 w-3.5" /> : <Menu className="h-3.5 w-3.5" />}
-          {paletteOpen ? "Zavřít" : "Komponenty"}
-        </button>
+        {/* Mobile palette opener (only when closed – close button is inside the sidebar) */}
+        {!paletteOpen && (
+          <button
+            onClick={() => setPaletteOpen(true)}
+            className="absolute left-3 top-3 z-40 flex items-center gap-1.5 rounded-sm border border-[color:var(--acid)]/60 bg-background/80 px-3 py-1.5 font-mono text-[10px] uppercase tracking-widest text-[color:var(--acid)] shadow-lg backdrop-blur md:hidden"
+          >
+            <Menu className="h-3.5 w-3.5" /> Komponenty
+          </button>
+        )}
+
 
         {/* Palette backdrop on mobile */}
         {paletteOpen && (
@@ -2013,8 +2015,23 @@ export function StageBuilder() {
             paletteOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"
           }`}
         >
-          <div className="border-b border-border p-3 pt-14 md:pt-3">
-            <div className="mb-2 flex items-center gap-2">
+          {/* Mobile-only close bar sticks to the top of the sidebar so it's
+              always reachable, even when the palette scrolls. */}
+          <div className="sticky top-0 z-10 flex items-center justify-between border-b border-border bg-card/95 px-3 py-2 backdrop-blur md:hidden">
+            <span className="font-mono text-[10px] uppercase tracking-widest text-[color:var(--acid)]">
+              Komponenty
+            </span>
+            <button
+              onClick={() => setPaletteOpen(false)}
+              aria-label="Zavřít komponenty"
+              className="flex items-center gap-1.5 rounded-sm border border-[color:var(--acid)]/60 bg-background/80 px-2.5 py-1 font-mono text-[10px] uppercase tracking-widest text-[color:var(--acid)] active:scale-95"
+            >
+              <X className="h-3.5 w-3.5" /> Zavřít
+            </button>
+          </div>
+
+          <div className="border-b border-border p-3 md:pt-3">
+            <div className="mb-2 hidden items-center gap-2 md:flex">
               <Plus className="h-3.5 w-3.5 text-[color:var(--acid)]" />
               <span className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">Komponenty</span>
             </div>
@@ -2034,9 +2051,10 @@ export function StageBuilder() {
               ))}
             </div>
             <p className="mt-2 font-mono text-[9px] uppercase tracking-widest text-muted-foreground/70 md:hidden">
-              Podrž a přetáhni na plochu →
+              Ťukni na komponentu pro přidání na plochu
             </p>
           </div>
+
 
           <div className="flex-1 overflow-y-auto p-3">
             <div className="grid grid-cols-2 gap-2">
