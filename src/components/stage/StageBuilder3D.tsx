@@ -1430,7 +1430,8 @@ function ModelFor({ kind, size, variant }: { kind: Kind; size: [number, number, 
    ============================================================ */
 
 const ItemObject = ({
-  item, selected, pending, showConnectors, showConnectorLabels, activeCableType, onSelect, onRegister,
+  item, selected, pending, showConnectors, showConnectorLabels, activeCableType, pendingItemId,
+  onSelect, onRegister, onConnectorPick,
 }: {
   item: Placed;
   selected: boolean;
@@ -1438,8 +1439,10 @@ const ItemObject = ({
   showConnectors?: boolean;
   showConnectorLabels?: boolean;
   activeCableType?: CableType;
+  pendingItemId?: string | null;
   onSelect: (id: string, additive: boolean) => void;
   onRegister: (id: string, obj: THREE.Object3D | null) => void;
+  onConnectorPick?: (itemId: string, connector: Connector) => void;
 }) => {
   const spec = SPECS[item.kind];
   const ref = useRef<THREE.Group>(null!);
@@ -1489,28 +1492,57 @@ const ItemObject = ({
       {/* Connector plugs — visible in cable mode so users see exactly where cables snap */}
       {showConnectors && connectors.map((c, i) => {
         const meta = CABLE_META[c.type];
-        const isActive = activeCableType === c.type;
+        const isTypeActive = activeCableType === c.type;
+        // While a pending source exists, other items' compatible IN-plugs of
+        // the pending cable's type should pulse as valid drop targets.
+        const isPendingElsewhere = !!pendingItemId && pendingItemId !== item.id;
+        const isCompatibleTarget =
+          isPendingElsewhere && isTypeActive && (c.role === "in" || connectors.filter(x => x.type === c.type).every(x => x.role !== "in"));
+        const isSourceCandidate = !pendingItemId && isTypeActive;
+        const highlight = isCompatibleTarget || isSourceCandidate;
+        const size = highlight ? 0.14 : 0.11;
+
         return (
           <group key={i} position={[c.offset[0], modelYOffset + c.offset[1], c.offset[2]]}>
+            {/* Larger invisible hit area so plugs are easy to click on mobile too. */}
+            <mesh
+              onPointerDown={(e) => {
+                if (!onConnectorPick) return;
+                e.stopPropagation();
+                onConnectorPick(item.id, c);
+              }}
+              onPointerOver={(e) => { e.stopPropagation(); document.body.style.cursor = "crosshair"; }}
+              onPointerOut={(e) => { e.stopPropagation(); document.body.style.cursor = ""; }}
+            >
+              <sphereGeometry args={[0.18, 12, 8]} />
+              <meshBasicMaterial transparent opacity={0} depthWrite={false} />
+            </mesh>
+            {/* Visible plug body */}
             <mesh>
-              <boxGeometry args={[0.09, 0.09, 0.05]} />
+              <boxGeometry args={[size, size, size * 0.55]} />
               <meshStandardMaterial
                 color={meta.color}
                 emissive={meta.color}
-                emissiveIntensity={isActive ? 1.1 : 0.35}
-                transparent
-                opacity={isActive ? 1 : 0.55}
+                emissiveIntensity={highlight ? 1.4 : isTypeActive ? 0.9 : 0.35}
+                metalness={0.5}
+                roughness={0.35}
               />
             </mesh>
-            {showConnectorLabels && (
-              <Html position={[0, 0.13, 0]} center distanceFactor={10} occlude={false}>
+            {/* Pulsing halo ring when this plug is a valid target */}
+            {isCompatibleTarget && (
+              <PulseRing color={meta.color} size={size} />
+            )}
+            {/* Role badge */}
+            {(showConnectorLabels || highlight) && (
+              <Html position={[0, 0.16, 0]} center distanceFactor={10} occlude={false}>
                 <div
                   className="pointer-events-none rounded px-1 font-mono text-[9px] font-bold uppercase leading-none"
                   style={{
                     color: meta.color,
-                    background: "rgba(0,0,0,.75)",
-                    opacity: isActive ? 1 : 0.6,
+                    background: "rgba(0,0,0,.85)",
+                    opacity: 1,
                     border: `1px solid ${meta.color}`,
+                    boxShadow: highlight ? `0 0 8px ${meta.color}` : undefined,
                   }}
                 >
                   {meta.short}{c.role === "out" ? "▶" : "◀"}
@@ -1531,6 +1563,26 @@ const ItemObject = ({
     </group>
   );
 };
+
+// Pulsing ring shown around compatible target plugs during cable drag.
+function PulseRing({ color, size }: { color: string; size: number }) {
+  const ring = useRef<THREE.Mesh>(null);
+  const mat = useRef<THREE.MeshBasicMaterial>(null);
+  useFrame(() => {
+    if (!ring.current || !mat.current) return;
+    const t = (performance.now() / 1000) % 1.1;
+    const p = t / 1.1;
+    ring.current.scale.setScalar(1 + p * 3.2);
+    mat.current.opacity = (1 - p) * 0.85;
+  });
+  return (
+    <mesh ref={ring} rotation={[Math.PI / 2, 0, 0]}>
+      <ringGeometry args={[size * 0.9, size * 1.15, 28]} />
+      <meshBasicMaterial ref={mat} color={color} transparent opacity={0.6} side={THREE.DoubleSide} depthWrite={false} />
+    </mesh>
+  );
+}
+
 
 
 
