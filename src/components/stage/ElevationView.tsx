@@ -732,24 +732,42 @@ export default function ElevationView({
                 Pohled zepředu (od publika)  ·  osa X vodorovně, osa Y výška
               </text>
 
-              {/* Drag preview vertical guide */}
-              {dragPreviewX && (
-                <>
-                  <line
-                    x1={originX + dragPreviewX.x * px}
-                    y1={0}
-                    x2={originX + dragPreviewX.x * px}
-                    y2={groundY}
-                    stroke="#84cc16"
-                    strokeWidth={1}
-                    strokeDasharray="3 3"
-                  />
-                  <rect x={originX + dragPreviewX.x * px - 24} y={groundY + 4} width={48} height={16} rx={3} fill="#84cc16" />
-                  <text x={originX + dragPreviewX.x * px} y={groundY + 16} textAnchor="middle" fontSize={10} fontWeight={700} fill="#1a2e05">
-                    X {dragPreviewX.x.toFixed(1)}
-                  </text>
-                </>
-              )}
+              {/* Drag preview vertical guide (with collision detection) */}
+              {dragPreviewX && (() => {
+                const dragged = items.find((i) => i.id === dragPreviewX.id);
+                if (!dragged) return null;
+                const f = footprint(dragged, specs);
+                const testFp = { x: dragPreviewX.x, z: f.z, w: f.w, d: f.d };
+                let overlap = false, near = false;
+                for (const o of items) {
+                  if (o.id === dragged.id) continue;
+                  const of = footprint(o, specs);
+                  if (overlapsXZ(testFp, of)) { overlap = true; break; }
+                  if (Math.abs(of.x - testFp.x) < (of.w + testFp.w) / 2 + 0.4 &&
+                      Math.abs(of.z - testFp.z) < (of.d + testFp.d) / 2 + 0.4) near = true;
+                }
+                const color = overlap ? "#dc2626" : near ? "#f59e0b" : "#84cc16";
+                const textColor = overlap ? "#450a0a" : near ? "#78350f" : "#1a2e05";
+                const msg = overlap ? "překryv → stack" : near ? "těsně vedle" : `X ${dragPreviewX.x.toFixed(1)}`;
+                const boxW = overlap || near ? 96 : 48;
+                return (
+                  <>
+                    <line
+                      x1={originX + dragPreviewX.x * px}
+                      y1={0}
+                      x2={originX + dragPreviewX.x * px}
+                      y2={groundY}
+                      stroke={color}
+                      strokeWidth={overlap ? 2 : 1}
+                      strokeDasharray="3 3"
+                    />
+                    <rect x={originX + dragPreviewX.x * px - boxW / 2} y={groundY + 4} width={boxW} height={16} rx={3} fill={color} />
+                    <text x={originX + dragPreviewX.x * px} y={groundY + 16} textAnchor="middle" fontSize={10} fontWeight={700} fill={textColor}>
+                      {msg}
+                    </text>
+                  </>
+                );
+              })()}
             </svg>
 
             {/* Items */}
