@@ -1107,33 +1107,234 @@ function PicusBinModel({
 }) {
   const [w, h, d] = size;
   const YELLOW = "#f4c11a";
-  const BAR = 0.028; // yellow strip thickness
-  const front = d / 2 + 0.003;
-  const ventH = hasTopVent ? h * 0.12 : 0;
+  const YELLOW_DARK = "#c99a10";
+  const BLACK = "#0a0a0a";
+  const CONE = "#141414";
+  const DUSTCAP = "#1c1c1c";
+  const METAL = "#2a2a2a";
+  const BAR = 0.032;
+  const front = d / 2;
+  const ventH = hasTopVent ? h * 0.14 : 0;
   const bodyBottom = 0;
   const bodyTop = h - ventH;
   const cellsH = bodyTop - bodyBottom;
+  const cellW = w / cols;
+  const cellH = cellsH / rows;
+  // 18" speaker radius, capped to cell so it never overflows.
+  const coneR = Math.min(cellW, cellH) * 0.44;
 
-  const cells: React.ReactNode[] = [];
-  // Yellow crosses inside each big opening
+  const cones: React.ReactNode[] = [];
+  const braces: React.ReactNode[] = [];
+
   for (let r = 0; r < rows; r++) {
     for (let c = 0; c < cols; c++) {
-      const cx = -w / 2 + (c + 0.5) * (w / cols);
-      const cy = bodyBottom + (r + 0.5) * (cellsH / rows);
-      const cw = w / cols;
-      const ch = cellsH / rows;
-      // vertical bar
-      cells.push(
-        <mesh key={`v-${r}-${c}`} position={[cx, cy, front]}>
-          <planeGeometry args={[BAR, ch * 0.96]} />
-          <meshStandardMaterial color={YELLOW} emissive={YELLOW} emissiveIntensity={0.35} />
+      const cx = -w / 2 + (c + 0.5) * cellW;
+      const cy = bodyBottom + (r + 0.5) * cellH;
+
+      // Recessed dark opening (the cone chamber)
+      cones.push(
+        <mesh key={`hole-${r}-${c}`} position={[cx, cy, front + 0.001]}>
+          <circleGeometry args={[coneR * 1.02, 48]} />
+          <meshStandardMaterial color="#020202" roughness={1} />
         </mesh>,
       );
-      // horizontal bar
-      cells.push(
-        <mesh key={`h-${r}-${c}`} position={[cx, cy, front]}>
-          <planeGeometry args={[cw * 0.96, BAR]} />
-          <meshStandardMaterial color={YELLOW} emissive={YELLOW} emissiveIntensity={0.35} />
+      // Outer speaker rim / basket
+      cones.push(
+        <mesh key={`rim-${r}-${c}`} position={[cx, cy, front + 0.003]}>
+          <ringGeometry args={[coneR * 0.92, coneR * 1.0, 48]} />
+          <meshStandardMaterial color={METAL} metalness={0.75} roughness={0.35} />
+        </mesh>,
+      );
+      // Cone (slightly recessed inside)
+      cones.push(
+        <mesh key={`cone-${r}-${c}`} position={[cx, cy, front - 0.02]} rotation={[0, 0, 0]}>
+          <coneGeometry args={[coneR * 0.9, 0.06, 48, 1, true]} />
+          <meshStandardMaterial color={CONE} roughness={0.9} metalness={0.05} side={2} />
+        </mesh>,
+      );
+      // Dust cap
+      cones.push(
+        <mesh key={`dc-${r}-${c}`} position={[cx, cy, front + 0.008]}>
+          <sphereGeometry args={[coneR * 0.28, 24, 16, 0, Math.PI * 2, 0, Math.PI / 2]} />
+          <meshStandardMaterial color={DUSTCAP} roughness={0.6} metalness={0.15} />
+        </mesh>,
+      );
+
+      // Diagonal yellow X-brace over the cell (this is the JB signature look).
+      const diag = Math.sqrt(cellW * cellW + cellH * cellH) * 0.92;
+      const ang = Math.atan2(cellH, cellW);
+      braces.push(
+        <mesh key={`x1-${r}-${c}`} position={[cx, cy, front + 0.012]} rotation={[0, 0, ang]}>
+          <boxGeometry args={[diag, BAR, BAR * 0.6]} />
+          <meshStandardMaterial color={YELLOW} emissive={YELLOW_DARK} emissiveIntensity={0.15} metalness={0.4} roughness={0.5} />
+        </mesh>,
+      );
+      braces.push(
+        <mesh key={`x2-${r}-${c}`} position={[cx, cy, front + 0.012]} rotation={[0, 0, -ang]}>
+          <boxGeometry args={[diag, BAR, BAR * 0.6]} />
+          <meshStandardMaterial color={YELLOW} emissive={YELLOW_DARK} emissiveIntensity={0.15} metalness={0.4} roughness={0.5} />
+        </mesh>,
+      );
+      // Central bolt where the X crosses
+      braces.push(
+        <mesh key={`bolt-${r}-${c}`} position={[cx, cy, front + 0.02]}>
+          <cylinderGeometry args={[BAR * 0.9, BAR * 0.9, BAR * 0.6, 16]} rotation={undefined as never} />
+          <meshStandardMaterial color="#1a1a1a" metalness={0.9} roughness={0.3} />
+        </mesh>,
+      );
+    }
+  }
+
+  // Outer yellow frame (rectangle around the whole speaker area)
+  const frameThk = BAR;
+  const frameZ = front + 0.008;
+  const frameYcenter = bodyBottom + cellsH / 2;
+  const frame = (
+    <group>
+      <mesh position={[0, bodyTop, frameZ]}>
+        <boxGeometry args={[w * 0.985, frameThk, BAR * 0.5]} />
+        <meshStandardMaterial color={YELLOW} metalness={0.4} roughness={0.5} />
+      </mesh>
+      <mesh position={[0, bodyBottom, frameZ]}>
+        <boxGeometry args={[w * 0.985, frameThk, BAR * 0.5]} />
+        <meshStandardMaterial color={YELLOW} metalness={0.4} roughness={0.5} />
+      </mesh>
+      <mesh position={[-w / 2 + frameThk / 2, frameYcenter, frameZ]}>
+        <boxGeometry args={[frameThk, cellsH, BAR * 0.5]} />
+        <meshStandardMaterial color={YELLOW} metalness={0.4} roughness={0.5} />
+      </mesh>
+      <mesh position={[w / 2 - frameThk / 2, frameYcenter, frameZ]}>
+        <boxGeometry args={[frameThk, cellsH, BAR * 0.5]} />
+        <meshStandardMaterial color={YELLOW} metalness={0.4} roughness={0.5} />
+      </mesh>
+      {/* Dividers */}
+      {cols > 1 &&
+        Array.from({ length: cols - 1 }).map((_, i) => (
+          <mesh key={`fd-v-${i}`} position={[-w / 2 + (i + 1) * cellW, frameYcenter, frameZ]}>
+            <boxGeometry args={[frameThk, cellsH, BAR * 0.5]} />
+            <meshStandardMaterial color={YELLOW} metalness={0.4} roughness={0.5} />
+          </mesh>
+        ))}
+      {rows > 1 &&
+        Array.from({ length: rows - 1 }).map((_, i) => (
+          <mesh key={`fd-h-${i}`} position={[0, bodyBottom + (i + 1) * cellH, frameZ]}>
+            <boxGeometry args={[w * 0.985, frameThk, BAR * 0.5]} />
+            <meshStandardMaterial color={YELLOW} metalness={0.4} roughness={0.5} />
+          </mesh>
+        ))}
+    </group>
+  );
+
+  // Corner metal reinforcement plates
+  const cornerSz = Math.min(w, h) * 0.09;
+  const cornerZ = d / 2 + 0.003;
+  const corners = [
+    [-w / 2 + cornerSz / 2, cornerSz / 2],
+    [w / 2 - cornerSz / 2, cornerSz / 2],
+    [-w / 2 + cornerSz / 2, h - cornerSz / 2],
+    [w / 2 - cornerSz / 2, h - cornerSz / 2],
+  ] as const;
+
+  // Side recessed handles
+  const handleY = h * 0.5;
+  const handleW = Math.min(h * 0.22, 0.22);
+
+  return (
+    <group>
+      {/* Cabinet body */}
+      <mesh castShadow receiveShadow position={[0, h / 2, 0]}>
+        <boxGeometry args={[w, h, d]} />
+        <meshStandardMaterial color={BLACK} roughness={0.92} metalness={0.05} />
+      </mesh>
+      {/* Front baffle slightly inset for depth */}
+      <mesh position={[0, h / 2, d / 2 - 0.005]}>
+        <boxGeometry args={[w * 0.99, h * 0.99, 0.01]} />
+        <meshStandardMaterial color="#080808" roughness={0.98} />
+      </mesh>
+
+      {/* Top vent (bass port) */}
+      {hasTopVent && (
+        <group position={[0, bodyTop + ventH / 2, front + 0.002]}>
+          {/* dark port opening */}
+          <mesh position={[0, 0, 0]}>
+            <boxGeometry args={[w * 0.9, ventH * 0.7, 0.02]} />
+            <meshStandardMaterial color="#020202" roughness={1} />
+          </mesh>
+          {/* two yellow vertical port bars */}
+          {[-1, 1].map((s) => (
+            <mesh key={s} position={[s * w * 0.16, 0, 0.012]}>
+              <boxGeometry args={[BAR, ventH * 0.6, BAR * 0.5]} />
+              <meshStandardMaterial color={YELLOW} metalness={0.4} roughness={0.5} />
+            </mesh>
+          ))}
+          {/* yellow horizontal port bottom */}
+          <mesh position={[0, -ventH * 0.32, 0.012]}>
+            <boxGeometry args={[w * 0.9, BAR, BAR * 0.5]} />
+            <meshStandardMaterial color={YELLOW} metalness={0.4} roughness={0.5} />
+          </mesh>
+        </group>
+      )}
+
+      {cones}
+      {braces}
+      {frame}
+
+      {/* Corner plates */}
+      {corners.map(([cx, cy], i) => (
+        <mesh key={`cn-${i}`} position={[cx, cy, cornerZ]}>
+          <boxGeometry args={[cornerSz, cornerSz, 0.008]} />
+          <meshStandardMaterial color="#1a1a1a" metalness={0.85} roughness={0.4} />
+        </mesh>
+      ))}
+
+      {/* Side handles (recessed cutouts on left/right) */}
+      {[-1, 1].map((s) => (
+        <group key={`h-${s}`} position={[s * (w / 2 + 0.002), handleY, 0]} rotation={[0, s * Math.PI / 2, 0]}>
+          <mesh>
+            <boxGeometry args={[handleW, 0.05, 0.02]} />
+            <meshStandardMaterial color="#1a1a1a" metalness={0.7} roughness={0.5} />
+          </mesh>
+          <mesh position={[0, 0, 0.005]}>
+            <boxGeometry args={[handleW * 0.75, 0.025, 0.005]} />
+            <meshStandardMaterial color="#000" roughness={1} />
+          </mesh>
+        </group>
+      ))}
+
+      {/* Small type label bottom-left */}
+      <mesh position={[-w / 2 + 0.06, 0.03, d / 2 + 0.004]}>
+        <planeGeometry args={[0.08, 0.02]} />
+        <meshStandardMaterial color={YELLOW} emissive={YELLOW_DARK} emissiveIntensity={0.4} />
+      </mesh>
+    </group>
+  );
+}
+
+function PicusTopGrillModel({ size }: { size: [number, number, number] }) {
+  const [w, h, d] = size;
+  const BLACK = "#0a0a0a";
+  const STEEL = "#7a7a7a";
+  const STEEL_DARK = "#4a4a4a";
+
+  // Hex grid instanced circles across the grill face
+  const cellsX = 26;
+  const cellsY = Math.max(6, Math.round(cellsX * (h / w) * 0.9));
+  const gridW = w * 0.92;
+  const gridH = h * 0.86;
+  const dx = gridW / cellsX;
+  const dy = gridH / cellsY;
+  const hexR = Math.min(dx, dy) * 0.42;
+  const holes: React.ReactNode[] = [];
+  for (let j = 0; j < cellsY; j++) {
+    for (let i = 0; i < cellsX; i++) {
+      const ox = j % 2 === 0 ? 0 : dx * 0.5;
+      const x = -gridW / 2 + dx * 0.5 + i * dx + ox;
+      const y = -gridH / 2 + dy * 0.5 + j * dy;
+      if (Math.abs(x) > gridW / 2 - dx * 0.4) continue;
+      holes.push(
+        <mesh key={`hex-${i}-${j}`} position={[x, y, 0.001]} rotation={[0, 0, Math.PI / 6]}>
+          <circleGeometry args={[hexR, 6]} />
+          <meshStandardMaterial color="#020202" roughness={1} />
         </mesh>,
       );
     }
@@ -1144,86 +1345,47 @@ function PicusBinModel({
       {/* Cabinet body */}
       <mesh castShadow receiveShadow position={[0, h / 2, 0]}>
         <boxGeometry args={[w, h, d]} />
-        <meshStandardMaterial color="#0a0a0a" roughness={0.85} metalness={0.15} />
+        <meshStandardMaterial color={BLACK} roughness={0.85} metalness={0.15} />
       </mesh>
-      {/* Front face – dark recess */}
-      <mesh position={[0, h / 2, d / 2 + 0.001]}>
-        <planeGeometry args={[w * 0.995, h * 0.995]} />
+      {/* Front recessed frame */}
+      <mesh position={[0, h / 2, d / 2 - 0.004]}>
+        <boxGeometry args={[w * 0.99, h * 0.98, 0.008]} />
         <meshStandardMaterial color="#050505" roughness={0.95} />
       </mesh>
-      {/* Top vent slot with two yellow vertical bars */}
-      {hasTopVent && (
-        <group position={[0, bodyTop + ventH / 2, front]}>
-          <mesh>
-            <planeGeometry args={[w * 0.92, ventH * 0.55]} />
-            <meshStandardMaterial color="#020202" roughness={1} />
-          </mesh>
-          {[-1, 1].map((s) => (
-            <mesh key={s} position={[s * w * 0.14, 0, 0.001]}>
-              <planeGeometry args={[BAR, ventH * 0.5]} />
-              <meshStandardMaterial color={YELLOW} emissive={YELLOW} emissiveIntensity={0.35} />
-            </mesh>
-          ))}
-          {/* horizontal bottom edge of vent */}
-          <mesh position={[0, -ventH * 0.3, 0.001]}>
-            <planeGeometry args={[w * 0.94, BAR]} />
-            <meshStandardMaterial color={YELLOW} emissive={YELLOW} emissiveIntensity={0.35} />
-          </mesh>
-        </group>
-      )}
-      {/* Vertical divider between columns */}
-      {cols > 1 &&
-        Array.from({ length: cols - 1 }).map((_, i) => {
-          const x = -w / 2 + (i + 1) * (w / cols);
-          return (
-            <mesh key={`div-${i}`} position={[x, bodyBottom + cellsH / 2, front]}>
-              <planeGeometry args={[BAR, cellsH * 0.98]} />
-              <meshStandardMaterial color={YELLOW} emissive={YELLOW} emissiveIntensity={0.35} />
-            </mesh>
-          );
-        })}
-      {/* Horizontal divider between rows */}
-      {rows > 1 &&
-        Array.from({ length: rows - 1 }).map((_, i) => {
-          const y = bodyBottom + (i + 1) * (cellsH / rows);
-          return (
-            <mesh key={`hdiv-${i}`} position={[0, y, front]}>
-              <planeGeometry args={[w * 0.98, BAR]} />
-              <meshStandardMaterial color={YELLOW} emissive={YELLOW} emissiveIntensity={0.35} />
-            </mesh>
-          );
-        })}
-      {cells}
-      {/* Outer yellow frame */}
-      <mesh position={[0, h / 2, front - 0.0005]}>
-        <planeGeometry args={[w * 0.995, BAR]} />
-        <meshStandardMaterial color={YELLOW} emissive={YELLOW} emissiveIntensity={0.25} />
+      {/* Steel grill plate */}
+      <mesh position={[0, h / 2, d / 2 + 0.005]}>
+        <boxGeometry args={[w * 0.94, h * 0.9, 0.006]} />
+        <meshStandardMaterial color={STEEL} metalness={0.9} roughness={0.35} />
       </mesh>
+      {/* Hex perforations */}
+      <group position={[0, h / 2, d / 2 + 0.009]}>{holes}</group>
+
+      {/* Center brand plate */}
+      <mesh position={[0, h * 0.5, d / 2 + 0.012]}>
+        <boxGeometry args={[w * 0.22, h * 0.08, 0.004]} />
+        <meshStandardMaterial color="#111" metalness={0.6} roughness={0.4} />
+      </mesh>
+      <mesh position={[0, h * 0.5, d / 2 + 0.015]}>
+        <planeGeometry args={[w * 0.18, h * 0.03]} />
+        <meshStandardMaterial color="#f4c11a" emissive="#c99a10" emissiveIntensity={0.4} />
+      </mesh>
+
+      {/* Corner plates */}
+      {[
+        [-w / 2 + 0.06, 0.06],
+        [w / 2 - 0.06, 0.06],
+        [-w / 2 + 0.06, h - 0.06],
+        [w / 2 - 0.06, h - 0.06],
+      ].map(([cx, cy], i) => (
+        <mesh key={`cn-${i}`} position={[cx, cy, d / 2 + 0.006]}>
+          <boxGeometry args={[0.09, 0.09, 0.006]} />
+          <meshStandardMaterial color={STEEL_DARK} metalness={0.9} roughness={0.35} />
+        </mesh>
+      ))}
     </group>
   );
 }
 
-function PicusTopGrillModel({ size }: { size: [number, number, number] }) {
-  const [w, h, d] = size;
-  return (
-    <group>
-      <mesh castShadow receiveShadow position={[0, h / 2, 0]}>
-        <boxGeometry args={[w, h, d]} />
-        <meshStandardMaterial color="#0a0a0a" roughness={0.7} metalness={0.35} />
-      </mesh>
-      {/* Perforated silver grill */}
-      <mesh position={[0, h / 2, d / 2 + 0.002]}>
-        <planeGeometry args={[w * 0.95, h * 0.9]} />
-        <meshStandardMaterial color="#8a8a8a" metalness={0.85} roughness={0.45} />
-      </mesh>
-      {/* Subtle center logo strip */}
-      <mesh position={[0, h * 0.5, d / 2 + 0.004]}>
-        <planeGeometry args={[w * 0.35, 0.02]} />
-        <meshStandardMaterial color="#1a1a1a" roughness={0.6} />
-      </mesh>
-    </group>
-  );
-}
 
 function ModelFor({ kind, size, variant }: { kind: Kind; size: [number, number, number]; variant?: "red" | "blue" }) {
   switch (kind) {
