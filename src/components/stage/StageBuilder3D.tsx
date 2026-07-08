@@ -1177,11 +1177,12 @@ function PicusBinModel({
       );
       // Central bolt where the X crosses
       braces.push(
-        <mesh key={`bolt-${r}-${c}`} position={[cx, cy, front + 0.02]}>
-          <cylinderGeometry args={[BAR * 0.9, BAR * 0.9, BAR * 0.6, 16]} rotation={undefined as never} />
+        <mesh key={`bolt-${r}-${c}`} position={[cx, cy, front + 0.02]} rotation={[Math.PI / 2, 0, 0]}>
+          <cylinderGeometry args={[BAR * 0.9, BAR * 0.9, BAR * 0.6, 16]} />
           <meshStandardMaterial color="#1a1a1a" metalness={0.9} roughness={0.3} />
         </mesh>,
       );
+
     }
   }
 
