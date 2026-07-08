@@ -1876,6 +1876,39 @@ function SceneContent({
           showConnectors={mode === "cable"}
           showConnectorLabels={showConnectorLabels}
           activeCableType={cableType}
+          pendingItemId={pendingFrom}
+          onConnectorPick={(itemId, conn) => {
+            // Reconnect flow — pick the specific plug to reroute to.
+            if (reconnect) {
+              const cable = cables.find((c) => c.id === reconnect.cableId);
+              const target = items.find((x) => x.id === itemId);
+              if (!cable || !target) return;
+              const other = reconnect.end === "from" ? cable.to : cable.from;
+              if (other === itemId) { setReconnectError("Nelze zapojit oba konce do stejné bedny."); return; }
+              if (conn.type !== cable.type) { setReconnectError(`Konektor je ${CABLE_META[conn.type].short}, kabel je ${CABLE_META[cable.type].short}.`); return; }
+              setCables((cs) => cs.map((c) => c.id === cable.id ? { ...c, [reconnect.end]: itemId } : c));
+              setReconnect(null); setReconnectError(null);
+              return;
+            }
+            if (!pendingFrom) {
+              // Start a cable drag from this plug.
+              setPendingFrom(itemId);
+              setPendingSourceConnector(conn);
+              // Auto-switch the active cable type to match the plug the user grabbed.
+              if (conn.type !== cableType) setCableType(conn.type);
+              const src = items.find((x) => x.id === itemId);
+              if (src) setCursorWorld(localToWorld(src, conn.offset));
+              return;
+            }
+            if (pendingFrom === itemId) return; // ignore same-item second click
+            // Complete: type must match the pending cable type.
+            if (conn.type !== cableType) return;
+            setCables((cs) => [...cs, { id: uid(), from: pendingFrom!, to: itemId, type: cableType }]);
+            setPendingFrom(null);
+            setPendingSourceConnector(null);
+            setCursorWorld(null);
+          }}
+
           onSelect={(id, additive) => {
             // Reconnect flow — replace one endpoint of the selected cable.
             if (reconnect) {
