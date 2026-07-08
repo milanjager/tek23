@@ -1975,7 +1975,41 @@ function SceneContent({
         />
       ))}
 
+      {/* Ghost cable — visible while the user is dragging a plug to a target */}
+      {mode === "cable" && pendingFrom && cursorWorld && (() => {
+        const src = items.find((i) => i.id === pendingFrom);
+        if (!src) return null;
+        const meta = CABLE_META[cableType];
+        const srcLocal =
+          pendingSourceConnector?.offset ??
+          (connectorsFor(src.kind).find((c) => c.type === cableType && c.role === "out")
+            ?? connectorsFor(src.kind).find((c) => c.type === cableType))?.offset;
+        const p1 = srcLocal ? localToWorld(src, srcLocal) : anchorFor(src, cableType);
+        const seed = pendingFrom.split("").reduce((s, ch) => s + ch.charCodeAt(0), 0);
+        const pts = cablePoints(p1, cursorWorld, seed);
+        return (
+          <group>
+            <Line
+              points={pts as unknown as [number, number, number][]}
+              color={meta.color}
+              lineWidth={meta.width + 1}
+              dashed
+              dashSize={0.18}
+              gapSize={0.12}
+              transparent
+              opacity={0.85}
+            />
+            <CableEndpoint position={p1} color={meta.color} state="active" />
+            <mesh position={cursorWorld}>
+              <sphereGeometry args={[0.09, 16, 12]} />
+              <meshBasicMaterial color={meta.color} transparent opacity={0.65} />
+            </mesh>
+          </group>
+        );
+      })()}
+
       {/* Cables */}
+
       {cables.map((c) => {
         const a = items.find((i) => i.id === c.from);
         const b = items.find((i) => i.id === c.to);
