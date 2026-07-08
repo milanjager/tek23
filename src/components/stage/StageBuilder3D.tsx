@@ -3469,6 +3469,8 @@ export function StageBuilder3D() {
               setCables={setCables}
               mode={mode}
               cableType={cableType}
+              setCableType={setCableType}
+
               pendingFrom={pendingFrom}
               setPendingFrom={setPendingFrom}
               showConnectorLabels={showConnectorLabels}
