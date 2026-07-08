@@ -1990,14 +1990,16 @@ export function StageBuilder() {
 
 
       <div className="relative flex flex-1 overflow-hidden">
-        {/* Mobile palette toggle */}
-        <button
-          onClick={() => setPaletteOpen((v) => !v)}
-          className="absolute left-3 top-3 z-40 flex items-center gap-1.5 rounded-sm border border-[color:var(--acid)]/60 bg-background/80 px-3 py-1.5 font-mono text-[10px] uppercase tracking-widest text-[color:var(--acid)] backdrop-blur md:hidden"
-        >
-          {paletteOpen ? <X className="h-3.5 w-3.5" /> : <Menu className="h-3.5 w-3.5" />}
-          {paletteOpen ? "Zavřít" : "Komponenty"}
-        </button>
+        {/* Mobile palette opener (only when closed – close button is inside the sidebar) */}
+        {!paletteOpen && (
+          <button
+            onClick={() => setPaletteOpen(true)}
+            className="absolute left-3 top-3 z-40 flex items-center gap-1.5 rounded-sm border border-[color:var(--acid)]/60 bg-background/80 px-3 py-1.5 font-mono text-[10px] uppercase tracking-widest text-[color:var(--acid)] shadow-lg backdrop-blur md:hidden"
+          >
+            <Menu className="h-3.5 w-3.5" /> Komponenty
+          </button>
+        )}
+
 
         {/* Palette backdrop on mobile */}
         {paletteOpen && (
