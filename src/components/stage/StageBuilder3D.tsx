@@ -1663,7 +1663,7 @@ function RealisticTuner({ enabled }: { enabled: boolean }) {
 
 function SceneContent({
   items, setItems, selection, setSelection, tool,
-  cables, setCables, mode, cableType, pendingFrom, setPendingFrom,
+  cables, setCables, mode, cableType, setCableType, pendingFrom, setPendingFrom,
   showConnectorLabels, showCableLabels, realistic,
 }: {
   items: Placed[];
@@ -1675,12 +1675,14 @@ function SceneContent({
   setCables: React.Dispatch<React.SetStateAction<Cable[]>>;
   mode: "select" | "cable";
   cableType: CableType;
+  setCableType: React.Dispatch<React.SetStateAction<CableType>>;
   pendingFrom: string | null;
   setPendingFrom: React.Dispatch<React.SetStateAction<string | null>>;
   showConnectorLabels: boolean;
   showCableLabels: boolean;
   realistic: boolean;
 }) {
+
 
 
   const objectsRef = useRef<Map<string, THREE.Object3D>>(new Map());
