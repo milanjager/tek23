@@ -809,7 +809,7 @@ export default function ElevationView({
                   color={color}
                   stack={stack}
                   zFactor={zFactor}
-                  onSelect={() => setSelectedId(it.id)}
+                  onSelect={(additive) => setSelectedId(it.id, additive)}
                 />
               );
             })}
