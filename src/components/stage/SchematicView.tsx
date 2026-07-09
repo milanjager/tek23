@@ -195,7 +195,8 @@ const COLUMN_ADDS: Record<Column, { kind: string; label: string }[]> = {
   ],
 };
 
-export default function SchematicView({ items, cables, onAddDevice, onConnect, onRemoveCable, kindOptions, onUpdateItem, onDeleteItem }: Props) {
+export default function SchematicView({ items, cables, onAddDevice, onConnect, onRemoveCable, kindOptions, onUpdateItem, onDeleteItem, selectedIds, onSelectItem }: Props) {
+  const selectedSet = useMemo(() => new Set(selectedIds ?? []), [selectedIds]);
   const [highlight, setHighlight] = useState<null | { id: string; kind: "item" | "cable" }>(null);
   const [pendingPin, setPendingPin] = useState<null | { itemId: string; type: CableType; role: "in" | "out" }>(null);
   const [connectError, setConnectError] = useState<string | null>(null);
