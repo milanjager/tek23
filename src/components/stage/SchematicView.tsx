@@ -152,6 +152,9 @@ interface Props {
   kindOptions?: SchematicKindOption[];
   onUpdateItem?: (id: string, patch: Partial<Placed>) => void;
   onDeleteItem?: (id: string) => void;
+  /** Controlled selection shared across views. */
+  selectedIds?: string[];
+  onSelectItem?: (id: string | null, additive?: boolean) => void;
 }
 
 const CARD_W = 210;
