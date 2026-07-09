@@ -503,9 +503,16 @@ function DraggableDevice({
 
 export default function ElevationView({
   items, specs, onUpdateItem, onDeleteItem, onAddDeviceAt,
+  selectedIds, onSelectItem,
 }: Props) {
   const canvasRef = useRef<HTMLDivElement>(null);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const controlled = selectedIds !== undefined;
+  const [localSelectedId, setLocalSelectedId] = useState<string | null>(null);
+  const selectedId = controlled ? (selectedIds?.[0] ?? null) : localSelectedId;
+  const setSelectedId = (id: string | null, additive = false) => {
+    if (controlled) onSelectItem?.(id, additive);
+    else setLocalSelectedId(id);
+  };
   const [zoom, setZoom] = useState(1);
   const [addAt, setAddAt] = useState<{ x: number; z: number; clientX: number; clientY: number } | null>(null);
   const [placing, setPlacing] = useState<{ kind: string; x: number; z: number } | null>(null);
