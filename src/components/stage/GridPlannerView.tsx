@@ -159,7 +159,7 @@ export default function GridPlannerView({
 
   const onItemPointerDown = (e: React.PointerEvent, it: Placed) => {
     e.stopPropagation();
-    setSelectedId(it.id);
+    setSelectedId(it.id, e.shiftKey || e.metaKey || e.ctrlKey);
     setAddAt(null);
     const { x, z } = worldFromClient(e.clientX, e.clientY);
     dragRef.current = {
