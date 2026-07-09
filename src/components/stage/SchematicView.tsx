@@ -152,6 +152,9 @@ interface Props {
   kindOptions?: SchematicKindOption[];
   onUpdateItem?: (id: string, patch: Partial<Placed>) => void;
   onDeleteItem?: (id: string) => void;
+  /** Controlled selection shared across views. */
+  selectedIds?: string[];
+  onSelectItem?: (id: string | null, additive?: boolean) => void;
 }
 
 const CARD_W = 210;
@@ -192,7 +195,8 @@ const COLUMN_ADDS: Record<Column, { kind: string; label: string }[]> = {
   ],
 };
 
-export default function SchematicView({ items, cables, onAddDevice, onConnect, onRemoveCable, kindOptions, onUpdateItem, onDeleteItem }: Props) {
+export default function SchematicView({ items, cables, onAddDevice, onConnect, onRemoveCable, kindOptions, onUpdateItem, onDeleteItem, selectedIds, onSelectItem }: Props) {
+  const selectedSet = useMemo(() => new Set(selectedIds ?? []), [selectedIds]);
   const [highlight, setHighlight] = useState<null | { id: string; kind: "item" | "cable" }>(null);
   const [pendingPin, setPendingPin] = useState<null | { itemId: string; type: CableType; role: "in" | "out" }>(null);
   const [connectError, setConnectError] = useState<string | null>(null);
@@ -503,6 +507,7 @@ export default function SchematicView({ items, cables, onAddDevice, onConnect, o
               const Icon = iconFor(it.kind);
               const col = COLUMN_META.find((c) => c.id === columnFor(it.kind))!;
               const isHi = highlight?.kind === "item" && highlight.id === it.id;
+              const isSel = selectedSet.has(it.id);
               const label = it.label || KIND_LABEL[it.kind] || it.kind;
               return (
                 <g
@@ -513,6 +518,7 @@ export default function SchematicView({ items, cables, onAddDevice, onConnect, o
                   onMouseLeave={() => setHighlight(null)}
                   onClick={(e) => {
                     e.stopPropagation();
+                    onSelectItem?.(it.id, e.shiftKey || e.metaKey || e.ctrlKey);
                     if (onUpdateItem) setEditingId(it.id);
                   }}
                   style={{ cursor: onUpdateItem ? "pointer" : "default" }}
@@ -520,12 +526,23 @@ export default function SchematicView({ items, cables, onAddDevice, onConnect, o
                   {/* invisible full-card hit target so clicks on empty card area still open editor */}
                   <rect width={CARD_W} height={CARD_H} fill="transparent" />
 
+                  {isSel && (
+                    <rect
+                      x={-4} y={-4}
+                      width={CARD_W + 8} height={CARD_H + 8}
+                      rx={12}
+                      fill="none"
+                      stroke="#84cc16"
+                      strokeWidth={2.5}
+                      strokeDasharray="6 4"
+                    />
+                  )}
                   <rect
                     width={CARD_W} height={CARD_H}
                     rx={8}
                     fill="#ffffff"
-                    stroke={isHi ? col.color : "#d4d4d4"}
-                    strokeWidth={isHi ? 2.5 : 1.5}
+                    stroke={isSel ? "#65a30d" : (isHi ? col.color : "#d4d4d4")}
+                    strokeWidth={isSel ? 2.5 : (isHi ? 2.5 : 1.5)}
                     filter="drop-shadow(0 1px 2px rgba(0,0,0,0.08))"
                   />
                   {/* Column color strip on top */}

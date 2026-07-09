@@ -24,6 +24,9 @@ interface Props {
   onUpdateItem: (id: string, patch: Partial<Placed>) => void;
   onDeleteItem: (id: string) => void;
   onAddDeviceAt: (kind: string, x: number, z: number) => void;
+  /** Controlled selection shared across views. */
+  selectedIds?: string[];
+  onSelectItem?: (id: string | null, additive?: boolean) => void;
 }
 
 // Category colors — same palette as SchematicView for consistency.
@@ -64,9 +67,16 @@ function footprint(it: Placed, specs: Record<string, GridSpec>) {
 
 export default function GridPlannerView({
   items, specs, onUpdateItem, onDeleteItem, onAddDeviceAt,
+  selectedIds, onSelectItem,
 }: Props) {
   const canvasRef = useRef<HTMLDivElement>(null);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const controlled = selectedIds !== undefined;
+  const [localSelectedId, setLocalSelectedId] = useState<string | null>(null);
+  const selectedId = controlled ? (selectedIds?.[0] ?? null) : localSelectedId;
+  const setSelectedId = (id: string | null, additive = false) => {
+    if (controlled) onSelectItem?.(id, additive);
+    else setLocalSelectedId(id);
+  };
   const [addAt, setAddAt] = useState<{ x: number; z: number } | null>(null);
   const [zoom, setZoom] = useState(1);
 
@@ -149,7 +159,7 @@ export default function GridPlannerView({
 
   const onItemPointerDown = (e: React.PointerEvent, it: Placed) => {
     e.stopPropagation();
-    setSelectedId(it.id);
+    setSelectedId(it.id, e.shiftKey || e.metaKey || e.ctrlKey);
     setAddAt(null);
     const { x, z } = worldFromClient(e.clientX, e.clientY);
     dragRef.current = {
