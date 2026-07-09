@@ -33,6 +33,10 @@ interface Props {
   onUpdateItem: (id: string, patch: Partial<Placed>) => void;
   onDeleteItem: (id: string) => void;
   onAddDeviceAt?: (kind: string, x: number, z: number) => void;
+  /** Controlled selection (shared across views). */
+  selectedIds?: string[];
+  /** Notify parent about a selection change. `id === null` clears. */
+  onSelectItem?: (id: string | null, additive?: boolean) => void;
 }
 
 const CAT_COLOR: Record<string, { bg: string; border: string; text: string; accent: string }> = {
