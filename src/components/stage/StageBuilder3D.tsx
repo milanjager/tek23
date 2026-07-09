@@ -3615,6 +3615,167 @@ export function StageBuilder3D() {
 
         {/* Right inspector — per-item model / label / variant */}
         <aside className="flex w-72 flex-col border-l border-neutral-200 bg-neutral-50/80">
+          {/* ── Detail výběru ─────────────────────────────────────────── */}
+          {(() => {
+            const primary = items.find((x) => x.id === selection[0]);
+            if (!primary) {
+              return (
+                <div className="border-b border-neutral-200 bg-white/60 px-3 py-3 text-[11px] text-neutral-500">
+                  <div className="mb-1 text-[10px] font-bold uppercase tracking-wider text-neutral-500">Detail výběru</div>
+                  Vyber komponentu ve scéně, nárysu, plánu nebo schématu.
+                </div>
+              );
+            }
+            const pspec = SPECS[primary.kind];
+            const pconns = connectorsFor(primary.kind);
+            // "Patra" — stack of items sharing (x, z) sorted by y bottom-up
+            const stack = items
+              .filter((x) => Math.abs(x.pos[0] - primary.pos[0]) < 0.05 && Math.abs(x.pos[2] - primary.pos[2]) < 0.05)
+              .sort((a, b) => a.pos[1] - b.pos[1]);
+            const stackIdx = stack.findIndex((x) => x.id === primary.id);
+            const linkedCables = cables.filter((c) => c.from === primary.id || c.to === primary.id);
+            const deg = Math.round((primary.rotY * 180) / Math.PI);
+            const patchPrimary = (patch: Partial<Placed>) => {
+              setItems((cur) => cur.map((x) => x.id === primary.id ? { ...x, ...patch } as Placed : x));
+            };
+            return (
+              <div className="border-b-2 border-lime-300 bg-white/80 px-3 py-2 text-[11px]">
+                <div className="mb-1 flex items-center justify-between">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-lime-700">Detail výběru</span>
+                  <span className="font-mono text-[9px] text-neutral-500">#{primary.id.slice(0, 4)}</span>
+                </div>
+                <div className="mb-2">
+                  <div className="truncate text-[13px] font-bold text-neutral-900">{primary.label || pspec.label}</div>
+                  <div className="text-[10px] text-neutral-500">{pspec.label} · {pspec.hint}</div>
+                </div>
+
+                {/* Rozměry */}
+                <div className="mb-2 rounded bg-neutral-100 px-2 py-1 font-mono text-[10px] text-neutral-700">
+                  Š×V×H&nbsp; {pspec.size[0].toFixed(2)} × {pspec.size[1].toFixed(2)} × {pspec.size[2].toFixed(2)} m
+                </div>
+
+                {/* Patra */}
+                <div className="mb-2">
+                  <div className="mb-0.5 text-[9px] uppercase tracking-wider text-neutral-500">Patra ve stacku ({stackIdx + 1}/{stack.length})</div>
+                  <div className="flex flex-col gap-0.5">
+                    {stack.slice().reverse().map((s, i) => {
+                      const sp = SPECS[s.kind];
+                      const isMe = s.id === primary.id;
+                      const level = stack.length - i;
+                      return (
+                        <button
+                          key={s.id}
+                          onClick={() => setSelection([s.id])}
+                          className={`flex items-center justify-between rounded px-1.5 py-0.5 text-left text-[10px] ${isMe ? "bg-lime-200 font-bold text-neutral-900" : "bg-neutral-100 hover:bg-neutral-200 text-neutral-700"}`}
+                        >
+                          <span className="truncate">{level}. {s.label || sp.label}</span>
+                          <span className="ml-2 font-mono text-[9px] text-neutral-500">y {s.pos[1].toFixed(2)}m</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Orientace */}
+                <div className="mb-2">
+                  <div className="mb-0.5 flex items-center justify-between">
+                    <span className="text-[9px] uppercase tracking-wider text-neutral-500">Orientace</span>
+                    <span className="font-mono text-[10px] text-neutral-700">{((deg % 360) + 360) % 360}°</span>
+                  </div>
+                  <div className="mb-1 grid grid-cols-4 gap-1">
+                    {[0, 90, 180, 270].map((d) => {
+                      const active = (((deg % 360) + 360) % 360) === d;
+                      return (
+                        <button
+                          key={d}
+                          onClick={() => patchPrimary({ rotY: (d * Math.PI) / 180 })}
+                          className={`rounded px-1 py-1 text-[10px] ${active ? "bg-lime-500 text-white" : "bg-neutral-100 text-neutral-700 hover:bg-neutral-200"}`}
+                        >
+                          {d}°
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <input
+                    type="range" min={0} max={360} step={1}
+                    value={((deg % 360) + 360) % 360}
+                    onChange={(e) => patchPrimary({ rotY: (Number(e.target.value) * Math.PI) / 180 })}
+                    className="w-full accent-lime-500"
+                  />
+                </div>
+
+                {/* Výška (Y) */}
+                <div className="mb-2">
+                  <div className="mb-0.5 flex items-center justify-between">
+                    <span className="text-[9px] uppercase tracking-wider text-neutral-500">Výška (spodek bedny)</span>
+                    <span className="font-mono text-[10px] text-neutral-700">{primary.pos[1].toFixed(2)} m</span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <button
+                      onClick={() => patchPrimary({ pos: [primary.pos[0], Math.max(0, primary.pos[1] - 0.1), primary.pos[2]] })}
+                      className="rounded bg-neutral-100 px-2 py-1 text-[11px] hover:bg-neutral-200"
+                    >−0.1</button>
+                    <input
+                      type="number" step={0.05} min={0}
+                      value={Number(primary.pos[1].toFixed(2))}
+                      onChange={(e) => {
+                        const v = Math.max(0, Number(e.target.value) || 0);
+                        patchPrimary({ pos: [primary.pos[0], v, primary.pos[2]] });
+                      }}
+                      className="flex-1 rounded border border-neutral-300 bg-white px-1.5 py-1 font-mono text-[11px] focus:border-lime-500 focus:outline-none"
+                    />
+                    <button
+                      onClick={() => patchPrimary({ pos: [primary.pos[0], primary.pos[1] + 0.1, primary.pos[2]] })}
+                      className="rounded bg-neutral-100 px-2 py-1 text-[11px] hover:bg-neutral-200"
+                    >+0.1</button>
+                  </div>
+                  <div className="mt-1 flex gap-1">
+                    <button
+                      onClick={() => patchPrimary({ pos: [primary.pos[0], 0, primary.pos[2]] })}
+                      className="flex-1 rounded bg-neutral-100 px-1 py-0.5 text-[10px] hover:bg-neutral-200"
+                    >Na zem</button>
+                    <button
+                      onClick={() => {
+                        const y = stackY(primary, items.filter((i) => i.id !== primary.id));
+                        patchPrimary({ pos: [primary.pos[0], y, primary.pos[2]] });
+                      }}
+                      className="flex-1 rounded bg-neutral-100 px-1 py-0.5 text-[10px] hover:bg-neutral-200"
+                    >Auto-stack</button>
+                  </div>
+                </div>
+
+                {/* Konektory */}
+                <div className="mb-1">
+                  <div className="mb-0.5 text-[9px] uppercase tracking-wider text-neutral-500">Konektory ({pconns.length})</div>
+                  {pconns.length === 0 ? (
+                    <div className="rounded bg-neutral-100 px-2 py-1 text-[10px] italic text-neutral-500">Žádné (pasivní prvek)</div>
+                  ) : (
+                    <div className="flex flex-col gap-0.5">
+                      {pconns.map((c, i) => {
+                        const meta = CABLE_META[c.type];
+                        const used = linkedCables.find((cab) => cab.type === c.type && ((c.role === "out" && cab.from === primary.id) || (c.role === "in" && cab.to === primary.id)));
+                        const otherId = used ? (used.from === primary.id ? used.to : used.from) : null;
+                        const other = otherId ? items.find((x) => x.id === otherId) : null;
+                        return (
+                          <div key={i} className="flex items-center justify-between rounded bg-neutral-100 px-1.5 py-0.5 text-[10px]">
+                            <span className="flex items-center gap-1">
+                              <span className="inline-block h-2 w-2 rounded-full" style={{ backgroundColor: meta.color }} />
+                              <span className="font-mono font-bold">{meta.short}</span>
+                              <span className="text-neutral-500">{c.role === "in" ? "◀ IN" : "OUT ▶"}</span>
+                            </span>
+                            <span className="truncate text-[9px] text-neutral-600">
+                              {other ? (other.label || SPECS[other.kind].label) : <span className="italic text-neutral-400">volný</span>}
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })()}
+
           <div className="border-b border-neutral-200 px-3 py-2 text-xs font-bold uppercase tracking-wider text-neutral-500">
             Komponenty na scéně ({items.length})
           </div>
