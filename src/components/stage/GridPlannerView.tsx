@@ -24,6 +24,9 @@ interface Props {
   onUpdateItem: (id: string, patch: Partial<Placed>) => void;
   onDeleteItem: (id: string) => void;
   onAddDeviceAt: (kind: string, x: number, z: number) => void;
+  /** Controlled selection shared across views. */
+  selectedIds?: string[];
+  onSelectItem?: (id: string | null, additive?: boolean) => void;
 }
 
 // Category colors — same palette as SchematicView for consistency.
