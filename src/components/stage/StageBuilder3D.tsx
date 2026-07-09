@@ -3400,12 +3400,21 @@ export function StageBuilder3D() {
             <ElevationView
               items={items}
               specs={SPECS as unknown as Record<string, { label: string; category: string; size: [number, number, number] }>}
+              selectedIds={selection}
+              onSelectItem={(id, additive) => {
+                if (id === null) { setSelection([]); return; }
+                setSelection((prev) => {
+                  if (!additive) return [id];
+                  return prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id];
+                });
+              }}
               onUpdateItem={(id, patch) => {
                 setItems((cur) => cur.map((x) => x.id === id ? { ...x, ...patch } as Placed : x));
               }}
               onDeleteItem={(id) => {
                 setItems((cur) => cur.filter((x) => x.id !== id));
                 setCables((cs) => cs.filter((c) => c.from !== id && c.to !== id));
+                setSelection((prev) => prev.filter((x) => x !== id));
               }}
               onAddDeviceAt={(kind, x, z) => {
                 const k = kind as Kind;
@@ -3427,12 +3436,21 @@ export function StageBuilder3D() {
             <GridPlannerView
               items={items}
               specs={SPECS as unknown as Record<string, { label: string; category: string; size: [number, number, number] }>}
+              selectedIds={selection}
+              onSelectItem={(id, additive) => {
+                if (id === null) { setSelection([]); return; }
+                setSelection((prev) => {
+                  if (!additive) return [id];
+                  return prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id];
+                });
+              }}
               onUpdateItem={(id, patch) => {
                 setItems((cur) => cur.map((x) => x.id === id ? { ...x, ...patch } as Placed : x));
               }}
               onDeleteItem={(id) => {
                 setItems((cur) => cur.filter((x) => x.id !== id));
                 setCables((cs) => cs.filter((c) => c.from !== id && c.to !== id));
+                setSelection((prev) => prev.filter((x) => x !== id));
               }}
               onAddDeviceAt={(kind, x, z) => {
                 const k = kind as Kind;
@@ -3454,6 +3472,14 @@ export function StageBuilder3D() {
             <SchematicView
               items={items}
               cables={cables}
+              selectedIds={selection}
+              onSelectItem={(id, additive) => {
+                if (id === null) { setSelection([]); return; }
+                setSelection((prev) => {
+                  if (!additive) return [id];
+                  return prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id];
+                });
+              }}
               onAddDevice={(k) => addItem(k as Kind)}
               onConnect={(from, to, type) => {
                 setCables((cs) => [...cs, { id: uid(), from, to, type }]);
@@ -3478,6 +3504,7 @@ export function StageBuilder3D() {
               onDeleteItem={(id) => {
                 setItems((cur) => cur.filter((x) => x.id !== id));
                 setCables((cs) => cs.filter((c) => c.from !== id && c.to !== id));
+                setSelection((prev) => prev.filter((x) => x !== id));
               }}
             />
 
