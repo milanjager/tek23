@@ -433,7 +433,7 @@ function DraggableDevice({
   color: { bg: string; border: string; text: string; accent: string };
   stack?: { level: number; total: number };
   zFactor: number;
-  onSelect: () => void;
+  onSelect: (additive: boolean) => void;
 }) {
   const fam = classify(it.kind, spec.category);
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
@@ -449,7 +449,7 @@ function DraggableDevice({
       data-elev-item
       {...listeners}
       {...attributes}
-      onClick={(e) => { e.stopPropagation(); onSelect(); }}
+      onClick={(e) => { e.stopPropagation(); onSelect(e.shiftKey || e.metaKey || e.ctrlKey); }}
       className="absolute cursor-grab select-none touch-none active:cursor-grabbing"
       style={{
         left, top, width: wPx, height: hPx,
