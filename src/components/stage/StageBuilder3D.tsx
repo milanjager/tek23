@@ -2039,14 +2039,33 @@ function SceneContent({
           : isHovered ? "hover"
           : "idle";
 
+        // When user hovers/selects a cable, fade the rest to bring it forward.
+        const anyFocus = hoveredCableId !== null || selectedCableId !== null;
+        const isFocus = isHovered || isSelected;
+        const dimmed = anyFocus && !isFocus;
+        const baseOpacity = isReconnecting ? 0.4 : dimmed ? 0.18 : 0.95;
+        const width = isFocus ? meta.width + 3 : dimmed ? Math.max(1, meta.width - 0.5) : meta.width;
+
         return (
-          <group key={c.id}>
+          <group key={c.id} renderOrder={isFocus ? 20 : dimmed ? 0 : 10}>
+            {/* Soft glow halo behind the focused cable */}
+            {isFocus && (
+              <Line
+                points={pts as unknown as [number, number, number][]}
+                color={meta.color}
+                lineWidth={width + 5}
+                transparent
+                opacity={0.22}
+                depthTest={false}
+              />
+            )}
             <Line
               points={pts as unknown as [number, number, number][]}
               color={meta.color}
-              lineWidth={isSelected || isHovered ? meta.width + 2 : meta.width}
+              lineWidth={width}
               transparent
-              opacity={isReconnecting ? 0.4 : 0.95}
+              opacity={baseOpacity}
+              depthTest={!isFocus}
               onPointerOver={(e) => { e.stopPropagation(); setHoveredCableId(c.id); }}
               onPointerOut={(e) => { e.stopPropagation(); setHoveredCableId((cur) => (cur === c.id ? null : cur)); }}
               onClick={(e) => {
@@ -2056,9 +2075,10 @@ function SceneContent({
                 setReconnectError(null);
               }}
             />
-            {/* Highlighted endpoints — pulse when picking a new target */}
-            <CableEndpoint position={p1} color={meta.color} state={fromState} />
-            <CableEndpoint position={p2} color={meta.color} state={toState} />
+            {/* Animated flow overlay on hover/selected — dashes travel from source to target */}
+            {isFocus && (
+              <CableFlow points={pts} color={meta.color} width={width} />
+            )}
 
 
             {/* Always-visible compact label at cable midpoint */}
