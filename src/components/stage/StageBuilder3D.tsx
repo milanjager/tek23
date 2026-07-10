@@ -3260,6 +3260,8 @@ export function StageBuilder3D() {
       else if (e.key === "Escape") { setSelection([]); setPendingFrom(null); }
       else if (e.key.toLowerCase() === "t") { setMode("select"); setTool("translate"); }
       else if (e.key.toLowerCase() === "c" && !meta) { setMode((m) => (m === "cable" ? "select" : "cable")); setSelection([]); setPendingFrom(null); }
+      else if (e.key === "[") { setPaletteOpen((v) => !v); }
+      else if (e.key === "]") { setRightOpen((v) => !v); }
 
     };
     window.addEventListener("keydown", onKey);
