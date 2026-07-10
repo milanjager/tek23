@@ -380,6 +380,36 @@ function CableEndpoint({
   );
 }
 
+// Animated dash flow along a polyline — signals direction of a focused cable.
+function CableFlow({
+  points, color, width,
+}: {
+  points: [number, number, number][];
+  color: string;
+  width: number;
+}) {
+  const ref = useRef<any>(null);
+  useFrame(() => {
+    const mat = ref.current?.material;
+    if (mat && "dashOffset" in mat) {
+      mat.dashOffset = (mat.dashOffset ?? 0) - 0.03;
+    }
+  });
+  return (
+    <Line
+      ref={ref}
+      points={points as unknown as [number, number, number][]}
+      color={color}
+      lineWidth={Math.max(1, width - 0.5)}
+      dashed
+      dashSize={0.22}
+      gapSize={0.16}
+      transparent
+      opacity={0.95}
+      depthTest={false}
+    />
+  );
+
 
 
 
