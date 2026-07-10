@@ -3737,33 +3737,7 @@ export function StageBuilder3D() {
                   </div>
                 </div>
 
-                {/* Orientace */}
-                <div className="mb-2">
-                  <div className="mb-0.5 flex items-center justify-between">
-                    <span className="text-[9px] uppercase tracking-wider text-neutral-500">Orientace</span>
-                    <span className="font-mono text-[10px] text-neutral-700">{((deg % 360) + 360) % 360}°</span>
-                  </div>
-                  <div className="mb-1 grid grid-cols-4 gap-1">
-                    {[0, 90, 180, 270].map((d) => {
-                      const active = (((deg % 360) + 360) % 360) === d;
-                      return (
-                        <button
-                          key={d}
-                          onClick={() => patchPrimary({ rotY: (d * Math.PI) / 180 })}
-                          className={`rounded px-1 py-1 text-[10px] ${active ? "bg-lime-500 text-white" : "bg-neutral-100 text-neutral-700 hover:bg-neutral-200"}`}
-                        >
-                          {d}°
-                        </button>
-                      );
-                    })}
-                  </div>
-                  <input
-                    type="range" min={0} max={360} step={1}
-                    value={((deg % 360) + 360) % 360}
-                    onChange={(e) => patchPrimary({ rotY: (Number(e.target.value) * Math.PI) / 180 })}
-                    className="w-full accent-lime-500"
-                  />
-                </div>
+                {/* Orientace odstraněna – bedny mají fixní směr (▼ = přední strana) */}
 
                 {/* Výška (Y) */}
                 <div className="mb-2">
