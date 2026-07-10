@@ -3426,10 +3426,31 @@ export function StageBuilder3D() {
             onClick={() => setPaletteOpen(false)}
           />
         )}
+        {/* Left rail (visible when palette collapsed) */}
+        {!paletteOpen && (
+          <button
+            onClick={() => setPaletteOpen(true)}
+            title="Otevřít paletu komponent ( [ )"
+            className="absolute left-0 top-2 z-20 hidden h-10 w-6 items-center justify-center rounded-r border border-l-0 border-neutral-300 bg-white/95 text-neutral-600 shadow-md hover:bg-lime-50 hover:text-lime-700 md:flex"
+          >
+            <PanelLeft size={14} />
+          </button>
+        )}
         {/* Palette */}
         <aside
-          className={`${paletteOpen ? "absolute inset-y-0 left-0 z-30 flex w-64 shadow-2xl" : "hidden"} flex-col border-r border-neutral-200 bg-neutral-50 md:static md:z-auto md:flex md:w-56 md:shadow-none md:bg-neutral-50/80`}
+          className={`${paletteOpen ? "absolute inset-y-0 left-0 z-30 flex w-64 shadow-2xl md:static md:z-auto md:w-56 md:shadow-none" : "hidden"} flex-col border-r border-neutral-200 bg-neutral-50 md:bg-neutral-50/80`}
         >
+          {/* Desktop collapse header */}
+          <div className="hidden items-center justify-between border-b border-neutral-200 bg-white/60 px-2 py-1 md:flex">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-neutral-500">Paleta ( [ )</span>
+            <button
+              onClick={() => setPaletteOpen(false)}
+              title="Sbalit paletu"
+              className="rounded p-0.5 text-neutral-400 hover:bg-neutral-100 hover:text-neutral-700"
+            >
+              <X size={12} />
+            </button>
+          </div>
           <div className="flex border-b border-neutral-200">
             {CATEGORIES.map((c) => {
               const Icon = c.icon;
