@@ -1,5 +1,5 @@
 import { useMemo, useRef, useState, useEffect } from "react";
-import { RotateCw, Trash2, X, ChevronUp, ChevronDown, Plus, Info } from "lucide-react";
+import { Trash2, X, ChevronUp, ChevronDown, Plus, Info } from "lucide-react";
 import {
   DndContext,
   useDraggable,
@@ -610,10 +610,6 @@ export default function ElevationView({
       if (e.key === "Delete" || e.key === "Backspace") {
         onDeleteItem(selected.id);
         setSelectedId(null);
-      } else if (e.key === "r" || e.key === "R") {
-        const nrot = selected.rotY === 0 ? Math.PI / 2 : 0;
-        const y = computeStackY(items, specs, selected.kind, selected.pos[0], selected.pos[2], nrot, selected.id);
-        onUpdateItem(selected.id, { rotY: nrot, pos: [selected.pos[0], y, selected.pos[2]] });
       }
     };
     window.addEventListener("keydown", onKey);
@@ -926,16 +922,6 @@ export default function ElevationView({
           </div>
 
           <div className="flex flex-wrap gap-1">
-            <button
-              onClick={() => {
-                const nrot = selected.rotY === 0 ? Math.PI / 2 : 0;
-                const y = computeStackY(items, specs, selected.kind, selected.pos[0], selected.pos[2], nrot, selected.id);
-                onUpdateItem(selected.id, { rotY: nrot, pos: [selected.pos[0], y, selected.pos[2]] });
-              }}
-              className="flex items-center gap-1 rounded bg-neutral-100 px-2 py-1 text-xs hover:bg-neutral-200"
-            >
-              <RotateCw size={12} /> Otoč 90°
-            </button>
             <button
               onClick={() => { onDeleteItem(selected.id); setSelectedId(null); }}
               className="ml-auto flex items-center gap-1 rounded bg-red-100 px-2 py-1 text-xs text-red-700 hover:bg-red-200"

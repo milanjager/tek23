@@ -1,5 +1,5 @@
 import { useMemo, useRef, useState, useEffect } from "react";
-import { RotateCw, Trash2, ChevronUp, ChevronDown, Plus, X, Info } from "lucide-react";
+import { Trash2, ChevronUp, ChevronDown, Plus, X, Info } from "lucide-react";
 
 // Loose local mirrors so we don't have to export types from the giant parent.
 interface Placed {
@@ -197,10 +197,6 @@ export default function GridPlannerView({
       if (e.key === "Delete" || e.key === "Backspace") {
         onDeleteItem(selected.id);
         setSelectedId(null);
-      } else if (e.key === "r" || e.key === "R") {
-        const nrot = selected.rotY === 0 ? Math.PI / 2 : 0;
-        const y = computeStackY(selected.kind, selected.pos[0], selected.pos[2], nrot, selected.id);
-        onUpdateItem(selected.id, { rotY: nrot, pos: [selected.pos[0], y, selected.pos[2]] });
       }
     };
     window.addEventListener("keydown", onKey);
@@ -385,11 +381,6 @@ export default function GridPlannerView({
           stack={stacksByItem.get(selected.id)}
           onClose={() => setSelectedId(null)}
           onDelete={() => { onDeleteItem(selected.id); setSelectedId(null); }}
-          onRotate={() => {
-            const nrot = selected.rotY === 0 ? Math.PI / 2 : 0;
-            const y = computeStackY(selected.kind, selected.pos[0], selected.pos[2], nrot, selected.id);
-            onUpdateItem(selected.id, { rotY: nrot, pos: [selected.pos[0], y, selected.pos[2]] });
-          }}
           onMove={(dx, dz) => {
             const nx = snap(selected.pos[0] + dx);
             const nz = snap(selected.pos[2] + dz);
@@ -456,19 +447,17 @@ function AddPopover({
 }
 
 function DetailPanel({
-  item, spec, stack, onClose, onDelete, onRotate, onMove, onSetPos, onSetLabel,
+  item, spec, stack, onClose, onDelete, onMove, onSetPos, onSetLabel,
 }: {
   item: Placed;
   spec?: GridSpec;
   stack?: { level: number; total: number; ids: string[] };
   onClose: () => void;
   onDelete: () => void;
-  onRotate: () => void;
   onMove: (dx: number, dz: number) => void;
   onSetPos: (x: number, z: number) => void;
   onSetLabel: (label: string) => void;
 }) {
-  const rotated = Math.abs(Math.sin(item.rotY)) > 0.5;
   return (
     <div className="absolute bottom-2 left-2 right-2 z-20 rounded-lg border border-neutral-300 bg-white p-3 shadow-2xl md:left-auto md:right-2 md:w-80">
       <div className="mb-2 flex items-center justify-between">
@@ -525,9 +514,6 @@ function DetailPanel({
       </div>
 
       <div className="flex flex-wrap gap-1">
-        <button onClick={onRotate} className="flex items-center gap-1 rounded bg-neutral-100 px-2 py-1 text-xs hover:bg-neutral-200">
-          <RotateCw size={12} /> Otoč 90° ({rotated ? "svisle" : "vodorovně"})
-        </button>
         <div className="flex overflow-hidden rounded border border-neutral-300">
           <button onClick={() => onMove(-0.5, 0)} className="px-1.5 py-1 text-xs hover:bg-neutral-100">←</button>
           <button onClick={() => onMove(0, -0.5)} className="border-l border-neutral-300 px-1.5 py-1 text-xs hover:bg-neutral-100"><ChevronUp size={12} /></button>

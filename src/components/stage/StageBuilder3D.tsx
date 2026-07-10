@@ -13,8 +13,8 @@ import {
 import * as THREE from "three";
 import {
   Speaker, Trash2, Save, Copy, ClipboardPaste, Group as GroupIcon, Ungroup,
-  Move as MoveIcon, RotateCw, Boxes, Zap, Sparkles, Radio, Volume2,
-  Cable as CableIcon, MousePointer2, Menu, X, BoxSelect,
+  Move as MoveIcon, Boxes, Zap, Sparkles, Radio, Volume2,
+  Cable as CableIcon, MousePointer2, Menu, X, BoxSelect, PanelLeft, PanelRight,
   Workflow, Box as BoxIcon, LayoutGrid, GalleryVerticalEnd,
 } from "lucide-react";
 import SchematicView from "./SchematicView";
@@ -1741,11 +1741,10 @@ function SceneContent({
       for (const id of selection) {
         const it = map.get(id);
         if (!it) continue;
-        const snapped: Placed = { ...it, pos: snapToGridXZ(it.pos) };
+        // Force rotY = 0 (rotation removed from UI) + snap XZ to 0.5m grid
+        const snapped: Placed = { ...it, pos: snapToGridXZ(it.pos), rotY: 0 };
         const y = stackY(snapped, [...map.values()].filter((o) => o.id !== id));
         snapped.pos = [snapped.pos[0], y, snapped.pos[2]];
-        // snap rotation to 15°
-        snapped.rotY = Math.round(snapped.rotY / (Math.PI / 12)) * (Math.PI / 12);
         map.set(id, snapped);
       }
       return [...map.values()];
@@ -2878,16 +2877,79 @@ function autoWireCables(items: Placed[]): Cable[] {
   const amps = of(["amp", "powersoft"]);
   const sources = of(["dj", "cdj", "turntable", "korg", "korg_red", "korg_blue"]);
   const dmxFixtures = of(["movinghead", "strobe", "laser"]);
+  const passiveSpeakers = items.filter((i) => SPECS[i.kind].category === "sound");
+
+  // Bin-family helpers.
+  const SUB_KINDS: Kind[] = [
+    "sub", "bass", "badtekk_sub", "badtekk_bass",
+    "img_0838", "img_0839", "img_0841", "img_0842",
+  ];
+  const isSub = (k: Kind) => SUB_KINDS.includes(k);
+  const dist = (a: Placed, b: Placed) =>
+    Math.hypot(a.pos[0] - b.pos[0], a.pos[2] - b.pos[2]);
 
   // Everything that expects 230V.
   const powered = items.filter((i) =>
     connectorsFor(i.kind).some((c) => c.type === "power" && c.role === "in"),
   );
 
-  // PWR — one radial run per powered device from the generator.
+  // PWR — radial from generator/distro.
   if (generator) {
     for (const p of powered) {
       cables.push({ id: uid(), from: generator.id, to: p.id, type: "power" });
+    }
+  }
+
+  // SPK — cluster speakers by proximity (< 4 m), pair each cluster with the
+  // nearest amp, then chain subs and tops separately (Speakon link-out).
+  if (amps.length && passiveSpeakers.length) {
+    const seen = new Set<string>();
+    const clusters: Placed[][] = [];
+    for (const s of passiveSpeakers) {
+      if (seen.has(s.id)) continue;
+      const cluster = [s];
+      seen.add(s.id);
+      let grew = true;
+      while (grew) {
+        grew = false;
+        for (const t of passiveSpeakers) {
+          if (seen.has(t.id)) continue;
+          if (cluster.some((c) => dist(c, t) < 4)) {
+            cluster.push(t);
+            seen.add(t.id);
+            grew = true;
+          }
+        }
+      }
+      clusters.push(cluster);
+    }
+
+    const ampUse = new Map<string, number>(); // fan-out counter
+    for (const cluster of clusters) {
+      const subs = cluster.filter((c) => isSub(c.kind)).sort((a, b) => a.pos[0] - b.pos[0]);
+      const tops = cluster.filter((c) => !isSub(c.kind)).sort((a, b) => a.pos[0] - b.pos[0]);
+      const cx = cluster.reduce((s, c) => s + c.pos[0], 0) / cluster.length;
+      const cz = cluster.reduce((s, c) => s + c.pos[2], 0) / cluster.length;
+      const near = amps
+        .slice()
+        .sort((a, b) => {
+          const da = Math.hypot(a.pos[0] - cx, a.pos[2] - cz) + (ampUse.get(a.id) ?? 0) * 0.01;
+          const db = Math.hypot(b.pos[0] - cx, b.pos[2] - cz) + (ampUse.get(b.id) ?? 0) * 0.01;
+          return da - db;
+        })[0];
+      if (!near) continue;
+      ampUse.set(near.id, (ampUse.get(near.id) ?? 0) + 1);
+
+      // Subs: amp → first sub, then link-chain sub → sub.
+      if (subs[0]) cables.push({ id: uid(), from: near.id, to: subs[0].id, type: "speaker" });
+      for (let i = 0; i < subs.length - 1; i++) {
+        cables.push({ id: uid(), from: subs[i].id, to: subs[i + 1].id, type: "speaker" });
+      }
+      // Tops: separate run.
+      if (tops[0]) cables.push({ id: uid(), from: near.id, to: tops[0].id, type: "speaker" });
+      for (let i = 0; i < tops.length - 1; i++) {
+        cables.push({ id: uid(), from: tops[i].id, to: tops[i + 1].id, type: "speaker" });
+      }
     }
   }
 
@@ -2972,7 +3034,18 @@ export function StageBuilder3D() {
   const [pendingFrom, setPendingFrom] = useState<string | null>(null);
   const [category, setCategory] = useState<Category>("sound");
   const [clipboard, setClipboard] = useState<Placed[]>([]);
-  const [paletteOpen, setPaletteOpen] = useState(false);
+  const [paletteOpen, setPaletteOpen] = useState<boolean>(() => {
+    if (typeof window === "undefined") return false;
+    const stored = localStorage.getItem("stage.panel.left");
+    if (stored !== null) return stored === "1";
+    return window.matchMedia("(min-width: 768px)").matches;
+  });
+  const [rightOpen, setRightOpen] = useState<boolean>(() => {
+    if (typeof window === "undefined") return false;
+    const stored = localStorage.getItem("stage.panel.right");
+    if (stored !== null) return stored === "1";
+    return window.matchMedia("(min-width: 768px)").matches;
+  });
   const [marqueeMode, setMarqueeMode] = useState(false);
   const [realistic, setRealistic] = useState(false);
   const [viewMode, setViewMode] = useState<"3d" | "schema" | "grid" | "elev">("3d");
@@ -2998,6 +3071,9 @@ export function StageBuilder3D() {
   useEffect(() => {
     localStorage.setItem(STORAGE, JSON.stringify({ items, cables }));
   }, [items, cables]);
+
+  useEffect(() => { localStorage.setItem("stage.panel.left", paletteOpen ? "1" : "0"); }, [paletteOpen]);
+  useEffect(() => { localStorage.setItem("stage.panel.right", rightOpen ? "1" : "0"); }, [rightOpen]);
 
 
   const addItem = (kind: Kind) => {
@@ -3183,8 +3259,9 @@ export function StageBuilder3D() {
       else if (meta && e.key.toLowerCase() === "g") { groupSelection(); e.preventDefault(); }
       else if (e.key === "Escape") { setSelection([]); setPendingFrom(null); }
       else if (e.key.toLowerCase() === "t") { setMode("select"); setTool("translate"); }
-      else if (e.key.toLowerCase() === "r") { setMode("select"); setTool("rotate"); }
       else if (e.key.toLowerCase() === "c" && !meta) { setMode((m) => (m === "cable" ? "select" : "cable")); setSelection([]); setPendingFrom(null); }
+      else if (e.key === "[") { setPaletteOpen((v) => !v); }
+      else if (e.key === "]") { setRightOpen((v) => !v); }
 
     };
     window.addEventListener("keydown", onKey);
@@ -3284,7 +3361,7 @@ export function StageBuilder3D() {
           <Sparkles size={12} /> {realistic ? "Realistický" : "Realističtější vzhled"}
         </button>
         <button onClick={() => setTool("translate")} disabled={mode !== "select"} className={`flex items-center gap-1 rounded px-2 py-1 ${tool === "translate" && mode === "select" ? "bg-lime-500 text-neutral-950" : "bg-neutral-100 hover:bg-neutral-200"} disabled:opacity-40`}><MoveIcon size={12} /> Posun (T)</button>
-        <button onClick={() => setTool("rotate")} disabled={mode !== "select"} className={`flex items-center gap-1 rounded px-2 py-1 ${tool === "rotate" && mode === "select" ? "bg-lime-500 text-neutral-950" : "bg-neutral-100 hover:bg-neutral-200"} disabled:opacity-40`}><RotateCw size={12} /> Rotace (R)</button>
+        {/* Rotace UI odstraněna — bedny mají fixní orientaci */}
         <div className="mx-2 h-5 w-px bg-neutral-700" />
         <button onClick={() => { setMode("cable"); setSelection([]); }} className={`flex items-center gap-1 rounded px-2 py-1 ${mode === "cable" ? "bg-lime-500 text-neutral-950" : "bg-neutral-100 hover:bg-neutral-200"}`}><CableIcon size={12} /> Kabely</button>
         {mode === "cable" && (
@@ -3305,10 +3382,10 @@ export function StageBuilder3D() {
         )}
         <button
           onClick={() => setCables(autoWireCables(items))}
-          className="rounded bg-lime-100 px-2 py-1 text-neutral-900 hover:bg-lime-200"
-          title="Vygeneruje SIG / PWR / DMX kabeláž podle typů komponent"
+          className="flex items-center gap-1 rounded bg-amber-400 px-2.5 py-1 font-bold text-neutral-950 shadow-sm hover:bg-amber-300"
+          title="Automaticky vygeneruje kompletní kabeláž: PWR z aggregátu, SIG přes mixer, SPK z ampů do beden včetně link-out řetězení, DMX daisy-chain"
         >
-          <CableIcon size={12} className="inline" /> Auto-kabely
+          <Zap size={13} className="inline" /> Zapojit vše
         </button>
         <div className="mx-2 h-5 w-px bg-neutral-700" />
         <button
@@ -3349,10 +3426,31 @@ export function StageBuilder3D() {
             onClick={() => setPaletteOpen(false)}
           />
         )}
+        {/* Left rail (visible when palette collapsed) */}
+        {!paletteOpen && (
+          <button
+            onClick={() => setPaletteOpen(true)}
+            title="Otevřít paletu komponent ( [ )"
+            className="absolute left-0 top-2 z-20 hidden h-10 w-6 items-center justify-center rounded-r border border-l-0 border-neutral-300 bg-white/95 text-neutral-600 shadow-md hover:bg-lime-50 hover:text-lime-700 md:flex"
+          >
+            <PanelLeft size={14} />
+          </button>
+        )}
         {/* Palette */}
         <aside
-          className={`${paletteOpen ? "absolute inset-y-0 left-0 z-30 flex w-64 shadow-2xl" : "hidden"} flex-col border-r border-neutral-200 bg-neutral-50 md:static md:z-auto md:flex md:w-56 md:shadow-none md:bg-neutral-50/80`}
+          className={`${paletteOpen ? "absolute inset-y-0 left-0 z-30 flex w-64 shadow-2xl md:static md:z-auto md:w-56 md:shadow-none" : "hidden"} flex-col border-r border-neutral-200 bg-neutral-50 md:bg-neutral-50/80`}
         >
+          {/* Desktop collapse header */}
+          <div className="hidden items-center justify-between border-b border-neutral-200 bg-white/60 px-2 py-1 md:flex">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-neutral-500">Paleta ( [ )</span>
+            <button
+              onClick={() => setPaletteOpen(false)}
+              title="Sbalit paletu"
+              className="rounded p-0.5 text-neutral-400 hover:bg-neutral-100 hover:text-neutral-700"
+            >
+              <X size={12} />
+            </button>
+          </div>
           <div className="flex border-b border-neutral-200">
             {CATEGORIES.map((c) => {
               const Icon = c.icon;
@@ -3613,8 +3711,28 @@ export function StageBuilder3D() {
           )}
         </div>
 
+        {/* Right rail (visible when inspector collapsed) */}
+        {!rightOpen && (
+          <button
+            onClick={() => setRightOpen(true)}
+            title="Otevřít inspektor ( ] )"
+            className="absolute right-0 top-2 z-20 flex h-10 w-6 items-center justify-center rounded-l border border-r-0 border-neutral-300 bg-white/95 text-neutral-600 shadow-md hover:bg-lime-50 hover:text-lime-700"
+          >
+            <PanelRight size={14} />
+          </button>
+        )}
         {/* Right inspector — per-item model / label / variant */}
-        <aside className="flex w-72 flex-col border-l border-neutral-200 bg-neutral-50/80">
+        <aside className={`${rightOpen ? "flex w-72" : "hidden"} flex-col border-l border-neutral-200 bg-neutral-50/80`}>
+          <div className="flex items-center justify-between border-b border-neutral-200 bg-white/60 px-2 py-1">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-neutral-500">Inspektor ( ] )</span>
+            <button
+              onClick={() => setRightOpen(false)}
+              title="Sbalit inspektor"
+              className="rounded p-0.5 text-neutral-400 hover:bg-neutral-100 hover:text-neutral-700"
+            >
+              <X size={12} />
+            </button>
+          </div>
           {/* ── Detail výběru ─────────────────────────────────────────── */}
           {(() => {
             const primary = items.find((x) => x.id === selection[0]);
@@ -3676,33 +3794,7 @@ export function StageBuilder3D() {
                   </div>
                 </div>
 
-                {/* Orientace */}
-                <div className="mb-2">
-                  <div className="mb-0.5 flex items-center justify-between">
-                    <span className="text-[9px] uppercase tracking-wider text-neutral-500">Orientace</span>
-                    <span className="font-mono text-[10px] text-neutral-700">{((deg % 360) + 360) % 360}°</span>
-                  </div>
-                  <div className="mb-1 grid grid-cols-4 gap-1">
-                    {[0, 90, 180, 270].map((d) => {
-                      const active = (((deg % 360) + 360) % 360) === d;
-                      return (
-                        <button
-                          key={d}
-                          onClick={() => patchPrimary({ rotY: (d * Math.PI) / 180 })}
-                          className={`rounded px-1 py-1 text-[10px] ${active ? "bg-lime-500 text-white" : "bg-neutral-100 text-neutral-700 hover:bg-neutral-200"}`}
-                        >
-                          {d}°
-                        </button>
-                      );
-                    })}
-                  </div>
-                  <input
-                    type="range" min={0} max={360} step={1}
-                    value={((deg % 360) + 360) % 360}
-                    onChange={(e) => patchPrimary({ rotY: (Number(e.target.value) * Math.PI) / 180 })}
-                    className="w-full accent-lime-500"
-                  />
-                </div>
+                {/* Orientace odstraněna – bedny mají fixní směr (▼ = přední strana) */}
 
                 {/* Výška (Y) */}
                 <div className="mb-2">
