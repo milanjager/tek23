@@ -292,10 +292,10 @@ function anchorFor(item: Placed, type: CableType): [number, number, number] {
   return [x + wx, y + ly, z + wz];
 }
 
-// Orthogonal cable routing — like real electrical / rack cabling: rise up from
-// the source connector, run over in X, then in Z at a "bus" height above both
-// endpoints, then drop down to the target. A per-cable seed spreads parallel
-// runs so they don't stack on top of each other.
+// Cables run like real touring rigs: drop from the source connector down to
+// the floor, run orthogonally along the ground, then rise up to the target.
+// A per-cable seed offsets each floor run laterally so parallel cables don't
+// stack on top of each other.
 function cablePoints(
   a: [number, number, number],
   b: [number, number, number],
@@ -303,21 +303,24 @@ function cablePoints(
 ): [number, number, number][] {
   const [ax, ay, az] = a;
   const [bx, by, bz] = b;
-  // Bus height above the taller endpoint; small per-cable offset to fan out.
-  const spread = ((seed % 7) - 3) * 0.06;
-  const busY = Math.max(ay, by) + 0.45 + Math.abs(spread);
-  const stubX = 0.05 + spread;
-  const stubZ = 0.05 - spread;
-  // Path: source → up → over-X at bus → over-Z at bus → down → target.
+  // Lateral fan-out so parallel runs don't overlap.
+  const spread = ((seed % 9) - 4) * 0.05;
+  const floorY = 0.02 + Math.abs((seed % 5) * 0.008); // rest on the ground
+  // Route on ground: down → over-Z → over-X → up. Choose leg order based on
+  // deltas to keep the visible bend closer to the shorter side.
+  const dx = bx - ax, dz = bz - az;
+  const zFirst = Math.abs(dz) >= Math.abs(dx);
+  const midX = ax + (zFirst ? 0 : dx * 0.5);
+  const midZ = az + (zFirst ? dz * 0.5 : 0);
   return [
     [ax, ay, az],
-    [ax, ay + 0.06, az],           // tiny stub up out of the connector
-    [ax, busY, az],                // rise to bus
-    [bx + stubX, busY, az],        // travel in X at bus height
-    [bx + stubX, busY, bz + stubZ],// travel in Z at bus height
-    [bx, busY, bz],                // align above target
-    [bx, by + 0.06, bz],           // drop above connector
-    [bx, by, bz],                  // land on target
+    [ax, ay * 0.35 + 0.05, az],                    // slack drop out of connector
+    [ax + spread, floorY, az + spread],            // land on floor
+    [zFirst ? ax + spread : midX + spread, floorY, zFirst ? midZ + spread : az + spread],
+    [zFirst ? bx + spread : midX + spread, floorY, zFirst ? midZ + spread : bz + spread],
+    [bx + spread, floorY, bz + spread],            // arrive at target foot
+    [bx, by * 0.35 + 0.05, bz],                    // rise to target connector
+    [bx, by, bz],
   ];
 }
 
