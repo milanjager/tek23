@@ -292,10 +292,10 @@ function anchorFor(item: Placed, type: CableType): [number, number, number] {
   return [x + wx, y + ly, z + wz];
 }
 
-// Orthogonal cable routing — like real electrical / rack cabling: rise up from
-// the source connector, run over in X, then in Z at a "bus" height above both
-// endpoints, then drop down to the target. A per-cable seed spreads parallel
-// runs so they don't stack on top of each other.
+// Cables run like real touring rigs: drop from the source connector down to
+// the floor, run orthogonally along the ground, then rise up to the target.
+// A per-cable seed offsets each floor run laterally so parallel cables don't
+// stack on top of each other.
 function cablePoints(
   a: [number, number, number],
   b: [number, number, number],
@@ -303,21 +303,24 @@ function cablePoints(
 ): [number, number, number][] {
   const [ax, ay, az] = a;
   const [bx, by, bz] = b;
-  // Bus height above the taller endpoint; small per-cable offset to fan out.
-  const spread = ((seed % 7) - 3) * 0.06;
-  const busY = Math.max(ay, by) + 0.45 + Math.abs(spread);
-  const stubX = 0.05 + spread;
-  const stubZ = 0.05 - spread;
-  // Path: source → up → over-X at bus → over-Z at bus → down → target.
+  // Lateral fan-out so parallel runs don't overlap.
+  const spread = ((seed % 9) - 4) * 0.05;
+  const floorY = 0.02 + Math.abs((seed % 5) * 0.008); // rest on the ground
+  // Route on ground: down → over-Z → over-X → up. Choose leg order based on
+  // deltas to keep the visible bend closer to the shorter side.
+  const dx = bx - ax, dz = bz - az;
+  const zFirst = Math.abs(dz) >= Math.abs(dx);
+  const midX = ax + (zFirst ? 0 : dx * 0.5);
+  const midZ = az + (zFirst ? dz * 0.5 : 0);
   return [
     [ax, ay, az],
-    [ax, ay + 0.06, az],           // tiny stub up out of the connector
-    [ax, busY, az],                // rise to bus
-    [bx + stubX, busY, az],        // travel in X at bus height
-    [bx + stubX, busY, bz + stubZ],// travel in Z at bus height
-    [bx, busY, bz],                // align above target
-    [bx, by + 0.06, bz],           // drop above connector
-    [bx, by, bz],                  // land on target
+    [ax, ay * 0.35 + 0.05, az],                    // slack drop out of connector
+    [ax + spread, floorY, az + spread],            // land on floor
+    [zFirst ? ax + spread : midX + spread, floorY, zFirst ? midZ + spread : az + spread],
+    [zFirst ? bx + spread : midX + spread, floorY, zFirst ? midZ + spread : bz + spread],
+    [bx + spread, floorY, bz + spread],            // arrive at target foot
+    [bx, by * 0.35 + 0.05, bz],                    // rise to target connector
+    [bx, by, bz],
   ];
 }
 
@@ -374,6 +377,37 @@ function CableEndpoint({
         <meshBasicMaterial ref={ringMat} color={color} transparent opacity={0} side={THREE.DoubleSide} depthWrite={false} />
       </mesh>
     </group>
+  );
+}
+
+// Animated dash flow along a polyline — signals direction of a focused cable.
+function CableFlow({
+  points, color, width,
+}: {
+  points: [number, number, number][];
+  color: string;
+  width: number;
+}) {
+  const ref = useRef<any>(null);
+  useFrame(() => {
+    const mat = ref.current?.material;
+    if (mat && "dashOffset" in mat) {
+      mat.dashOffset = (mat.dashOffset ?? 0) - 0.03;
+    }
+  });
+  return (
+    <Line
+      ref={ref}
+      points={points as unknown as [number, number, number][]}
+      color={color}
+      lineWidth={Math.max(1, width - 0.5)}
+      dashed
+      dashSize={0.22}
+      gapSize={0.16}
+      transparent
+      opacity={0.95}
+      depthTest={false}
+    />
   );
 }
 
@@ -1601,6 +1635,7 @@ function snapToGridXZ(v: [number, number, number]): [number, number, number] {
 }
 
 // Compute stacking Y for `moving` given other items. Simple axis-aligned XZ overlap check.
+// Tolerant center check so boxes snap onto stacks even when not perfectly aligned.
 function stackY(moving: Placed, others: Placed[]): number {
   const s = SPECS[moving.kind].size;
   const halfW = s[0] / 2, halfD = s[2] / 2;
@@ -1610,18 +1645,100 @@ function stackY(moving: Placed, others: Placed[]): number {
     const os = SPECS[o.kind].size;
     const oTop = o.pos[1] + os[1];
     const oHalfW = os[0] / 2, oHalfD = os[2] / 2;
-    // Simple AABB (ignores rotation for snap) XZ overlap
     const overlapX = Math.min(moving.pos[0] + halfW, o.pos[0] + oHalfW) - Math.max(moving.pos[0] - halfW, o.pos[0] - oHalfW);
     const overlapZ = Math.min(moving.pos[2] + halfD, o.pos[2] + oHalfD) - Math.max(moving.pos[2] - halfD, o.pos[2] - oHalfD);
-    if (overlapX > 0.05 && overlapZ > 0.05 && oTop > best - 0.02) {
-      // Require center within cabinet top footprint
-      if (Math.abs(moving.pos[0] - o.pos[0]) < oHalfW + halfW * 0.5 &&
-          Math.abs(moving.pos[2] - o.pos[2]) < oHalfD + halfD * 0.5) {
+    // Very small overlap counts — makes stacking forgiving.
+    if (overlapX > 0.02 && overlapZ > 0.02 && oTop > best - 0.02) {
+      // Wide tolerance: center of moving must be within combined half-footprint
+      if (Math.abs(moving.pos[0] - o.pos[0]) < oHalfW + halfW * 0.9 &&
+          Math.abs(moving.pos[2] - o.pos[2]) < oHalfD + halfD * 0.9) {
         best = Math.max(best, oTop);
       }
     }
   }
   return best;
+}
+
+// Returns true if `moving` would collide (XZ overlap) with any other item at
+// the same or nearly the same Y level (i.e. not properly stacked on top).
+function hasCollision(moving: Placed, others: Placed[]): boolean {
+  const s = SPECS[moving.kind].size;
+  const halfW = s[0] / 2, halfD = s[2] / 2;
+  const my = moving.pos[1];
+  const myTop = my + s[1];
+  for (const o of others) {
+    if (o.id === moving.id) continue;
+    const os = SPECS[o.kind].size;
+    const oHalfW = os[0] / 2, oHalfD = os[2] / 2;
+    const oy = o.pos[1];
+    const oTop = oy + os[1];
+    const overlapX = Math.min(moving.pos[0] + halfW, o.pos[0] + oHalfW) - Math.max(moving.pos[0] - halfW, o.pos[0] - oHalfW);
+    const overlapZ = Math.min(moving.pos[2] + halfD, o.pos[2] + oHalfD) - Math.max(moving.pos[2] - halfD, o.pos[2] - oHalfD);
+    if (overlapX > 0.05 && overlapZ > 0.05) {
+      // Vertical overlap (not resting on top / not underneath)
+      const vOverlap = Math.min(myTop, oTop) - Math.max(my, oy);
+      if (vOverlap > 0.05) return true;
+    }
+  }
+  return false;
+}
+
+// Ghost preview of the currently-dragged selection at its snapped position.
+// Green mesh = valid drop, red = collides with another cabinet.
+function PlacementGhost({
+  selection, items, objectsRef,
+}: {
+  selection: string[];
+  items: Placed[];
+  objectsRef: React.MutableRefObject<Map<string, THREE.Object3D>>;
+}) {
+  const groupRef = useRef<THREE.Group>(null);
+  const meshRefs = useRef<Map<string, THREE.Mesh>>(new Map());
+  useFrame(() => {
+    for (const id of selection) {
+      const src = items.find((i) => i.id === id);
+      const obj = objectsRef.current.get(id);
+      const mesh = meshRefs.current.get(id);
+      if (!src || !obj || !mesh) continue;
+      // Live snapped pos from the driven object (which TransformControls updates).
+      const snapped: [number, number, number] = [
+        Math.round(obj.position.x / GRID_STEP) * GRID_STEP,
+        Math.max(0, obj.position.y),
+        Math.round(obj.position.z / GRID_STEP) * GRID_STEP,
+      ];
+      const others = items.filter((o) => !selection.includes(o.id));
+      const candidate: Placed = { ...src, pos: snapped, rotY: 0 };
+      const y = stackY(candidate, others);
+      candidate.pos = [snapped[0], y, snapped[2]];
+      const bad = hasCollision(candidate, others);
+      const s = SPECS[src.kind].size;
+      mesh.position.set(candidate.pos[0], y + s[1] / 2, candidate.pos[2]);
+      const mat = mesh.material as THREE.MeshBasicMaterial;
+      mat.color.set(bad ? "#ef4444" : "#22c55e");
+      mat.opacity = bad ? 0.35 : 0.22;
+    }
+  });
+  return (
+    <group ref={groupRef}>
+      {selection.map((id) => {
+        const it = items.find((i) => i.id === id);
+        if (!it) return null;
+        const s = SPECS[it.kind].size;
+        return (
+          <mesh
+            key={id}
+            ref={(m) => {
+              if (m) meshRefs.current.set(id, m);
+              else meshRefs.current.delete(id);
+            }}
+          >
+            <boxGeometry args={[s[0] + 0.02, s[1] + 0.02, s[2] + 0.02]} />
+            <meshBasicMaterial color="#22c55e" transparent opacity={0.22} depthWrite={false} />
+          </mesh>
+        );
+      })}
+    </group>
+  );
 }
 
 /* ============================================================
@@ -1974,6 +2091,15 @@ function SceneContent({
         />
       ))}
 
+      {/* Placement ghost — snapped preview while dragging a selected item */}
+      {dragging && mode === "select" && (
+        <PlacementGhost
+          selection={selection}
+          items={items}
+          objectsRef={objectsRef}
+        />
+      )}
+
       {/* Ghost cable — visible while the user is dragging a plug to a target */}
       {mode === "cable" && pendingFrom && cursorWorld && (() => {
         const src = items.find((i) => i.id === pendingFrom);
@@ -2036,14 +2162,33 @@ function SceneContent({
           : isHovered ? "hover"
           : "idle";
 
+        // When user hovers/selects a cable, fade the rest to bring it forward.
+        const anyFocus = hoveredCableId !== null || selectedCableId !== null;
+        const isFocus = isHovered || isSelected;
+        const dimmed = anyFocus && !isFocus;
+        const baseOpacity = isReconnecting ? 0.4 : dimmed ? 0.18 : 0.95;
+        const width = isFocus ? meta.width + 3 : dimmed ? Math.max(1, meta.width - 0.5) : meta.width;
+
         return (
-          <group key={c.id}>
+          <group key={c.id} renderOrder={isFocus ? 20 : dimmed ? 0 : 10}>
+            {/* Soft glow halo behind the focused cable */}
+            {isFocus && (
+              <Line
+                points={pts as unknown as [number, number, number][]}
+                color={meta.color}
+                lineWidth={width + 5}
+                transparent
+                opacity={0.22}
+                depthTest={false}
+              />
+            )}
             <Line
               points={pts as unknown as [number, number, number][]}
               color={meta.color}
-              lineWidth={isSelected || isHovered ? meta.width + 2 : meta.width}
+              lineWidth={width}
               transparent
-              opacity={isReconnecting ? 0.4 : 0.95}
+              opacity={baseOpacity}
+              depthTest={!isFocus}
               onPointerOver={(e) => { e.stopPropagation(); setHoveredCableId(c.id); }}
               onPointerOut={(e) => { e.stopPropagation(); setHoveredCableId((cur) => (cur === c.id ? null : cur)); }}
               onClick={(e) => {
@@ -2053,9 +2198,15 @@ function SceneContent({
                 setReconnectError(null);
               }}
             />
+            {/* Animated flow overlay on hover/selected — dashes travel from source to target */}
+            {isFocus && (
+              <CableFlow points={pts} color={meta.color} width={width} />
+            )}
+
             {/* Highlighted endpoints — pulse when picking a new target */}
             <CableEndpoint position={p1} color={meta.color} state={fromState} />
             <CableEndpoint position={p2} color={meta.color} state={toState} />
+
 
 
             {/* Always-visible compact label at cable midpoint */}
@@ -3034,18 +3185,18 @@ export function StageBuilder3D() {
   const [pendingFrom, setPendingFrom] = useState<string | null>(null);
   const [category, setCategory] = useState<Category>("sound");
   const [clipboard, setClipboard] = useState<Placed[]>([]);
-  const [paletteOpen, setPaletteOpen] = useState<boolean>(() => {
-    if (typeof window === "undefined") return false;
-    const stored = localStorage.getItem("stage.panel.left");
-    if (stored !== null) return stored === "1";
-    return window.matchMedia("(min-width: 768px)").matches;
-  });
-  const [rightOpen, setRightOpen] = useState<boolean>(() => {
-    if (typeof window === "undefined") return false;
-    const stored = localStorage.getItem("stage.panel.right");
-    if (stored !== null) return stored === "1";
-    return window.matchMedia("(min-width: 768px)").matches;
-  });
+  // Panels start closed to match SSR; hydrate from localStorage / viewport after mount.
+  const [paletteOpen, setPaletteOpen] = useState<boolean>(false);
+  const [rightOpen, setRightOpen] = useState<boolean>(false);
+  const [panelsHydrated, setPanelsHydrated] = useState(false);
+  useEffect(() => {
+    const l = localStorage.getItem("stage.panel.left");
+    const r = localStorage.getItem("stage.panel.right");
+    const wide = window.matchMedia("(min-width: 768px)").matches;
+    setPaletteOpen(l !== null ? l === "1" : wide);
+    setRightOpen(r !== null ? r === "1" : wide);
+    setPanelsHydrated(true);
+  }, []);
   const [marqueeMode, setMarqueeMode] = useState(false);
   const [realistic, setRealistic] = useState(false);
   const [viewMode, setViewMode] = useState<"3d" | "schema" | "grid" | "elev">("3d");
@@ -3072,8 +3223,8 @@ export function StageBuilder3D() {
     localStorage.setItem(STORAGE, JSON.stringify({ items, cables }));
   }, [items, cables]);
 
-  useEffect(() => { localStorage.setItem("stage.panel.left", paletteOpen ? "1" : "0"); }, [paletteOpen]);
-  useEffect(() => { localStorage.setItem("stage.panel.right", rightOpen ? "1" : "0"); }, [rightOpen]);
+  useEffect(() => { if (panelsHydrated) localStorage.setItem("stage.panel.left", paletteOpen ? "1" : "0"); }, [paletteOpen, panelsHydrated]);
+  useEffect(() => { if (panelsHydrated) localStorage.setItem("stage.panel.right", rightOpen ? "1" : "0"); }, [rightOpen, panelsHydrated]);
 
 
   const addItem = (kind: Kind) => {
@@ -3193,8 +3344,8 @@ export function StageBuilder3D() {
       unitList.sort((a, b) => a.cat - b.cat || a.primaryKind.localeCompare(b.primaryKind));
 
       const MAX_W = 14;
-      const GAP = 0.4;
-      const ROW_GAP = 1.5;
+      const GAP = 0.08;
+      const ROW_GAP = 0.7;
       type Row = { units: Unit[]; width: number; depth: number };
       const rows: Row[] = [];
       let row: Row = { units: [], width: 0, depth: 0 };
