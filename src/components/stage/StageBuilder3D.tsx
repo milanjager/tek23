@@ -3382,10 +3382,10 @@ export function StageBuilder3D() {
         )}
         <button
           onClick={() => setCables(autoWireCables(items))}
-          className="rounded bg-lime-100 px-2 py-1 text-neutral-900 hover:bg-lime-200"
-          title="Vygeneruje SIG / PWR / DMX kabeláž podle typů komponent"
+          className="flex items-center gap-1 rounded bg-amber-400 px-2.5 py-1 font-bold text-neutral-950 shadow-sm hover:bg-amber-300"
+          title="Automaticky vygeneruje kompletní kabeláž: PWR z aggregátu, SIG přes mixer, SPK z ampů do beden včetně link-out řetězení, DMX daisy-chain"
         >
-          <CableIcon size={12} className="inline" /> Auto-kabely
+          <Zap size={13} className="inline" /> Zapojit vše
         </button>
         <div className="mx-2 h-5 w-px bg-neutral-700" />
         <button
