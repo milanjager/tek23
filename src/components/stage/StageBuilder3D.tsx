@@ -3072,8 +3072,8 @@ export function StageBuilder3D() {
     localStorage.setItem(STORAGE, JSON.stringify({ items, cables }));
   }, [items, cables]);
 
-  useEffect(() => { localStorage.setItem("stage.panel.left", paletteOpen ? "1" : "0"); }, [paletteOpen]);
-  useEffect(() => { localStorage.setItem("stage.panel.right", rightOpen ? "1" : "0"); }, [rightOpen]);
+  useEffect(() => { if (panelsHydrated) localStorage.setItem("stage.panel.left", paletteOpen ? "1" : "0"); }, [paletteOpen, panelsHydrated]);
+  useEffect(() => { if (panelsHydrated) localStorage.setItem("stage.panel.right", rightOpen ? "1" : "0"); }, [rightOpen, panelsHydrated]);
 
 
   const addItem = (kind: Kind) => {
