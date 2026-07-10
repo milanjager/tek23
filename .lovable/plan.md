@@ -1,63 +1,102 @@
-# Kde získat volně použitelné 3D modely reproduktorů
 
-Cíl: sehnat 3–5 GLB modelů (line array, subwoofer, top PA, stage monitor, případně bar/light) s licencí, která umožňuje použití v aplikaci, a integrovat je do `StageBuilder3D.tsx` přes `<Gltf/>` s cachováním na Lovable CDN.
+# Přestavba Stage Builderu — jednodušší, chytřejší, pro non‑IT crew
 
-## 1. Zdroje modelů (seřazeno podle použitelnosti)
+Cíl: nástroj, který zvládne parťák z party crew bez čtení manuálu. Miř na „SimCity/RTS" pocit — snap na grid, zelený/červený ghost při umisťování, ☰ sbalit vše, jedno velké tlačítko „⚡ Zapojit vše".
 
-### A. CC0 / public domain (bez atribuce, nejjednodušší)
+## 1. Rotace pryč (UI bedny)
 
-| Zdroj | Co tam hledat | Poznámka |
-|---|---|---|
-| **Poly Haven** (polyhaven.com/models) | `megaphone`, `boombox` – PA line array bohužel nemá | CC0, ověřená kvalita, přímé `.glb` |
-| **ambientCG** | Reproduktory řídce, ale worth a check | CC0 |
-| **Kenney.nl** – Audio Kit | Stylizované low-poly reproduktory | CC0, minimalistický vzhled ✅ ideální pro náš styl |
-| **Quaternius** | Low-poly asset packy | CC0 |
-| **Sketchfab – filtr CC0** | `speaker`, `line array`, `subwoofer` s licencí "CC0" | Vzácné, ale existují |
+- V **Detail výběru** (StageBuilder3D.tsx) smazat blok tlačítek 0/90/180/270°, slider a numerický input rotace.
+- V `GridPlannerView` a `ElevationView` smazat tlačítka „Otoč 90°" a klávesu **R**.
+- Šipku „front-of-box" ▼ nechat (vizuální orientace publikum), rotY v modelu ponechat na 0 — kód rotY zůstává, aby se nerozbila persistence, ale UI ho neexponuje.
 
-### B. CC-BY 4.0 (s atribuce v UI/creditech)
+## 2. Sbalitelné panely (mobil i desktop)
 
-| Zdroj | Kandidáti | Licence |
-|---|---|---|
-| **Sketchfab** (již proskenováno) | Line Array, Bass Bin 1, PA concert speaker clean, Stage Monitor, PA bass clean | CC-BY 4.0 |
-| **Free3D** | Search `PA speaker`, filtr Free | Různé, číst per model |
-| **TurboSquid Free** | Občas CC-BY | Číst per model |
+Zavedeme jednotný `usePanel(id)` hook (localStorage persist). Každý panel dostane úchyt s chevronem a shortcut.
 
-**Podmínka atribuce**: přidat sekci „Credits" v UI (např. tlačítko ⓘ v 3D toolbaru → dialog se seznamem autorů + odkazy). To je jediný požadavek CC-BY.
+- **Levá paleta komponent** — sbalí se do 40px pásu s ikonami kategorií (Sound/Lights/Infra). Klik na ikonu = flyout. Klávesa `[`.
+- **Pravý panel (Detail výběru + Kabelový inspektor)** — sbalí se úplně na okraj (44px tab s ikonou). Klávesa `]`.
+- **Horní toolbar** — rozdělit na 3 klastry (Režim, Preset, Nástroje) a přesunout „vedlejší" akce (Auto rozmístit, Legenda kabelů, Realistický vzhled, Schéma toggle) do jedné rozbalovací nabídky **⋯ Více**.
+- **Legendy** (SIG/PWR/DMX) — do jednoho plovoucího chip „🎨 Legenda" s popoverem.
+- **Spodní status bar** — nový úzký pás: počet beden, počet chyb kabeláže, stav auto‑layoutu, tlačítko „⚡ Zapojit vše".
 
-### C. Vytvořit vlastní (fallback)
+## 3. Grid snap + RTS validace umísťování v 3D
 
-Pokud nic nesedí stylově: vygenerovat jednoduché GLB v Blenderu jako one-off a commitnout do repa. Náročné, ale plně kontrolovatelné a bez licenčních starostí.
+Aktuální free‑3D placement se nahradí za deterministický grid, stejný pro 3D i Nárys/Plán, aby všechny pohledy seděly.
 
-## 2. Doporučený postup (v tomto pořadí)
+- Konstanta `GRID = 0.5 m` globálně (mirror z `GridPlannerView`).
+- V `StageBuilder3D` obalit drag/drop novým hookem `usePlacementGhost({ kind, gridSize })`:
+  - Pod kurzorem plovoucí **ghost mesh** s barevným rámečkem.
+  - **Zelená** = volno, žádná kolize footprintu.
+  - **Žlutá** = do 0.4 m od jiné bedny (těsně vedle — OK, ale upozornění).
+  - **Červená** = overlap → klik zakázán, tooltip „Nelze umístit — kolize s {label}".
+- Kolize řeší sdílená utilita `computeFootprintConflicts(items, candidate)` v novém `src/components/stage/placement.ts` — použije ji 3D i `ElevationView`/`GridPlannerView`, aby chování bylo shodné.
+- Existující bedny při dragu chovají stejně — vlečená bedna se snapuje, ghost červeně blokuje drop.
+- Auto‑stack: pokud ghost přesně sedí na půdorys bedny pod ním, zvedne se automaticky na `pos[1] = topOf(base)` a rámeček je modrý = „stackovat".
 
-1. **Kenney Audio Kit** – stáhnout ZIP, vybrat 3–5 vhodných modelů (speaker, subwoofer, mic stand jako proxy pro monitor). CC0, minimalistický low-poly styl **přesně odpovídá aktuálnímu vizuálu appky**.
-2. Pokud Kenney nestačí, doplnit **1–2 CC-BY modely ze Sketchfabu** (line array + sub – hi-fi varianta pro „HQ" toggle).
-3. Fallback: procedurální meshe zůstávají jako výchozí zobrazení, GLB se načítá jen když je „HQ modely" toggle zapnutý.
+## 4. Marquee (rectangle) výběr v 3D
 
-## 3. Integrační plán (po schválení zdrojů)
+- Nový režim `SelectTool`:
+  - Left‑drag na prázdnu = kreslí rubber‑band DOM overlay (2D CSS na `<canvas>`).
+  - Při release: projekce každé bedny přes camera `project()` → screen‑space AABB → intersect s rectanglem → doplní do `selection` (`additive` když je Shift).
+  - Escape ruší výběr.
+- Hlavní tlačítko myši:
+  - **Prázdno + drag** → marquee.
+  - **Nad bednou** → drag = přesun.
+  - **Shift+klik na bednu** → toggle výběru.
+- Aktualizovat `selection` state (už je sdílený mezi pohledy z minulé iterace).
 
-### Uložení modelů
-- Nahrát každý `.glb` přes `lovable-assets create --file <path>` → vznikne `.asset.json` pointer, soubor jde na CDN (rychlé, cachované, mimo repo).
-- Ukládat pod `src/assets/models/<name>.glb.asset.json`.
+## 5. Chytrá auto‑kabeláž „⚡ Zapojit vše"
 
-### Kód (`StageBuilder3D.tsx`)
-- Přidat mapu `MODEL_URLS: Record<ComponentKind, string | null>` s URL z `.asset.json`.
-- Použít `useGLTF` z `@react-three/drei` (už používáme) s preloadem: `useGLTF.preload(url)`.
-- Nová komponenta `<RealisticModel kind={...} />`:
-  - Pokud existuje URL a je zapnutý toggle „HQ modely" → renderovat `<primitive object={gltf.scene.clone()} />` s uniform scale podle bounding boxu na cílovou velikost boxu z `SPECS`.
-  - Jinak fallback na současný procedurální mesh.
-- `<Suspense fallback={<proceduralMesh/>}>` pro plynulé načítání.
-- Nový toggle „HQ modely" vedle stávajícího „Realistický vzhled" (persistováno v localStorage).
+Nová utilita `src/components/stage/autoWire.ts` s deterministickým rozvrhem:
 
-### Credits UI (jen pro CC-BY)
-- `src/components/stage/ModelCredits.tsx` – malý popover/dialog v toolbaru se seznamem: model název, autor, odkaz, licence.
+1. **PWR** — pro každou bednu/zesilovač/pult najde nejbližší `distro` (rozvaděč). Přidá PowerCON kabel. Jedna distribuce má max 8 outletů → přeteče na další nejbližší, jinak vyhodí varování „Chybí distro pro X".
+2. **SPK (Speakon) — beden ↔ ampy + link‑out řetěz:**
+   - Ampy (Powersoft) mají 4 SPK OUT (A/B/C/D). Alokace podle role: `sub`, `top`, `mid`.
+   - První bedna dané role v clusteru → přímo z ampu.
+   - Další bedny stejné role a stejného clusteru (do 3 m) → **link OUT → IN** předchozí bedny (řetěz).
+   - Dva kabely na bednu tam, kde má vstup L+R (dva Speakony).
+3. **SIG (XLR/analog):**
+   - Najde FOH mixer (kind `mixer` / `foh`). Z jeho outputů (Main L/R, Aux 1..N) rozdělí kanály na ampy podle role — Main L → top-left cluster, Main R → top-right, Aux1 → subs, atd.
+   - Pokud není mixer, hodí varování a auto‑založí virtual `FOH` node do inspektoru s návrhem přidat.
+4. **DMX** — pokud jsou lights: chainuje světla přes DMX-in/out z nejbližší DMX kontroly.
+5. **Validátor** — po každém auto‑runu vyplní status bar: „✓ 24 kabelů, ⚠ 2 varování". Kliknutí na varování otevře Kabelový inspektor filtrovaný na dané spoje.
 
-### Licenční metadata
-- `src/assets/models/credits.json` – strukturovaný seznam `{ kind, name, author, url, license }`, čtený komponentou Credits.
-- Pro CC-BY modely přiložit i `LICENSE.md` do `src/assets/models/`.
+Manhattan routing z minulé iterace zůstává; přidáme jen **barevný accent per‑cluster** (levá strana modrá, pravá růžová, subs žlutá), aby v přehledu bylo hned jasné, co kam patří.
 
-## 4. Otevřené otázky před implementací
+## 6. UI kompaktifikace pro non‑IT crew
 
-1. **Preferuješ čistě CC0 (Kenney low-poly, žádná atribuce)** nebo **realistické CC-BY** (potřebuje credits sekci v UI)?
-2. Mám modely stáhnout sám (Kenney a Poly Haven jde přes `curl`, veřejné `.glb` odkazy) nebo je pošleš ručně (nutné pro Sketchfab kvůli OAuth stažení)?
-3. Rozsah – stačí 3 kusy (line array, sub, monitor) nebo chceš i světla / bar / DJ booth?
+- **Typografie** — základ text `11px`, popisky `10px`, výška tlačítka `28px`. Ikony `14px`.
+- **Tokens** — sjednotit barvy do `--stage-*` v `src/styles.css` (bg-panel, bg-panel-2, border, accent-lime, warn-amber, danger-red, cluster-L, cluster-R, cluster-sub).
+- **Command palette** `Ctrl/Cmd+K` — vyhledávání „přidat sub", „zapojit vše", „preset picus"…
+- **Rychlé první‑spuštění** — když je scéna prázdná: velké tlačítko uprostřed „🚀 Začít z presetu…" místo prázdna.
+- **Tooltip s piktogramy** místo textových popisků na tlačítkách toolbaru (šetří šířku).
+
+## Technická sekce
+
+Nové soubory:
+- `src/components/stage/placement.ts` — sdílené kolize a snap.
+- `src/components/stage/autoWire.ts` — routing PWR/SPK/SIG/DMX.
+- `src/components/stage/PlacementGhost.tsx` — three.js ghost mesh + barevný outline.
+- `src/components/stage/MarqueeOverlay.tsx` — DOM overlay pro rectangle výběr.
+- `src/components/stage/panels/usePanel.ts` — hook stavu sbalení + localStorage.
+- `src/components/stage/StatusBar.tsx` — spodní bar + „⚡ Zapojit vše".
+
+Úpravy:
+- `StageBuilder3D.tsx` — vyjmout rotaci z Detail výběru, wire panel hooky, integrovat ghost + marquee, přesunout drobná tlačítka do „⋯ Více" popoveru.
+- `StageBuilder.tsx` — layout: 40px lišty místo pevných sidebarů, klávesové zkratky `[`, `]`, `\` (marquee), `Ctrl/Cmd+K`.
+- `GridPlannerView.tsx`, `ElevationView.tsx` — smazat R‑rotaci a tlačítka Otoč, používat `placement.ts` pro validaci.
+- `SchematicView.tsx` — konzumovat `autoWire.ts` výstup, zobrazovat varování inline.
+
+Persistuje se v `localStorage`:
+- Stav sbalení každého panelu (`stage.panel.<id>`).
+- Poslední scéna už tam je — beze změny schématu.
+
+Kompatibilita: `rotY` v datovém modelu **zůstává** (fixně 0 přes UI), aby staré uložené scény nespadly.
+
+Odhad rozsahu: ~2 200 řádků čistý přírůstek, ~600 smazaných (rotace + duplicitní kolize + rozházené toolbar tlačítka).
+
+## Co v tomhle kole NEDĚLÁM
+
+- Import CAD/DWG, export PDF ridera, sdílené real‑time editace, akustickou simulaci pokrytí, DMX patch matrix editor. Ty zvlášť, až tohle sedne.
+
+Řekni „jedeme" a pustím to. Když chceš něco přehodit (např. rotace nechat, marquee vynechat), napiš změny stručně.
