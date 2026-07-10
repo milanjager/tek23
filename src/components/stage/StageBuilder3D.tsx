@@ -2080,6 +2080,11 @@ function SceneContent({
               <CableFlow points={pts} color={meta.color} width={width} />
             )}
 
+            {/* Highlighted endpoints — pulse when picking a new target */}
+            <CableEndpoint position={p1} color={meta.color} state={fromState} />
+            <CableEndpoint position={p2} color={meta.color} state={toState} />
+
+
 
             {/* Always-visible compact label at cable midpoint */}
             {!isSelected && showCableLabels && (
