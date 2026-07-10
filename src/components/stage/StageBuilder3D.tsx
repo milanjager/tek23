@@ -3034,7 +3034,18 @@ export function StageBuilder3D() {
   const [pendingFrom, setPendingFrom] = useState<string | null>(null);
   const [category, setCategory] = useState<Category>("sound");
   const [clipboard, setClipboard] = useState<Placed[]>([]);
-  const [paletteOpen, setPaletteOpen] = useState(false);
+  const [paletteOpen, setPaletteOpen] = useState<boolean>(() => {
+    if (typeof window === "undefined") return false;
+    const stored = localStorage.getItem("stage.panel.left");
+    if (stored !== null) return stored === "1";
+    return window.matchMedia("(min-width: 768px)").matches;
+  });
+  const [rightOpen, setRightOpen] = useState<boolean>(() => {
+    if (typeof window === "undefined") return false;
+    const stored = localStorage.getItem("stage.panel.right");
+    if (stored !== null) return stored === "1";
+    return window.matchMedia("(min-width: 768px)").matches;
+  });
   const [marqueeMode, setMarqueeMode] = useState(false);
   const [realistic, setRealistic] = useState(false);
   const [viewMode, setViewMode] = useState<"3d" | "schema" | "grid" | "elev">("3d");
