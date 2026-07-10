@@ -3344,8 +3344,8 @@ export function StageBuilder3D() {
       unitList.sort((a, b) => a.cat - b.cat || a.primaryKind.localeCompare(b.primaryKind));
 
       const MAX_W = 14;
-      const GAP = 0.4;
-      const ROW_GAP = 1.5;
+      const GAP = 0.08;
+      const ROW_GAP = 0.7;
       type Row = { units: Unit[]; width: number; depth: number };
       const rows: Row[] = [];
       let row: Row = { units: [], width: 0, depth: 0 };
