@@ -3711,8 +3711,28 @@ export function StageBuilder3D() {
           )}
         </div>
 
+        {/* Right rail (visible when inspector collapsed) */}
+        {!rightOpen && (
+          <button
+            onClick={() => setRightOpen(true)}
+            title="Otevřít inspektor ( ] )"
+            className="absolute right-0 top-2 z-20 flex h-10 w-6 items-center justify-center rounded-l border border-r-0 border-neutral-300 bg-white/95 text-neutral-600 shadow-md hover:bg-lime-50 hover:text-lime-700"
+          >
+            <PanelRight size={14} />
+          </button>
+        )}
         {/* Right inspector — per-item model / label / variant */}
-        <aside className="flex w-72 flex-col border-l border-neutral-200 bg-neutral-50/80">
+        <aside className={`${rightOpen ? "flex w-72" : "hidden"} flex-col border-l border-neutral-200 bg-neutral-50/80`}>
+          <div className="flex items-center justify-between border-b border-neutral-200 bg-white/60 px-2 py-1">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-neutral-500">Inspektor ( ] )</span>
+            <button
+              onClick={() => setRightOpen(false)}
+              title="Sbalit inspektor"
+              className="rounded p-0.5 text-neutral-400 hover:bg-neutral-100 hover:text-neutral-700"
+            >
+              <X size={12} />
+            </button>
+          </div>
           {/* ── Detail výběru ─────────────────────────────────────────── */}
           {(() => {
             const primary = items.find((x) => x.id === selection[0]);
