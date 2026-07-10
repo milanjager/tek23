@@ -3245,7 +3245,6 @@ export function StageBuilder3D() {
       else if (meta && e.key.toLowerCase() === "g") { groupSelection(); e.preventDefault(); }
       else if (e.key === "Escape") { setSelection([]); setPendingFrom(null); }
       else if (e.key.toLowerCase() === "t") { setMode("select"); setTool("translate"); }
-      else if (e.key.toLowerCase() === "r") { setMode("select"); setTool("rotate"); }
       else if (e.key.toLowerCase() === "c" && !meta) { setMode((m) => (m === "cable" ? "select" : "cable")); setSelection([]); setPendingFrom(null); }
 
     };
@@ -3346,7 +3345,7 @@ export function StageBuilder3D() {
           <Sparkles size={12} /> {realistic ? "Realistický" : "Realističtější vzhled"}
         </button>
         <button onClick={() => setTool("translate")} disabled={mode !== "select"} className={`flex items-center gap-1 rounded px-2 py-1 ${tool === "translate" && mode === "select" ? "bg-lime-500 text-neutral-950" : "bg-neutral-100 hover:bg-neutral-200"} disabled:opacity-40`}><MoveIcon size={12} /> Posun (T)</button>
-        <button onClick={() => setTool("rotate")} disabled={mode !== "select"} className={`flex items-center gap-1 rounded px-2 py-1 ${tool === "rotate" && mode === "select" ? "bg-lime-500 text-neutral-950" : "bg-neutral-100 hover:bg-neutral-200"} disabled:opacity-40`}><RotateCw size={12} /> Rotace (R)</button>
+        {/* Rotace UI odstraněna — bedny mají fixní orientaci */}
         <div className="mx-2 h-5 w-px bg-neutral-700" />
         <button onClick={() => { setMode("cable"); setSelection([]); }} className={`flex items-center gap-1 rounded px-2 py-1 ${mode === "cable" ? "bg-lime-500 text-neutral-950" : "bg-neutral-100 hover:bg-neutral-200"}`}><CableIcon size={12} /> Kabely</button>
         {mode === "cable" && (
