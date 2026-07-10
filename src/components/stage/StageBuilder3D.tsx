@@ -13,8 +13,8 @@ import {
 import * as THREE from "three";
 import {
   Speaker, Trash2, Save, Copy, ClipboardPaste, Group as GroupIcon, Ungroup,
-  Move as MoveIcon, RotateCw, Boxes, Zap, Sparkles, Radio, Volume2,
-  Cable as CableIcon, MousePointer2, Menu, X, BoxSelect,
+  Move as MoveIcon, Boxes, Zap, Sparkles, Radio, Volume2,
+  Cable as CableIcon, MousePointer2, Menu, X, BoxSelect, PanelLeft, PanelRight,
   Workflow, Box as BoxIcon, LayoutGrid, GalleryVerticalEnd,
 } from "lucide-react";
 import SchematicView from "./SchematicView";
@@ -1741,11 +1741,10 @@ function SceneContent({
       for (const id of selection) {
         const it = map.get(id);
         if (!it) continue;
-        const snapped: Placed = { ...it, pos: snapToGridXZ(it.pos) };
+        // Force rotY = 0 (rotation removed from UI) + snap XZ to 0.5m grid
+        const snapped: Placed = { ...it, pos: snapToGridXZ(it.pos), rotY: 0 };
         const y = stackY(snapped, [...map.values()].filter((o) => o.id !== id));
         snapped.pos = [snapped.pos[0], y, snapped.pos[2]];
-        // snap rotation to 15°
-        snapped.rotY = Math.round(snapped.rotY / (Math.PI / 12)) * (Math.PI / 12);
         map.set(id, snapped);
       }
       return [...map.values()];
@@ -2878,16 +2877,79 @@ function autoWireCables(items: Placed[]): Cable[] {
   const amps = of(["amp", "powersoft"]);
   const sources = of(["dj", "cdj", "turntable", "korg", "korg_red", "korg_blue"]);
   const dmxFixtures = of(["movinghead", "strobe", "laser"]);
+  const passiveSpeakers = items.filter((i) => SPECS[i.kind].category === "sound");
+
+  // Bin-family helpers.
+  const SUB_KINDS: Kind[] = [
+    "sub", "bass", "badtekk_sub", "badtekk_bass",
+    "img_0838", "img_0839", "img_0841", "img_0842",
+  ];
+  const isSub = (k: Kind) => SUB_KINDS.includes(k);
+  const dist = (a: Placed, b: Placed) =>
+    Math.hypot(a.pos[0] - b.pos[0], a.pos[2] - b.pos[2]);
 
   // Everything that expects 230V.
   const powered = items.filter((i) =>
     connectorsFor(i.kind).some((c) => c.type === "power" && c.role === "in"),
   );
 
-  // PWR — one radial run per powered device from the generator.
+  // PWR — radial from generator/distro.
   if (generator) {
     for (const p of powered) {
       cables.push({ id: uid(), from: generator.id, to: p.id, type: "power" });
+    }
+  }
+
+  // SPK — cluster speakers by proximity (< 4 m), pair each cluster with the
+  // nearest amp, then chain subs and tops separately (Speakon link-out).
+  if (amps.length && passiveSpeakers.length) {
+    const seen = new Set<string>();
+    const clusters: Placed[][] = [];
+    for (const s of passiveSpeakers) {
+      if (seen.has(s.id)) continue;
+      const cluster = [s];
+      seen.add(s.id);
+      let grew = true;
+      while (grew) {
+        grew = false;
+        for (const t of passiveSpeakers) {
+          if (seen.has(t.id)) continue;
+          if (cluster.some((c) => dist(c, t) < 4)) {
+            cluster.push(t);
+            seen.add(t.id);
+            grew = true;
+          }
+        }
+      }
+      clusters.push(cluster);
+    }
+
+    const ampUse = new Map<string, number>(); // fan-out counter
+    for (const cluster of clusters) {
+      const subs = cluster.filter((c) => isSub(c.kind)).sort((a, b) => a.pos[0] - b.pos[0]);
+      const tops = cluster.filter((c) => !isSub(c.kind)).sort((a, b) => a.pos[0] - b.pos[0]);
+      const cx = cluster.reduce((s, c) => s + c.pos[0], 0) / cluster.length;
+      const cz = cluster.reduce((s, c) => s + c.pos[2], 0) / cluster.length;
+      const near = amps
+        .slice()
+        .sort((a, b) => {
+          const da = Math.hypot(a.pos[0] - cx, a.pos[2] - cz) + (ampUse.get(a.id) ?? 0) * 0.01;
+          const db = Math.hypot(b.pos[0] - cx, b.pos[2] - cz) + (ampUse.get(b.id) ?? 0) * 0.01;
+          return da - db;
+        })[0];
+      if (!near) continue;
+      ampUse.set(near.id, (ampUse.get(near.id) ?? 0) + 1);
+
+      // Subs: amp → first sub, then link-chain sub → sub.
+      if (subs[0]) cables.push({ id: uid(), from: near.id, to: subs[0].id, type: "speaker" });
+      for (let i = 0; i < subs.length - 1; i++) {
+        cables.push({ id: uid(), from: subs[i].id, to: subs[i + 1].id, type: "speaker" });
+      }
+      // Tops: separate run.
+      if (tops[0]) cables.push({ id: uid(), from: near.id, to: tops[0].id, type: "speaker" });
+      for (let i = 0; i < tops.length - 1; i++) {
+        cables.push({ id: uid(), from: tops[i].id, to: tops[i + 1].id, type: "speaker" });
+      }
     }
   }
 
