@@ -3034,18 +3034,18 @@ export function StageBuilder3D() {
   const [pendingFrom, setPendingFrom] = useState<string | null>(null);
   const [category, setCategory] = useState<Category>("sound");
   const [clipboard, setClipboard] = useState<Placed[]>([]);
-  const [paletteOpen, setPaletteOpen] = useState<boolean>(() => {
-    if (typeof window === "undefined") return false;
-    const stored = localStorage.getItem("stage.panel.left");
-    if (stored !== null) return stored === "1";
-    return window.matchMedia("(min-width: 768px)").matches;
-  });
-  const [rightOpen, setRightOpen] = useState<boolean>(() => {
-    if (typeof window === "undefined") return false;
-    const stored = localStorage.getItem("stage.panel.right");
-    if (stored !== null) return stored === "1";
-    return window.matchMedia("(min-width: 768px)").matches;
-  });
+  // Panels start closed to match SSR; hydrate from localStorage / viewport after mount.
+  const [paletteOpen, setPaletteOpen] = useState<boolean>(false);
+  const [rightOpen, setRightOpen] = useState<boolean>(false);
+  const [panelsHydrated, setPanelsHydrated] = useState(false);
+  useEffect(() => {
+    const l = localStorage.getItem("stage.panel.left");
+    const r = localStorage.getItem("stage.panel.right");
+    const wide = window.matchMedia("(min-width: 768px)").matches;
+    setPaletteOpen(l !== null ? l === "1" : wide);
+    setRightOpen(r !== null ? r === "1" : wide);
+    setPanelsHydrated(true);
+  }, []);
   const [marqueeMode, setMarqueeMode] = useState(false);
   const [realistic, setRealistic] = useState(false);
   const [viewMode, setViewMode] = useState<"3d" | "schema" | "grid" | "elev">("3d");
