@@ -2008,6 +2008,15 @@ function SceneContent({
         />
       ))}
 
+      {/* Placement ghost — snapped preview while dragging a selected item */}
+      {dragging && mode === "select" && (
+        <PlacementGhost
+          selection={selection}
+          items={items}
+          objectsRef={objectsRef}
+        />
+      )}
+
       {/* Ghost cable — visible while the user is dragging a plug to a target */}
       {mode === "cable" && pendingFrom && cursorWorld && (() => {
         const src = items.find((i) => i.id === pendingFrom);
