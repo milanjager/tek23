@@ -1635,6 +1635,7 @@ function snapToGridXZ(v: [number, number, number]): [number, number, number] {
 }
 
 // Compute stacking Y for `moving` given other items. Simple axis-aligned XZ overlap check.
+// Tolerant center check so boxes snap onto stacks even when not perfectly aligned.
 function stackY(moving: Placed, others: Placed[]): number {
   const s = SPECS[moving.kind].size;
   const halfW = s[0] / 2, halfD = s[2] / 2;
@@ -1644,18 +1645,100 @@ function stackY(moving: Placed, others: Placed[]): number {
     const os = SPECS[o.kind].size;
     const oTop = o.pos[1] + os[1];
     const oHalfW = os[0] / 2, oHalfD = os[2] / 2;
-    // Simple AABB (ignores rotation for snap) XZ overlap
     const overlapX = Math.min(moving.pos[0] + halfW, o.pos[0] + oHalfW) - Math.max(moving.pos[0] - halfW, o.pos[0] - oHalfW);
     const overlapZ = Math.min(moving.pos[2] + halfD, o.pos[2] + oHalfD) - Math.max(moving.pos[2] - halfD, o.pos[2] - oHalfD);
-    if (overlapX > 0.05 && overlapZ > 0.05 && oTop > best - 0.02) {
-      // Require center within cabinet top footprint
-      if (Math.abs(moving.pos[0] - o.pos[0]) < oHalfW + halfW * 0.5 &&
-          Math.abs(moving.pos[2] - o.pos[2]) < oHalfD + halfD * 0.5) {
+    // Very small overlap counts — makes stacking forgiving.
+    if (overlapX > 0.02 && overlapZ > 0.02 && oTop > best - 0.02) {
+      // Wide tolerance: center of moving must be within combined half-footprint
+      if (Math.abs(moving.pos[0] - o.pos[0]) < oHalfW + halfW * 0.9 &&
+          Math.abs(moving.pos[2] - o.pos[2]) < oHalfD + halfD * 0.9) {
         best = Math.max(best, oTop);
       }
     }
   }
   return best;
+}
+
+// Returns true if `moving` would collide (XZ overlap) with any other item at
+// the same or nearly the same Y level (i.e. not properly stacked on top).
+function hasCollision(moving: Placed, others: Placed[]): boolean {
+  const s = SPECS[moving.kind].size;
+  const halfW = s[0] / 2, halfD = s[2] / 2;
+  const my = moving.pos[1];
+  const myTop = my + s[1];
+  for (const o of others) {
+    if (o.id === moving.id) continue;
+    const os = SPECS[o.kind].size;
+    const oHalfW = os[0] / 2, oHalfD = os[2] / 2;
+    const oy = o.pos[1];
+    const oTop = oy + os[1];
+    const overlapX = Math.min(moving.pos[0] + halfW, o.pos[0] + oHalfW) - Math.max(moving.pos[0] - halfW, o.pos[0] - oHalfW);
+    const overlapZ = Math.min(moving.pos[2] + halfD, o.pos[2] + oHalfD) - Math.max(moving.pos[2] - halfD, o.pos[2] - oHalfD);
+    if (overlapX > 0.05 && overlapZ > 0.05) {
+      // Vertical overlap (not resting on top / not underneath)
+      const vOverlap = Math.min(myTop, oTop) - Math.max(my, oy);
+      if (vOverlap > 0.05) return true;
+    }
+  }
+  return false;
+}
+
+// Ghost preview of the currently-dragged selection at its snapped position.
+// Green mesh = valid drop, red = collides with another cabinet.
+function PlacementGhost({
+  selection, items, objectsRef,
+}: {
+  selection: string[];
+  items: Placed[];
+  objectsRef: React.MutableRefObject<Map<string, THREE.Object3D>>;
+}) {
+  const groupRef = useRef<THREE.Group>(null);
+  const meshRefs = useRef<Map<string, THREE.Mesh>>(new Map());
+  useFrame(() => {
+    for (const id of selection) {
+      const src = items.find((i) => i.id === id);
+      const obj = objectsRef.current.get(id);
+      const mesh = meshRefs.current.get(id);
+      if (!src || !obj || !mesh) continue;
+      // Live snapped pos from the driven object (which TransformControls updates).
+      const snapped: [number, number, number] = [
+        Math.round(obj.position.x / GRID_STEP) * GRID_STEP,
+        Math.max(0, obj.position.y),
+        Math.round(obj.position.z / GRID_STEP) * GRID_STEP,
+      ];
+      const others = items.filter((o) => !selection.includes(o.id));
+      const candidate: Placed = { ...src, pos: snapped, rotY: 0 };
+      const y = stackY(candidate, others);
+      candidate.pos = [snapped[0], y, snapped[2]];
+      const bad = hasCollision(candidate, others);
+      const s = SPECS[src.kind].size;
+      mesh.position.set(candidate.pos[0], y + s[1] / 2, candidate.pos[2]);
+      const mat = mesh.material as THREE.MeshBasicMaterial;
+      mat.color.set(bad ? "#ef4444" : "#22c55e");
+      mat.opacity = bad ? 0.35 : 0.22;
+    }
+  });
+  return (
+    <group ref={groupRef}>
+      {selection.map((id) => {
+        const it = items.find((i) => i.id === id);
+        if (!it) return null;
+        const s = SPECS[it.kind].size;
+        return (
+          <mesh
+            key={id}
+            ref={(m) => {
+              if (m) meshRefs.current.set(id, m);
+              else meshRefs.current.delete(id);
+            }}
+          >
+            <boxGeometry args={[s[0] + 0.02, s[1] + 0.02, s[2] + 0.02]} />
+            <meshBasicMaterial color="#22c55e" transparent opacity={0.22} depthWrite={false} />
+          </mesh>
+        );
+      })}
+    </group>
+  );
 }
 
 /* ============================================================
