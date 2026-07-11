@@ -1955,10 +1955,18 @@ function SceneContent({
       for (const id of selection) {
         const it = map.get(id);
         if (!it) continue;
-        // Force rotY = 0 (rotation removed from UI) + snap XZ to 0.5m grid
+        const rawY = it.pos[1];
         const snapped: Placed = { ...it, pos: snapToGridXZ(it.pos), rotY: 0 };
-        const y = stackY(snapped, [...map.values()].filter((o) => o.id !== id));
-        snapped.pos = [snapped.pos[0], y, snapped.pos[2]];
+        const others = [...map.values()].filter((o) => o.id !== id);
+        // Prefer clean stack snap if hovering above another cabinet — same
+        // logic the ghost preview uses so the release matches what you saw.
+        const target = stackSnapTarget(snapped, others, rawY);
+        if (target) {
+          snapped.pos = [target.x, target.y, target.z];
+        } else {
+          const y = stackY(snapped, others);
+          snapped.pos = [snapped.pos[0], y, snapped.pos[2]];
+        }
         map.set(id, snapped);
       }
       return [...map.values()];
