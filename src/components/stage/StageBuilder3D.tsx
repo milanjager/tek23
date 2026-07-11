@@ -1683,6 +1683,38 @@ function hasCollision(moving: Placed, others: Placed[]): boolean {
   return false;
 }
 
+// Shared "stack snap" — if `moving` hovers over another item, return that
+// item's XZ center + top Y so we can align stacks cleanly. `rawY` is the
+// live drag height; we only snap onto a target when the user lifted the box.
+function stackSnapTarget(
+  moving: Placed,
+  others: Placed[],
+  rawY: number,
+): { x: number; z: number; y: number } | null {
+  const s = SPECS[moving.kind].size;
+  const halfW = s[0] / 2, halfD = s[2] / 2;
+  let best: { it: Placed; dist: number; top: number } | null = null;
+  for (const o of others) {
+    const os = SPECS[o.kind].size;
+    const oHalfW = os[0] / 2, oHalfD = os[2] / 2;
+    const dx = moving.pos[0] - o.pos[0];
+    const dz = moving.pos[2] - o.pos[2];
+    const rx = oHalfW + halfW * 0.6;
+    const rz = oHalfD + halfD * 0.6;
+    if (Math.abs(dx) > rx || Math.abs(dz) > rz) continue;
+    const top = o.pos[1] + os[1];
+    // Only treat as a stack target if the drag height is at least half-way
+    // up the target box (otherwise it's still a ground move next to it).
+    if (rawY < top - s[1] * 0.5) continue;
+    const dist = Math.hypot(dx, dz);
+    if (!best || top > best.top + 0.01 || (Math.abs(top - best.top) < 0.01 && dist < best.dist)) {
+      best = { it: o, dist, top };
+    }
+  }
+  if (!best) return null;
+  return { x: best.it.pos[0], z: best.it.pos[2], y: best.top };
+}
+
 // Ghost preview of the currently-dragged selection at its snapped position.
 // - Green translucent box  = valid ground placement (no collision, on floor).
 // - Cyan translucent box   = valid STACK target detected (snaps XZ to the box
