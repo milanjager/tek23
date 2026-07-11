@@ -1684,7 +1684,11 @@ function hasCollision(moving: Placed, others: Placed[]): boolean {
 }
 
 // Ghost preview of the currently-dragged selection at its snapped position.
-// Green mesh = valid drop, red = collides with another cabinet.
+// - Green translucent box  = valid ground placement (no collision, on floor).
+// - Cyan translucent box   = valid STACK target detected (snaps XZ to the box
+//                            underneath and rests on top of it).
+// - Red translucent box    = collides with / buries into other cabinets.
+// Colliding items are also outlined in red so the conflict is obvious.
 function PlacementGhost({
   selection, items, objectsRef,
 }: {
@@ -1694,30 +1698,107 @@ function PlacementGhost({
 }) {
   const groupRef = useRef<THREE.Group>(null);
   const meshRefs = useRef<Map<string, THREE.Mesh>>(new Map());
+  const highlightRefs = useRef<Map<string, THREE.Mesh>>(new Map());
+
+  // Find the best "stack-under" target for a moving box: another item whose
+  // XZ center is close enough to snap the moving box exactly onto it.
+  function findStackTarget(moving: Placed, others: Placed[]): Placed | null {
+    const s = SPECS[moving.kind].size;
+    const halfW = s[0] / 2, halfD = s[2] / 2;
+    let best: { it: Placed; dist: number; top: number } | null = null;
+    for (const o of others) {
+      const os = SPECS[o.kind].size;
+      const oHalfW = os[0] / 2, oHalfD = os[2] / 2;
+      const dx = moving.pos[0] - o.pos[0];
+      const dz = moving.pos[2] - o.pos[2];
+      // Magnetic radius: allow snap when moving center is within the target
+      // footprint plus ~half of its own footprint (feels forgiving).
+      const rx = oHalfW + halfW * 0.6;
+      const rz = oHalfD + halfD * 0.6;
+      if (Math.abs(dx) > rx || Math.abs(dz) > rz) continue;
+      const top = o.pos[1] + os[1];
+      const dist = Math.hypot(dx, dz);
+      if (!best || top > best.top + 0.01 || (Math.abs(top - best.top) < 0.01 && dist < best.dist)) {
+        best = { it: o, dist, top };
+      }
+    }
+    return best?.it ?? null;
+  }
+
   useFrame(() => {
+    const others = items.filter((o) => !selection.includes(o.id));
+    const collided = new Set<string>();
+
     for (const id of selection) {
       const src = items.find((i) => i.id === id);
       const obj = objectsRef.current.get(id);
       const mesh = meshRefs.current.get(id);
       if (!src || !obj || !mesh) continue;
-      // Live snapped pos from the driven object (which TransformControls updates).
-      const snapped: [number, number, number] = [
-        Math.round(obj.position.x / GRID_STEP) * GRID_STEP,
-        Math.max(0, obj.position.y),
-        Math.round(obj.position.z / GRID_STEP) * GRID_STEP,
-      ];
-      const others = items.filter((o) => !selection.includes(o.id));
-      const candidate: Placed = { ...src, pos: snapped, rotY: 0 };
-      const y = stackY(candidate, others);
-      candidate.pos = [snapped[0], y, snapped[2]];
-      const bad = hasCollision(candidate, others);
+
+      // Live snapped pos from the driven object (TransformControls updates it).
+      let sx = Math.round(obj.position.x / GRID_STEP) * GRID_STEP;
+      let sz = Math.round(obj.position.z / GRID_STEP) * GRID_STEP;
+      const rawY = obj.position.y;
+
+      // Vertical drag intent: if the user lifts the box above the floor, try
+      // to magnetically snap it onto whatever it is hovering over.
       const s = SPECS[src.kind].size;
-      mesh.position.set(candidate.pos[0], y + s[1] / 2, candidate.pos[2]);
+      let candidate: Placed = { ...src, pos: [sx, Math.max(0, rawY), sz], rotY: 0 };
+      const target = findStackTarget(candidate, others);
+
+      let mode: "ground" | "stack" | "bad" = "ground";
+      if (target) {
+        // Snap XZ exactly onto the target below so stacks stay tidy.
+        const ts = SPECS[target.kind].size;
+        candidate.pos = [target.pos[0], target.pos[1] + ts[1], target.pos[2]];
+        mode = "stack";
+      } else {
+        const y = stackY(candidate, others);
+        candidate.pos = [sx, y, sz];
+      }
+
+      // Ground bury check: TransformControls may drag Y negative.
+      const buried = rawY < -0.02;
+      const bad = buried || hasCollision(candidate, others);
+      if (bad) mode = "bad";
+
+      // Collect collision partners for highlight.
+      if (bad && !buried) {
+        for (const o of others) {
+          const os = SPECS[o.kind].size;
+          const oHalfW = os[0] / 2, oHalfD = os[2] / 2;
+          const halfW = s[0] / 2, halfD = s[2] / 2;
+          const ox = Math.min(candidate.pos[0] + halfW, o.pos[0] + oHalfW) - Math.max(candidate.pos[0] - halfW, o.pos[0] - oHalfW);
+          const oz = Math.min(candidate.pos[2] + halfD, o.pos[2] + oHalfD) - Math.max(candidate.pos[2] - halfD, o.pos[2] - oHalfD);
+          if (ox <= 0.05 || oz <= 0.05) continue;
+          const vy = Math.min(candidate.pos[1] + s[1], o.pos[1] + os[1]) - Math.max(candidate.pos[1], o.pos[1]);
+          if (vy > 0.05) collided.add(o.id);
+        }
+      }
+
+      mesh.position.set(candidate.pos[0], candidate.pos[1] + s[1] / 2, candidate.pos[2]);
       const mat = mesh.material as THREE.MeshBasicMaterial;
-      mat.color.set(bad ? "#ef4444" : "#22c55e");
-      mat.opacity = bad ? 0.35 : 0.22;
+      const col = mode === "bad" ? "#ef4444" : mode === "stack" ? "#22d3ee" : "#22c55e";
+      mat.color.set(col);
+      mat.opacity = mode === "bad" ? 0.4 : mode === "stack" ? 0.32 : 0.22;
+    }
+
+    // Update collision-highlight overlays.
+    for (const [oid, h] of highlightRefs.current) {
+      const o = items.find((i) => i.id === oid);
+      const mat = h.material as THREE.MeshBasicMaterial;
+      if (o && collided.has(oid)) {
+        const os = SPECS[o.kind].size;
+        h.position.set(o.pos[0], o.pos[1] + os[1] / 2, o.pos[2]);
+        h.scale.set(os[0] + 0.06, os[1] + 0.06, os[2] + 0.06);
+        h.visible = true;
+        mat.opacity = 0.28 + 0.12 * Math.sin(performance.now() * 0.008);
+      } else {
+        h.visible = false;
+      }
     }
   });
+
   return (
     <group ref={groupRef}>
       {selection.map((id) => {
@@ -1737,6 +1818,21 @@ function PlacementGhost({
           </mesh>
         );
       })}
+      {/* Collision highlight overlays for every non-selected item — hidden
+          until PlacementGhost's useFrame detects an actual conflict. */}
+      {items.filter((o) => !selection.includes(o.id)).map((o) => (
+        <mesh
+          key={`hl-${o.id}`}
+          visible={false}
+          ref={(m) => {
+            if (m) highlightRefs.current.set(o.id, m);
+            else highlightRefs.current.delete(o.id);
+          }}
+        >
+          <boxGeometry args={[1, 1, 1]} />
+          <meshBasicMaterial color="#ef4444" transparent opacity={0.3} depthWrite={false} wireframe={false} />
+        </mesh>
+      ))}
     </group>
   );
 }
