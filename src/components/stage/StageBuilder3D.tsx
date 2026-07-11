@@ -1732,31 +1732,6 @@ function PlacementGhost({
   const meshRefs = useRef<Map<string, THREE.Mesh>>(new Map());
   const highlightRefs = useRef<Map<string, THREE.Mesh>>(new Map());
 
-  // Find the best "stack-under" target for a moving box: another item whose
-  // XZ center is close enough to snap the moving box exactly onto it.
-  function findStackTarget(moving: Placed, others: Placed[]): Placed | null {
-    const s = SPECS[moving.kind].size;
-    const halfW = s[0] / 2, halfD = s[2] / 2;
-    let best: { it: Placed; dist: number; top: number } | null = null;
-    for (const o of others) {
-      const os = SPECS[o.kind].size;
-      const oHalfW = os[0] / 2, oHalfD = os[2] / 2;
-      const dx = moving.pos[0] - o.pos[0];
-      const dz = moving.pos[2] - o.pos[2];
-      // Magnetic radius: allow snap when moving center is within the target
-      // footprint plus ~half of its own footprint (feels forgiving).
-      const rx = oHalfW + halfW * 0.6;
-      const rz = oHalfD + halfD * 0.6;
-      if (Math.abs(dx) > rx || Math.abs(dz) > rz) continue;
-      const top = o.pos[1] + os[1];
-      const dist = Math.hypot(dx, dz);
-      if (!best || top > best.top + 0.01 || (Math.abs(top - best.top) < 0.01 && dist < best.dist)) {
-        best = { it: o, dist, top };
-      }
-    }
-    return best?.it ?? null;
-  }
-
   useFrame(() => {
     const others = items.filter((o) => !selection.includes(o.id));
     const collided = new Set<string>();
@@ -1767,34 +1742,26 @@ function PlacementGhost({
       const mesh = meshRefs.current.get(id);
       if (!src || !obj || !mesh) continue;
 
-      // Live snapped pos from the driven object (TransformControls updates it).
-      let sx = Math.round(obj.position.x / GRID_STEP) * GRID_STEP;
-      let sz = Math.round(obj.position.z / GRID_STEP) * GRID_STEP;
+      const sx = Math.round(obj.position.x / GRID_STEP) * GRID_STEP;
+      const sz = Math.round(obj.position.z / GRID_STEP) * GRID_STEP;
       const rawY = obj.position.y;
-
-      // Vertical drag intent: if the user lifts the box above the floor, try
-      // to magnetically snap it onto whatever it is hovering over.
       const s = SPECS[src.kind].size;
-      let candidate: Placed = { ...src, pos: [sx, Math.max(0, rawY), sz], rotY: 0 };
-      const target = findStackTarget(candidate, others);
+      const candidate: Placed = { ...src, pos: [sx, Math.max(0, rawY), sz], rotY: 0 };
 
+      const snap = stackSnapTarget(candidate, others, rawY);
       let mode: "ground" | "stack" | "bad" = "ground";
-      if (target) {
-        // Snap XZ exactly onto the target below so stacks stay tidy.
-        const ts = SPECS[target.kind].size;
-        candidate.pos = [target.pos[0], target.pos[1] + ts[1], target.pos[2]];
+      if (snap) {
+        candidate.pos = [snap.x, snap.y, snap.z];
         mode = "stack";
       } else {
         const y = stackY(candidate, others);
         candidate.pos = [sx, y, sz];
       }
 
-      // Ground bury check: TransformControls may drag Y negative.
       const buried = rawY < -0.02;
       const bad = buried || hasCollision(candidate, others);
       if (bad) mode = "bad";
 
-      // Collect collision partners for highlight.
       if (bad && !buried) {
         for (const o of others) {
           const os = SPECS[o.kind].size;
@@ -1812,10 +1779,12 @@ function PlacementGhost({
       const mat = mesh.material as THREE.MeshBasicMaterial;
       const col = mode === "bad" ? "#ef4444" : mode === "stack" ? "#22d3ee" : "#22c55e";
       mat.color.set(col);
-      mat.opacity = mode === "bad" ? 0.4 : mode === "stack" ? 0.32 : 0.22;
+      const pulse = 0.5 + 0.5 * Math.sin(performance.now() * 0.006);
+      mat.opacity = mode === "bad" ? 0.35 + 0.15 * pulse
+                    : mode === "stack" ? 0.28 + 0.12 * pulse
+                    : 0.22;
     }
 
-    // Update collision-highlight overlays.
     for (const [oid, h] of highlightRefs.current) {
       const o = items.find((i) => i.id === oid);
       const mat = h.material as THREE.MeshBasicMaterial;
@@ -1824,7 +1793,7 @@ function PlacementGhost({
         h.position.set(o.pos[0], o.pos[1] + os[1] / 2, o.pos[2]);
         h.scale.set(os[0] + 0.06, os[1] + 0.06, os[2] + 0.06);
         h.visible = true;
-        mat.opacity = 0.28 + 0.12 * Math.sin(performance.now() * 0.008);
+        mat.opacity = 0.25 + 0.15 * Math.sin(performance.now() * 0.008);
       } else {
         h.visible = false;
       }
