@@ -3447,6 +3447,7 @@ export function StageBuilder3D() {
   const [items, setItems] = useState<Placed[]>([]);
   const [cables, setCables] = useState<Cable[]>([]);
   const [selection, setSelection] = useState<string[]>([]);
+  const [groupNames, setGroupNames] = useState<Record<string, string>>({});
   const [tool, setTool] = useState<"translate" | "rotate">("translate");
   const [mode, setMode] = useState<"select" | "cable">("select");
   const [cableType, setCableType] = useState<CableType>("signal");
