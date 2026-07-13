@@ -4136,6 +4136,7 @@ export function StageBuilder3D() {
               showConnectorLabels={showConnectorLabels}
               showCableLabels={showCableLabels}
               realistic={realistic}
+              autoSanitize={autoSanitize}
             />
           </Canvas>
 
