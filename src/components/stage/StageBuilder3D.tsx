@@ -3561,12 +3561,10 @@ export function StageBuilder3D() {
   const setGroupGap = useCallback((gid: string, axis: "x" | "y", value: number) => {
     const limit = axis === "x" ? 2 : 1;
     const safeGap = Math.max(0, Math.min(limit, Number.isFinite(value) ? value : 0));
-    setGroupSpacing((cur) => {
-      const nextGap = { ...readGroupGap(cur, gid), [axis]: safeGap };
-      setItems((itemsNow) => normalizeScene(spreadGroupItems(itemsNow, gid, nextGap), nextGap.x));
-      return { ...cur, [gid]: nextGap };
-    });
-  }, []);
+    const nextGap = { ...readGroupGap(groupSpacing, gid), [axis]: safeGap };
+    setGroupSpacing((cur) => ({ ...cur, [gid]: nextGap }));
+    setItems((cur) => normalizeScene(spreadGroupItems(cur, gid, nextGap), nextGap.x));
+  }, [groupSpacing]);
 
   // Nudge selection by dx/dy/dz (world meters). dy clamped ≥ 0 on the ground.
   const nudgeSelection = useCallback((dx: number, dy: number, dz: number) => {
