@@ -3394,7 +3394,9 @@ export function StageBuilder3D() {
 
   const addItem = (kind: Kind) => {
     const spec = SPECS[kind];
-    const pos = findOpenGroundPosition(kind, items, [0, 0, 2]);
+    const desiredZ = isSpeakerKind(kind) ? speakerLineZ : 2;
+    const raw = findOpenGroundPosition(kind, items, [0, 0, desiredZ]);
+    const pos: [number, number, number] = [raw[0], raw[1], snapSpeakerZ(kind, raw[2])];
     const it: Placed = {
       id: uid(), kind,
       pos,
