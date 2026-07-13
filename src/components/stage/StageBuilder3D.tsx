@@ -4185,6 +4185,7 @@ export function StageBuilder3D() {
               realistic={realistic}
               autoSanitize={autoSanitize}
               frontView={viewMode === "front3d"}
+              topView={viewMode === "top"}
               speakerLineZ={speakerLineZ}
             />
           </Canvas>
