@@ -2271,8 +2271,47 @@ function SceneContent({
           selection={selection}
           items={items}
           objectsRef={objectsRef}
+          onSnapChange={(info) => {
+            // Only announce transitions to/from stack — the interesting change.
+            if (info.mode === "stack") {
+              setSnapTooltip({ text: `▣ Snap na ${info.ontoLabel ?? "bednu"}`, kind: "stack", at: Date.now() });
+            } else if (info.mode === "ground") {
+              setSnapTooltip({ text: "▤ Volno – snap uvolněn", kind: "ground", at: Date.now() });
+            } else {
+              setSnapTooltip({ text: "✗ Kolize – nelze položit", kind: "bad", at: Date.now() });
+            }
+          }}
         />
       )}
+
+      {/* Snap-mode transition tooltip */}
+      {snapTooltip && dragging && (
+        <Html fullscreen prepend zIndexRange={[100, 0]} style={{ pointerEvents: "none" }}>
+          <div
+            style={{
+              position: "absolute",
+              left: "50%",
+              top: 68,
+              transform: "translateX(-50%)",
+              padding: "6px 12px",
+              borderRadius: 999,
+              background: "rgba(15,17,22,0.92)",
+              color: snapTooltip.kind === "stack" ? "#7fe3ff" : snapTooltip.kind === "bad" ? "#ffb0b0" : "#8fffb0",
+              fontSize: 11.5,
+              fontWeight: 600,
+              fontFamily: "ui-sans-serif, system-ui",
+              boxShadow: "0 4px 14px rgba(0,0,0,0.3)",
+              border: `1px solid ${snapTooltip.kind === "stack" ? "rgba(127,227,255,0.55)" : snapTooltip.kind === "bad" ? "rgba(255,120,120,0.55)" : "rgba(143,255,176,0.5)"}`,
+              whiteSpace: "nowrap",
+              opacity: Math.max(0, 1 - (Date.now() - snapTooltip.at) / 1600),
+              transition: "opacity .25s linear",
+            }}
+          >
+            {snapTooltip.text}
+          </div>
+        </Html>
+      )}
+
 
 
 
