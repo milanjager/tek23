@@ -1819,16 +1819,7 @@ function PlacementGhost({
       if (bad) mode = "bad";
 
       if (bad && !buried) {
-        for (const o of others) {
-          const os = SPECS[o.kind].size;
-          const oHalfW = os[0] / 2, oHalfD = os[2] / 2;
-          const halfW = s[0] / 2, halfD = s[2] / 2;
-          const ox = Math.min(candidate.pos[0] + halfW, o.pos[0] + oHalfW) - Math.max(candidate.pos[0] - halfW, o.pos[0] - oHalfW);
-          const oz = Math.min(candidate.pos[2] + halfD, o.pos[2] + oHalfD) - Math.max(candidate.pos[2] - halfD, o.pos[2] - oHalfD);
-          if (ox <= PLACEMENT_TUNING.collisionXZMin || oz <= PLACEMENT_TUNING.collisionXZMin) continue;
-          const vy = Math.min(candidate.pos[1] + s[1], o.pos[1] + os[1]) - Math.max(candidate.pos[1], o.pos[1]);
-          if (vy > PLACEMENT_TUNING.collisionVerticalMin) collided.add(o.id);
-        }
+        collisionIds(candidate, others).forEach((cid) => collided.add(cid));
       }
 
       mesh.position.set(candidate.pos[0], candidate.pos[1] + s[1] / 2, candidate.pos[2]);
@@ -1898,7 +1889,7 @@ function PlacementGhost({
         h.position.set(o.pos[0], o.pos[1] + os[1] / 2, o.pos[2]);
         h.scale.set(os[0] + 0.06, os[1] + 0.06, os[2] + 0.06);
         h.visible = true;
-        mat.opacity = 0.25 + 0.15 * Math.sin(performance.now() * 0.008);
+        mat.opacity = 0.34 + 0.22 * Math.sin(performance.now() * 0.008);
       } else {
         h.visible = false;
       }
@@ -1960,7 +1951,7 @@ function PlacementGhost({
           }}
         >
           <boxGeometry args={[1, 1, 1]} />
-          <meshBasicMaterial color="#ef4444" transparent opacity={0.3} depthWrite={false} wireframe={false} />
+          <meshBasicMaterial color="#ef4444" transparent opacity={0.42} depthWrite={false} wireframe={false} />
         </mesh>
       ))}
     </group>
