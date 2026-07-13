@@ -1680,6 +1680,54 @@ function sceneHasOverlap(items: Placed[]): boolean {
   return hasAnyOverlapPure(items.map(asPlacementItem));
 }
 
+function spreadGroupItems(items: Placed[], groupId: string, gap: number): Placed[] {
+  const group = items.filter((i) => i.groupId === groupId);
+  if (group.length < 2) return items;
+  const rows = new Map<number, Placed[]>();
+  for (const it of group) {
+    const rowKey = Math.round(it.pos[1] * 20) / 20;
+    const row = rows.get(rowKey) ?? [];
+    row.push(it);
+    rows.set(rowKey, row);
+  }
+  const nextPos = new Map<string, [number, number, number]>();
+  for (const row of rows.values()) {
+    if (row.length < 2) continue;
+    const sorted = [...row].sort((a, b) => a.pos[0] - b.pos[0]);
+    const center = sorted.reduce((sum, it) => sum + it.pos[0], 0) / sorted.length;
+    const totalWidth = sorted.reduce((sum, it) => sum + SPECS[it.kind].size[0], 0) + gap * (sorted.length - 1);
+    let cursor = center - totalWidth / 2;
+    for (const it of sorted) {
+      const w = SPECS[it.kind].size[0];
+      nextPos.set(it.id, [cursor + w / 2, it.pos[1], it.pos[2]]);
+      cursor += w + gap;
+    }
+  }
+  return items.map((it) => nextPos.has(it.id) ? { ...it, pos: nextPos.get(it.id)! } : it);
+}
+
+function itemScreenBounds(it: Placed, camera: THREE.Camera, width: number, height: number) {
+  const s = SPECS[it.kind].size;
+  const hw = s[0] / 2;
+  const hd = s[2] / 2;
+  const pts: THREE.Vector3[] = [];
+  for (const dx of [-hw, hw]) {
+    for (const dy of [0, s[1]]) {
+      for (const dz of [-hd, hd]) {
+        pts.push(new THREE.Vector3(it.pos[0] + dx, it.pos[1] + dy, it.pos[2] + dz).project(camera));
+      }
+    }
+  }
+  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+  for (const p of pts) {
+    const x = (p.x * 0.5 + 0.5) * width;
+    const y = (1 - (p.y * 0.5 + 0.5)) * height;
+    minX = Math.min(minX, x); maxX = Math.max(maxX, x);
+    minY = Math.min(minY, y); maxY = Math.max(maxY, y);
+  }
+  return { minX, minY, maxX, maxY };
+}
+
 // Backwards-compatible constant; live grid step is read from PLACEMENT_TUNING.
 const GRID_STEP = PLACEMENT_TUNING.gridStep;
 
