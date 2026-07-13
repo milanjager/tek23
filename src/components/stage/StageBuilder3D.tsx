@@ -1680,6 +1680,11 @@ function sceneHasOverlap(items: Placed[]): boolean {
   return hasAnyOverlapPure(items.map(asPlacementItem));
 }
 
+function normalizeScene(items: Placed[], gap = 0.06): Placed[] {
+  const stacked = sanitizeStacks(items.map((it) => ({ ...it, rotY: 0 })));
+  return resolveHorizontalOverlaps(stacked, gap);
+}
+
 function spreadGroupItems(items: Placed[], groupId: string, gap: number): Placed[] {
   const group = items.filter((i) => i.groupId === groupId);
   if (group.length < 2) return items;
