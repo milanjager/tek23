@@ -4641,9 +4641,18 @@ export function StageBuilder3D() {
                     const gName = groupNames[gid] ?? `Skupina ${gid.slice(0, 4)}`;
                     const gIds = gItems.map((x) => x.id);
                     const allSelected = gIds.every((id) => selection.includes(id));
+                    const gap = readGroupGap(groupSpacing, gid);
+                    const collapsed = collapsedGroups[gid] ?? false;
                     return (
-                      <div key={gid} className="mb-2 rounded-md border border-neutral-300 bg-white">
+                      <div key={gid} className={`mb-2 rounded-md border bg-white ${allSelected ? "border-lime-500 ring-1 ring-lime-400" : "border-neutral-300"}`}>
                         <div className="flex items-center gap-1 rounded-t-md bg-neutral-100 px-2 py-1">
+                          <button
+                            onClick={() => toggleGroupCollapsed(gid)}
+                            className="rounded p-0.5 text-neutral-600 hover:bg-white"
+                            title={collapsed ? "Rozbalit skupinu" : "Sbalit skupinu"}
+                          >
+                            {collapsed ? <ChevronRight size={12} /> : <ChevronDown size={12} />}
+                          </button>
                           <button
                             onClick={(e) => {
                               setMode("select");
@@ -4653,7 +4662,7 @@ export function StageBuilder3D() {
                             className={`flex items-center gap-1 rounded px-1 py-0.5 text-[10px] font-bold uppercase tracking-wider ${allSelected ? "bg-lime-500 text-neutral-950" : "text-neutral-700 hover:bg-white"}`}
                             title="Vybrat celou skupinu (Shift = přidat)"
                           >
-                            <GroupIcon size={10} /> {gItems.length}
+                            <Folder size={12} /> {gItems.length}
                           </button>
                           <input
                             type="text"
@@ -4672,23 +4681,45 @@ export function StageBuilder3D() {
                             title="Rozpustit skupinu"
                           ><Ungroup size={11} /></button>
                         </div>
-                        <div className="border-b border-neutral-200 bg-neutral-50 px-2 py-1.5">
-                          <div className="mb-1 flex items-center justify-between text-[9px] font-bold uppercase tracking-wider text-neutral-500">
-                            <span>Odsazení beden ve skupině</span>
-                            <span className="font-mono text-neutral-700">{(groupSpacing[gid] ?? 0.06).toFixed(2)} m</span>
-                          </div>
-                          <input
-                            type="range"
-                            min={0}
-                            max={1.2}
-                            step={0.02}
-                            value={groupSpacing[gid] ?? 0.06}
-                            onChange={(e) => setGroupGap(gid, Number(e.target.value))}
-                            className="w-full accent-lime-500"
-                            title="Rozestup beden v rámci skupiny — po změně se automaticky odstraní překryvy"
-                          />
-                        </div>
-                        <div className="p-1.5">{gItems.map(renderItemCard)}</div>
+                        {!collapsed && (
+                          <>
+                            <div className="grid gap-2 border-b border-neutral-200 bg-neutral-50 px-2 py-2">
+                              <label className="block">
+                                <div className="mb-1 flex items-center justify-between text-[9px] font-bold uppercase tracking-wider text-neutral-500">
+                                  <span>Mezera vodorovně</span>
+                                  <span className="font-mono text-neutral-700">{gap.x.toFixed(2)} m</span>
+                                </div>
+                                <input
+                                  type="range"
+                                  min={0}
+                                  max={1.2}
+                                  step={0.02}
+                                  value={gap.x}
+                                  onChange={(e) => setGroupGap(gid, "x", Number(e.target.value))}
+                                  className="h-2 w-full accent-lime-500"
+                                  title="Rozestup beden v řadě skupiny"
+                                />
+                              </label>
+                              <label className="block">
+                                <div className="mb-1 flex items-center justify-between text-[9px] font-bold uppercase tracking-wider text-neutral-500">
+                                  <span>Mezera vertikálně</span>
+                                  <span className="font-mono text-neutral-700">{gap.y.toFixed(2)} m</span>
+                                </div>
+                                <input
+                                  type="range"
+                                  min={0}
+                                  max={0.6}
+                                  step={0.01}
+                                  value={gap.y}
+                                  onChange={(e) => setGroupGap(gid, "y", Number(e.target.value))}
+                                  className="h-2 w-full accent-cyan-500"
+                                  title="Výškový odstup ve stacku — bedny zůstávají přesně nad sebou"
+                                />
+                              </label>
+                            </div>
+                            <div className="p-1.5">{gItems.map(renderItemCard)}</div>
+                          </>
+                        )}
                       </div>
                     );
                   })}
