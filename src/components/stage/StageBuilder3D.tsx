@@ -4007,7 +4007,7 @@ export function StageBuilder3D() {
           onChange={(e) => {
             const v = e.target.value as PresetKind | "";
             if (!v) return;
-            const it = loadPreset(v);
+            const it = normalizeScene(loadPreset(v));
             setItems(it);
             // Presets that ship with auto-wired cabling regenerate it too.
             if (v === "wetfield" || v === "raptor" || v === "toppicus") {
@@ -4080,7 +4080,7 @@ export function StageBuilder3D() {
           </button>
         </div>
         <button
-          onClick={() => setItems((cur) => sanitizeStacks(cur))}
+          onClick={() => setItems((cur) => normalizeScene(cur))}
           className="flex items-center gap-1 rounded bg-neutral-100 px-2 py-1 hover:bg-neutral-200"
           title="Srovná stackovací věže — každá bedna dosedne přesně na horní plochu bedny pod sebou (žádné zanořené kusy)."
         >
@@ -4183,7 +4183,7 @@ export function StageBuilder3D() {
         <div className="ml-auto flex w-full flex-wrap items-center gap-2 text-xs text-neutral-500 sm:w-auto">
           <span className="whitespace-nowrap">{items.length} prvků · {cables.length} kabelů · {selection.length} vybráno</span>
           <button onClick={autoLayout} disabled={!items.length} title="Rozmístí všechny bedny do přehledných řad, aby se nepřekrývaly" className="rounded bg-lime-100 px-2 py-1 font-semibold text-lime-800 hover:bg-lime-200 disabled:opacity-40">⇹ Auto rozmístit</button>
-          <button onClick={() => localStorage.setItem(STORAGE, JSON.stringify({ items, cables }))} className="flex items-center gap-1 rounded bg-neutral-100 px-2 py-1 hover:bg-neutral-200"><Save size={12} /> Uložit</button>
+          <button onClick={() => localStorage.setItem(STORAGE, JSON.stringify({ items, cables, groupNames, groupSpacing }))} className="flex items-center gap-1 rounded bg-neutral-100 px-2 py-1 hover:bg-neutral-200"><Save size={12} /> Uložit</button>
           <button onClick={() => { if (confirm("Vymazat vše?")) { setItems([]); setCables([]); setSelection([]); }}} className="rounded bg-neutral-100 px-2 py-1 hover:bg-neutral-200">Vyčistit</button>
         </div>
       </div>
@@ -4277,7 +4277,7 @@ export function StageBuilder3D() {
                 });
               }}
               onUpdateItem={(id, patch) => {
-                setItems((cur) => cur.map((x) => x.id === id ? { ...x, ...patch } as Placed : x));
+                setItems((cur) => normalizeScene(cur.map((x) => x.id === id ? { ...x, ...patch, rotY: 0 } as Placed : x)));
               }}
               onDeleteItem={(id) => {
                 setItems((cur) => cur.filter((x) => x.id !== id));
@@ -4296,7 +4296,7 @@ export function StageBuilder3D() {
                 };
                 const y = stackY(it, items);
                 it.pos = [it.pos[0], y, it.pos[2]];
-                setItems((cur) => [...cur, it]);
+                setItems((cur) => normalizeScene([...cur, it]));
                 setSelection([it.id]);
               }}
             />
@@ -4313,7 +4313,7 @@ export function StageBuilder3D() {
                 });
               }}
               onUpdateItem={(id, patch) => {
-                setItems((cur) => cur.map((x) => x.id === id ? { ...x, ...patch } as Placed : x));
+                setItems((cur) => normalizeScene(cur.map((x) => x.id === id ? { ...x, ...patch, rotY: 0 } as Placed : x)));
               }}
               onDeleteItem={(id) => {
                 setItems((cur) => cur.filter((x) => x.id !== id));
@@ -4332,7 +4332,7 @@ export function StageBuilder3D() {
                 };
                 const y = stackY(it, items);
                 it.pos = [it.pos[0], y, it.pos[2]];
-                setItems((cur) => [...cur, it]);
+                setItems((cur) => normalizeScene([...cur, it]));
                 setSelection([it.id]);
               }}
             />
@@ -4357,9 +4357,9 @@ export function StageBuilder3D() {
                 value: k, label: s.label, category: s.category,
               }))}
               onUpdateItem={(id, patch) => {
-                setItems((cur) => cur.map((x) => {
+                setItems((cur) => normalizeScene(cur.map((x) => {
                   if (x.id !== id) return x;
-                  const next = { ...x, ...patch } as Placed;
+                  const next = { ...x, ...patch, rotY: 0 } as Placed;
                   // Changing kind: apply that kind's default variant if it has one.
                   if (patch.kind && patch.kind !== x.kind) {
                     const nk = patch.kind as Kind;
@@ -4367,7 +4367,7 @@ export function StageBuilder3D() {
                     if (SPECS[nk]?.defaultVariant) next.variant = SPECS[nk].defaultVariant;
                   }
                   return next;
-                }));
+                })));
               }}
               onDeleteItem={(id) => {
                 setItems((cur) => cur.filter((x) => x.id !== id));
@@ -4544,7 +4544,7 @@ export function StageBuilder3D() {
             const linkedCables = cables.filter((c) => c.from === primary.id || c.to === primary.id);
             const deg = Math.round((primary.rotY * 180) / Math.PI);
             const patchPrimary = (patch: Partial<Placed>) => {
-              setItems((cur) => cur.map((x) => x.id === primary.id ? { ...x, ...patch } as Placed : x));
+              setItems((cur) => normalizeScene(cur.map((x) => x.id === primary.id ? { ...x, ...patch, rotY: 0 } as Placed : x)));
             };
             return (
               <div className="border-b-2 border-lime-300 bg-white/80 px-3 py-2 text-[11px]">
@@ -4730,10 +4730,11 @@ export function StageBuilder3D() {
                         value={it.kind}
                         onChange={(e) => {
                           const newKind = e.target.value as Kind;
-                          setItems((cur) => cur.map((x) => x.id === it.id ? {
+                          setItems((cur) => normalizeScene(cur.map((x) => x.id === it.id ? {
                             ...x, kind: newKind,
                             variant: SPECS[newKind].defaultVariant ?? x.variant,
-                          } : x));
+                            rotY: 0,
+                          } : x)));
                         }}
                         className="w-full rounded border border-neutral-300 bg-white px-1.5 py-1 text-[11px] text-neutral-900 focus:border-lime-500 focus:outline-none"
                       >
