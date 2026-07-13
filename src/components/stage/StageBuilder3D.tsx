@@ -3602,7 +3602,7 @@ export function StageBuilder3D() {
     const safeGap = Math.max(0, Math.min(limit, Number.isFinite(value) ? value : 0));
     const nextGap = { ...readGroupGap(groupSpacing, gid), [axis]: safeGap };
     setGroupSpacing((cur) => ({ ...cur, [gid]: nextGap }));
-    setItems((cur) => normalizeScene(spreadGroupItems(cur, gid, nextGap), nextGap.x));
+    setItems((cur) => spreadGroupItems(normalizeScene(cur, nextGap.x), gid, nextGap));
   }, [groupSpacing]);
 
   // Nudge selection by dx/dy/dz (world meters). dy clamped ≥ 0 on the ground.
