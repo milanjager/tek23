@@ -3654,32 +3654,15 @@ export function StageBuilder3D() {
             if (!v) return;
             const it = normalizeScene(loadPreset(v));
             setItems(it);
-            // Presets that ship with auto-wired cabling regenerate it too.
-            if (v === "wetfield" || v === "raptor" || v === "toppicus") {
-              setCables(autoWireCables(it));
-            }
+            // Preset ships with auto-wired cabling.
+            setCables(autoWireCables(it));
             e.target.value = "";
           }}
           className="rounded border border-neutral-300 bg-white px-2 py-1 text-[12px] font-semibold text-neutral-800 hover:border-lime-500 focus:border-lime-500 focus:outline-none"
           title="Načíst hotový sound-system preset"
         >
           <option value="">⚡ Načíst preset…</option>
-          <optgroup label="Freetekno / party rigs">
-            <option value="toppicus">Top Picus (4×LF18G401 + N401 + Delta + 14NDL88 + DCX354)</option>
-            <option value="raptor">Raptor wall</option>
-            <option value="wetfield">Wetfield</option>
-            <option value="freetekno">Freetekno wall</option>
-            <option value="rotor">Rotor</option>
-            <option value="dub">Dub wall</option>
-          </optgroup>
-          <optgroup label="Techno / klub">
-            <option value="techno">Techno rig</option>
-            <option value="club">Malý klub</option>
-            <option value="mayapur">Mayapur</option>
-            <option value="badtekk">Badtekk</option>
-            <option value="namel">Namel</option>
-            <option value="toroid">Toroid</option>
-          </optgroup>
+          <option value="picus_wall">Picus Wall (10 kabinetů dle reference)</option>
         </select>
         <div className="mx-3 h-5 w-px bg-neutral-700" />
         <div className="flex items-center gap-0.5 rounded bg-neutral-200 p-0.5" title="Přepni mezi 3D scénou a klasickým technickým schématem zapojení">
