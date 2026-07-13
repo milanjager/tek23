@@ -35,7 +35,7 @@ type Kind =
   | "amp" | "powersoft" | "mixer" | "dj" | "dj_table" | "cdj"
   | "korg" | "korg_red" | "korg_blue" | "turntable"
   | "strobe" | "laser" | "movinghead"
-  | "bar" | "generator" | "crowd";
+  | "bar" | "generator" | "distro" | "crowd";
 
 
 type Category = "sound" | "lights" | "infra";
