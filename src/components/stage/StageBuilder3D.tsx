@@ -9,6 +9,7 @@ import {
   Environment,
   Line,
   Edges,
+  OrthographicCamera,
 } from "@react-three/drei";
 import * as THREE from "three";
 import {
@@ -969,8 +970,8 @@ function CDJModel({ size }: { size: [number, number, number] }) {
         <meshStandardMaterial color={CHROME} metalness={0.9} roughness={0.2} />
       </mesh>
       {/* Display */}
-      <mesh position={[0, h + 0.006, d * 0.35]}>
-        <planeGeometry args={[w * 0.6, 0.04]} rotation-x={-Math.PI / 2} />
+      <mesh position={[0, h + 0.006, d * 0.35]} rotation={[-Math.PI / 2, 0, 0]}>
+        <planeGeometry args={[w * 0.6, 0.04]} />
         <meshStandardMaterial color="#0af" emissive="#0af" emissiveIntensity={1.2} />
       </mesh>
     </group>
@@ -1067,8 +1068,8 @@ function LaserModel({ size }: { size: [number, number, number] }) {
         <meshStandardMaterial color="#0a0a0a" metalness={0.7} roughness={0.35} />
       </mesh>
       {/* Aperture */}
-      <mesh position={[0, h / 2, d / 2 + 0.005]}>
-        <cylinderGeometry args={[0.04, 0.04, 0.02, 16]} rotation-x={Math.PI / 2} />
+      <mesh position={[0, h / 2, d / 2 + 0.005]} rotation={[Math.PI / 2, 0, 0]}>
+        <cylinderGeometry args={[0.04, 0.04, 0.02, 16]} />
         <meshStandardMaterial color="#ff2a6d" emissive="#ff2a6d" emissiveIntensity={2.5} />
       </mesh>
       {/* Heatsink fins */}
@@ -1099,13 +1100,13 @@ function MovingHeadModel({ size }: { size: [number, number, number] }) {
         </mesh>
       ))}
       {/* Head */}
-      <mesh position={[0, h * 0.7, 0]} castShadow>
-        <cylinderGeometry args={[w * 0.32, w * 0.32, h * 0.5, 20]} rotation-z={Math.PI / 2} />
+      <mesh position={[0, h * 0.7, 0]} rotation={[0, 0, Math.PI / 2]} castShadow>
+        <cylinderGeometry args={[w * 0.32, w * 0.32, h * 0.5, 20]} />
         <meshStandardMaterial color="#0a0a0a" metalness={0.6} roughness={0.4} />
       </mesh>
       {/* Lens */}
-      <mesh position={[0, h * 0.7, d * 0.35]}>
-        <cylinderGeometry args={[w * 0.25, w * 0.25, 0.02, 24]} rotation-x={Math.PI / 2} />
+      <mesh position={[0, h * 0.7, d * 0.35]} rotation={[Math.PI / 2, 0, 0]}>
+        <cylinderGeometry args={[w * 0.25, w * 0.25, 0.02, 24]} />
         <meshStandardMaterial color="#a3ff12" emissive="#a3ff12" emissiveIntensity={1.4} />
       </mesh>
     </group>
@@ -2062,7 +2063,7 @@ function RealisticTuner({ enabled }: { enabled: boolean }) {
 function SceneContent({
   items, setItems, selection, setSelection, tool,
   cables, setCables, mode, cableType, setCableType, pendingFrom, setPendingFrom,
-  showConnectorLabels, showCableLabels, realistic, autoSanitize, frontView, speakerLineZ,
+  showConnectorLabels, showCableLabels, realistic, autoSanitize, frontView, topView, speakerLineZ,
 }: {
   items: Placed[];
   setItems: React.Dispatch<React.SetStateAction<Placed[]>>;
@@ -2081,6 +2082,7 @@ function SceneContent({
   realistic: boolean;
   autoSanitize: boolean;
   frontView: boolean;
+  topView: boolean;
   speakerLineZ: number;
 }) {
 
@@ -2991,11 +2993,39 @@ function SceneContent({
         />
       )}
 
+      {topView && (
+        <>
+          <OrthographicCamera
+            makeDefault
+            position={[0, 40, 0]}
+            zoom={40}
+            near={0.1}
+            far={200}
+          />
+          {/* PA linie Z – zvýrazněná kóta, na kterou se snapují reproduktory */}
+          <Line
+            points={[[-40, 0.02, speakerLineZ], [40, 0.02, speakerLineZ]]}
+            color="#f59e0b"
+            lineWidth={2}
+            dashed
+            dashSize={0.4}
+            gapSize={0.25}
+          />
+          <Html position={[-6, 0.03, speakerLineZ]} center distanceFactor={20} style={{ pointerEvents: "none" }}>
+            <div style={{ background: "rgba(245,158,11,.95)", color: "#111", padding: "2px 6px", borderRadius: 4, fontSize: 11, fontWeight: 700, whiteSpace: "nowrap" }}>
+              PA linie Z = {speakerLineZ.toFixed(2)} m
+            </div>
+          </Html>
+        </>
+      )}
+
       <OrbitControls
         ref={orbitRef}
-        makeDefault
-        target={[0, 1, 0]}
-        maxPolarAngle={Math.PI / 2 - 0.02}
+        makeDefault={!topView}
+        target={[0, topView ? 0 : 1, 0]}
+        maxPolarAngle={topView ? 0.001 : Math.PI / 2 - 0.02}
+        minPolarAngle={topView ? 0 : 0}
+        enableRotate={!topView}
         enableDamping
         dampingFactor={0.1}
       />
@@ -3282,7 +3312,7 @@ export function StageBuilder3D() {
   useEffect(() => {
     if (panelsHydrated) localStorage.setItem("stage.autoSanitize", autoSanitize ? "1" : "0");
   }, [autoSanitize, panelsHydrated]);
-  const [viewMode, setViewMode] = useState<"3d" | "front3d" | "schema" | "grid" | "elev" | "iso">("3d");
+  const [viewMode, setViewMode] = useState<"3d" | "front3d" | "top" | "schema" | "grid" | "elev" | "iso">("3d");
   const [marquee, setMarquee] = useState<null | { x1: number; y1: number; x2: number; y2: number; additive: boolean }>(null);
   const cameraRef = useRef<THREE.Camera | null>(null);
   const canvasWrapRef = useRef<HTMLDivElement>(null);
@@ -3779,6 +3809,13 @@ export function StageBuilder3D() {
             <GalleryVerticalEnd size={12} /> Nárys
           </button>
           <button
+            onClick={() => setViewMode("top")}
+            className={`flex items-center gap-1 rounded px-2 py-0.5 text-[11px] font-semibold ${viewMode === "top" ? "bg-white text-neutral-900 shadow-sm" : "text-neutral-600 hover:text-neutral-900"}`}
+            title="Ortografický půdorys — pohled shora s rovnoběžnou projekcí, zvýrazňuje PA linii Z pro snapování"
+          >
+            <LayoutGrid size={12} /> Ortho půdorys
+          </button>
+          <button
             onClick={() => setViewMode("iso")}
             className={`flex items-center gap-1 rounded px-2 py-0.5 text-[11px] font-semibold ${viewMode === "iso" ? "bg-white text-neutral-900 shadow-sm" : "text-neutral-600 hover:text-neutral-900"}`}
             title="Isometrický pseudo-3D pohled — přehledné patra stacků z ptačí perspektivy"
@@ -4155,6 +4192,7 @@ export function StageBuilder3D() {
               realistic={realistic}
               autoSanitize={autoSanitize}
               frontView={viewMode === "front3d"}
+              topView={viewMode === "top"}
               speakerLineZ={speakerLineZ}
             />
           </Canvas>
