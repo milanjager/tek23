@@ -1805,7 +1805,6 @@ function spreadGroupItems(items: Placed[], groupId: string, gap: GroupGap): Plac
   return xSpread.map((it) => nextY.has(it.id) ? { ...it, pos: nextY.get(it.id)! } : it);
 }
 
-type LayoutAxis = "x" | "y" | "z";
 type LayoutUnit = {
   key: string;
   ids: string[];
@@ -3078,7 +3077,7 @@ function SceneContent({
             near={0.1}
             far={200}
           />
-          {/* PA linie Z – zvýrazněná kóta, na kterou se snapují reproduktory */}
+          {/* Společná hloubka řady – zvýrazněná kóta, na kterou se snapují reproduktory */}
           <Line
             points={[[-40, 0.02, speakerLineZ], [40, 0.02, speakerLineZ]]}
             color="#f59e0b"
@@ -3089,7 +3088,7 @@ function SceneContent({
           />
           <Html position={[-6, 0.03, speakerLineZ]} center distanceFactor={20} style={{ pointerEvents: "none" }}>
             <div style={{ background: "rgba(245,158,11,.95)", color: "#111", padding: "2px 6px", borderRadius: 4, fontSize: 11, fontWeight: 700, whiteSpace: "nowrap" }}>
-              PA linie Z = {speakerLineZ.toFixed(2)} m
+              Hloubka řady = {speakerLineZ.toFixed(2)} m
             </div>
           </Html>
         </>
