@@ -23,6 +23,18 @@ import ElevationView from "./ElevationView";
 import IsometricView from "./IsometricView";
 import { PlacementDevPanel } from "./PlacementDevPanel";
 
+// Lovable's preview annotates JSX with data-tsd-source. R3F treats dashed
+// props as nested Three.js paths (data → tsd → source), so provide that path
+// on Three prototypes instead of letting the renderer crash in the preview.
+function ensureThreePreviewDataPath(proto: object) {
+  const p = proto as { data?: { tsd?: Record<string, unknown> } };
+  if (!p.data) p.data = { tsd: {} };
+  else if (!p.data.tsd) p.data.tsd = {};
+}
+ensureThreePreviewDataPath(THREE.Object3D.prototype);
+ensureThreePreviewDataPath(THREE.Material.prototype);
+ensureThreePreviewDataPath(THREE.BufferGeometry.prototype);
+
 
 /* ============================================================
    Types & Catalog
@@ -1642,8 +1654,11 @@ import {
   snapToGridXZ as snapToGridXZPure,
   stackY as stackYPure,
   hasCollision as hasCollisionPure,
+  collisionIds as collisionIdsPure,
+  hasAnyOverlap as hasAnyOverlapPure,
   stackSnapTarget as stackSnapTargetPure,
   sanitizeStacks as sanitizeStacksPure,
+  resolveHorizontalOverlaps as resolveHorizontalOverlapsPure,
   PLACEMENT_TUNING,
   type PlacementItem,
 } from "./placement";
@@ -1653,6 +1668,91 @@ function sanitizeStacks(items: Placed[]): Placed[] {
   const wrapped = items.map((p) => ({ ...asPlacementItem(p), _orig: p }));
   const fixed = sanitizeStacksPure(wrapped);
   return fixed.map((w) => ({ ...(w as unknown as { _orig: Placed })._orig, pos: w.pos as [number, number, number] }));
+}
+
+function resolveHorizontalOverlaps(items: Placed[], gap = 0.06): Placed[] {
+  const wrapped = items.map((p) => ({ ...asPlacementItem(p), _orig: p }));
+  const fixed = resolveHorizontalOverlapsPure(wrapped, gap);
+  return fixed.map((w) => ({ ...(w as unknown as { _orig: Placed })._orig, pos: w.pos as [number, number, number] }));
+}
+
+function sceneHasOverlap(items: Placed[]): boolean {
+  return hasAnyOverlapPure(items.map(asPlacementItem));
+}
+
+function normalizeScene(items: Placed[], gap = 0.06): Placed[] {
+  const stacked = sanitizeStacks(items.map((it) => ({ ...it, rotY: 0 })));
+  return resolveHorizontalOverlaps(stacked, gap);
+}
+
+function findOpenGroundPosition(kind: Kind, items: Placed[], desired: [number, number, number] = [0, 0, 2]): [number, number, number] {
+  const base: Placed = { id: "__candidate__", kind, pos: desired, rotY: 0 };
+  for (let radius = 0; radius <= 20; radius++) {
+    const candidates: [number, number, number][] = radius === 0
+      ? [desired]
+      : [
+          [desired[0] + radius * 0.5, 0, desired[2]],
+          [desired[0] - radius * 0.5, 0, desired[2]],
+          [desired[0], 0, desired[2] + radius * 0.5],
+          [desired[0], 0, desired[2] - radius * 0.5],
+          [desired[0] + radius * 0.5, 0, desired[2] + radius * 0.5],
+          [desired[0] - radius * 0.5, 0, desired[2] - radius * 0.5],
+        ] as [number, number, number][];
+    for (const raw of candidates) {
+      const pos = snapToGridXZ(raw);
+      const candidate = { ...base, pos };
+      if (!hasCollision(candidate, items)) return pos;
+    }
+  }
+  return snapToGridXZ([desired[0] + items.length * 0.6, 0, desired[2]]);
+}
+
+function spreadGroupItems(items: Placed[], groupId: string, gap: number): Placed[] {
+  const group = items.filter((i) => i.groupId === groupId);
+  if (group.length < 2) return items;
+  const rows = new Map<number, Placed[]>();
+  for (const it of group) {
+    const rowKey = Math.round(it.pos[1] * 20) / 20;
+    const row = rows.get(rowKey) ?? [];
+    row.push(it);
+    rows.set(rowKey, row);
+  }
+  const nextPos = new Map<string, [number, number, number]>();
+  for (const row of rows.values()) {
+    if (row.length < 2) continue;
+    const sorted = [...row].sort((a, b) => a.pos[0] - b.pos[0]);
+    const center = sorted.reduce((sum, it) => sum + it.pos[0], 0) / sorted.length;
+    const totalWidth = sorted.reduce((sum, it) => sum + SPECS[it.kind].size[0], 0) + gap * (sorted.length - 1);
+    let cursor = center - totalWidth / 2;
+    for (const it of sorted) {
+      const w = SPECS[it.kind].size[0];
+      nextPos.set(it.id, [cursor + w / 2, it.pos[1], it.pos[2]]);
+      cursor += w + gap;
+    }
+  }
+  return items.map((it) => nextPos.has(it.id) ? { ...it, pos: nextPos.get(it.id)! } : it);
+}
+
+function itemScreenBounds(it: Placed, camera: THREE.Camera, width: number, height: number) {
+  const s = SPECS[it.kind].size;
+  const hw = s[0] / 2;
+  const hd = s[2] / 2;
+  const pts: THREE.Vector3[] = [];
+  for (const dx of [-hw, hw]) {
+    for (const dy of [0, s[1]]) {
+      for (const dz of [-hd, hd]) {
+        pts.push(new THREE.Vector3(it.pos[0] + dx, it.pos[1] + dy, it.pos[2] + dz).project(camera));
+      }
+    }
+  }
+  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+  for (const p of pts) {
+    const x = (p.x * 0.5 + 0.5) * width;
+    const y = (1 - (p.y * 0.5 + 0.5)) * height;
+    minX = Math.min(minX, x); maxX = Math.max(maxX, x);
+    minY = Math.min(minY, y); maxY = Math.max(maxY, y);
+  }
+  return { minX, minY, maxX, maxY };
 }
 
 // Backwards-compatible constant; live grid step is read from PLACEMENT_TUNING.
@@ -1674,6 +1774,10 @@ function stackY(moving: Placed, others: Placed[]): number {
 
 function hasCollision(moving: Placed, others: Placed[]): boolean {
   return hasCollisionPure(asPlacementItem(moving), others.map(asPlacementItem));
+}
+
+function collisionIds(moving: Placed, others: Placed[]): string[] {
+  return collisionIdsPure(asPlacementItem(moving), others.map(asPlacementItem));
 }
 
 function stackSnapTarget(
@@ -1742,16 +1846,7 @@ function PlacementGhost({
       if (bad) mode = "bad";
 
       if (bad && !buried) {
-        for (const o of others) {
-          const os = SPECS[o.kind].size;
-          const oHalfW = os[0] / 2, oHalfD = os[2] / 2;
-          const halfW = s[0] / 2, halfD = s[2] / 2;
-          const ox = Math.min(candidate.pos[0] + halfW, o.pos[0] + oHalfW) - Math.max(candidate.pos[0] - halfW, o.pos[0] - oHalfW);
-          const oz = Math.min(candidate.pos[2] + halfD, o.pos[2] + oHalfD) - Math.max(candidate.pos[2] - halfD, o.pos[2] - oHalfD);
-          if (ox <= PLACEMENT_TUNING.collisionXZMin || oz <= PLACEMENT_TUNING.collisionXZMin) continue;
-          const vy = Math.min(candidate.pos[1] + s[1], o.pos[1] + os[1]) - Math.max(candidate.pos[1], o.pos[1]);
-          if (vy > PLACEMENT_TUNING.collisionVerticalMin) collided.add(o.id);
-        }
+        collisionIds(candidate, others).forEach((cid) => collided.add(cid));
       }
 
       mesh.position.set(candidate.pos[0], candidate.pos[1] + s[1] / 2, candidate.pos[2]);
@@ -1821,7 +1916,7 @@ function PlacementGhost({
         h.position.set(o.pos[0], o.pos[1] + os[1] / 2, o.pos[2]);
         h.scale.set(os[0] + 0.06, os[1] + 0.06, os[2] + 0.06);
         h.visible = true;
-        mat.opacity = 0.25 + 0.15 * Math.sin(performance.now() * 0.008);
+        mat.opacity = 0.34 + 0.22 * Math.sin(performance.now() * 0.008);
       } else {
         h.visible = false;
       }
@@ -1883,7 +1978,7 @@ function PlacementGhost({
           }}
         >
           <boxGeometry args={[1, 1, 1]} />
-          <meshBasicMaterial color="#ef4444" transparent opacity={0.3} depthWrite={false} wireframe={false} />
+          <meshBasicMaterial color="#ef4444" transparent opacity={0.42} depthWrite={false} wireframe={false} />
         </mesh>
       ))}
     </group>
@@ -1931,7 +2026,7 @@ function RealisticTuner({ enabled }: { enabled: boolean }) {
 function SceneContent({
   items, setItems, selection, setSelection, tool,
   cables, setCables, mode, cableType, setCableType, pendingFrom, setPendingFrom,
-  showConnectorLabels, showCableLabels, realistic, autoSanitize,
+  showConnectorLabels, showCableLabels, realistic, autoSanitize, frontView,
 }: {
   items: Placed[];
   setItems: React.Dispatch<React.SetStateAction<Placed[]>>;
@@ -1949,6 +2044,7 @@ function SceneContent({
   showCableLabels: boolean;
   realistic: boolean;
   autoSanitize: boolean;
+  frontView: boolean;
 }) {
 
 
@@ -1956,6 +2052,37 @@ function SceneContent({
   const objectsRef = useRef<Map<string, THREE.Object3D>>(new Map());
   const orbitRef = useRef<any>(null);
   const transformRef = useRef<any>(null);
+  const { camera } = useThree();
+
+  useEffect(() => {
+    if (!frontView) return;
+    const bounds = items.reduce(
+      (acc, it) => {
+        const s = SPECS[it.kind].size;
+        acc.minX = Math.min(acc.minX, it.pos[0] - s[0] / 2);
+        acc.maxX = Math.max(acc.maxX, it.pos[0] + s[0] / 2);
+        acc.minY = Math.min(acc.minY, it.pos[1]);
+        acc.maxY = Math.max(acc.maxY, it.pos[1] + s[1]);
+        acc.minZ = Math.min(acc.minZ, it.pos[2] - s[2] / 2);
+        acc.maxZ = Math.max(acc.maxZ, it.pos[2] + s[2] / 2);
+        return acc;
+      },
+      { minX: -4, maxX: 4, minY: 0, maxY: 3, minZ: -2, maxZ: 2 },
+    );
+    const cx = (bounds.minX + bounds.maxX) / 2;
+    const cy = Math.max(1, (bounds.minY + bounds.maxY) / 2);
+    const cz = (bounds.minZ + bounds.maxZ) / 2;
+    const width = Math.max(6, bounds.maxX - bounds.minX);
+    const height = Math.max(4, bounds.maxY - bounds.minY);
+    const dist = Math.max(9, width * 1.25, height * 2.2);
+    camera.position.set(cx, cy, cz + dist);
+    camera.lookAt(cx, cy, cz);
+    camera.updateProjectionMatrix();
+    if (orbitRef.current) {
+      orbitRef.current.target.set(cx, cy, cz);
+      orbitRef.current.update();
+    }
+  }, [camera, frontView, items]);
 
   const registerObject = useCallback((id: string, obj: THREE.Object3D | null) => {
     if (obj) objectsRef.current.set(id, obj);
@@ -2044,7 +2171,7 @@ function SceneContent({
         map.set(id, snapped);
       }
       const out = [...map.values()];
-      return autoSanitize ? sanitizeStacks(out) : out;
+      return autoSanitize ? normalizeScene(out) : resolveHorizontalOverlaps(out);
     });
     if (reports.length) {
       const fmt = (v: number) => v.toFixed(2);
@@ -3448,6 +3575,8 @@ export function StageBuilder3D() {
   const [cables, setCables] = useState<Cable[]>([]);
   const [selection, setSelection] = useState<string[]>([]);
   const [groupNames, setGroupNames] = useState<Record<string, string>>({});
+  const [groupSpacing, setGroupSpacing] = useState<Record<string, number>>({});
+  const [sceneHydrated, setSceneHydrated] = useState(false);
   const [tool, setTool] = useState<"translate" | "rotate">("translate");
   const [mode, setMode] = useState<"select" | "cable">("select");
   const [cableType, setCableType] = useState<CableType>("signal");
@@ -3470,12 +3599,15 @@ export function StageBuilder3D() {
   }, []);
   const [marqueeMode, setMarqueeMode] = useState(false);
   const [realistic, setRealistic] = useState(false);
-  const [autoSanitize, setAutoSanitize] = useState<boolean>(() => {
-    if (typeof window === "undefined") return false;
-    return localStorage.getItem("stage.autoSanitize") === "1";
-  });
-  useEffect(() => { localStorage.setItem("stage.autoSanitize", autoSanitize ? "1" : "0"); }, [autoSanitize]);
-  const [viewMode, setViewMode] = useState<"3d" | "schema" | "grid" | "elev" | "iso">("3d");
+  const [autoSanitize, setAutoSanitize] = useState(false);
+  useEffect(() => {
+    const saved = localStorage.getItem("stage.autoSanitize");
+    setAutoSanitize(saved === null ? true : saved === "1");
+  }, []);
+  useEffect(() => {
+    if (panelsHydrated) localStorage.setItem("stage.autoSanitize", autoSanitize ? "1" : "0");
+  }, [autoSanitize, panelsHydrated]);
+  const [viewMode, setViewMode] = useState<"3d" | "front3d" | "schema" | "grid" | "elev" | "iso">("3d");
   const [marquee, setMarquee] = useState<null | { x1: number; y1: number; x2: number; y2: number; additive: boolean }>(null);
   const cameraRef = useRef<THREE.Camera | null>(null);
   const canvasWrapRef = useRef<HTMLDivElement>(null);
@@ -3487,18 +3619,21 @@ export function StageBuilder3D() {
       const raw = localStorage.getItem(STORAGE);
       if (raw) {
         const parsed = JSON.parse(raw);
-        if (Array.isArray(parsed.items)) setItems(parsed.items);
+        if (Array.isArray(parsed.items)) setItems(normalizeScene(parsed.items));
         if (Array.isArray(parsed.cables)) setCables(parsed.cables);
         if (parsed.groupNames && typeof parsed.groupNames === "object") setGroupNames(parsed.groupNames);
+        if (parsed.groupSpacing && typeof parsed.groupSpacing === "object") setGroupSpacing(parsed.groupSpacing);
       } else {
-        setItems(loadPreset("techno"));
+        setItems(normalizeScene(loadPreset("techno")));
       }
     } catch { /* noop */ }
+    finally { setSceneHydrated(true); }
   }, []);
 
   useEffect(() => {
-    localStorage.setItem(STORAGE, JSON.stringify({ items, cables, groupNames }));
-  }, [items, cables, groupNames]);
+    if (!sceneHydrated) return;
+    localStorage.setItem(STORAGE, JSON.stringify({ items, cables, groupNames, groupSpacing }));
+  }, [items, cables, groupNames, groupSpacing, sceneHydrated]);
 
   /* ---------------- Undo / Redo history ---------------- */
   const historyRef = useRef<{ items: Placed[]; cables: Cable[] }[]>([]);
@@ -3545,16 +3680,15 @@ export function StageBuilder3D() {
 
   const addItem = (kind: Kind) => {
     const spec = SPECS[kind];
+    const pos = findOpenGroundPosition(kind, items, [0, 0, 2]);
     const it: Placed = {
       id: uid(), kind,
-      pos: [0, 0, 2 + Math.random() * 0.4],
+      pos,
       rotY: 0,
       ...(spec.defaultLabel ? { label: spec.defaultLabel } : {}),
       ...(spec.defaultVariant ? { variant: spec.defaultVariant } : {}),
     };
-    const y = stackY(it, items);
-    it.pos = [it.pos[0], y, it.pos[2]];
-    setItems((cur) => [...cur, it]);
+    setItems((cur) => normalizeScene([...cur, it]));
     setSelection([it.id]);
   };
 
@@ -3588,7 +3722,7 @@ export function StageBuilder3D() {
         groupId: gid,
       };
     });
-    setItems((cur) => [...cur, ...created]);
+    setItems((cur) => normalizeScene([...cur, ...created]));
     setSelection(created.map((c) => c.id));
   }, [clipboard]);
 
@@ -3609,14 +3743,15 @@ export function StageBuilder3D() {
         groupId: gid,
       };
     });
-    setItems((cur) => [...cur, ...created]);
+    setItems((cur) => normalizeScene([...cur, ...created]));
     setSelection(created.map((c) => c.id));
   }, [items, selection]);
 
   const groupSelection = useCallback(() => {
     if (selection.length < 2) return;
     const gid = uid();
-    setItems((cur) => cur.map((i) => selection.includes(i.id) ? { ...i, groupId: gid } : i));
+    setGroupSpacing((cur) => ({ ...cur, [gid]: 0.06 }));
+    setItems((cur) => normalizeScene(cur.map((i) => selection.includes(i.id) ? { ...i, groupId: gid } : i)));
   }, [selection]);
 
   const ungroupSelection = useCallback(() => {
@@ -3632,14 +3767,20 @@ export function StageBuilder3D() {
     });
   }, []);
 
+  const setGroupGap = useCallback((gid: string, gap: number) => {
+    const safeGap = Math.max(0, Math.min(2, Number.isFinite(gap) ? gap : 0));
+    setGroupSpacing((cur) => ({ ...cur, [gid]: safeGap }));
+    setItems((cur) => normalizeScene(spreadGroupItems(cur, gid, safeGap), safeGap));
+  }, []);
+
   // Nudge selection by dx/dy/dz (world meters). dy clamped ≥ 0 on the ground.
   const nudgeSelection = useCallback((dx: number, dy: number, dz: number) => {
     if (!selection.length) return;
-    setItems((cur) => cur.map((it) => {
+    setItems((cur) => normalizeScene(cur.map((it) => {
       if (!selection.includes(it.id)) return it;
       const ny = Math.max(0, it.pos[1] + dy);
       return { ...it, pos: [it.pos[0] + dx, ny, it.pos[2] + dz] as [number, number, number] };
-    }));
+    })));
   }, [selection]);
 
   /* ── Photoshop-style alignment ──────────────────────────────────────
@@ -3690,7 +3831,7 @@ export function StageBuilder3D() {
         }
         targetPos.set(b.id, [x, y, z]);
       }
-      return cur.map((it) => targetPos.has(it.id) ? { ...it, pos: targetPos.get(it.id)! } : it);
+      return normalizeScene(cur.map((it) => targetPos.has(it.id) ? { ...it, pos: targetPos.get(it.id)! } : it));
     });
   }, [selection]);
 
@@ -3712,7 +3853,7 @@ export function StageBuilder3D() {
         if (idx === 1) p[1] = Math.max(0, p[1]);
         targetPos.set(it.id, p);
       });
-      return cur.map((it) => targetPos.has(it.id) ? { ...it, pos: targetPos.get(it.id)! } : it);
+      return normalizeScene(cur.map((it) => targetPos.has(it.id) ? { ...it, pos: targetPos.get(it.id)! } : it));
     });
   }, [selection]);
 
@@ -3796,11 +3937,11 @@ export function StageBuilder3D() {
         const p = posByUnit.get(u.key)!;
         for (const id of u.ids) byId.set(id, p);
       });
-      return cur.map((it) => {
+      return normalizeScene(cur.map((it) => {
         const p = byId.get(it.id);
         if (!p) return it;
         return { ...it, pos: [p.x, it.pos[1], p.z] as [number, number, number], rotY: 0 };
-      });
+      }));
     });
     setSelection([]);
   }, []);
@@ -3869,7 +4010,7 @@ export function StageBuilder3D() {
           onChange={(e) => {
             const v = e.target.value as PresetKind | "";
             if (!v) return;
-            const it = loadPreset(v);
+            const it = normalizeScene(loadPreset(v));
             setItems(it);
             // Presets that ship with auto-wired cabling regenerate it too.
             if (v === "wetfield" || v === "raptor" || v === "toppicus") {
@@ -3907,6 +4048,13 @@ export function StageBuilder3D() {
             <BoxIcon size={12} /> 3D scéna
           </button>
           <button
+            onClick={() => setViewMode("front3d")}
+            className={`flex items-center gap-1 rounded px-2 py-0.5 text-[11px] font-semibold ${viewMode === "front3d" ? "bg-white text-neutral-900 shadow-sm" : "text-neutral-600 hover:text-neutral-900"}`}
+            title="3D pohled z nárysu — stavění zepředu se zachovanými 3D modely"
+          >
+            <GalleryVerticalEnd size={12} /> 3D Nárys
+          </button>
+          <button
             onClick={() => setViewMode("grid")}
             className={`flex items-center gap-1 rounded px-2 py-0.5 text-[11px] font-semibold ${viewMode === "grid" ? "bg-white text-neutral-900 shadow-sm" : "text-neutral-600 hover:text-neutral-900"}`}
             title="Půdorys stage — mřížka pro rozmístění beden z ptačí perspektivy"
@@ -3935,7 +4083,7 @@ export function StageBuilder3D() {
           </button>
         </div>
         <button
-          onClick={() => setItems((cur) => sanitizeStacks(cur))}
+          onClick={() => setItems((cur) => normalizeScene(cur))}
           className="flex items-center gap-1 rounded bg-neutral-100 px-2 py-1 hover:bg-neutral-200"
           title="Srovná stackovací věže — každá bedna dosedne přesně na horní plochu bedny pod sebou (žádné zanořené kusy)."
         >
@@ -3960,27 +4108,27 @@ export function StageBuilder3D() {
         <button onClick={() => setTool("translate")} disabled={mode !== "select"} className={`flex items-center gap-1 rounded px-2 py-1 ${tool === "translate" && mode === "select" ? "bg-lime-500 text-neutral-950" : "bg-neutral-100 hover:bg-neutral-200"} disabled:opacity-40`}><MoveIcon size={12} /> Posun (T)</button>
         {/* Rotace UI odstraněna — bedny mají fixní orientaci */}
         {/* ── Zarovnání (Photoshop-style) ─────────────────────── */}
-        {selection.length >= 2 && (
-          <div className="flex items-center gap-0.5 rounded bg-neutral-100 p-0.5" title="Zarovnání vybraných komponent">
+            {selection.length >= 2 && (
+              <div className="flex items-center gap-1 rounded bg-neutral-100 p-1" title="Zarovnání vybraných komponent">
             <span className="px-1 text-[9px] font-bold uppercase tracking-wider text-neutral-500">Zarovnat</span>
-            <button onClick={() => alignSelection("left")}    className="rounded px-1.5 py-0.5 font-mono text-[11px] hover:bg-white" title="Zarovnat vlevo (X min)">⇤</button>
-            <button onClick={() => alignSelection("hcenter")} className="rounded px-1.5 py-0.5 font-mono text-[11px] hover:bg-white" title="Vodorovně na střed (X)">⇔</button>
-            <button onClick={() => alignSelection("right")}   className="rounded px-1.5 py-0.5 font-mono text-[11px] hover:bg-white" title="Zarovnat vpravo (X max)">⇥</button>
+                <button onClick={() => alignSelection("left")}    className="min-h-7 min-w-7 rounded px-2 py-1 font-mono text-[15px] hover:bg-white" title="Zarovnat vlevo (X min)">⇤</button>
+                <button onClick={() => alignSelection("hcenter")} className="min-h-7 min-w-7 rounded px-2 py-1 font-mono text-[15px] hover:bg-white" title="Vodorovně na střed (X)">⇔</button>
+                <button onClick={() => alignSelection("right")}   className="min-h-7 min-w-7 rounded px-2 py-1 font-mono text-[15px] hover:bg-white" title="Zarovnat vpravo (X max)">⇥</button>
             <span className="mx-0.5 h-4 w-px bg-neutral-300" />
-            <button onClick={() => alignSelection("front")}   className="rounded px-1.5 py-0.5 font-mono text-[11px] hover:bg-white" title="Zarovnat dopředu (Z min)">⤒</button>
-            <button onClick={() => alignSelection("vcenter")} className="rounded px-1.5 py-0.5 font-mono text-[11px] hover:bg-white" title="Do hloubky na střed (Z)">⇕</button>
-            <button onClick={() => alignSelection("back")}    className="rounded px-1.5 py-0.5 font-mono text-[11px] hover:bg-white" title="Zarovnat dozadu (Z max)">⤓</button>
+                <button onClick={() => alignSelection("front")}   className="min-h-7 min-w-7 rounded px-2 py-1 font-mono text-[15px] hover:bg-white" title="Zarovnat dopředu (Z min)">⤒</button>
+                <button onClick={() => alignSelection("vcenter")} className="min-h-7 min-w-7 rounded px-2 py-1 font-mono text-[15px] hover:bg-white" title="Do hloubky na střed (Z)">⇕</button>
+                <button onClick={() => alignSelection("back")}    className="min-h-7 min-w-7 rounded px-2 py-1 font-mono text-[15px] hover:bg-white" title="Zarovnat dozadu (Z max)">⤓</button>
             <span className="mx-0.5 h-4 w-px bg-neutral-300" />
-            <button onClick={() => alignSelection("bottom")}  className="rounded px-1.5 py-0.5 font-mono text-[11px] hover:bg-white" title="Zarovnat dolů (Y min)">▁</button>
-            <button onClick={() => alignSelection("ycenter")} className="rounded px-1.5 py-0.5 font-mono text-[11px] hover:bg-white" title="Výškově na střed (Y)">▬</button>
-            <button onClick={() => alignSelection("top")}     className="rounded px-1.5 py-0.5 font-mono text-[11px] hover:bg-white" title="Zarovnat nahoru (Y max)">▔</button>
+                <button onClick={() => alignSelection("bottom")}  className="min-h-7 min-w-7 rounded px-2 py-1 font-mono text-[15px] hover:bg-white" title="Zarovnat dolů (Y min)">▁</button>
+                <button onClick={() => alignSelection("ycenter")} className="min-h-7 min-w-7 rounded px-2 py-1 font-mono text-[15px] hover:bg-white" title="Výškově na střed (Y)">▬</button>
+                <button onClick={() => alignSelection("top")}     className="min-h-7 min-w-7 rounded px-2 py-1 font-mono text-[15px] hover:bg-white" title="Zarovnat nahoru (Y max)">▔</button>
             {selection.length >= 3 && (
               <>
                 <span className="mx-0.5 h-4 w-px bg-neutral-300" />
                 <span className="px-1 text-[9px] font-bold uppercase tracking-wider text-neutral-500">Rozmístit</span>
-                <button onClick={() => distributeSelection("x")} className="rounded px-1.5 py-0.5 font-mono text-[11px] hover:bg-white" title="Rovnoměrně po X">↔</button>
-                <button onClick={() => distributeSelection("z")} className="rounded px-1.5 py-0.5 font-mono text-[11px] hover:bg-white" title="Rovnoměrně po Z (hloubka)">↕</button>
-                <button onClick={() => distributeSelection("y")} className="rounded px-1.5 py-0.5 font-mono text-[11px] hover:bg-white" title="Rovnoměrně po Y (výška)">⇅</button>
+                    <button onClick={() => distributeSelection("x")} className="min-h-7 min-w-7 rounded px-2 py-1 font-mono text-[15px] hover:bg-white" title="Rovnoměrně po X">↔</button>
+                    <button onClick={() => distributeSelection("z")} className="min-h-7 min-w-7 rounded px-2 py-1 font-mono text-[15px] hover:bg-white" title="Rovnoměrně po Z (hloubka)">↕</button>
+                    <button onClick={() => distributeSelection("y")} className="min-h-7 min-w-7 rounded px-2 py-1 font-mono text-[15px] hover:bg-white" title="Rovnoměrně po Y (výška)">⇅</button>
               </>
             )}
           </div>
@@ -4038,7 +4186,7 @@ export function StageBuilder3D() {
         <div className="ml-auto flex w-full flex-wrap items-center gap-2 text-xs text-neutral-500 sm:w-auto">
           <span className="whitespace-nowrap">{items.length} prvků · {cables.length} kabelů · {selection.length} vybráno</span>
           <button onClick={autoLayout} disabled={!items.length} title="Rozmístí všechny bedny do přehledných řad, aby se nepřekrývaly" className="rounded bg-lime-100 px-2 py-1 font-semibold text-lime-800 hover:bg-lime-200 disabled:opacity-40">⇹ Auto rozmístit</button>
-          <button onClick={() => localStorage.setItem(STORAGE, JSON.stringify({ items, cables }))} className="flex items-center gap-1 rounded bg-neutral-100 px-2 py-1 hover:bg-neutral-200"><Save size={12} /> Uložit</button>
+          <button onClick={() => localStorage.setItem(STORAGE, JSON.stringify({ items, cables, groupNames, groupSpacing }))} className="flex items-center gap-1 rounded bg-neutral-100 px-2 py-1 hover:bg-neutral-200"><Save size={12} /> Uložit</button>
           <button onClick={() => { if (confirm("Vymazat vše?")) { setItems([]); setCables([]); setSelection([]); }}} className="rounded bg-neutral-100 px-2 py-1 hover:bg-neutral-200">Vyčistit</button>
         </div>
       </div>
@@ -4132,7 +4280,7 @@ export function StageBuilder3D() {
                 });
               }}
               onUpdateItem={(id, patch) => {
-                setItems((cur) => cur.map((x) => x.id === id ? { ...x, ...patch } as Placed : x));
+                setItems((cur) => normalizeScene(cur.map((x) => x.id === id ? { ...x, ...patch, rotY: 0 } as Placed : x)));
               }}
               onDeleteItem={(id) => {
                 setItems((cur) => cur.filter((x) => x.id !== id));
@@ -4151,7 +4299,7 @@ export function StageBuilder3D() {
                 };
                 const y = stackY(it, items);
                 it.pos = [it.pos[0], y, it.pos[2]];
-                setItems((cur) => [...cur, it]);
+                setItems((cur) => normalizeScene([...cur, it]));
                 setSelection([it.id]);
               }}
             />
@@ -4168,7 +4316,7 @@ export function StageBuilder3D() {
                 });
               }}
               onUpdateItem={(id, patch) => {
-                setItems((cur) => cur.map((x) => x.id === id ? { ...x, ...patch } as Placed : x));
+                setItems((cur) => normalizeScene(cur.map((x) => x.id === id ? { ...x, ...patch, rotY: 0 } as Placed : x)));
               }}
               onDeleteItem={(id) => {
                 setItems((cur) => cur.filter((x) => x.id !== id));
@@ -4187,7 +4335,7 @@ export function StageBuilder3D() {
                 };
                 const y = stackY(it, items);
                 it.pos = [it.pos[0], y, it.pos[2]];
-                setItems((cur) => [...cur, it]);
+                setItems((cur) => normalizeScene([...cur, it]));
                 setSelection([it.id]);
               }}
             />
@@ -4212,9 +4360,9 @@ export function StageBuilder3D() {
                 value: k, label: s.label, category: s.category,
               }))}
               onUpdateItem={(id, patch) => {
-                setItems((cur) => cur.map((x) => {
+                setItems((cur) => normalizeScene(cur.map((x) => {
                   if (x.id !== id) return x;
-                  const next = { ...x, ...patch } as Placed;
+                  const next = { ...x, ...patch, rotY: 0 } as Placed;
                   // Changing kind: apply that kind's default variant if it has one.
                   if (patch.kind && patch.kind !== x.kind) {
                     const nk = patch.kind as Kind;
@@ -4222,7 +4370,7 @@ export function StageBuilder3D() {
                     if (SPECS[nk]?.defaultVariant) next.variant = SPECS[nk].defaultVariant;
                   }
                   return next;
-                }));
+                })));
               }}
               onDeleteItem={(id) => {
                 setItems((cur) => cur.filter((x) => x.id !== id));
@@ -4279,6 +4427,7 @@ export function StageBuilder3D() {
               showCableLabels={showCableLabels}
               realistic={realistic}
               autoSanitize={autoSanitize}
+              frontView={viewMode === "front3d"}
             />
           </Canvas>
 
@@ -4398,7 +4547,7 @@ export function StageBuilder3D() {
             const linkedCables = cables.filter((c) => c.from === primary.id || c.to === primary.id);
             const deg = Math.round((primary.rotY * 180) / Math.PI);
             const patchPrimary = (patch: Partial<Placed>) => {
-              setItems((cur) => cur.map((x) => x.id === primary.id ? { ...x, ...patch } as Placed : x));
+              setItems((cur) => normalizeScene(cur.map((x) => x.id === primary.id ? { ...x, ...patch, rotY: 0 } as Placed : x)));
             };
             return (
               <div className="border-b-2 border-lime-300 bg-white/80 px-3 py-2 text-[11px]">
@@ -4584,10 +4733,11 @@ export function StageBuilder3D() {
                         value={it.kind}
                         onChange={(e) => {
                           const newKind = e.target.value as Kind;
-                          setItems((cur) => cur.map((x) => x.id === it.id ? {
+                          setItems((cur) => normalizeScene(cur.map((x) => x.id === it.id ? {
                             ...x, kind: newKind,
                             variant: SPECS[newKind].defaultVariant ?? x.variant,
-                          } : x));
+                            rotY: 0,
+                          } : x)));
                         }}
                         className="w-full rounded border border-neutral-300 bg-white px-1.5 py-1 text-[11px] text-neutral-900 focus:border-lime-500 focus:outline-none"
                       >
@@ -4676,6 +4826,22 @@ export function StageBuilder3D() {
                             className="rounded p-0.5 text-neutral-500 hover:bg-white hover:text-red-600"
                             title="Rozpustit skupinu"
                           ><Ungroup size={11} /></button>
+                        </div>
+                        <div className="border-b border-neutral-200 bg-neutral-50 px-2 py-1.5">
+                          <div className="mb-1 flex items-center justify-between text-[9px] font-bold uppercase tracking-wider text-neutral-500">
+                            <span>Odsazení beden ve skupině</span>
+                            <span className="font-mono text-neutral-700">{(groupSpacing[gid] ?? 0.06).toFixed(2)} m</span>
+                          </div>
+                          <input
+                            type="range"
+                            min={0}
+                            max={1.2}
+                            step={0.02}
+                            value={groupSpacing[gid] ?? 0.06}
+                            onChange={(e) => setGroupGap(gid, Number(e.target.value))}
+                            className="w-full accent-lime-500"
+                            title="Rozestup beden v rámci skupiny — po změně se automaticky odstraní překryvy"
+                          />
                         </div>
                         <div className="p-1.5">{gItems.map(renderItemCard)}</div>
                       </div>
