@@ -970,8 +970,8 @@ function CDJModel({ size }: { size: [number, number, number] }) {
         <meshStandardMaterial color={CHROME} metalness={0.9} roughness={0.2} />
       </mesh>
       {/* Display */}
-      <mesh position={[0, h + 0.006, d * 0.35]}>
-        <planeGeometry args={[w * 0.6, 0.04]} rotation-x={-Math.PI / 2} />
+      <mesh position={[0, h + 0.006, d * 0.35]} rotation={[-Math.PI / 2, 0, 0]}>
+        <planeGeometry args={[w * 0.6, 0.04]} />
         <meshStandardMaterial color="#0af" emissive="#0af" emissiveIntensity={1.2} />
       </mesh>
     </group>
