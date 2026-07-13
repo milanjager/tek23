@@ -129,7 +129,7 @@ interface Placed {
   variant?: "red" | "blue";
 }
 
-type PresetKind = "picus_wall";
+type PresetKind = "namel_wall" | "club_stack" | "festival_ground";
 
 type CableType = "signal" | "speaker" | "power" | "dmx";
 
@@ -3001,50 +3001,76 @@ function SceneContent({
    ============================================================ */
 
 function loadPreset(kind: PresetKind): Placed[] {
-  const mk = (k: Kind, x: number, y: number, z: number, rot = 0): Placed => ({
-    id: uid(), kind: k, pos: [x, y, z], rotY: rot,
+  const mk = (k: Kind, x: number, y: number, z: number, label?: string): Placed => ({
+    id: uid(), kind: k, pos: [x, y, z], rotY: 0, ...(label ? { label } : {}),
   });
 
-  // Picus wall — 10 kabinetů složených podle referenční fotky:
-  // spodní řada scoop subů + centrální perforovaná mid věž,
-  // patro bass shelfů, boční mid stack, letěné top boxy nahoře.
-  void kind;
   const arr: Placed[] = [];
-  const Z = -1.4;
 
-  // --- Row A (podlaha) ---
-  arr.push({ ...mk("picus_scoop_lo",  -1.05, 0.00, Z), label: "Picus Scoop L" });
-  arr.push({ ...mk("picus_deep_sub",   0.10, 0.00, Z), label: "Picus Deep Sub" });
-  arr.push({ ...mk("picus_scoop_hi",   1.25, 0.00, Z), label: "Picus Scoop R" });
+  // Speakers always sit on the same audience-facing line.
+  const SPK_Z = -1.4;
 
-  // --- Row B (patro bassů) ---
-  arr.push({ ...mk("picus_bass_row",  -1.05, 1.00, Z), label: "Picus Bass L" });
-  arr.push({ ...mk("picus_shelf_bin",  1.25, 1.00, Z), label: "Picus Shelf R" });
-
-  // --- Row C (centrální mid grill věž) ---
-  arr.push({ ...mk("picus_mid_grill",  0.10, 1.10, Z), label: "Picus Mid Grill" });
-
-  // --- Row D (boční mid stack) ---
-  arr.push({ ...mk("picus_mid_stack", -1.05, 1.55, Z), label: "Picus Mid Stack" });
-
-  // --- Row E (letěné topy nahoře) ---
-  arr.push({ ...mk("picus_hex_horn",  -1.05, 2.95, Z), label: "Picus Hex Horn" });
-  arr.push({ ...mk("picus_top_3way",   0.10, 2.95, Z), label: "Picus Top 3-way" });
-  arr.push({ ...mk("picus_wing_horn",  1.25, 2.95, Z), label: "Picus Wing Horn" });
-
-  // --- Infra / support ---
-  arr.push({ ...mk("powersoft", -3.0, 0, 0.4), label: "Powersoft L" });
-  arr.push({ ...mk("powersoft",  3.0, 0, 0.4), label: "Powersoft R" });
-  arr.push({ ...mk("distro",    -2.2, 0, 0.6), label: "Rozdělovač" });
-  arr.push({ ...mk("mixer",      0.0, 1.0, 2.4), label: "Mixák" });
-  arr.push({ ...mk("dj",         0.0, 0.0, 2.8), label: "DJ pult" });
-  arr.push(mk("cdj", -0.55, 1.00, 2.7));
-  arr.push(mk("cdj",  0.55, 1.00, 2.7));
-  arr.push({ ...mk("movinghead", -2.0, 3.9, Z + 0.1), label: "MH L" });
-  arr.push({ ...mk("movinghead",  2.0, 3.9, Z + 0.1), label: "MH R" });
-  arr.push({ ...mk("strobe",      0.0, 3.9, Z + 0.25), label: "Strobo" });
-  arr.push({ ...mk("generator", -4.6, 0, 3.4), label: "Aggregát" });
-  arr.push(mk("crowd", 0, 0, 5));
+  if (kind === "namel_wall") {
+    // --- Bottom row: 4×18" scoop subs (4 wide) ---
+    for (let i = 0; i < 4; i++) {
+      const x = -1.65 + i * 1.10;
+      arr.push(mk("picus_scoop_lo", x, 0, SPK_Z, `Scoop Lo ${i + 1}`));
+    }
+    // --- Second row: 4×18" scoop hi stacked on lo ---
+    for (let i = 0; i < 4; i++) {
+      const x = -1.65 + i * 1.10;
+      arr.push(mk("picus_scoop_hi", x, 1.00, SPK_Z, `Scoop Hi ${i + 1}`));
+    }
+    // --- Bass row (shelf) ---
+    for (let i = 0; i < 3; i++) {
+      const x = -1.10 + i * 1.10;
+      arr.push(mk("picus_bass_row", x, 2.00, SPK_Z, `Bass ${i + 1}`));
+    }
+    // --- Central mid grill tower ---
+    arr.push(mk("picus_mid_grill", 0.00, 2.55, SPK_Z, "Mid Grill"));
+    // --- Top: 3-way tops flanked by hex horns ---
+    arr.push(mk("picus_hex_horn", -1.75, 4.40, SPK_Z, "Hex L"));
+    arr.push(mk("picus_top_3way", -0.55, 4.55, SPK_Z, "Top L"));
+    arr.push(mk("picus_top_3way",  0.55, 4.55, SPK_Z, "Top R"));
+    arr.push(mk("picus_hex_horn",  1.75, 4.40, SPK_Z, "Hex R"));
+    // --- Infra ---
+    arr.push(mk("powersoft", -3.4, 0, 0.8, "Amp L"));
+    arr.push(mk("powersoft",  3.4, 0, 0.8, "Amp R"));
+    arr.push(mk("distro",    -3.4, 0, 1.8, "Distro"));
+    arr.push(mk("generator", -4.8, 0, 3.4, "Aggregát"));
+    arr.push(mk("mixer",      0.0, 1.0, 3.2, "FOH mix"));
+    arr.push(mk("dj",         0.0, 0.0, 3.6, "DJ"));
+  } else if (kind === "club_stack") {
+    // Compact 2×2 sub base + tops L/R
+    arr.push(mk("picus_scoop_lo", -0.60, 0.00, SPK_Z, "Sub L1"));
+    arr.push(mk("picus_scoop_lo",  0.60, 0.00, SPK_Z, "Sub R1"));
+    arr.push(mk("picus_scoop_hi", -0.60, 1.00, SPK_Z, "Sub L2"));
+    arr.push(mk("picus_scoop_hi",  0.60, 1.00, SPK_Z, "Sub R2"));
+    arr.push(mk("picus_top_3way", -0.60, 2.00, SPK_Z, "Top L"));
+    arr.push(mk("picus_top_3way",  0.60, 2.00, SPK_Z, "Top R"));
+    arr.push(mk("powersoft", -2.4, 0, 0.8, "Amp"));
+    arr.push(mk("distro",    -2.4, 0, 1.8, "Distro"));
+    arr.push(mk("mixer",      0.0, 1.0, 2.6, "Mix"));
+    arr.push(mk("dj",         0.0, 0.0, 3.0, "DJ"));
+  } else {
+    // festival_ground — three sub clusters + mid columns + wing horns
+    for (let c = -1; c <= 1; c++) {
+      const cx = c * 3.0;
+      arr.push(mk("picus_deep_sub", cx - 0.65, 0.00, SPK_Z, `Sub ${c + 2}L`));
+      arr.push(mk("picus_deep_sub", cx + 0.65, 0.00, SPK_Z, `Sub ${c + 2}R`));
+    }
+    arr.push(mk("picus_mid_stack", -1.20, 1.15, SPK_Z, "Mid L"));
+    arr.push(mk("picus_mid_stack",  1.20, 1.15, SPK_Z, "Mid R"));
+    arr.push(mk("picus_wing_horn", -3.60, 1.15, SPK_Z, "Wing L"));
+    arr.push(mk("picus_wing_horn",  3.60, 1.15, SPK_Z, "Wing R"));
+    arr.push(mk("picus_top_3way", -1.20, 2.60, SPK_Z, "Top L"));
+    arr.push(mk("picus_top_3way",  1.20, 2.60, SPK_Z, "Top R"));
+    arr.push(mk("powersoft", -4.4, 0, 1.0, "Amp L"));
+    arr.push(mk("powersoft",  4.4, 0, 1.0, "Amp R"));
+    arr.push(mk("distro",    -4.4, 0, 2.0, "Distro"));
+    arr.push(mk("generator", -5.8, 0, 3.4, "Aggregát"));
+    arr.push(mk("mixer",      0.0, 1.0, 4.0, "FOH"));
+  }
   return arr;
 }
 
@@ -3265,7 +3291,7 @@ export function StageBuilder3D() {
         if (parsed.groupNames && typeof parsed.groupNames === "object") setGroupNames(parsed.groupNames);
         if (parsed.groupSpacing && typeof parsed.groupSpacing === "object") setGroupSpacing(parsed.groupSpacing);
       } else {
-        setItems(normalizeScene(loadPreset("picus_wall")));
+        setItems(normalizeScene(loadPreset("namel_wall")));
       }
     } catch { /* noop */ }
     finally { setSceneHydrated(true); }
@@ -3661,7 +3687,9 @@ export function StageBuilder3D() {
           title="Načíst hotový sound-system preset"
         >
           <option value="">⚡ Načíst preset…</option>
-          <option value="picus_wall">Picus Wall (10 kabinetů dle reference)</option>
+          <option value="namel_wall">Namel Wall — velká 4×18" stěna dle reference</option>
+          <option value="club_stack">Club Stack — 2×2 sub + top L/R (kompakt)</option>
+          <option value="festival_ground">Festival Ground — 3 sub clustery + wing horny</option>
         </select>
         <div className="mx-3 h-5 w-px bg-neutral-700" />
         <div className="flex items-center gap-0.5 rounded bg-neutral-200 p-0.5" title="Přepni mezi 3D scénou a klasickým technickým schématem zapojení">
