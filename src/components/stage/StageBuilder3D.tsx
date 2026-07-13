@@ -129,7 +129,7 @@ interface Placed {
   variant?: "red" | "blue";
 }
 
-type PresetKind = "mayapur" | "badtekk" | "namel" | "toroid" | "dub" | "techno" | "club" | "freetekno" | "wetfield" | "rotor" | "raptor" | "toppicus";
+type PresetKind = "picus_wall";
 
 type CableType = "signal" | "speaker" | "power" | "dmx";
 
