@@ -1626,92 +1626,40 @@ function PulseRing({ color, size }: { color: string; size: number }) {
 
 const GRID_STEP = 0.1;
 
+import {
+  snapToGridXZ as snapToGridXZPure,
+  stackY as stackYPure,
+  hasCollision as hasCollisionPure,
+  stackSnapTarget as stackSnapTargetPure,
+  type PlacementItem,
+} from "./placement";
+
+const asPlacementItem = (p: Placed): PlacementItem => ({
+  id: p.id,
+  pos: p.pos,
+  size: SPECS[p.kind].size,
+});
+
 function snapToGridXZ(v: [number, number, number]): [number, number, number] {
-  return [
-    Math.round(v[0] / GRID_STEP) * GRID_STEP,
-    v[1],
-    Math.round(v[2] / GRID_STEP) * GRID_STEP,
-  ];
+  return snapToGridXZPure(v, GRID_STEP);
 }
 
-// Compute stacking Y for `moving` given other items. Simple axis-aligned XZ overlap check.
-// Tolerant center check so boxes snap onto stacks even when not perfectly aligned.
 function stackY(moving: Placed, others: Placed[]): number {
-  const s = SPECS[moving.kind].size;
-  const halfW = s[0] / 2, halfD = s[2] / 2;
-  let best = 0;
-  for (const o of others) {
-    if (o.id === moving.id) continue;
-    const os = SPECS[o.kind].size;
-    const oTop = o.pos[1] + os[1];
-    const oHalfW = os[0] / 2, oHalfD = os[2] / 2;
-    const overlapX = Math.min(moving.pos[0] + halfW, o.pos[0] + oHalfW) - Math.max(moving.pos[0] - halfW, o.pos[0] - oHalfW);
-    const overlapZ = Math.min(moving.pos[2] + halfD, o.pos[2] + oHalfD) - Math.max(moving.pos[2] - halfD, o.pos[2] - oHalfD);
-    // Very small overlap counts — makes stacking forgiving.
-    if (overlapX > 0.02 && overlapZ > 0.02 && oTop > best - 0.02) {
-      // Wide tolerance: center of moving must be within combined half-footprint
-      if (Math.abs(moving.pos[0] - o.pos[0]) < oHalfW + halfW * 0.9 &&
-          Math.abs(moving.pos[2] - o.pos[2]) < oHalfD + halfD * 0.9) {
-        best = Math.max(best, oTop);
-      }
-    }
-  }
-  return best;
+  return stackYPure(asPlacementItem(moving), others.map(asPlacementItem));
 }
 
-// Returns true if `moving` would collide (XZ overlap) with any other item at
-// the same or nearly the same Y level (i.e. not properly stacked on top).
 function hasCollision(moving: Placed, others: Placed[]): boolean {
-  const s = SPECS[moving.kind].size;
-  const halfW = s[0] / 2, halfD = s[2] / 2;
-  const my = moving.pos[1];
-  const myTop = my + s[1];
-  for (const o of others) {
-    if (o.id === moving.id) continue;
-    const os = SPECS[o.kind].size;
-    const oHalfW = os[0] / 2, oHalfD = os[2] / 2;
-    const oy = o.pos[1];
-    const oTop = oy + os[1];
-    const overlapX = Math.min(moving.pos[0] + halfW, o.pos[0] + oHalfW) - Math.max(moving.pos[0] - halfW, o.pos[0] - oHalfW);
-    const overlapZ = Math.min(moving.pos[2] + halfD, o.pos[2] + oHalfD) - Math.max(moving.pos[2] - halfD, o.pos[2] - oHalfD);
-    if (overlapX > 0.05 && overlapZ > 0.05) {
-      // Vertical overlap (not resting on top / not underneath)
-      const vOverlap = Math.min(myTop, oTop) - Math.max(my, oy);
-      if (vOverlap > 0.05) return true;
-    }
-  }
-  return false;
+  return hasCollisionPure(asPlacementItem(moving), others.map(asPlacementItem));
 }
 
-// Shared "stack snap" — if `moving` hovers over another item, return that
-// item's XZ center + top Y so we can align stacks cleanly. `rawY` is the
-// live drag height; we only snap onto a target when the user lifted the box.
 function stackSnapTarget(
   moving: Placed,
   others: Placed[],
   rawY: number,
 ): { x: number; z: number; y: number; ontoId?: string } | null {
-  const s = SPECS[moving.kind].size;
-  const halfW = s[0] / 2, halfD = s[2] / 2;
-  let best: { it: Placed; dist: number; top: number } | null = null;
-  for (const o of others) {
-    const os = SPECS[o.kind].size;
-    const oHalfW = os[0] / 2, oHalfD = os[2] / 2;
-    const dx = moving.pos[0] - o.pos[0];
-    const dz = moving.pos[2] - o.pos[2];
-    const rx = oHalfW + halfW * 0.6;
-    const rz = oHalfD + halfD * 0.6;
-    if (Math.abs(dx) > rx || Math.abs(dz) > rz) continue;
-    const top = o.pos[1] + os[1];
-    if (rawY < top - s[1] * 0.5) continue;
-    const dist = Math.hypot(dx, dz);
-    if (!best || top > best.top + 0.01 || (Math.abs(top - best.top) < 0.01 && dist < best.dist)) {
-      best = { it: o, dist, top };
-    }
-  }
-  if (!best) return null;
-  return { x: best.it.pos[0], z: best.it.pos[2], y: best.top, ontoId: best.it.id };
+  return stackSnapTargetPure(asPlacementItem(moving), others.map(asPlacementItem), rawY);
 }
+
 
 // Ghost preview of the currently-dragged selection at its snapped position.
 // - Green translucent box  = valid ground placement (no collision, on floor).
