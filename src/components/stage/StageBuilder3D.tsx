@@ -3279,6 +3279,53 @@ export function StageBuilder3D() {
   const cameraRef = useRef<THREE.Camera | null>(null);
   const canvasWrapRef = useRef<HTMLDivElement>(null);
 
+  // Global audience-facing line for all speakers. All sound-category items
+  // snap their Z to this value on placement / drop / arrow-nudge so the PA
+  // wall stays coplanar. Non-speakers (amps, mixer, distro, lights) are free.
+  const [speakerLineZ, setSpeakerLineZ] = useState<number>(() => {
+    if (typeof window === "undefined") return -1.4;
+    const raw = localStorage.getItem("stage.speakerLineZ");
+    const v = raw ? Number(raw) : NaN;
+    return Number.isFinite(v) ? v : -1.4;
+  });
+  useEffect(() => { localStorage.setItem("stage.speakerLineZ", String(speakerLineZ)); }, [speakerLineZ]);
+  const isSpeakerKind = useCallback((k: Kind) => {
+    if (SPECS[k].category !== "sound") return false;
+    return true;
+  }, []);
+  const snapSpeakerZ = useCallback((k: Kind, z: number) => (isSpeakerKind(k) ? speakerLineZ : z), [isSpeakerKind, speakerLineZ]);
+
+  // Dark mode — toggle .dark class on <html> + persist. Initial read runs
+  // in effect to avoid SSR hydration mismatches.
+  const [dark, setDark] = useState(false);
+  useEffect(() => {
+    const stored = localStorage.getItem("stage.theme");
+    const wants = stored === "dark";
+    setDark(wants);
+  }, []);
+  useEffect(() => {
+    const root = document.documentElement;
+    if (dark) root.classList.add("dark"); else root.classList.remove("dark");
+    localStorage.setItem("stage.theme", dark ? "dark" : "light");
+  }, [dark]);
+
+  // Auto-scroll active layer into view whenever selection changes.
+  const layerRowRefs = useRef<Map<string, HTMLDivElement>>(new Map());
+  useEffect(() => {
+    if (!selection.length) return;
+    const first = selection[0];
+    const el = layerRowRefs.current.get(first);
+    if (el && typeof el.scrollIntoView === "function") {
+      el.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    }
+  }, [selection]);
+  // Collapsible group folders (Photoshop-style).
+  const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({});
+  const toggleGroupCollapsed = useCallback((gid: string) => {
+    setCollapsedGroups((cur) => ({ ...cur, [gid]: !cur[gid] }));
+  }, []);
+
+
 
   // Load from storage
   useEffect(() => {
