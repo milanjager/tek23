@@ -1685,6 +1685,28 @@ function normalizeScene(items: Placed[], gap = 0.06): Placed[] {
   return resolveHorizontalOverlaps(stacked, gap);
 }
 
+function findOpenGroundPosition(kind: Kind, items: Placed[], desired: [number, number, number] = [0, 0, 2]): [number, number, number] {
+  const base: Placed = { id: "__candidate__", kind, pos: desired, rotY: 0 };
+  for (let radius = 0; radius <= 20; radius++) {
+    const candidates: [number, number, number][] = radius === 0
+      ? [desired]
+      : [
+          [desired[0] + radius * 0.5, 0, desired[2]],
+          [desired[0] - radius * 0.5, 0, desired[2]],
+          [desired[0], 0, desired[2] + radius * 0.5],
+          [desired[0], 0, desired[2] - radius * 0.5],
+          [desired[0] + radius * 0.5, 0, desired[2] + radius * 0.5],
+          [desired[0] - radius * 0.5, 0, desired[2] - radius * 0.5],
+        ] as [number, number, number][];
+    for (const raw of candidates) {
+      const pos = snapToGridXZ(raw);
+      const candidate = { ...base, pos };
+      if (!hasCollision(candidate, items)) return pos;
+    }
+  }
+  return snapToGridXZ([desired[0] + items.length * 0.6, 0, desired[2]]);
+}
+
 function spreadGroupItems(items: Placed[], groupId: string, gap: number): Placed[] {
   const group = items.filter((i) => i.groupId === groupId);
   if (group.length < 2) return items;
