@@ -16,7 +16,7 @@ import {
   Speaker, Trash2, Save, Copy, ClipboardPaste, Group as GroupIcon, Ungroup,
   Move as MoveIcon, Boxes, Zap, Sparkles, Radio, Volume2,
   Cable as CableIcon, MousePointer2, Menu, X, BoxSelect, PanelLeft, PanelRight,
-  Workflow, Box as BoxIcon, LayoutGrid, GalleryVerticalEnd,
+  Workflow, Box as BoxIcon, LayoutGrid, GalleryVerticalEnd, Folder, ChevronDown, ChevronRight,
 } from "lucide-react";
 import SchematicView from "./SchematicView";
 import GridPlannerView from "./GridPlannerView";
@@ -139,6 +139,22 @@ interface Cable {
   from: string; // item id
   to: string;   // item id
   type: CableType;
+}
+
+type GroupGap = { x: number; y: number };
+type GroupSpacingState = Record<string, GroupGap | number>;
+const DEFAULT_GROUP_GAP: GroupGap = { x: 0.06, y: 0 };
+
+function readGroupGap(spacing: GroupSpacingState, gid: string): GroupGap {
+  const raw = spacing[gid];
+  if (typeof raw === "number") return { x: raw, y: 0 };
+  if (raw && typeof raw === "object") {
+    return {
+      x: Math.max(0, Math.min(2, Number.isFinite(raw.x) ? raw.x : DEFAULT_GROUP_GAP.x)),
+      y: Math.max(0, Math.min(1, Number.isFinite(raw.y) ? raw.y : DEFAULT_GROUP_GAP.y)),
+    };
+  }
+  return DEFAULT_GROUP_GAP;
 }
 
 const CABLE_META: Record<CableType, { label: string; short: string; color: string; width: number }> = {
