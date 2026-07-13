@@ -3645,16 +3645,15 @@ export function StageBuilder3D() {
 
   const addItem = (kind: Kind) => {
     const spec = SPECS[kind];
+    const pos = findOpenGroundPosition(kind, items, [0, 0, 2]);
     const it: Placed = {
       id: uid(), kind,
-      pos: [0, 0, 2 + Math.random() * 0.4],
+      pos,
       rotY: 0,
       ...(spec.defaultLabel ? { label: spec.defaultLabel } : {}),
       ...(spec.defaultVariant ? { variant: spec.defaultVariant } : {}),
     };
-    const y = stackY(it, items);
-    it.pos = [it.pos[0], y, it.pos[2]];
-    setItems((cur) => [...cur, it]);
+    setItems((cur) => normalizeScene([...cur, it]));
     setSelection([it.id]);
   };
 
@@ -3688,7 +3687,7 @@ export function StageBuilder3D() {
         groupId: gid,
       };
     });
-    setItems((cur) => [...cur, ...created]);
+    setItems((cur) => normalizeScene([...cur, ...created]));
     setSelection(created.map((c) => c.id));
   }, [clipboard]);
 
@@ -3709,14 +3708,15 @@ export function StageBuilder3D() {
         groupId: gid,
       };
     });
-    setItems((cur) => [...cur, ...created]);
+    setItems((cur) => normalizeScene([...cur, ...created]));
     setSelection(created.map((c) => c.id));
   }, [items, selection]);
 
   const groupSelection = useCallback(() => {
     if (selection.length < 2) return;
     const gid = uid();
-    setItems((cur) => cur.map((i) => selection.includes(i.id) ? { ...i, groupId: gid } : i));
+    setGroupSpacing((cur) => ({ ...cur, [gid]: 0.06 }));
+    setItems((cur) => normalizeScene(cur.map((i) => selection.includes(i.id) ? { ...i, groupId: gid } : i)));
   }, [selection]);
 
   const ungroupSelection = useCallback(() => {
@@ -3796,7 +3796,7 @@ export function StageBuilder3D() {
         }
         targetPos.set(b.id, [x, y, z]);
       }
-      return cur.map((it) => targetPos.has(it.id) ? { ...it, pos: targetPos.get(it.id)! } : it);
+      return normalizeScene(cur.map((it) => targetPos.has(it.id) ? { ...it, pos: targetPos.get(it.id)! } : it));
     });
   }, [selection]);
 
@@ -3818,7 +3818,7 @@ export function StageBuilder3D() {
         if (idx === 1) p[1] = Math.max(0, p[1]);
         targetPos.set(it.id, p);
       });
-      return cur.map((it) => targetPos.has(it.id) ? { ...it, pos: targetPos.get(it.id)! } : it);
+      return normalizeScene(cur.map((it) => targetPos.has(it.id) ? { ...it, pos: targetPos.get(it.id)! } : it));
     });
   }, [selection]);
 
