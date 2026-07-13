@@ -1830,12 +1830,13 @@ function stackSnapTarget(
 // - Red translucent box    = collides with / buries into other cabinets.
 // Colliding items are also outlined in red so the conflict is obvious.
 function PlacementGhost({
-  selection, items, objectsRef, onSnapChange,
+  selection, items, objectsRef, onSnapChange, speakerLineZ,
 }: {
   selection: string[];
   items: Placed[];
   objectsRef: React.MutableRefObject<Map<string, THREE.Object3D>>;
   onSnapChange?: (info: { id: string; mode: "ground" | "stack" | "bad"; ontoId?: string; ontoLabel?: string }) => void;
+  speakerLineZ: number;
 }) {
   const groupRef = useRef<THREE.Group>(null);
   const meshRefs = useRef<Map<string, THREE.Mesh>>(new Map());
@@ -1858,7 +1859,8 @@ function PlacementGhost({
 
       const step = PLACEMENT_TUNING.gridStep;
       const sx = Math.round(obj.position.x / step) * step;
-      const sz = Math.round(obj.position.z / step) * step;
+      const rawSz = Math.round(obj.position.z / step) * step;
+      const sz = SPECS[src.kind].category === "sound" ? speakerLineZ : rawSz;
       const rawY = obj.position.y;
       const s = SPECS[src.kind].size;
       const candidate: Placed = { ...src, pos: [sx, Math.max(0, rawY), sz], rotY: 0 };
