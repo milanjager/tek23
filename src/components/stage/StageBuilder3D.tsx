@@ -3283,7 +3283,7 @@ export function StageBuilder3D() {
   useEffect(() => {
     if (panelsHydrated) localStorage.setItem("stage.autoSanitize", autoSanitize ? "1" : "0");
   }, [autoSanitize, panelsHydrated]);
-  const [viewMode, setViewMode] = useState<"3d" | "front3d" | "schema" | "grid" | "elev" | "iso">("3d");
+  const [viewMode, setViewMode] = useState<"3d" | "front3d" | "top" | "schema" | "grid" | "elev" | "iso">("3d");
   const [marquee, setMarquee] = useState<null | { x1: number; y1: number; x2: number; y2: number; additive: boolean }>(null);
   const cameraRef = useRef<THREE.Camera | null>(null);
   const canvasWrapRef = useRef<HTMLDivElement>(null);
