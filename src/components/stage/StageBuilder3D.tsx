@@ -1690,7 +1690,7 @@ function stackSnapTarget(
   moving: Placed,
   others: Placed[],
   rawY: number,
-): { x: number; z: number; y: number } | null {
+): { x: number; z: number; y: number; ontoId?: string } | null {
   const s = SPECS[moving.kind].size;
   const halfW = s[0] / 2, halfD = s[2] / 2;
   let best: { it: Placed; dist: number; top: number } | null = null;
@@ -1703,8 +1703,6 @@ function stackSnapTarget(
     const rz = oHalfD + halfD * 0.6;
     if (Math.abs(dx) > rx || Math.abs(dz) > rz) continue;
     const top = o.pos[1] + os[1];
-    // Only treat as a stack target if the drag height is at least half-way
-    // up the target box (otherwise it's still a ground move next to it).
     if (rawY < top - s[1] * 0.5) continue;
     const dist = Math.hypot(dx, dz);
     if (!best || top > best.top + 0.01 || (Math.abs(top - best.top) < 0.01 && dist < best.dist)) {
@@ -1712,7 +1710,7 @@ function stackSnapTarget(
     }
   }
   if (!best) return null;
-  return { x: best.it.pos[0], z: best.it.pos[2], y: best.top };
+  return { x: best.it.pos[0], z: best.it.pos[2], y: best.top, ontoId: best.it.id };
 }
 
 // Ghost preview of the currently-dragged selection at its snapped position.
@@ -1949,29 +1947,66 @@ function SceneContent({
     prev.current = { pos: newPos, rotY: newRotY };
   }, [primaryId, primaryObj, selection, setItems]);
 
+  const [dropReport, setDropReport] = useState<{ text: string; kind: "stack" | "ground"; at: number } | null>(null);
   const handleTransformEnd = useCallback(() => {
+    const reports: { label: string; raw: [number, number, number]; final: [number, number, number]; mode: "stack" | "ground"; onto?: string }[] = [];
     setItems((cur) => {
       const map = new Map(cur.map((i) => [i.id, i]));
       for (const id of selection) {
         const it = map.get(id);
         if (!it) continue;
+        const raw: [number, number, number] = [it.pos[0], it.pos[1], it.pos[2]];
         const rawY = it.pos[1];
         const snapped: Placed = { ...it, pos: snapToGridXZ(it.pos), rotY: 0 };
         const others = [...map.values()].filter((o) => o.id !== id);
-        // Prefer clean stack snap if hovering above another cabinet — same
-        // logic the ghost preview uses so the release matches what you saw.
         const target = stackSnapTarget(snapped, others, rawY);
+        let mode: "stack" | "ground";
+        let ontoLabel: string | undefined;
         if (target) {
           snapped.pos = [target.x, target.y, target.z];
+          mode = "stack";
+          const onto = others.find((o) => o.id === target.ontoId);
+          ontoLabel = onto ? (onto.label ?? SPECS[onto.kind].defaultLabel ?? SPECS[onto.kind].label) : undefined;
         } else {
           const y = stackY(snapped, others);
           snapped.pos = [snapped.pos[0], y, snapped.pos[2]];
+          mode = "ground";
         }
+        reports.push({
+          label: it.label ?? SPECS[it.kind].defaultLabel ?? SPECS[it.kind].label,
+          raw,
+          final: [snapped.pos[0], snapped.pos[1], snapped.pos[2]],
+          mode,
+          onto: ontoLabel,
+        });
         map.set(id, snapped);
       }
       return [...map.values()];
     });
+    if (reports.length) {
+      const fmt = (v: number) => v.toFixed(2);
+      for (const r of reports) {
+        // eslint-disable-next-line no-console
+        console.log(
+          `[drop] ${r.label} → ${r.mode}${r.onto ? ` on ${r.onto}` : ""} | raw (${fmt(r.raw[0])}, ${fmt(r.raw[1])}, ${fmt(r.raw[2])}) → final (${fmt(r.final[0])}, ${fmt(r.final[1])}, ${fmt(r.final[2])}) | Δy=${fmt(r.final[1] - r.raw[1])}`,
+        );
+      }
+      const first = reports[0];
+      const extra = reports.length > 1 ? ` (+${reports.length - 1})` : "";
+      const text =
+        first.mode === "stack"
+          ? `${first.label} položeno na ${first.onto ?? "bednu"} · y=${fmt(first.final[1])}m (Δy ${fmt(first.final[1] - first.raw[1])})${extra}`
+          : `${first.label} položeno na zem · y=${fmt(first.final[1])}m (Δy ${fmt(first.final[1] - first.raw[1])})${extra}`;
+      setDropReport({ text, kind: first.mode, at: Date.now() });
+    }
   }, [selection, setItems]);
+
+  // Auto-hide the drop report after a couple of seconds.
+  useEffect(() => {
+    if (!dropReport) return;
+    const t = setTimeout(() => setDropReport((r) => (r && r.at === dropReport.at ? null : r)), 2600);
+    return () => clearTimeout(t);
+  }, [dropReport]);
 
   // Disable orbit while gizmo dragging
   const [dragging, setDragging] = useState(false);
@@ -2204,6 +2239,34 @@ function SceneContent({
           objectsRef={objectsRef}
         />
       )}
+
+
+
+      {/* Transient drop report — shows where the item actually landed vs the ghost preview. */}
+      {dropReport && (
+        <Html fullscreen prepend zIndexRange={[100, 0]} style={{ pointerEvents: "none" }}>
+          <div
+            style={{
+              position: "absolute",
+              left: "50%",
+              bottom: 24,
+              transform: "translateX(-50%)",
+              padding: "8px 14px",
+              borderRadius: 10,
+              background: "rgba(15,17,22,0.86)",
+              color: dropReport.kind === "stack" ? "#7fe3ff" : "#8fffb0",
+              fontSize: 12,
+              fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
+              boxShadow: "0 6px 20px rgba(0,0,0,0.35)",
+              border: `1px solid ${dropReport.kind === "stack" ? "rgba(127,227,255,0.4)" : "rgba(143,255,176,0.4)"}`,
+              whiteSpace: "nowrap",
+            }}
+          >
+            {dropReport.kind === "stack" ? "▣ stack" : "▤ zem"} · {dropReport.text}
+          </div>
+        </Html>
+      )}
+
 
       {/* Ghost cable — visible while the user is dragging a plug to a target */}
       {mode === "cable" && pendingFrom && cursorWorld && (() => {
