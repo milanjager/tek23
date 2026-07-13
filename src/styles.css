@@ -113,3 +113,28 @@
 @utility text-glow-acid {
   text-shadow: 0 0 12px oklch(0.86 0.24 135 / 0.7);
 }
+
+/* Dark-mode remap for hardcoded Tailwind neutrals used across the stage UI.
+   The toggle only flips `.dark` on <html>; without these overrides the panels
+   stay white because components use `bg-white`/`bg-neutral-*` directly. */
+.dark .bg-white { background-color: oklch(0.18 0.02 280) !important; }
+.dark .bg-white\/95 { background-color: oklch(0.18 0.02 280 / 0.95) !important; }
+.dark .bg-white\/90 { background-color: oklch(0.18 0.02 280 / 0.9) !important; }
+.dark .bg-white\/80 { background-color: oklch(0.18 0.02 280 / 0.8) !important; }
+.dark .bg-neutral-50 { background-color: oklch(0.16 0.02 280) !important; }
+.dark .bg-neutral-100 { background-color: oklch(0.2 0.02 280) !important; }
+.dark .bg-neutral-200 { background-color: oklch(0.24 0.02 280) !important; }
+.dark .bg-neutral-300 { background-color: oklch(0.3 0.02 280) !important; }
+.dark .hover\:bg-neutral-100:hover { background-color: oklch(0.24 0.02 280) !important; }
+.dark .hover\:bg-neutral-200:hover { background-color: oklch(0.28 0.02 280) !important; }
+.dark .hover\:bg-neutral-300:hover { background-color: oklch(0.32 0.02 280) !important; }
+.dark .text-neutral-900 { color: oklch(0.96 0.01 90) !important; }
+.dark .text-neutral-800 { color: oklch(0.92 0.01 90) !important; }
+.dark .text-neutral-700 { color: oklch(0.85 0.01 90) !important; }
+.dark .text-neutral-600 { color: oklch(0.75 0.02 280) !important; }
+.dark .text-neutral-500 { color: oklch(0.65 0.02 280) !important; }
+.dark .text-neutral-400 { color: oklch(0.55 0.02 280) !important; }
+.dark .border-neutral-200 { border-color: oklch(0.28 0.02 280) !important; }
+.dark .border-neutral-300 { border-color: oklch(0.32 0.02 280) !important; }
+.dark .border-neutral-400 { border-color: oklch(0.4 0.02 280) !important; }
+.dark .divide-neutral-200 > :not([hidden]) ~ :not([hidden]) { border-color: oklch(0.28 0.02 280) !important; }
