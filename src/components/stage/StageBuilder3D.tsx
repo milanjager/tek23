@@ -81,6 +81,7 @@ const SPECS: Record<Kind, Spec> = {
   movinghead:   { label: "Moving head",      category: "lights", size: [0.35, 0.55, 0.35], stackable: false, hint: "Otočná hlava" },
   bar:          { label: "Bar",              category: "infra",  size: [2.40, 1.10, 0.65], stackable: false, hint: "Bar pult" },
   generator:    { label: "Aggregát",         category: "infra",  size: [1.50, 1.20, 0.85], stackable: false, hint: "Diesel generátor" },
+  distro:       { label: "Rozdělovač",       category: "infra",  size: [0.60, 0.35, 0.40], stackable: true,  hint: "Silový rozvaděč / power distro (CEE in → 230V outs + DMX/SIG patch)", defaultLabel: "Rozdělovač" },
   crowd:        { label: "Dancefloor",       category: "infra",  size: [4.00, 0.02, 4.00], stackable: false, hint: "Prostor pro dav" },
 };
 
