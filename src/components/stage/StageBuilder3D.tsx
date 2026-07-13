@@ -3006,440 +3006,47 @@ function loadPreset(kind: PresetKind): Placed[] {
     id: uid(), kind: k, pos: [x, y, z], rotY: rot,
   });
 
-  if (kind === "raptor") {
-    // Freetekno "Raptor" wall from the reference photo:
-    // 3 columns × 2 rows of white scoop subs on EUR pallets,
-    // 3 large black mesh bass bins across the middle,
-    // 3 flown line-array-ish tops hung under a truss with a strap.
-    const s = SPECS.sub.size, b = SPECS.bass.size, m = SPECS.mid.size;
-    const arr: Placed[] = [];
-    const Z = -1.4;
-    const colGap = 0.03;
-    const colW = s[0] + colGap;
-    const cols = [-colW, 0, colW];
+  // Picus wall — 10 kabinetů složených podle referenční fotky:
+  // spodní řada scoop subů + centrální perforovaná mid věž,
+  // patro bass shelfů, boční mid stack, letěné top boxy nahoře.
+  void kind;
+  const arr: Placed[] = [];
+  const Z = -1.4;
 
-    // Bottom row of scoop subs (3 columns)
-    for (const cx of cols) arr.push({ ...mk("sub", cx, 0, Z), label: "Raptor Scoop" });
-    // Second row of scoop subs stacked on top
-    for (const cx of cols) arr.push({ ...mk("sub", cx, s[1], Z), label: "Raptor Scoop" });
-    // Row of 3 big bass bins (the black mesh row across the middle)
-    for (const cx of cols) arr.push({ ...mk("bass", cx, s[1] * 2, Z), label: "Raptor Bass" });
-    // 3 flown tops hanging under the truss, slightly lifted off the bass row
-    const flownY = s[1] * 2 + b[1] + 0.35;
-    arr.push({ ...mk("mid", -m[0] * 1.02, flownY, Z), label: "Raptor Top L" });
-    arr.push({ ...mk("mid", 0,             flownY, Z), label: "Raptor Top C" });
-    arr.push({ ...mk("mid",  m[0] * 1.02, flownY, Z), label: "Raptor Top R" });
+  // --- Row A (podlaha) ---
+  arr.push({ ...mk("picus_scoop_lo",  -1.05, 0.00, Z), label: "Picus Scoop L" });
+  arr.push({ ...mk("picus_deep_sub",   0.10, 0.00, Z), label: "Picus Deep Sub" });
+  arr.push({ ...mk("picus_scoop_hi",   1.25, 0.00, Z), label: "Picus Scoop R" });
 
-    // Amp racks on the flanks
-    arr.push(mk("powersoft", -3.2, 0, 0.2));
-    arr.push(mk("powersoft", -2.6, 0, 0.2));
-    arr.push(mk("powersoft",  2.6, 0, 0.2));
-    arr.push(mk("powersoft",  3.2, 0, 0.2));
+  // --- Row B (patro bassů) ---
+  arr.push({ ...mk("picus_bass_row",  -1.05, 1.00, Z), label: "Picus Bass L" });
+  arr.push({ ...mk("picus_shelf_bin",  1.25, 1.00, Z), label: "Picus Shelf R" });
 
-    // Truss with moving heads + strobes (like in the photo)
-    const trussY = flownY + m[1] + 0.9;
-    for (const tx of [-2.5, -1, 1, 2.5]) arr.push(mk("movinghead", tx, trussY, Z + 0.1));
-    arr.push(mk("strobe", -1.8, trussY - 0.1, Z + 0.25));
-    arr.push(mk("strobe",  1.8, trussY - 0.1, Z + 0.25));
-    arr.push(mk("laser", 0, trussY - 0.1, Z + 0.25));
+  // --- Row C (centrální mid grill věž) ---
+  arr.push({ ...mk("picus_mid_grill",  0.10, 1.10, Z), label: "Picus Mid Grill" });
 
-    // DJ booth behind the wall
-    arr.push({ ...mk("dj", 0, 0, 2.4), label: "Raptor DJ" });
-    arr.push(mk("cdj", -0.55, 1.0, 2.3));
-    arr.push(mk("cdj",  0.55, 1.0, 2.3));
-    arr.push(mk("mixer", 0, 1.0, 2.5));
+  // --- Row D (boční mid stack) ---
+  arr.push({ ...mk("picus_mid_stack", -1.05, 1.55, Z), label: "Picus Mid Stack" });
 
-    // Generator + crowd
-    arr.push(mk("generator", -5.0, 0, 2.8));
-    arr.push(mk("crowd", 0, 0, 5));
-    return arr;
-  }
+  // --- Row E (letěné topy nahoře) ---
+  arr.push({ ...mk("picus_hex_horn",  -1.05, 2.95, Z), label: "Picus Hex Horn" });
+  arr.push({ ...mk("picus_top_3way",   0.10, 2.95, Z), label: "Picus Top 3-way" });
+  arr.push({ ...mk("picus_wing_horn",  1.25, 2.95, Z), label: "Picus Wing Horn" });
 
-  if (kind === "toppicus") {
-    // Top Picus rig (from crew spec):
-    //   • 4× RCF LF18G401 subs  (bottom row)
-    //   • 4× RCF N401 subs      (second row, stacked)
-    //   • 4× 12" Eminence Delta (mid-bass row)
-    //   • 6× B&C 14NDL88        (mid row — 3 stacked pairs)
-    //   • 3× B&C DCX354         (compression driver tops on horn cabs)
-    //   • Amps: 2× Powersoft T604, 2× T902, 1× T904
-    //   • Mixer + generator + DJ deck
-    const s = SPECS.sub.size, b = SPECS.bass.size, m = SPECS.mid.size, h = SPECS.horn.size;
-    const arr: Placed[] = [];
-    const Z = -1.5;
-
-    // Bottom row — 4× RCF LF18G401
-    const colGap = 0.03;
-    const colW = s[0] + colGap;
-    const cols4 = [-1.5 * colW, -0.5 * colW, 0.5 * colW, 1.5 * colW];
-    for (const cx of cols4) arr.push({ ...mk("sub", cx, 0, Z), label: "RCF LF18G401" });
-    // Second row — 4× RCF N401 stacked on top
-    for (const cx of cols4) arr.push({ ...mk("sub", cx, s[1], Z), label: "RCF N401" });
-
-    // Mid-bass row — 4× 12" Eminence Delta cabinets
-    const bColGap = 0.04;
-    const bColW = b[0] + bColGap;
-    const cols4b = [-1.5 * bColW, -0.5 * bColW, 0.5 * bColW, 1.5 * bColW];
-    for (const cx of cols4b) arr.push({ ...mk("bass", cx, s[1] * 2, Z), label: "Eminence Delta 12\"" });
-
-    // Mid row — 6× B&C 14NDL88 (in 3 stacked pairs)
-    const midY = s[1] * 2 + b[1];
-    const mColW = m[0] + 0.04;
-    const cols3m = [-mColW, 0, mColW];
-    for (const cx of cols3m) {
-      arr.push({ ...mk("mid", cx, midY,          Z), label: "B&C 14NDL88" });
-      arr.push({ ...mk("mid", cx, midY + m[1],   Z), label: "B&C 14NDL88" });
-    }
-
-    // Tops — 3× B&C DCX354 horns on top of the mid stack
-    const topY = midY + m[1] * 2;
-    for (const cx of cols3m) arr.push({ ...mk("horn", cx, topY, Z), label: "B&C DCX354" });
-
-    // Amps on the flanks — 2× T604, 2× T902, 1× T904
-    arr.push({ ...mk("powersoft", -3.4, 0, 0.5), label: "Powersoft T604" });
-    arr.push({ ...mk("powersoft", -2.8, 0, 0.5), label: "Powersoft T604" });
-    arr.push({ ...mk("powersoft",  2.8, 0, 0.5), label: "Powersoft T902" });
-    arr.push({ ...mk("powersoft",  3.4, 0, 0.5), label: "Powersoft T902" });
-    arr.push({ ...mk("powersoft",  0.0, 0, 3.4), label: "Powersoft T904" });
-
-    // Central mix + DJ + generator + crowd
-    arr.push({ ...mk("mixer", 0, 1.0, 2.6), label: "Mixák" });
-    arr.push({ ...mk("dj", 0, 0, 3.0), label: "DJ centrála" });
-    arr.push({ ...mk("generator", -4.6, 0, 3.6), label: "Aggregát" });
-    arr.push(mk("crowd", 0, 0, 5.5));
-
-    // Suppress unused-var warning while keeping the reference readable.
-    void h;
-    return arr;
-  }
-
-  if (kind === "wetfield") {
-    // Inspired by Wetfield-style freetekno wall:
-    // 3 columns × 2 rows of white scoop-style subs on EUR pallets at the bottom,
-    // a row of 3 large mid bins across the top of the sub wall,
-    // 3 angled tops on top of that, big truss with lights, DJ + amps on flanks.
-    const s = SPECS.sub.size, b = SPECS.bass.size, m = SPECS.mid.size;
-    const arr: Placed[] = [];
-    const Z = -1.4;
-    const colGap = 0.04;
-    const colW = s[0] + colGap;
-    const cols = [-colW, 0, colW];
-
-    // Bottom row of scoop subs (3 columns)
-    for (const cx of cols) arr.push({ ...mk("sub", cx, 0, Z), label: "Wetfield Scoop" });
-    // Second row of scoop subs on top
-    for (const cx of cols) arr.push({ ...mk("sub", cx, s[1], Z), label: "Wetfield Scoop" });
-    // Row of large mid/bass bins across the top of the sub wall
-    for (const cx of cols) arr.push({ ...mk("bass", cx, s[1] * 2, Z), label: "Wetfield Mid" });
-    // 3 angled tops on the very top
-    const topY = s[1] * 2 + b[1];
-    arr.push({ ...mk("mid", -m[0] * 1.05, topY, Z, 0.18), label: "Wetfield Top L" });
-    arr.push({ ...mk("mid", 0, topY, Z, 0), label: "Wetfield Top C" });
-    arr.push({ ...mk("mid",  m[0] * 1.05, topY, Z, -0.18), label: "Wetfield Top R" });
-
-    // Powersoft amp racks on the flanks
-    arr.push(mk("powersoft", -3.6, 0, 0.4));
-    arr.push(mk("powersoft", -3.0, 0, 0.4));
-    arr.push(mk("powersoft",  3.0, 0, 0.4));
-    arr.push(mk("powersoft",  3.6, 0, 0.4));
-
-    // Truss with moving heads + strobes + laser
-    const trussY = topY + m[1] + 1.2;
-    for (const tx of [-3, -1.5, 0, 1.5, 3]) arr.push(mk("movinghead", tx, trussY, Z + 0.1));
-    arr.push(mk("strobe", -2.2, trussY - 0.1, Z + 0.25));
-    arr.push(mk("strobe",  2.2, trussY - 0.1, Z + 0.25));
-    arr.push(mk("laser", 0, trussY - 0.1, Z + 0.25));
-
-    // DJ booth behind the wall
-    arr.push({ ...mk("dj", 0, 0, 2.4), label: "Wetfield DJ" });
-    arr.push(mk("cdj", -0.55, 1.0, 2.3));
-    arr.push(mk("cdj",  0.55, 1.0, 2.3));
-    arr.push(mk("mixer", 0, 1.0, 2.5));
-
-    // Generator + crowd
-    arr.push(mk("generator", -5.2, 0, 2.8));
-    arr.push(mk("crowd", 0, 0, 5));
-    return arr;
-  }
-
-  if (kind === "freetekno") {
-    // Wall inspired by the reference photo: pallets + row of subs at bottom,
-    // mid bins in middle, big teal-front tops on the outside, horns/mids stacked.
-    const sub = SPECS.sub.size, bass = SPECS.bass.size, mid = SPECS.mid.size, horn = SPECS.horn.size;
-    const arr: Placed[] = [];
-    // Bottom row: 5 subs side by side
-    for (let i = -2; i <= 2; i++) {
-      arr.push(mk("sub", i * (sub[0] + 0.02), 0, -1));
-    }
-    // Second row: 5 bass bins on top of subs
-    for (let i = -2; i <= 2; i++) {
-      arr.push(mk("bass", i * (sub[0] + 0.02), sub[1], -1));
-    }
-    // Third row: 5 mids on top of bass
-    for (let i = -2; i <= 2; i++) {
-      arr.push(mk("mid", i * (sub[0] + 0.02), sub[1] + bass[1], -1));
-    }
-    // Outer tall towers: double horn stack on far left & right
-    for (const sx of [-3.2, 3.2]) {
-      arr.push(mk("sub", sx, 0, -1));
-      arr.push(mk("bass", sx, sub[1], -1));
-      arr.push(mk("mid", sx, sub[1] + bass[1], -1));
-      arr.push(mk("horn", sx, sub[1] + bass[1] + mid[1], -1));
-      arr.push(mk("horn", sx, sub[1] + bass[1] + mid[1] + horn[1] + 0.02, -1));
-    }
-    // Amps on the side
-    arr.push(mk("amp", -4.5, 0, 0.5));
-    arr.push(mk("amp", 4.5, 0, 0.5));
-    // DJ / mixer
-    arr.push(mk("dj", 0, 0, 2.5));
-    arr.push(mk("cdj", -0.6, 1.0, 2.4));
-    arr.push(mk("cdj", 0.6, 1.0, 2.4));
-    // Lighting truss (approximated with moving heads on the flanks)
-    arr.push(mk("movinghead", -3.5, 3.2, -0.5));
-    arr.push(mk("movinghead", 3.5, 3.2, -0.5));
-    arr.push(mk("strobe", 0, 3.5, -1));
-    // Generator + crowd
-    arr.push(mk("generator", -6, 0, 3));
-    arr.push(mk("crowd", 0, 0, 5));
-    return arr;
-  }
-
-  if (kind === "rotor") {
-    // Rotor Sound System — freeparty wall with 3 central sub columns,
-    // outer horn towers, big truss and a DJ booth in front.
-    const s = SPECS.sub.size, b = SPECS.bass.size, m = SPECS.mid.size, h = SPECS.horn.size;
-    const arr: Placed[] = [];
-    const Z = -1.4;
-    const gap = 0.04;
-
-    // Central wall: 3 columns × 2 rows of subs (2 subs per column, side by side)
-    const colCenters = [-s[0] - gap, 0, s[0] + gap];
-    for (const cx of colCenters) {
-      // bottom row
-      arr.push({ ...mk("sub", cx - s[0] / 2, 0, Z), label: "Rotor Sub" });
-      arr.push({ ...mk("sub", cx + s[0] / 2, 0, Z), label: "Rotor Sub" });
-      // second row
-      arr.push({ ...mk("sub", cx - s[0] / 2, s[1], Z), label: "Rotor Sub" });
-      arr.push({ ...mk("sub", cx + s[0] / 2, s[1], Z), label: "Rotor Sub" });
-    }
-
-    // Mid/bass bins across the top of the central wall
-    for (const cx of colCenters) {
-      arr.push({ ...mk("bass", cx, s[1] * 2, Z), label: "Rotor Bass" });
-      arr.push({ ...mk("mid", cx, s[1] * 2 + b[1], Z), label: "Rotor Mid" });
-    }
-
-    // Outer towers: sub + bass + mid + double horn on far left & right
-    for (const sx of [-3.6, 3.6]) {
-      arr.push({ ...mk("sub", sx, 0, Z), label: "Rotor Sub" });
-      arr.push({ ...mk("bass", sx, s[1], Z), label: "Rotor Bass" });
-      arr.push({ ...mk("mid", sx, s[1] + b[1], Z), label: "Rotor Mid" });
-      arr.push({ ...mk("horn", sx, s[1] + b[1] + m[1], Z), label: "Rotor Horn" });
-      arr.push({ ...mk("horn", sx, s[1] + b[1] + m[1] + h[1] + gap, Z), label: "Rotor Horn" });
-    }
-
-    // Powersoft amp racks on the far flanks
-    arr.push(mk("powersoft", -4.8, 0, 0.4));
-    arr.push(mk("powersoft", 4.8, 0, 0.4));
-
-    // Truss with moving heads, strobes and laser
-    const trussY = s[1] * 2 + b[1] + m[1] + 1.5;
-    for (let i = 0; i < 7; i++) {
-      arr.push(mk("movinghead", -3 + i, trussY, Z + 0.1));
-    }
-    arr.push(mk("strobe", -2.5, trussY - 0.1, Z + 0.25));
-    arr.push(mk("strobe", 2.5, trussY - 0.1, Z + 0.25));
-    arr.push(mk("laser", 0, trussY - 0.1, Z + 0.25));
-
-    // DJ booth in front of the wall
-    arr.push({ ...mk("dj", 0, 0, 2.2), label: "Rotor DJ" });
-    arr.push(mk("cdj", -0.55, 1.0, 2.1));
-    arr.push(mk("cdj", 0.55, 1.0, 2.1));
-    arr.push(mk("mixer", 0, 1.0, 2.3));
-
-    // Generator + crowd
-    arr.push(mk("generator", -5.5, 0, 3));
-    arr.push(mk("crowd", 0, 0, 5.5));
-
-    return arr;
-  }
-
-  if (kind === "mayapur") {
-    const stack = (sx: number): Placed[] => {
-      const s = SPECS.sub.size, b = SPECS.bass.size, m = SPECS.mid.size, h = SPECS.horn.size;
-      return [
-        mk("sub", sx, 0, -1),
-        mk("sub", sx, 0, -1 - s[2] - 0.02),
-        mk("bass", sx, s[1], -1),
-        mk("mid", sx, s[1] + b[1], -1),
-        mk("horn", sx, s[1] + b[1] + m[1], -1),
-        mk("horn", sx, s[1] + b[1] + m[1] + h[1] + 0.02, -1),
-      ];
-    };
-    return [
-      ...stack(-2.5), ...stack(0), ...stack(2.5),
-      mk("amp", -1.6, 0, 1.6),
-      mk("amp", 1.6, 0, 1.6),
-      mk("mixer", 0, 0, 2.4),
-      mk("turntable", -0.6, 0.15, 2.9),
-      mk("turntable", 0.6, 0.15, 2.9),
-      mk("generator", 5, 0, 2.5),
-      mk("crowd", 0, 0, 5),
-    ];
-  }
-
-  if (kind === "badtekk") {
-    const s = SPECS.badtekk_sub.size, b = SPECS.badtekk_bass.size;
-    const arr: Placed[] = [];
-    const Z = -1.6;
-
-    // ---- LEFT tower ----
-    for (const sx of [-3.8, -2.55]) {
-      arr.push(mk("badtekk_sub", sx, 0, Z));
-      arr.push(mk("badtekk_bass", sx, s[1], Z));
-      const isOuter = sx < -3;
-      const rot = isOuter ? 0.35 : 0.1;
-      arr.push(mk("badtekk_top", sx, s[1] + b[1], Z, rot));
-    }
-
-    // ---- RIGHT tower (mirror) ----
-    for (const sx of [2.55, 3.8]) {
-      arr.push(mk("badtekk_sub", sx, 0, Z));
-      arr.push(mk("badtekk_bass", sx, s[1], Z));
-      const isOuter = sx > 3;
-      const rot = isOuter ? -0.35 : -0.1;
-      arr.push(mk("badtekk_top", sx, s[1] + b[1], Z, rot));
-    }
-
-    // ---- CENTER lower stack (DJ sits on top) ----
-    for (const sx of [-0.65, 0.65]) {
-      arr.push(mk("badtekk_sub", sx, 0, Z));
-      arr.push(mk("badtekk_bass", sx, s[1], Z));
-    }
-    const djY = s[1] + b[1];
-    arr.push({ ...mk("dj", 0, djY, Z + 0.15), label: "Badtekk DJ" });
-    arr.push(mk("cdj", -0.55, djY + 1.0, Z + 0.05));
-    arr.push(mk("cdj", 0.55, djY + 1.0, Z + 0.05));
-    arr.push(mk("mixer", 0, djY + 1.0, Z + 0.25));
-
-    // ---- Powersoft amp racks on the flanks ----
-    arr.push(mk("powersoft", -5.2, 0, 0.4));
-    arr.push(mk("powersoft", -4.6, 0, 0.4));
-    arr.push(mk("powersoft",  4.6, 0, 0.4));
-    arr.push(mk("powersoft",  5.2, 0, 0.4));
-
-
-    // ---- Lighting truss (moving heads + strobes across the top) ----
-    const trussY = s[1] + b[1] + SPECS.badtekk_top.size[1] + 1.3;
-    for (const tx of [-4, -2, 0, 2, 4]) {
-      arr.push(mk("movinghead", tx, trussY, Z + 0.2));
-    }
-    arr.push(mk("strobe", -3, trussY - 0.1, Z + 0.3));
-    arr.push(mk("strobe",  3, trussY - 0.1, Z + 0.3));
-    arr.push(mk("laser", 0, trussY - 0.1, Z + 0.3));
-
-    // ---- Crowd (indoor hall, no generator visible) ----
-    arr.push(mk("crowd", 0, 0, 4.5));
-    return arr;
-  }
-
-
-  if (kind === "namel") {
-    const stack = (sx: number, rot: number): Placed[] => {
-      const s = SPECS.sub.size, b = SPECS.bass.size, m = SPECS.mid.size;
-      return [
-        mk("sub", sx, 0, -1, rot),
-        mk("bass", sx, s[1], -1, rot),
-        mk("mid", sx, s[1] + b[1], -1, rot),
-        mk("horn", sx, s[1] + b[1] + m[1], -1, rot),
-      ];
-    };
-    return [
-      ...stack(-2, 0.25),
-      ...stack(2, -0.25),
-      mk("powersoft", -1.5, 0, 1.5),
-      mk("powersoft", 1.5, 0, 1.5),
-      mk("turntable", 0, 0.15, 2.2),
-      mk("korg_red", -0.4, 0.1, 2.9),
-      mk("korg_blue", 0.4, 0.1, 2.9),
-      mk("generator", -5, 0, 2),
-      mk("crowd", 0, 0, 5),
-    ];
-  }
-
-
-  if (kind === "toroid") {
-    const arr: Placed[] = [];
-    const R = 3;
-    const N = 5;
-    for (let i = 0; i < N; i++) {
-      const a = (i - (N - 1) / 2) * 0.35 - Math.PI / 2;
-      const x = Math.cos(a) * R;
-      const z = Math.sin(a) * R;
-      arr.push(mk("sub", x, 0, z, -a - Math.PI / 2));
-    }
-    arr.push(mk("linearray", -2, 3, -R + 0.5));
-    arr.push(mk("linearray", 2, 3, -R + 0.5));
-    arr.push(mk("movinghead", -1.5, 3, -R + 0.2));
-    arr.push(mk("movinghead", 1.5, 3, -R + 0.2));
-    arr.push(mk("dj", 0, 0, 1));
-    arr.push(mk("cdj", -0.6, 1.0, 0.9));
-    arr.push(mk("cdj", 0.6, 1.0, 0.9));
-    arr.push(mk("amp", -3, 0, 1.5));
-    arr.push(mk("amp", 3, 0, 1.5));
-    arr.push(mk("generator", -5, 0, 2));
-    arr.push(mk("crowd", 0, 0, 4));
-    return arr;
-  }
-
-  if (kind === "dub") {
-    return [
-      mk("sub", 0, 0, -1),
-      mk("bass", 0, SPECS.sub.size[1], -1),
-      mk("mid", 0, SPECS.sub.size[1] + SPECS.bass.size[1], -1),
-      mk("horn", 0, SPECS.sub.size[1] + SPECS.bass.size[1] + SPECS.mid.size[1], -1),
-      mk("amp", 1.5, 0, 1),
-      mk("mixer", 0, 0, 2),
-      mk("turntable", 0, 0.15, 2.7),
-      mk("generator", -4, 0, 2),
-      mk("crowd", 0, 0, 4),
-    ];
-  }
-
-  if (kind === "techno") {
-    return [
-      mk("sub", -1.3, 0, -1.5),
-      mk("sub", 0, 0, -1.5),
-      mk("sub", 1.3, 0, -1.5),
-      mk("bass", -0.6, SPECS.sub.size[1], -1.5),
-      mk("bass", 0.6, SPECS.sub.size[1], -1.5),
-      mk("linearray", -2.5, 2.5, -1.5),
-      mk("linearray", 2.5, 2.5, -1.5),
-      mk("dj", 0, 0, 1.5),
-      mk("cdj", -0.6, 1, 1.4),
-      mk("cdj", 0.6, 1, 1.4),
-      mk("monitor", -1.2, 0, 1.2),
-      mk("monitor", 1.2, 0, 1.2),
-      mk("strobe", -3, 2, -1),
-      mk("strobe", 3, 2, -1),
-      mk("generator", -5, 0, 2),
-      mk("crowd", 0, 0, 5),
-    ];
-  }
-
-  // club
-  return [
-    mk("sub", -0.7, 0, -1),
-    mk("sub", 0.7, 0, -1),
-    mk("mid", -0.7, SPECS.sub.size[1], -1),
-    mk("mid", 0.7, SPECS.sub.size[1], -1),
-    mk("dj", 0, 0, 1),
-    mk("cdj", -0.5, 1, 0.9),
-    mk("cdj", 0.5, 1, 0.9),
-    mk("mixer", 0, 1, 1.3),
-    mk("bar", 3, 0, 2),
-    mk("crowd", 0, 0, 3.5),
-  ];
+  // --- Infra / support ---
+  arr.push({ ...mk("powersoft", -3.0, 0, 0.4), label: "Powersoft L" });
+  arr.push({ ...mk("powersoft",  3.0, 0, 0.4), label: "Powersoft R" });
+  arr.push({ ...mk("distro",    -2.2, 0, 0.6), label: "Rozdělovač" });
+  arr.push({ ...mk("mixer",      0.0, 1.0, 2.4), label: "Mixák" });
+  arr.push({ ...mk("dj",         0.0, 0.0, 2.8), label: "DJ pult" });
+  arr.push(mk("cdj", -0.55, 1.00, 2.7));
+  arr.push(mk("cdj",  0.55, 1.00, 2.7));
+  arr.push({ ...mk("movinghead", -2.0, 3.9, Z + 0.1), label: "MH L" });
+  arr.push({ ...mk("movinghead",  2.0, 3.9, Z + 0.1), label: "MH R" });
+  arr.push({ ...mk("strobe",      0.0, 3.9, Z + 0.25), label: "Strobo" });
+  arr.push({ ...mk("generator", -4.6, 0, 3.4), label: "Aggregát" });
+  arr.push(mk("crowd", 0, 0, 5));
+  return arr;
 }
 
 /* ============================================================
