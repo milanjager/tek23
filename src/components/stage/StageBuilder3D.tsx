@@ -3623,6 +3623,99 @@ export function StageBuilder3D() {
     setItems((cur) => cur.map((i) => selection.includes(i.id) ? { ...i, groupId: undefined } : i));
   }, [selection]);
 
+  const renameGroup = useCallback((gid: string, name: string) => {
+    setGroupNames((cur) => {
+      const next = { ...cur };
+      if (name.trim()) next[gid] = name;
+      else delete next[gid];
+      return next;
+    });
+  }, []);
+
+  // Nudge selection by dx/dy/dz (world meters). dy clamped ≥ 0 on the ground.
+  const nudgeSelection = useCallback((dx: number, dy: number, dz: number) => {
+    if (!selection.length) return;
+    setItems((cur) => cur.map((it) => {
+      if (!selection.includes(it.id)) return it;
+      const ny = Math.max(0, it.pos[1] + dy);
+      return { ...it, pos: [it.pos[0] + dx, ny, it.pos[2] + dz] as [number, number, number] };
+    }));
+  }, [selection]);
+
+  /* ── Photoshop-style alignment ──────────────────────────────────────
+     Uses top-down XZ footprint (X = horizontal, Z = "vertical" on plan)
+     plus Y (elevation). All ops operate on the current selection. */
+  type AlignOp =
+    | "left" | "right" | "hcenter"   // X axis
+    | "front" | "back" | "vcenter"   // Z axis
+    | "top" | "bottom" | "ycenter";  // Y axis
+  const alignSelection = useCallback((op: AlignOp) => {
+    if (selection.length < 2) return;
+    setItems((cur) => {
+      const sel = cur.filter((i) => selection.includes(i.id));
+      if (sel.length < 2) return cur;
+      const bounds = sel.map((i) => {
+        const [w, h, d] = SPECS[i.kind].size;
+        return {
+          id: i.id,
+          minX: i.pos[0] - w / 2, maxX: i.pos[0] + w / 2, cx: i.pos[0],
+          minZ: i.pos[2] - d / 2, maxZ: i.pos[2] + d / 2, cz: i.pos[2],
+          minY: i.pos[1],         maxY: i.pos[1] + h,     cy: i.pos[1] + h / 2,
+          w, h, d,
+        };
+      });
+      const minX = Math.min(...bounds.map((b) => b.minX));
+      const maxX = Math.max(...bounds.map((b) => b.maxX));
+      const minZ = Math.min(...bounds.map((b) => b.minZ));
+      const maxZ = Math.max(...bounds.map((b) => b.maxZ));
+      const minY = Math.min(...bounds.map((b) => b.minY));
+      const maxY = Math.max(...bounds.map((b) => b.maxY));
+      const cxAll = (minX + maxX) / 2;
+      const czAll = (minZ + maxZ) / 2;
+      const cyAll = (minY + maxY) / 2;
+      const targetPos = new Map<string, [number, number, number]>();
+      for (const b of bounds) {
+        const src = sel.find((i) => i.id === b.id)!;
+        let [x, y, z] = src.pos;
+        switch (op) {
+          case "left":    x = minX + b.w / 2; break;
+          case "right":   x = maxX - b.w / 2; break;
+          case "hcenter": x = cxAll; break;
+          case "front":   z = minZ + b.d / 2; break;
+          case "back":    z = maxZ - b.d / 2; break;
+          case "vcenter": z = czAll; break;
+          case "bottom":  y = Math.max(0, minY); break;
+          case "top":     y = Math.max(0, maxY - b.h); break;
+          case "ycenter": y = Math.max(0, cyAll - b.h / 2); break;
+        }
+        targetPos.set(b.id, [x, y, z]);
+      }
+      return cur.map((it) => targetPos.has(it.id) ? { ...it, pos: targetPos.get(it.id)! } : it);
+    });
+  }, [selection]);
+
+  // Distribute evenly across an axis (center-to-center spacing).
+  const distributeSelection = useCallback((axis: "x" | "z" | "y") => {
+    if (selection.length < 3) return;
+    setItems((cur) => {
+      const sel = cur.filter((i) => selection.includes(i.id));
+      if (sel.length < 3) return cur;
+      const idx = axis === "x" ? 0 : axis === "y" ? 1 : 2;
+      const sorted = [...sel].sort((a, b) => a.pos[idx] - b.pos[idx]);
+      const first = sorted[0].pos[idx];
+      const last = sorted[sorted.length - 1].pos[idx];
+      const step = (last - first) / (sorted.length - 1);
+      const targetPos = new Map<string, [number, number, number]>();
+      sorted.forEach((it, i) => {
+        const p: [number, number, number] = [...it.pos] as [number, number, number];
+        p[idx] = first + step * i;
+        if (idx === 1) p[1] = Math.max(0, p[1]);
+        targetPos.set(it.id, p);
+      });
+      return cur.map((it) => targetPos.has(it.id) ? { ...it, pos: targetPos.get(it.id)! } : it);
+    });
+  }, [selection]);
+
   // Auto-layout: place all items on the ground in tidy rows by category so
   // nothing overlaps. Stacks (shared groupId) are kept together as one unit;
   // vertical Y positions inside a stack are preserved.
