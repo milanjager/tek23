@@ -20,6 +20,7 @@ import {
 import SchematicView from "./SchematicView";
 import GridPlannerView from "./GridPlannerView";
 import ElevationView from "./ElevationView";
+import { PlacementDevPanel } from "./PlacementDevPanel";
 
 
 /* ============================================================
@@ -1624,15 +1625,17 @@ function PulseRing({ color, size }: { color: string; size: number }) {
    Snap / stacking
    ============================================================ */
 
-const GRID_STEP = 0.1;
-
 import {
   snapToGridXZ as snapToGridXZPure,
   stackY as stackYPure,
   hasCollision as hasCollisionPure,
   stackSnapTarget as stackSnapTargetPure,
+  PLACEMENT_TUNING,
   type PlacementItem,
 } from "./placement";
+
+// Backwards-compatible constant; live grid step is read from PLACEMENT_TUNING.
+const GRID_STEP = PLACEMENT_TUNING.gridStep;
 
 const asPlacementItem = (p: Placed): PlacementItem => ({
   id: p.id,
@@ -1641,7 +1644,7 @@ const asPlacementItem = (p: Placed): PlacementItem => ({
 });
 
 function snapToGridXZ(v: [number, number, number]): [number, number, number] {
-  return snapToGridXZPure(v, GRID_STEP);
+  return snapToGridXZPure(v, PLACEMENT_TUNING.gridStep);
 }
 
 function stackY(moving: Placed, others: Placed[]): number {
@@ -1688,8 +1691,9 @@ function PlacementGhost({
       const mesh = meshRefs.current.get(id);
       if (!src || !obj || !mesh) continue;
 
-      const sx = Math.round(obj.position.x / GRID_STEP) * GRID_STEP;
-      const sz = Math.round(obj.position.z / GRID_STEP) * GRID_STEP;
+      const step = PLACEMENT_TUNING.gridStep;
+      const sx = Math.round(obj.position.x / step) * step;
+      const sz = Math.round(obj.position.z / step) * step;
       const rawY = obj.position.y;
       const s = SPECS[src.kind].size;
       const candidate: Placed = { ...src, pos: [sx, Math.max(0, rawY), sz], rotY: 0 };
@@ -1704,7 +1708,7 @@ function PlacementGhost({
         candidate.pos = [sx, y, sz];
       }
 
-      const buried = rawY < -0.02;
+      const buried = rawY < PLACEMENT_TUNING.buriedY;
       const bad = buried || hasCollision(candidate, others);
       if (bad) mode = "bad";
 
@@ -1715,9 +1719,9 @@ function PlacementGhost({
           const halfW = s[0] / 2, halfD = s[2] / 2;
           const ox = Math.min(candidate.pos[0] + halfW, o.pos[0] + oHalfW) - Math.max(candidate.pos[0] - halfW, o.pos[0] - oHalfW);
           const oz = Math.min(candidate.pos[2] + halfD, o.pos[2] + oHalfD) - Math.max(candidate.pos[2] - halfD, o.pos[2] - oHalfD);
-          if (ox <= 0.05 || oz <= 0.05) continue;
+          if (ox <= PLACEMENT_TUNING.collisionXZMin || oz <= PLACEMENT_TUNING.collisionXZMin) continue;
           const vy = Math.min(candidate.pos[1] + s[1], o.pos[1] + os[1]) - Math.max(candidate.pos[1], o.pos[1]);
-          if (vy > 0.05) collided.add(o.id);
+          if (vy > PLACEMENT_TUNING.collisionVerticalMin) collided.add(o.id);
         }
       }
 
@@ -4245,6 +4249,7 @@ export function StageBuilder3D() {
           </div>
         </aside>
       </div>
+      <PlacementDevPanel />
     </div>
   );
 
