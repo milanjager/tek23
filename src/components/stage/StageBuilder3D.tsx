@@ -1624,15 +1624,17 @@ function PulseRing({ color, size }: { color: string; size: number }) {
    Snap / stacking
    ============================================================ */
 
-const GRID_STEP = 0.1;
-
 import {
   snapToGridXZ as snapToGridXZPure,
   stackY as stackYPure,
   hasCollision as hasCollisionPure,
   stackSnapTarget as stackSnapTargetPure,
+  PLACEMENT_TUNING,
   type PlacementItem,
 } from "./placement";
+
+// Backwards-compatible constant; live grid step is read from PLACEMENT_TUNING.
+const GRID_STEP = PLACEMENT_TUNING.gridStep;
 
 const asPlacementItem = (p: Placed): PlacementItem => ({
   id: p.id,
@@ -1641,7 +1643,7 @@ const asPlacementItem = (p: Placed): PlacementItem => ({
 });
 
 function snapToGridXZ(v: [number, number, number]): [number, number, number] {
-  return snapToGridXZPure(v, GRID_STEP);
+  return snapToGridXZPure(v, PLACEMENT_TUNING.gridStep);
 }
 
 function stackY(moving: Placed, others: Placed[]): number {
