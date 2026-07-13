@@ -1654,8 +1654,11 @@ import {
   snapToGridXZ as snapToGridXZPure,
   stackY as stackYPure,
   hasCollision as hasCollisionPure,
+  collisionIds as collisionIdsPure,
+  hasAnyOverlap as hasAnyOverlapPure,
   stackSnapTarget as stackSnapTargetPure,
   sanitizeStacks as sanitizeStacksPure,
+  resolveHorizontalOverlaps as resolveHorizontalOverlapsPure,
   PLACEMENT_TUNING,
   type PlacementItem,
 } from "./placement";
@@ -1665,6 +1668,16 @@ function sanitizeStacks(items: Placed[]): Placed[] {
   const wrapped = items.map((p) => ({ ...asPlacementItem(p), _orig: p }));
   const fixed = sanitizeStacksPure(wrapped);
   return fixed.map((w) => ({ ...(w as unknown as { _orig: Placed })._orig, pos: w.pos as [number, number, number] }));
+}
+
+function resolveHorizontalOverlaps(items: Placed[], gap = 0.06): Placed[] {
+  const wrapped = items.map((p) => ({ ...asPlacementItem(p), _orig: p }));
+  const fixed = resolveHorizontalOverlapsPure(wrapped, gap);
+  return fixed.map((w) => ({ ...(w as unknown as { _orig: Placed })._orig, pos: w.pos as [number, number, number] }));
+}
+
+function sceneHasOverlap(items: Placed[]): boolean {
+  return hasAnyOverlapPure(items.map(asPlacementItem));
 }
 
 // Backwards-compatible constant; live grid step is read from PLACEMENT_TUNING.
@@ -1686,6 +1699,10 @@ function stackY(moving: Placed, others: Placed[]): number {
 
 function hasCollision(moving: Placed, others: Placed[]): boolean {
   return hasCollisionPure(asPlacementItem(moving), others.map(asPlacementItem));
+}
+
+function collisionIds(moving: Placed, others: Placed[]): string[] {
+  return collisionIdsPure(asPlacementItem(moving), others.map(asPlacementItem));
 }
 
 function stackSnapTarget(
