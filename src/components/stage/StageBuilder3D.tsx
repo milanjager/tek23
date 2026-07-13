@@ -2062,7 +2062,7 @@ function SceneContent({
           : `${first.label} položeno na zem · y=${fmt(first.final[1])}m (Δy ${fmt(first.final[1] - first.raw[1])})${extra}`;
       setDropReport({ text, kind: first.mode, at: Date.now() });
     }
-  }, [selection, setItems]);
+  }, [selection, setItems, autoSanitize]);
 
   // Auto-hide the drop report after a couple of seconds.
   useEffect(() => {
