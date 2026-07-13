@@ -2273,6 +2273,9 @@ function SceneContent({
           snapped.pos = [target.x, target.y, target.z];
           mode = "stack";
           const onto = others.find((o) => o.id === target.ontoId);
+          const stackGroupId = onto?.groupId ?? snapped.groupId ?? uid();
+          snapped.groupId = stackGroupId;
+          if (onto) map.set(onto.id, { ...onto, groupId: stackGroupId });
           ontoLabel = onto ? (onto.label ?? SPECS[onto.kind].defaultLabel ?? SPECS[onto.kind].label) : undefined;
         } else {
           const y = stackY(snapped, others);
@@ -3437,6 +3440,11 @@ export function StageBuilder3D() {
   const toggleGroupCollapsed = useCallback((gid: string) => {
     setCollapsedGroups((cur) => ({ ...cur, [gid]: !cur[gid] }));
   }, []);
+  useEffect(() => {
+    if (!selection.length) return;
+    const active = items.find((it) => selection.includes(it.id));
+    if (active?.groupId) setCollapsedGroups((cur) => cur[active.groupId!] ? { ...cur, [active.groupId!]: false } : cur);
+  }, [items, selection]);
 
 
 
