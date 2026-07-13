@@ -3317,7 +3317,7 @@ export function StageBuilder3D() {
   const [cables, setCables] = useState<Cable[]>([]);
   const [selection, setSelection] = useState<string[]>([]);
   const [groupNames, setGroupNames] = useState<Record<string, string>>({});
-  const [groupSpacing, setGroupSpacing] = useState<Record<string, number>>({});
+  const [groupSpacing, setGroupSpacing] = useState<GroupSpacingState>({});
   const [sceneHydrated, setSceneHydrated] = useState(false);
   const [tool, setTool] = useState<"translate" | "rotate">("translate");
   const [mode, setMode] = useState<"select" | "cable">("select");
@@ -3541,7 +3541,7 @@ export function StageBuilder3D() {
   const groupSelection = useCallback(() => {
     if (selection.length < 2) return;
     const gid = uid();
-    setGroupSpacing((cur) => ({ ...cur, [gid]: 0.06 }));
+    setGroupSpacing((cur) => ({ ...cur, [gid]: DEFAULT_GROUP_GAP }));
     setItems((cur) => normalizeScene(cur.map((i) => selection.includes(i.id) ? { ...i, groupId: gid } : i)));
   }, [selection]);
 
@@ -3558,10 +3558,14 @@ export function StageBuilder3D() {
     });
   }, []);
 
-  const setGroupGap = useCallback((gid: string, gap: number) => {
-    const safeGap = Math.max(0, Math.min(2, Number.isFinite(gap) ? gap : 0));
-    setGroupSpacing((cur) => ({ ...cur, [gid]: safeGap }));
-    setItems((cur) => normalizeScene(spreadGroupItems(cur, gid, safeGap), safeGap));
+  const setGroupGap = useCallback((gid: string, axis: "x" | "y", value: number) => {
+    const limit = axis === "x" ? 2 : 1;
+    const safeGap = Math.max(0, Math.min(limit, Number.isFinite(value) ? value : 0));
+    setGroupSpacing((cur) => {
+      const nextGap = { ...readGroupGap(cur, gid), [axis]: safeGap };
+      setItems((itemsNow) => normalizeScene(spreadGroupItems(itemsNow, gid, nextGap), nextGap.x));
+      return { ...cur, [gid]: nextGap };
+    });
   }, []);
 
   // Nudge selection by dx/dy/dz (world meters). dy clamped ≥ 0 on the ground.
