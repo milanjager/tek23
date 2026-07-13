@@ -9,6 +9,7 @@ import {
   Environment,
   Line,
   Edges,
+  OrthographicCamera,
 } from "@react-three/drei";
 import * as THREE from "three";
 import {
