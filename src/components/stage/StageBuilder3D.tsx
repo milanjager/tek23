@@ -3354,8 +3354,8 @@ function PaletteThumb({ kind }: { kind: Kind }) {
    ============================================================ */
 
 export function StageBuilder3D() {
-  const [items, setItems] = useState<Placed[]>([]);
-  const [cables, setCables] = useState<Cable[]>([]);
+  const [items, setItems] = useState<Placed[]>(() => normalizeScene(loadPreset("namel_wall")));
+  const [cables, setCables] = useState<Cable[]>(() => autoWireCables(normalizeScene(loadPreset("namel_wall"))));
   const [selection, setSelection] = useState<string[]>([]);
   const [groupNames, setGroupNames] = useState<Record<string, string>>({});
   const [groupSpacing, setGroupSpacing] = useState<GroupSpacingState>({});
