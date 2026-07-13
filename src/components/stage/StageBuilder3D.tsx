@@ -2063,7 +2063,7 @@ function RealisticTuner({ enabled }: { enabled: boolean }) {
 function SceneContent({
   items, setItems, selection, setSelection, tool,
   cables, setCables, mode, cableType, setCableType, pendingFrom, setPendingFrom,
-  showConnectorLabels, showCableLabels, realistic, autoSanitize, frontView, speakerLineZ,
+  showConnectorLabels, showCableLabels, realistic, autoSanitize, frontView, topView, speakerLineZ,
 }: {
   items: Placed[];
   setItems: React.Dispatch<React.SetStateAction<Placed[]>>;
@@ -2082,6 +2082,7 @@ function SceneContent({
   realistic: boolean;
   autoSanitize: boolean;
   frontView: boolean;
+  topView: boolean;
   speakerLineZ: number;
 }) {
 
