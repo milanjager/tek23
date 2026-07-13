@@ -50,7 +50,7 @@ type Kind =
   | "amp" | "powersoft" | "mixer" | "dj" | "dj_table" | "cdj"
   | "korg" | "korg_red" | "korg_blue" | "turntable"
   | "strobe" | "laser" | "movinghead"
-  | "bar" | "generator" | "distro" | "crowd";
+  | "bar" | "generator" | "distro";
 
 
 type Category = "sound" | "lights" | "infra";
@@ -109,7 +109,7 @@ const SPECS: Record<Kind, Spec> = {
   bar:          { label: "Bar",              category: "infra",  size: [2.40, 1.10, 0.65], stackable: false, hint: "Bar pult" },
   generator:    { label: "Aggregát",         category: "infra",  size: [1.50, 1.20, 0.85], stackable: false, hint: "Diesel generátor" },
   distro:       { label: "Rozdělovač",       category: "infra",  size: [0.60, 0.35, 0.40], stackable: true,  hint: "Silový rozvaděč / power distro (CEE in → 230V outs + DMX/SIG patch)", defaultLabel: "Rozdělovač" },
-  crowd:        { label: "Dancefloor",       category: "infra",  size: [4.00, 0.02, 4.00], stackable: false, hint: "Prostor pro dav" },
+  
 };
 
 
@@ -263,7 +263,6 @@ function connectorsFor(kind: Kind): Connector[] {
     // Passive furniture — no connectors.
     case "bar":
     case "dj_table":
-    case "crowd":
       return [];
 
   }
@@ -1515,7 +1514,7 @@ function ModelFor({ kind, size, variant }: { kind: Kind; size: [number, number, 
     case "movinghead": return <MovingHeadModel size={size} />;
     case "bar": return <BarModel size={size} />;
     case "generator": return <GeneratorModel size={size} />;
-    case "crowd": return <CrowdModel size={size} />;
+    
   }
 }
 
