@@ -1805,6 +1805,45 @@ function spreadGroupItems(items: Placed[], groupId: string, gap: GroupGap): Plac
   return xSpread.map((it) => nextY.has(it.id) ? { ...it, pos: nextY.get(it.id)! } : it);
 }
 
+type LayoutAxis = "x" | "y" | "z";
+type LayoutUnit = {
+  key: string;
+  ids: string[];
+  minX: number; maxX: number; cx: number;
+  minY: number; maxY: number; cy: number;
+  minZ: number; maxZ: number; cz: number;
+};
+
+function layoutUnitsForSelection(items: Placed[], selectedIds: string[]): LayoutUnit[] {
+  const selected = new Set(selectedIds);
+  const selectedKeys = new Set<string>();
+  for (const it of items) if (selected.has(it.id)) selectedKeys.add(it.groupId ?? it.id);
+  return Array.from(selectedKeys).map((key) => {
+    const members = items.filter((it) => (it.groupId ?? it.id) === key);
+    const bounds = members.map((i) => {
+      const [w, h, d] = SPECS[i.kind].size;
+      return {
+        minX: i.pos[0] - w / 2, maxX: i.pos[0] + w / 2,
+        minY: i.pos[1], maxY: i.pos[1] + h,
+        minZ: i.pos[2] - d / 2, maxZ: i.pos[2] + d / 2,
+      };
+    });
+    const minX = Math.min(...bounds.map((b) => b.minX));
+    const maxX = Math.max(...bounds.map((b) => b.maxX));
+    const minY = Math.min(...bounds.map((b) => b.minY));
+    const maxY = Math.max(...bounds.map((b) => b.maxY));
+    const minZ = Math.min(...bounds.map((b) => b.minZ));
+    const maxZ = Math.max(...bounds.map((b) => b.maxZ));
+    return {
+      key,
+      ids: members.map((m) => m.id),
+      minX, maxX, cx: (minX + maxX) / 2,
+      minY, maxY, cy: (minY + maxY) / 2,
+      minZ, maxZ, cz: (minZ + maxZ) / 2,
+    };
+  });
+}
+
 function itemScreenBounds(it: Placed, camera: THREE.Camera, width: number, height: number) {
   const s = SPECS[it.kind].size;
   const hw = s[0] / 2;
