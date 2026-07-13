@@ -1,102 +1,71 @@
+# Přestavba Vrstev + rovina reproduktorů + dark + presety
 
-# Přestavba Stage Builderu — jednodušší, chytřejší, pro non‑IT crew
+Rozsah je jasný. Nejdřív potvrď plán, pak jedu.
 
-Cíl: nástroj, který zvládne parťák z party crew bez čtení manuálu. Miř na „SimCity/RTS" pocit — snap na grid, zelený/červený ghost při umisťování, ☰ sbalit vše, jedno velké tlačítko „⚡ Zapojit vše".
+## 1. Layers panel jako ve Photoshopu
 
-## 1. Rotace pryč (UI bedny)
+V pravém sidebaru v `StageBuilder3D.tsx`:
 
-- V **Detail výběru** (StageBuilder3D.tsx) smazat blok tlačítek 0/90/180/270°, slider a numerický input rotace.
-- V `GridPlannerView` a `ElevationView` smazat tlačítka „Otoč 90°" a klávesu **R**.
-- Šipku „front-of-box" ▼ nechat (vizuální orientace publikum), rotY v modelu ponechat na 0 — kód rotY zůstává, aby se nerozbila persistence, ale UI ho neexponuje.
+- **Aktivní vrstva vždy viditelná** — když je vybraná bedna (klikem v 3D, Elevation, Iso, Schema), Layers panel se auto-scrollne na tu položku, skupinu, do které patří, rozbalí se, a řádek dostane silný accent border + levý indikátor barvy (acid).
+- **Skupiny = složky** — ikona `📁` (chevron pro collapse) a odsazené vnořené vrstvy (indent 12 px, vertikální linka jako v PS Layers).
+- **Drag & drop reorder** přes `@dnd-kit/core` (už v projektu). Táhnutí položky:
+  - mezi dvě jiné = přeřadit pořadí (v poli `items` — pořadí = z-order v Layers panelu, nemění se pozice v 3D)
+  - na složku = přidat do skupiny (nastaví `groupId`)
+  - mimo skupinu (nahoru na root) = vyjmout ze skupiny
+- **Skupina má sliders pro rozestup** mezi bednami:
+  - `spacingX` (horizontální mezera mezi bednami ve skupině, m)
+  - `spacingZ` (dopředu-dozadu — u nás pouze pro backline skupiny, viz níže o rovině)
+  - `spacingY` (vertikální, mezi patry stacku)
+- Skupina má tlačítko **„Přerovnat"** — aplikuje aktuální spacing hodnoty na členy: seřadí je zleva doprava podle X, přepočítá X pozice s daným krokem, Y stacky respektují `spacingY`.
+- Řádek vrstvy má: barevný swatch (per-kind), název (klik = rename), toggle `👁` visible, `🔒` lock, badge s výškou stacku (`▲n`).
 
-## 2. Sbalitelné panely (mobil i desktop)
+## 2. Jedna Z-rovina pro reproduktory
 
-Zavedeme jednotný `usePanel(id)` hook (localStorage persist). Každý panel dostane úchyt s chevronem a shortcut.
+Reproduktory dávají smysl jen v jedné čáře publikum-facing. Přidávám globální `speakerLineZ` (default 0).
 
-- **Levá paleta komponent** — sbalí se do 40px pásu s ikonami kategorií (Sound/Lights/Infra). Klik na ikonu = flyout. Klávesa `[`.
-- **Pravý panel (Detail výběru + Kabelový inspektor)** — sbalí se úplně na okraj (44px tab s ikonou). Klávesa `]`.
-- **Horní toolbar** — rozdělit na 3 klastry (Režim, Preset, Nástroje) a přesunout „vedlejší" akce (Auto rozmístit, Legenda kabelů, Realistický vzhled, Schéma toggle) do jedné rozbalovací nabídky **⋯ Více**.
-- **Legendy** (SIG/PWR/DMX) — do jednoho plovoucího chip „🎨 Legenda" s popoverem.
-- **Spodní status bar** — nový úzký pás: počet beden, počet chyb kabeláže, stav auto‑layoutu, tlačítko „⚡ Zapojit vše".
+- Při umístění, dropu, arrow-key posunu **jakéhokoli reproduktoru** (kind s kategorií `sound`, mimo mixer/rozvaděč/amp) se `z` snapuje na `speakerLineZ`. Šipky nahoru/dolů v XZ (arrow keys) pro reproduktory nedělají Z posun.
+- Ne-reproduktory (amp, mixer, distro, lights, truss) mohou být kdekoli.
+- V ghostu při dragu reproduktoru se ukáže tenká acid čára v rovině `speakerLineZ` jako guide.
+- **Vertikální stacking** funguje beze změny — Y může jít nahoru.
+- **Šipky orientace ▼** na modelu reproduktoru se odstraní (front-of-box glyph v `PicusBinModel` a v Elevation/Iso SVG). Není třeba — všichni směřují na publikum.
 
-## 3. Grid snap + RTS validace umísťování v 3D
+Slider „Rovina reproduktorů (m)" v Layers panelu vedle Auto srovnat.
 
-Aktuální free‑3D placement se nahradí za deterministický grid, stejný pro 3D i Nárys/Plán, aby všechny pohledy seděly.
+## 3. Dark mode
 
-- Konstanta `GRID = 0.5 m` globálně (mirror z `GridPlannerView`).
-- V `StageBuilder3D` obalit drag/drop novým hookem `usePlacementGhost({ kind, gridSize })`:
-  - Pod kurzorem plovoucí **ghost mesh** s barevným rámečkem.
-  - **Zelená** = volno, žádná kolize footprintu.
-  - **Žlutá** = do 0.4 m od jiné bedny (těsně vedle — OK, ale upozornění).
-  - **Červená** = overlap → klik zakázán, tooltip „Nelze umístit — kolize s {label}".
-- Kolize řeší sdílená utilita `computeFootprintConflicts(items, candidate)` v novém `src/components/stage/placement.ts` — použije ji 3D i `ElevationView`/`GridPlannerView`, aby chování bylo shodné.
-- Existující bedny při dragu chovají stejně — vlečená bedna se snapuje, ghost červeně blokuje drop.
-- Auto‑stack: pokud ghost přesně sedí na půdorys bedny pod ním, zvedne se automaticky na `pos[1] = topOf(base)` a rámeček je modrý = „stackovat".
+- V `src/styles.css` už `.dark` existuje, ale má jen 2 tokeny. Doplním celou paletu tokenů pro dark.
+- Přidám `ThemeToggle` (☀/🌙) do horního toolbaru v `StageBuilder3D.tsx`. Přepíná třídu `dark` na `document.documentElement`, persist v `localStorage("stage.theme")`.
+- Three.js scéna: `scene.background`, ContactShadows opacity, fog — čtou tokeny přes `useTheme()` hook.
 
-## 4. Marquee (rectangle) výběr v 3D
+## 4. Presety — reset
 
-- Nový režim `SelectTool`:
-  - Left‑drag na prázdnu = kreslí rubber‑band DOM overlay (2D CSS na `<canvas>`).
-  - Při release: projekce každé bedny přes camera `project()` → screen‑space AABB → intersect s rectanglem → doplní do `selection` (`additive` když je Shift).
-  - Escape ruší výběr.
-- Hlavní tlačítko myši:
-  - **Prázdno + drag** → marquee.
-  - **Nad bednou** → drag = přesun.
-  - **Shift+klik na bednu** → toggle výběru.
-- Aktualizovat `selection` state (už je sdílený mezi pohledy z minulé iterace).
+Smažu `picus_wall` (a všechny zbytkové odkazy). Přidám 3 nové:
 
-## 5. Chytrá auto‑kabeláž „⚡ Zapojit vše"
+1. **„Namel Wall"** — replikace poslední fotky (spodní 4×2 subs scoop, řada bass_row, mid grill sloupec + horní 3way tops flanked hex_horn). Auto-wire PWR/SPK/SIG.
+2. **„Club Stack"** — kompaktní 2×2 sub base + 2× top L/R, 1 amp rack, 1 mixer.
+3. **„Festival Ground"** — 3× cluster subs (L / C / R), 2 sloupy midů, 2× wing_horn na křídlech.
 
-Nová utilita `src/components/stage/autoWire.ts` s deterministickým rozvrhem:
+Odstraním komponent `dance_floor` z `Kind`, `SPECS`, `ModelFor`, palety a všech presetů.
 
-1. **PWR** — pro každou bednu/zesilovač/pult najde nejbližší `distro` (rozvaděč). Přidá PowerCON kabel. Jedna distribuce má max 8 outletů → přeteče na další nejbližší, jinak vyhodí varování „Chybí distro pro X".
-2. **SPK (Speakon) — beden ↔ ampy + link‑out řetěz:**
-   - Ampy (Powersoft) mají 4 SPK OUT (A/B/C/D). Alokace podle role: `sub`, `top`, `mid`.
-   - První bedna dané role v clusteru → přímo z ampu.
-   - Další bedny stejné role a stejného clusteru (do 3 m) → **link OUT → IN** předchozí bedny (řetěz).
-   - Dva kabely na bednu tam, kde má vstup L+R (dva Speakony).
-3. **SIG (XLR/analog):**
-   - Najde FOH mixer (kind `mixer` / `foh`). Z jeho outputů (Main L/R, Aux 1..N) rozdělí kanály na ampy podle role — Main L → top-left cluster, Main R → top-right, Aux1 → subs, atd.
-   - Pokud není mixer, hodí varování a auto‑založí virtual `FOH` node do inspektoru s návrhem přidat.
-4. **DMX** — pokud jsou lights: chainuje světla přes DMX-in/out z nejbližší DMX kontroly.
-5. **Validátor** — po každém auto‑runu vyplní status bar: „✓ 24 kabelů, ⚠ 2 varování". Kliknutí na varování otevře Kabelový inspektor filtrovaný na dané spoje.
+## 5. Šipky orientace
 
-Manhattan routing z minulé iterace zůstává; přidáme jen **barevný accent per‑cluster** (levá strana modrá, pravá růžová, subs žlutá), aby v přehledu bylo hned jasné, co kam patří.
+Vzhledem k jednorovinnému pravidlu (bod 2) odstraním glyph front-of-box z modelů reproduktorů a ze všech 2D views.
 
-## 6. UI kompaktifikace pro non‑IT crew
+## Technický breakdown
 
-- **Typografie** — základ text `11px`, popisky `10px`, výška tlačítka `28px`. Ikony `14px`.
-- **Tokens** — sjednotit barvy do `--stage-*` v `src/styles.css` (bg-panel, bg-panel-2, border, accent-lime, warn-amber, danger-red, cluster-L, cluster-R, cluster-sub).
-- **Command palette** `Ctrl/Cmd+K` — vyhledávání „přidat sub", „zapojit vše", „preset picus"…
-- **Rychlé první‑spuštění** — když je scéna prázdná: velké tlačítko uprostřed „🚀 Začít z presetu…" místo prázdna.
-- **Tooltip s piktogramy** místo textových popisků na tlačítkách toolbaru (šetří šířku).
+- `StageBuilder3D.tsx`:
+  - `speakerLineZ` state (persist).
+  - `snapSpeakerZ(kind, pos)` helper — voláno v `handleTransformEnd`, `addItem`, `nudge` (arrow keys), `PlacementGhost`.
+  - `LayersPanel` kompletně přepsat: strom `groups → items`, dnd-kit sortable, active-scroll-into-view přes `useEffect(selectedId)`.
+  - Odstranit `dance_floor`, presety, front-of-box arrow glyph.
+  - `ThemeProvider` + toggle.
+- `src/styles.css`: doplnit dark tokeny (bg, panel, muted, border, ring…) v `.dark`.
+- `ElevationView.tsx`, `IsometricView.tsx`, `GridPlannerView.tsx`: odstranit orientation arrows na reproduktorech.
+- Regresní testy (`placement.test.ts`): přidat test, že `snapSpeakerZ` vrací `speakerLineZ` pro sound-kind a original z pro jiné.
 
-## Technická sekce
+## Co NEDĚLÁM v tomhle kole
 
-Nové soubory:
-- `src/components/stage/placement.ts` — sdílené kolize a snap.
-- `src/components/stage/autoWire.ts` — routing PWR/SPK/SIG/DMX.
-- `src/components/stage/PlacementGhost.tsx` — three.js ghost mesh + barevný outline.
-- `src/components/stage/MarqueeOverlay.tsx` — DOM overlay pro rectangle výběr.
-- `src/components/stage/panels/usePanel.ts` — hook stavu sbalení + localStorage.
-- `src/components/stage/StatusBar.tsx` — spodní bar + „⚡ Zapojit vše".
+- Přepínání per-cluster Z (víc rovin) — pokud budeš chtít později, řekni.
+- Vlastní preset editor — presety zůstávají tvrdě zadané v kódu.
 
-Úpravy:
-- `StageBuilder3D.tsx` — vyjmout rotaci z Detail výběru, wire panel hooky, integrovat ghost + marquee, přesunout drobná tlačítka do „⋯ Více" popoveru.
-- `StageBuilder.tsx` — layout: 40px lišty místo pevných sidebarů, klávesové zkratky `[`, `]`, `\` (marquee), `Ctrl/Cmd+K`.
-- `GridPlannerView.tsx`, `ElevationView.tsx` — smazat R‑rotaci a tlačítka Otoč, používat `placement.ts` pro validaci.
-- `SchematicView.tsx` — konzumovat `autoWire.ts` výstup, zobrazovat varování inline.
-
-Persistuje se v `localStorage`:
-- Stav sbalení každého panelu (`stage.panel.<id>`).
-- Poslední scéna už tam je — beze změny schématu.
-
-Kompatibilita: `rotY` v datovém modelu **zůstává** (fixně 0 přes UI), aby staré uložené scény nespadly.
-
-Odhad rozsahu: ~2 200 řádků čistý přírůstek, ~600 smazaných (rotace + duplicitní kolize + rozházené toolbar tlačítka).
-
-## Co v tomhle kole NEDĚLÁM
-
-- Import CAD/DWG, export PDF ridera, sdílené real‑time editace, akustickou simulaci pokrytí, DMX patch matrix editor. Ty zvlášť, až tohle sedne.
-
-Řekni „jedeme" a pustím to. Když chceš něco přehodit (např. rotace nechat, marquee vynechat), napiš změny stručně.
+Řekni „jedeme" a pustím to.
