@@ -3538,12 +3538,15 @@ export function StageBuilder3D() {
   }, []);
   const [marqueeMode, setMarqueeMode] = useState(false);
   const [realistic, setRealistic] = useState(false);
-  const [autoSanitize, setAutoSanitize] = useState<boolean>(() => {
-    if (typeof window === "undefined") return false;
-    return localStorage.getItem("stage.autoSanitize") === "1";
-  });
-  useEffect(() => { localStorage.setItem("stage.autoSanitize", autoSanitize ? "1" : "0"); }, [autoSanitize]);
-  const [viewMode, setViewMode] = useState<"3d" | "schema" | "grid" | "elev" | "iso">("3d");
+  const [autoSanitize, setAutoSanitize] = useState(false);
+  useEffect(() => {
+    const saved = localStorage.getItem("stage.autoSanitize");
+    setAutoSanitize(saved === null ? true : saved === "1");
+  }, []);
+  useEffect(() => {
+    if (panelsHydrated) localStorage.setItem("stage.autoSanitize", autoSanitize ? "1" : "0");
+  }, [autoSanitize, panelsHydrated]);
+  const [viewMode, setViewMode] = useState<"3d" | "front3d" | "schema" | "grid" | "elev" | "iso">("3d");
   const [marquee, setMarquee] = useState<null | { x1: number; y1: number; x2: number; y2: number; additive: boolean }>(null);
   const cameraRef = useRef<THREE.Camera | null>(null);
   const canvasWrapRef = useRef<HTMLDivElement>(null);
