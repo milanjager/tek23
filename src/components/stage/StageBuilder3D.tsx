@@ -16,7 +16,7 @@ import {
   Speaker, Trash2, Save, Copy, ClipboardPaste, Group as GroupIcon, Ungroup,
   Move as MoveIcon, Boxes, Zap, Sparkles, Radio, Volume2,
   Cable as CableIcon, MousePointer2, Menu, X, BoxSelect, PanelLeft, PanelRight,
-  Workflow, Box as BoxIcon, LayoutGrid, GalleryVerticalEnd,
+  Workflow, Box as BoxIcon, LayoutGrid, GalleryVerticalEnd, Folder, ChevronDown, ChevronRight,
 } from "lucide-react";
 import SchematicView from "./SchematicView";
 import GridPlannerView from "./GridPlannerView";
@@ -139,6 +139,22 @@ interface Cable {
   from: string; // item id
   to: string;   // item id
   type: CableType;
+}
+
+type GroupGap = { x: number; y: number };
+type GroupSpacingState = Record<string, GroupGap | number>;
+const DEFAULT_GROUP_GAP: GroupGap = { x: 0.06, y: 0 };
+
+function readGroupGap(spacing: GroupSpacingState, gid: string): GroupGap {
+  const raw = spacing[gid];
+  if (typeof raw === "number") return { x: raw, y: 0 };
+  if (raw && typeof raw === "object") {
+    return {
+      x: Math.max(0, Math.min(2, Number.isFinite(raw.x) ? raw.x : DEFAULT_GROUP_GAP.x)),
+      y: Math.max(0, Math.min(1, Number.isFinite(raw.y) ? raw.y : DEFAULT_GROUP_GAP.y)),
+    };
+  }
+  return DEFAULT_GROUP_GAP;
 }
 
 const CABLE_META: Record<CableType, { label: string; short: string; color: string; width: number }> = {
@@ -1742,7 +1758,7 @@ function findOpenGroundPosition(kind: Kind, items: Placed[], desired: [number, n
   return snapToGridXZ([desired[0] + items.length * 0.6, 0, desired[2]]);
 }
 
-function spreadGroupItems(items: Placed[], groupId: string, gap: number): Placed[] {
+function spreadGroupItems(items: Placed[], groupId: string, gap: GroupGap): Placed[] {
   const group = items.filter((i) => i.groupId === groupId);
   if (group.length < 2) return items;
   const rows = new Map<number, Placed[]>();
@@ -1757,15 +1773,74 @@ function spreadGroupItems(items: Placed[], groupId: string, gap: number): Placed
     if (row.length < 2) continue;
     const sorted = [...row].sort((a, b) => a.pos[0] - b.pos[0]);
     const center = sorted.reduce((sum, it) => sum + it.pos[0], 0) / sorted.length;
-    const totalWidth = sorted.reduce((sum, it) => sum + SPECS[it.kind].size[0], 0) + gap * (sorted.length - 1);
+    const totalWidth = sorted.reduce((sum, it) => sum + SPECS[it.kind].size[0], 0) + gap.x * (sorted.length - 1);
     let cursor = center - totalWidth / 2;
     for (const it of sorted) {
       const w = SPECS[it.kind].size[0];
       nextPos.set(it.id, [cursor + w / 2, it.pos[1], it.pos[2]]);
-      cursor += w + gap;
+      cursor += w + gap.x;
     }
   }
-  return items.map((it) => nextPos.has(it.id) ? { ...it, pos: nextPos.get(it.id)! } : it);
+  const xSpread = items.map((it) => nextPos.has(it.id) ? { ...it, pos: nextPos.get(it.id)! } : it);
+  if (gap.y <= 0) return xSpread;
+
+  const columns = new Map<string, Placed[]>();
+  for (const it of xSpread.filter((i) => i.groupId === groupId)) {
+    const key = `${Math.round(it.pos[0] * 20) / 20}:${Math.round(it.pos[2] * 20) / 20}`;
+    const col = columns.get(key) ?? [];
+    col.push(it);
+    columns.set(key, col);
+  }
+  const nextY = new Map<string, [number, number, number]>();
+  for (const col of columns.values()) {
+    if (col.length < 2) continue;
+    const sorted = [...col].sort((a, b) => a.pos[1] - b.pos[1]);
+    let y = Math.min(...sorted.map((it) => it.pos[1]));
+    for (const it of sorted) {
+      const p = nextPos.get(it.id) ?? it.pos;
+      nextY.set(it.id, [p[0], y, p[2]]);
+      y += SPECS[it.kind].size[1] + gap.y;
+    }
+  }
+  return xSpread.map((it) => nextY.has(it.id) ? { ...it, pos: nextY.get(it.id)! } : it);
+}
+
+type LayoutUnit = {
+  key: string;
+  ids: string[];
+  minX: number; maxX: number; cx: number;
+  minY: number; maxY: number; cy: number;
+  minZ: number; maxZ: number; cz: number;
+};
+
+function layoutUnitsForSelection(items: Placed[], selectedIds: string[]): LayoutUnit[] {
+  const selected = new Set(selectedIds);
+  const selectedKeys = new Set<string>();
+  for (const it of items) if (selected.has(it.id)) selectedKeys.add(it.groupId ?? it.id);
+  return Array.from(selectedKeys).map((key) => {
+    const members = items.filter((it) => (it.groupId ?? it.id) === key);
+    const bounds = members.map((i) => {
+      const [w, h, d] = SPECS[i.kind].size;
+      return {
+        minX: i.pos[0] - w / 2, maxX: i.pos[0] + w / 2,
+        minY: i.pos[1], maxY: i.pos[1] + h,
+        minZ: i.pos[2] - d / 2, maxZ: i.pos[2] + d / 2,
+      };
+    });
+    const minX = Math.min(...bounds.map((b) => b.minX));
+    const maxX = Math.max(...bounds.map((b) => b.maxX));
+    const minY = Math.min(...bounds.map((b) => b.minY));
+    const maxY = Math.max(...bounds.map((b) => b.maxY));
+    const minZ = Math.min(...bounds.map((b) => b.minZ));
+    const maxZ = Math.max(...bounds.map((b) => b.maxZ));
+    return {
+      key,
+      ids: members.map((m) => m.id),
+      minX, maxX, cx: (minX + maxX) / 2,
+      minY, maxY, cy: (minY + maxY) / 2,
+      minZ, maxZ, cz: (minZ + maxZ) / 2,
+    };
+  });
 }
 
 function itemScreenBounds(it: Placed, camera: THREE.Camera, width: number, height: number) {
@@ -2198,6 +2273,9 @@ function SceneContent({
           snapped.pos = [target.x, target.y, target.z];
           mode = "stack";
           const onto = others.find((o) => o.id === target.ontoId);
+          const stackGroupId = onto?.groupId ?? snapped.groupId ?? uid();
+          snapped.groupId = stackGroupId;
+          if (onto) map.set(onto.id, { ...onto, groupId: stackGroupId });
           ontoLabel = onto ? (onto.label ?? SPECS[onto.kind].defaultLabel ?? SPECS[onto.kind].label) : undefined;
         } else {
           const y = stackY(snapped, others);
@@ -3002,7 +3080,7 @@ function SceneContent({
             near={0.1}
             far={200}
           />
-          {/* PA linie Z – zvýrazněná kóta, na kterou se snapují reproduktory */}
+          {/* Společná hloubka řady – zvýrazněná kóta, na kterou se snapují reproduktory */}
           <Line
             points={[[-40, 0.02, speakerLineZ], [40, 0.02, speakerLineZ]]}
             color="#f59e0b"
@@ -3013,7 +3091,7 @@ function SceneContent({
           />
           <Html position={[-6, 0.03, speakerLineZ]} center distanceFactor={20} style={{ pointerEvents: "none" }}>
             <div style={{ background: "rgba(245,158,11,.95)", color: "#111", padding: "2px 6px", borderRadius: 4, fontSize: 11, fontWeight: 700, whiteSpace: "nowrap" }}>
-              PA linie Z = {speakerLineZ.toFixed(2)} m
+              Hloubka řady = {speakerLineZ.toFixed(2)} m
             </div>
           </Html>
         </>
@@ -3276,12 +3354,12 @@ function PaletteThumb({ kind }: { kind: Kind }) {
    ============================================================ */
 
 export function StageBuilder3D() {
-  const [items, setItems] = useState<Placed[]>([]);
-  const [cables, setCables] = useState<Cable[]>([]);
+  const [items, setItems] = useState<Placed[]>(() => normalizeScene(loadPreset("namel_wall")));
+  const [cables, setCables] = useState<Cable[]>(() => autoWireCables(normalizeScene(loadPreset("namel_wall"))));
   const [selection, setSelection] = useState<string[]>([]);
   const [groupNames, setGroupNames] = useState<Record<string, string>>({});
-  const [groupSpacing, setGroupSpacing] = useState<Record<string, number>>({});
-  const [sceneHydrated, setSceneHydrated] = useState(false);
+  const [groupSpacing, setGroupSpacing] = useState<GroupSpacingState>({});
+  const [sceneHydrated, setSceneHydrated] = useState(true);
   const [tool, setTool] = useState<"translate" | "rotate">("translate");
   const [mode, setMode] = useState<"select" | "cable">("select");
   const [cableType, setCableType] = useState<CableType>("signal");
@@ -3362,6 +3440,11 @@ export function StageBuilder3D() {
   const toggleGroupCollapsed = useCallback((gid: string) => {
     setCollapsedGroups((cur) => ({ ...cur, [gid]: !cur[gid] }));
   }, []);
+  useEffect(() => {
+    if (!selection.length) return;
+    const active = items.find((it) => selection.includes(it.id));
+    if (active?.groupId) setCollapsedGroups((cur) => cur[active.groupId!] ? { ...cur, [active.groupId!]: false } : cur);
+  }, [items, selection]);
 
 
 
@@ -3371,14 +3454,17 @@ export function StageBuilder3D() {
       const raw = localStorage.getItem(STORAGE);
       if (raw) {
         const parsed = JSON.parse(raw);
-        if (Array.isArray(parsed.items)) setItems(normalizeScene(parsed.items));
+        const loadedItems = Array.isArray(parsed.items) && parsed.items.length > 0
+          ? parsed.items
+          : loadPreset("namel_wall");
+        setItems(normalizeScene(loadedItems));
         if (Array.isArray(parsed.cables)) setCables(parsed.cables);
         if (parsed.groupNames && typeof parsed.groupNames === "object") setGroupNames(parsed.groupNames);
         if (parsed.groupSpacing && typeof parsed.groupSpacing === "object") setGroupSpacing(parsed.groupSpacing);
       } else {
         setItems(normalizeScene(loadPreset("namel_wall")));
       }
-    } catch { /* noop */ }
+    } catch { setItems(normalizeScene(loadPreset("namel_wall"))); }
     finally { setSceneHydrated(true); }
   }, []);
 
@@ -3504,7 +3590,7 @@ export function StageBuilder3D() {
   const groupSelection = useCallback(() => {
     if (selection.length < 2) return;
     const gid = uid();
-    setGroupSpacing((cur) => ({ ...cur, [gid]: 0.06 }));
+    setGroupSpacing((cur) => ({ ...cur, [gid]: DEFAULT_GROUP_GAP }));
     setItems((cur) => normalizeScene(cur.map((i) => selection.includes(i.id) ? { ...i, groupId: gid } : i)));
   }, [selection]);
 
@@ -3521,11 +3607,13 @@ export function StageBuilder3D() {
     });
   }, []);
 
-  const setGroupGap = useCallback((gid: string, gap: number) => {
-    const safeGap = Math.max(0, Math.min(2, Number.isFinite(gap) ? gap : 0));
-    setGroupSpacing((cur) => ({ ...cur, [gid]: safeGap }));
-    setItems((cur) => normalizeScene(spreadGroupItems(cur, gid, safeGap), safeGap));
-  }, []);
+  const setGroupGap = useCallback((gid: string, axis: "x" | "y", value: number) => {
+    const limit = axis === "x" ? 2 : 1;
+    const safeGap = Math.max(0, Math.min(limit, Number.isFinite(value) ? value : 0));
+    const nextGap = { ...readGroupGap(groupSpacing, gid), [axis]: safeGap };
+    setGroupSpacing((cur) => ({ ...cur, [gid]: nextGap }));
+    setItems((cur) => spreadGroupItems(normalizeScene(cur, nextGap.x), gid, nextGap));
+  }, [groupSpacing]);
 
   // Nudge selection by dx/dy/dz (world meters). dy clamped ≥ 0 on the ground.
   const nudgeSelection = useCallback((dx: number, dy: number, dz: number) => {
@@ -3548,67 +3636,68 @@ export function StageBuilder3D() {
   const alignSelection = useCallback((op: AlignOp) => {
     if (selection.length < 2) return;
     setItems((cur) => {
-      const sel = cur.filter((i) => selection.includes(i.id));
-      if (sel.length < 2) return cur;
-      const bounds = sel.map((i) => {
-        const [w, h, d] = SPECS[i.kind].size;
-        return {
-          id: i.id,
-          minX: i.pos[0] - w / 2, maxX: i.pos[0] + w / 2, cx: i.pos[0],
-          minZ: i.pos[2] - d / 2, maxZ: i.pos[2] + d / 2, cz: i.pos[2],
-          minY: i.pos[1],         maxY: i.pos[1] + h,     cy: i.pos[1] + h / 2,
-          w, h, d,
-        };
-      });
-      const minX = Math.min(...bounds.map((b) => b.minX));
-      const maxX = Math.max(...bounds.map((b) => b.maxX));
-      const minZ = Math.min(...bounds.map((b) => b.minZ));
-      const maxZ = Math.max(...bounds.map((b) => b.maxZ));
-      const minY = Math.min(...bounds.map((b) => b.minY));
-      const maxY = Math.max(...bounds.map((b) => b.maxY));
+      const units = layoutUnitsForSelection(cur, selection);
+      if (units.length < 2) return cur;
+      const minX = Math.min(...units.map((b) => b.minX));
+      const maxX = Math.max(...units.map((b) => b.maxX));
+      const minZ = Math.min(...units.map((b) => b.minZ));
+      const maxZ = Math.max(...units.map((b) => b.maxZ));
+      const minY = Math.min(...units.map((b) => b.minY));
+      const maxY = Math.max(...units.map((b) => b.maxY));
       const cxAll = (minX + maxX) / 2;
       const czAll = (minZ + maxZ) / 2;
       const cyAll = (minY + maxY) / 2;
-      const targetPos = new Map<string, [number, number, number]>();
-      for (const b of bounds) {
-        const src = sel.find((i) => i.id === b.id)!;
-        let [x, y, z] = src.pos;
+      const deltaById = new Map<string, [number, number, number]>();
+      for (const b of units) {
+        let dx = 0, dy = 0, dz = 0;
         switch (op) {
-          case "left":    x = minX + b.w / 2; break;
-          case "right":   x = maxX - b.w / 2; break;
-          case "hcenter": x = cxAll; break;
-          case "front":   z = minZ + b.d / 2; break;
-          case "back":    z = maxZ - b.d / 2; break;
-          case "vcenter": z = czAll; break;
-          case "bottom":  y = Math.max(0, minY); break;
-          case "top":     y = Math.max(0, maxY - b.h); break;
-          case "ycenter": y = Math.max(0, cyAll - b.h / 2); break;
+          case "left":    dx = minX - b.minX; break;
+          case "right":   dx = maxX - b.maxX; break;
+          case "hcenter": dx = cxAll - b.cx; break;
+          case "front":   dz = minZ - b.minZ; break;
+          case "back":    dz = maxZ - b.maxZ; break;
+          case "vcenter": dz = czAll - b.cz; break;
+          case "bottom":  dy = Math.max(0, minY) - b.minY; break;
+          case "top":     dy = maxY - b.maxY; break;
+          case "ycenter": dy = cyAll - b.cy; break;
         }
-        targetPos.set(b.id, [x, y, z]);
+        for (const id of b.ids) deltaById.set(id, [dx, dy, dz]);
       }
-      return normalizeScene(cur.map((it) => targetPos.has(it.id) ? { ...it, pos: targetPos.get(it.id)! } : it));
+      return normalizeScene(cur.map((it) => {
+        const d = deltaById.get(it.id);
+        return d ? { ...it, pos: [it.pos[0] + d[0], Math.max(0, it.pos[1] + d[1]), it.pos[2] + d[2]] as [number, number, number] } : it;
+      }));
     });
   }, [selection]);
 
-  // Distribute evenly across an axis (center-to-center spacing).
+  // Distribute evenly across an axis by selected layer/group bounds (Photoshop-style spacing).
   const distributeSelection = useCallback((axis: "x" | "z" | "y") => {
     if (selection.length < 3) return;
     setItems((cur) => {
-      const sel = cur.filter((i) => selection.includes(i.id));
-      if (sel.length < 3) return cur;
-      const idx = axis === "x" ? 0 : axis === "y" ? 1 : 2;
-      const sorted = [...sel].sort((a, b) => a.pos[idx] - b.pos[idx]);
-      const first = sorted[0].pos[idx];
-      const last = sorted[sorted.length - 1].pos[idx];
-      const step = (last - first) / (sorted.length - 1);
-      const targetPos = new Map<string, [number, number, number]>();
-      sorted.forEach((it, i) => {
-        const p: [number, number, number] = [...it.pos] as [number, number, number];
-        p[idx] = first + step * i;
-        if (idx === 1) p[1] = Math.max(0, p[1]);
-        targetPos.set(it.id, p);
+      const units = layoutUnitsForSelection(cur, selection);
+      if (units.length < 3) return cur;
+      const minKey = `min${axis.toUpperCase()}` as keyof LayoutUnit;
+      const maxKey = `max${axis.toUpperCase()}` as keyof LayoutUnit;
+      const cKey = axis === "x" ? "cx" : axis === "y" ? "cy" : "cz";
+      const sorted = [...units].sort((a, b) => (a[cKey] as number) - (b[cKey] as number));
+      const start = sorted[0][minKey] as number;
+      const end = sorted[sorted.length - 1][maxKey] as number;
+      const totalSize = sorted.reduce((sum, u) => sum + ((u[maxKey] as number) - (u[minKey] as number)), 0);
+      const gap = Math.max(0, (end - start - totalSize) / (sorted.length - 1));
+      let cursor = start;
+      const deltaById = new Map<string, [number, number, number]>();
+      sorted.forEach((u) => {
+        const unitSize = (u[maxKey] as number) - (u[minKey] as number);
+        const delta = cursor - (u[minKey] as number);
+        for (const id of u.ids) {
+          deltaById.set(id, axis === "x" ? [delta, 0, 0] : axis === "y" ? [0, delta, 0] : [0, 0, delta]);
+        }
+        cursor += unitSize + gap;
       });
-      return normalizeScene(cur.map((it) => targetPos.has(it.id) ? { ...it, pos: targetPos.get(it.id)! } : it));
+      return normalizeScene(cur.map((it) => {
+        const d = deltaById.get(it.id);
+        return d ? { ...it, pos: [it.pos[0] + d[0], Math.max(0, it.pos[1] + d[1]), it.pos[2] + d[2]] as [number, number, number] } : it;
+      }));
     });
   }, [selection]);
 
@@ -3695,11 +3784,12 @@ export function StageBuilder3D() {
       return normalizeScene(cur.map((it) => {
         const p = byId.get(it.id);
         if (!p) return it;
-        return { ...it, pos: [p.x, it.pos[1], p.z] as [number, number, number], rotY: 0 };
+        const z = SPECS[it.kind].category === "sound" ? speakerLineZ : p.z;
+        return { ...it, pos: [p.x, it.pos[1], z] as [number, number, number], rotY: 0 };
       }));
     });
     setSelection([]);
-  }, []);
+  }, [speakerLineZ]);
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -3859,8 +3949,8 @@ export function StageBuilder3D() {
         >
           {dark ? "☾ Tmavý" : "☀ Světlý"}
         </button>
-        <div className="flex items-center gap-1 rounded bg-neutral-100 px-2 py-1" title="Osa (Z) linie reproduktorů — všechny reprobedny se srovnají na tuto hodnotu">
-          <span className="text-[10px] text-neutral-500">PA linie Z</span>
+        <div className="flex items-center gap-1 rounded bg-neutral-100 px-2 py-1" title="Společná hloubka řady reproduktorů — všechny bedny se při stavění drží v jedné rovině">
+          <span className="text-[10px] text-neutral-500">Hloubka řady</span>
           <input
             type="number"
             step={0.1}
@@ -3873,26 +3963,26 @@ export function StageBuilder3D() {
         {/* Rotace UI odstraněna — bedny mají fixní orientaci */}
         {/* ── Zarovnání (Photoshop-style) ─────────────────────── */}
             {selection.length >= 2 && (
-              <div className="flex items-center gap-1 rounded bg-neutral-100 p-1" title="Zarovnání vybraných komponent">
+              <div className="flex items-center gap-1 rounded bg-neutral-100 p-1" title="Zarovnání vybraných komponent nebo skupin">
             <span className="px-1 text-[9px] font-bold uppercase tracking-wider text-neutral-500">Zarovnat</span>
-                <button onClick={() => alignSelection("left")}    className="min-h-7 min-w-7 rounded px-2 py-1 font-mono text-[15px] hover:bg-white" title="Zarovnat vlevo (X min)">⇤</button>
-                <button onClick={() => alignSelection("hcenter")} className="min-h-7 min-w-7 rounded px-2 py-1 font-mono text-[15px] hover:bg-white" title="Vodorovně na střed (X)">⇔</button>
-                <button onClick={() => alignSelection("right")}   className="min-h-7 min-w-7 rounded px-2 py-1 font-mono text-[15px] hover:bg-white" title="Zarovnat vpravo (X max)">⇥</button>
+                <button onClick={() => alignSelection("left")}    className="min-h-8 min-w-8 rounded px-2 py-1 font-mono text-[18px] hover:bg-white" title="Zarovnat vlevo (X min)">⇤</button>
+                <button onClick={() => alignSelection("hcenter")} className="min-h-8 min-w-8 rounded px-2 py-1 font-mono text-[18px] hover:bg-white" title="Vodorovně na střed (X)">⇔</button>
+                <button onClick={() => alignSelection("right")}   className="min-h-8 min-w-8 rounded px-2 py-1 font-mono text-[18px] hover:bg-white" title="Zarovnat vpravo (X max)">⇥</button>
             <span className="mx-0.5 h-4 w-px bg-neutral-300" />
-                <button onClick={() => alignSelection("front")}   className="min-h-7 min-w-7 rounded px-2 py-1 font-mono text-[15px] hover:bg-white" title="Zarovnat dopředu (Z min)">⤒</button>
-                <button onClick={() => alignSelection("vcenter")} className="min-h-7 min-w-7 rounded px-2 py-1 font-mono text-[15px] hover:bg-white" title="Do hloubky na střed (Z)">⇕</button>
-                <button onClick={() => alignSelection("back")}    className="min-h-7 min-w-7 rounded px-2 py-1 font-mono text-[15px] hover:bg-white" title="Zarovnat dozadu (Z max)">⤓</button>
+                <button onClick={() => alignSelection("front")}   className="min-h-8 min-w-8 rounded px-2 py-1 font-mono text-[18px] hover:bg-white" title="Zarovnat dopředu (Z min)">⤒</button>
+                <button onClick={() => alignSelection("vcenter")} className="min-h-8 min-w-8 rounded px-2 py-1 font-mono text-[18px] hover:bg-white" title="Do hloubky na střed (Z)">⇕</button>
+                <button onClick={() => alignSelection("back")}    className="min-h-8 min-w-8 rounded px-2 py-1 font-mono text-[18px] hover:bg-white" title="Zarovnat dozadu (Z max)">⤓</button>
             <span className="mx-0.5 h-4 w-px bg-neutral-300" />
-                <button onClick={() => alignSelection("bottom")}  className="min-h-7 min-w-7 rounded px-2 py-1 font-mono text-[15px] hover:bg-white" title="Zarovnat dolů (Y min)">▁</button>
-                <button onClick={() => alignSelection("ycenter")} className="min-h-7 min-w-7 rounded px-2 py-1 font-mono text-[15px] hover:bg-white" title="Výškově na střed (Y)">▬</button>
-                <button onClick={() => alignSelection("top")}     className="min-h-7 min-w-7 rounded px-2 py-1 font-mono text-[15px] hover:bg-white" title="Zarovnat nahoru (Y max)">▔</button>
+                <button onClick={() => alignSelection("bottom")}  className="min-h-8 min-w-8 rounded px-2 py-1 font-mono text-[18px] hover:bg-white" title="Zarovnat dolů (Y min)">▁</button>
+                <button onClick={() => alignSelection("ycenter")} className="min-h-8 min-w-8 rounded px-2 py-1 font-mono text-[18px] hover:bg-white" title="Výškově na střed (Y)">▬</button>
+                <button onClick={() => alignSelection("top")}     className="min-h-8 min-w-8 rounded px-2 py-1 font-mono text-[18px] hover:bg-white" title="Zarovnat nahoru (Y max)">▔</button>
             {selection.length >= 3 && (
               <>
                 <span className="mx-0.5 h-4 w-px bg-neutral-300" />
                 <span className="px-1 text-[9px] font-bold uppercase tracking-wider text-neutral-500">Rozmístit</span>
-                    <button onClick={() => distributeSelection("x")} className="min-h-7 min-w-7 rounded px-2 py-1 font-mono text-[15px] hover:bg-white" title="Rovnoměrně po X">↔</button>
-                    <button onClick={() => distributeSelection("z")} className="min-h-7 min-w-7 rounded px-2 py-1 font-mono text-[15px] hover:bg-white" title="Rovnoměrně po Z (hloubka)">↕</button>
-                    <button onClick={() => distributeSelection("y")} className="min-h-7 min-w-7 rounded px-2 py-1 font-mono text-[15px] hover:bg-white" title="Rovnoměrně po Y (výška)">⇅</button>
+                    <button onClick={() => distributeSelection("x")} className="min-h-8 min-w-8 rounded px-2 py-1 font-mono text-[18px] hover:bg-white" title="Rovnoměrné mezery po X mezi skupinami / stacky">↔</button>
+                    <button onClick={() => distributeSelection("z")} className="min-h-8 min-w-8 rounded px-2 py-1 font-mono text-[18px] hover:bg-white" title="Rovnoměrné mezery po Z (hloubka)">↕</button>
+                    <button onClick={() => distributeSelection("y")} className="min-h-8 min-w-8 rounded px-2 py-1 font-mono text-[18px] hover:bg-white" title="Rovnoměrné mezery po Y (výška)">⇅</button>
               </>
             )}
           </div>
@@ -4469,6 +4559,10 @@ export function StageBuilder3D() {
                 return (
                   <div
                     key={it.id}
+                    ref={(el) => {
+                      if (el) layerRowRefs.current.set(it.id, el);
+                      else layerRowRefs.current.delete(it.id);
+                    }}
                     className={`mb-1.5 rounded border p-2 text-[11px] transition ${isSel ? "border-lime-500 bg-neutral-100" : "border-neutral-200 bg-neutral-50 hover:border-neutral-300"}`}
                   >
                     <button
@@ -4562,9 +4656,18 @@ export function StageBuilder3D() {
                     const gName = groupNames[gid] ?? `Skupina ${gid.slice(0, 4)}`;
                     const gIds = gItems.map((x) => x.id);
                     const allSelected = gIds.every((id) => selection.includes(id));
+                    const gap = readGroupGap(groupSpacing, gid);
+                    const collapsed = collapsedGroups[gid] ?? false;
                     return (
-                      <div key={gid} className="mb-2 rounded-md border border-neutral-300 bg-white">
+                      <div key={gid} className={`mb-2 rounded-md border bg-white ${allSelected ? "border-lime-500 ring-1 ring-lime-400" : "border-neutral-300"}`}>
                         <div className="flex items-center gap-1 rounded-t-md bg-neutral-100 px-2 py-1">
+                          <button
+                            onClick={() => toggleGroupCollapsed(gid)}
+                            className="rounded p-0.5 text-neutral-600 hover:bg-white"
+                            title={collapsed ? "Rozbalit skupinu" : "Sbalit skupinu"}
+                          >
+                            {collapsed ? <ChevronRight size={12} /> : <ChevronDown size={12} />}
+                          </button>
                           <button
                             onClick={(e) => {
                               setMode("select");
@@ -4574,7 +4677,7 @@ export function StageBuilder3D() {
                             className={`flex items-center gap-1 rounded px-1 py-0.5 text-[10px] font-bold uppercase tracking-wider ${allSelected ? "bg-lime-500 text-neutral-950" : "text-neutral-700 hover:bg-white"}`}
                             title="Vybrat celou skupinu (Shift = přidat)"
                           >
-                            <GroupIcon size={10} /> {gItems.length}
+                            <Folder size={12} /> {gItems.length}
                           </button>
                           <input
                             type="text"
@@ -4593,23 +4696,45 @@ export function StageBuilder3D() {
                             title="Rozpustit skupinu"
                           ><Ungroup size={11} /></button>
                         </div>
-                        <div className="border-b border-neutral-200 bg-neutral-50 px-2 py-1.5">
-                          <div className="mb-1 flex items-center justify-between text-[9px] font-bold uppercase tracking-wider text-neutral-500">
-                            <span>Odsazení beden ve skupině</span>
-                            <span className="font-mono text-neutral-700">{(groupSpacing[gid] ?? 0.06).toFixed(2)} m</span>
-                          </div>
-                          <input
-                            type="range"
-                            min={0}
-                            max={1.2}
-                            step={0.02}
-                            value={groupSpacing[gid] ?? 0.06}
-                            onChange={(e) => setGroupGap(gid, Number(e.target.value))}
-                            className="w-full accent-lime-500"
-                            title="Rozestup beden v rámci skupiny — po změně se automaticky odstraní překryvy"
-                          />
-                        </div>
-                        <div className="p-1.5">{gItems.map(renderItemCard)}</div>
+                        {!collapsed && (
+                          <>
+                            <div className="grid gap-2 border-b border-neutral-200 bg-neutral-50 px-2 py-2">
+                              <label className="block">
+                                <div className="mb-1 flex items-center justify-between text-[9px] font-bold uppercase tracking-wider text-neutral-500">
+                                  <span>Mezera vodorovně</span>
+                                  <span className="font-mono text-neutral-700">{gap.x.toFixed(2)} m</span>
+                                </div>
+                                <input
+                                  type="range"
+                                  min={0}
+                                  max={1.2}
+                                  step={0.02}
+                                  value={gap.x}
+                                  onChange={(e) => setGroupGap(gid, "x", Number(e.target.value))}
+                                  className="h-2 w-full accent-lime-500"
+                                  title="Rozestup beden v řadě skupiny"
+                                />
+                              </label>
+                              <label className="block">
+                                <div className="mb-1 flex items-center justify-between text-[9px] font-bold uppercase tracking-wider text-neutral-500">
+                                  <span>Mezera vertikálně</span>
+                                  <span className="font-mono text-neutral-700">{gap.y.toFixed(2)} m</span>
+                                </div>
+                                <input
+                                  type="range"
+                                  min={0}
+                                  max={0.6}
+                                  step={0.01}
+                                  value={gap.y}
+                                  onChange={(e) => setGroupGap(gid, "y", Number(e.target.value))}
+                                  className="h-2 w-full accent-cyan-500"
+                                  title="Výškový odstup ve stacku — bedny zůstávají přesně nad sebou"
+                                />
+                              </label>
+                            </div>
+                            <div className="p-1.5">{gItems.map(renderItemCard)}</div>
+                          </>
+                        )}
                       </div>
                     );
                   })}
