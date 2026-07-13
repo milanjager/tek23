@@ -1631,9 +1631,17 @@ import {
   stackY as stackYPure,
   hasCollision as hasCollisionPure,
   stackSnapTarget as stackSnapTargetPure,
+  sanitizeStacks as sanitizeStacksPure,
   PLACEMENT_TUNING,
   type PlacementItem,
 } from "./placement";
+
+/** Wrapper that keeps SPECS-derived sizes without leaking Placed→PlacementItem. */
+function sanitizeStacks(items: Placed[]): Placed[] {
+  const wrapped = items.map((p) => ({ ...asPlacementItem(p), _orig: p }));
+  const fixed = sanitizeStacksPure(wrapped);
+  return fixed.map((w) => ({ ...(w as unknown as { _orig: Placed })._orig, pos: w.pos as [number, number, number] }));
+}
 
 // Backwards-compatible constant; live grid step is read from PLACEMENT_TUNING.
 const GRID_STEP = PLACEMENT_TUNING.gridStep;
