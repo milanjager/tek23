@@ -1982,6 +1982,12 @@ function SceneContent({
   }, [primaryId, primaryObj, selection, setItems]);
 
   const [dropReport, setDropReport] = useState<{ text: string; kind: "stack" | "ground"; at: number } | null>(null);
+  const [snapTooltip, setSnapTooltip] = useState<{ text: string; kind: "stack" | "ground" | "bad"; at: number } | null>(null);
+  useEffect(() => {
+    if (!snapTooltip) return;
+    const t = setTimeout(() => setSnapTooltip((s) => (s && s.at === snapTooltip.at ? null : s)), 1600);
+    return () => clearTimeout(t);
+  }, [snapTooltip]);
   const handleTransformEnd = useCallback(() => {
     const reports: { label: string; raw: [number, number, number]; final: [number, number, number]; mode: "stack" | "ground"; onto?: string }[] = [];
     setItems((cur) => {
