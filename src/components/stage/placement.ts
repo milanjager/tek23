@@ -268,26 +268,26 @@ export function sanitizeStacks<It extends PlacementItem>(items: It[]): It[] {
  * remains. Vertical stacks are kept intact because those are intentional.
  */
 export function resolveHorizontalOverlaps<It extends PlacementItem>(items: It[], gap = 0.06): It[] {
-  const byLevel = new Map<number, It[]>();
-  for (const it of items) {
-    const key = Math.round(Math.max(0, it.pos[1]) * 20) / 20;
-    const arr = byLevel.get(key) ?? [];
-    arr.push(it);
-    byLevel.set(key, arr);
-  }
+  let out = items.map((it) => ({ ...it, pos: [...it.pos] as Vec3 }));
+  for (let pass = 0; pass < Math.max(12, out.length * 2); pass++) {
+    let changed = false;
+    for (let i = 0; i < out.length; i++) {
+      for (let j = i + 1; j < out.length; j++) {
+        const a = out[i];
+        const b = out[j];
+        const xz = xzOverlapAmount(a, b);
+        const vy = yOverlapAmount(a, b);
+        if (xz.x <= PLACEMENT_TUNING.collisionXZMin || xz.z <= PLACEMENT_TUNING.collisionXZMin || vy <= PLACEMENT_TUNING.collisionVerticalMin) continue;
 
-  const moved = new Map<string, It>();
-  for (const row of byLevel.values()) {
-    const sorted = [...row].sort((a, b) => a.pos[0] - b.pos[0] || a.pos[2] - b.pos[2]);
-    let cursor = -Infinity;
-    for (const it of sorted) {
-      const half = it.size[0] / 2;
-      const minX = it.pos[0] - half;
-      const targetMin = Math.max(minX, cursor);
-      const nextX = targetMin + half;
-      cursor = targetMin + it.size[0] + gap;
-      moved.set(it.id, { ...it, pos: [nextX, it.pos[1], it.pos[2]] });
+        const bRight = b.pos[0] >= a.pos[0];
+        const shift = xz.x + gap;
+        const half = shift / 2;
+        out[i] = { ...a, pos: [a.pos[0] + (bRight ? -half : half), a.pos[1], a.pos[2]] };
+        out[j] = { ...b, pos: [b.pos[0] + (bRight ? half : -half), b.pos[1], b.pos[2]] };
+        changed = true;
+      }
     }
+    if (!changed) break;
   }
-  return items.map((it) => moved.get(it.id) ?? it);
+  return out as It[];
 }
