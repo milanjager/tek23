@@ -35,7 +35,7 @@ type Kind =
   | "amp" | "powersoft" | "mixer" | "dj" | "dj_table" | "cdj"
   | "korg" | "korg_red" | "korg_blue" | "turntable"
   | "strobe" | "laser" | "movinghead"
-  | "bar" | "generator" | "crowd";
+  | "bar" | "generator" | "distro" | "crowd";
 
 
 type Category = "sound" | "lights" | "infra";
@@ -81,6 +81,7 @@ const SPECS: Record<Kind, Spec> = {
   movinghead:   { label: "Moving head",      category: "lights", size: [0.35, 0.55, 0.35], stackable: false, hint: "Otočná hlava" },
   bar:          { label: "Bar",              category: "infra",  size: [2.40, 1.10, 0.65], stackable: false, hint: "Bar pult" },
   generator:    { label: "Aggregát",         category: "infra",  size: [1.50, 1.20, 0.85], stackable: false, hint: "Diesel generátor" },
+  distro:       { label: "Rozdělovač",       category: "infra",  size: [0.60, 0.35, 0.40], stackable: true,  hint: "Silový rozvaděč / power distro (CEE in → 230V outs + DMX/SIG patch)", defaultLabel: "Rozdělovač" },
   crowd:        { label: "Dancefloor",       category: "infra",  size: [4.00, 0.02, 4.00], stackable: false, hint: "Prostor pro dav" },
 };
 
@@ -209,6 +210,17 @@ function connectorsFor(kind: Kind): Connector[] {
       return [
         { type: "power", role: "out", offset: [ bx * 0.35, by * 0.35,  bz * 0.50] },
         { type: "power", role: "out", offset: [-bx * 0.35, by * 0.35,  bz * 0.50] },
+      ];
+
+    // Power distro — 1× PWR in, 4× PWR out + DMX pass-through.
+    case "distro":
+      return [
+        { type: "power", role: "in",  offset: [-bx * 0.40, by * 0.60, -bz * 0.50] },
+        { type: "power", role: "out", offset: [ bx * 0.10, by * 0.60, -bz * 0.50] },
+        { type: "power", role: "out", offset: [ bx * 0.25, by * 0.60, -bz * 0.50] },
+        { type: "power", role: "out", offset: [ bx * 0.40, by * 0.60, -bz * 0.50] },
+        { type: "dmx",   role: "in",  offset: [-bx * 0.40, by * 0.25, -bz * 0.50] },
+        { type: "dmx",   role: "out", offset: [ bx * 0.40, by * 0.25, -bz * 0.50] },
       ];
 
     // Passive furniture — no connectors.
@@ -1919,7 +1931,7 @@ function RealisticTuner({ enabled }: { enabled: boolean }) {
 function SceneContent({
   items, setItems, selection, setSelection, tool,
   cables, setCables, mode, cableType, setCableType, pendingFrom, setPendingFrom,
-  showConnectorLabels, showCableLabels, realistic,
+  showConnectorLabels, showCableLabels, realistic, autoSanitize,
 }: {
   items: Placed[];
   setItems: React.Dispatch<React.SetStateAction<Placed[]>>;
@@ -1936,6 +1948,7 @@ function SceneContent({
   showConnectorLabels: boolean;
   showCableLabels: boolean;
   realistic: boolean;
+  autoSanitize: boolean;
 }) {
 
 
@@ -2030,7 +2043,8 @@ function SceneContent({
         });
         map.set(id, snapped);
       }
-      return [...map.values()];
+      const out = [...map.values()];
+      return autoSanitize ? sanitizeStacks(out) : out;
     });
     if (reports.length) {
       const fmt = (v: number) => v.toFixed(2);
@@ -2048,7 +2062,7 @@ function SceneContent({
           : `${first.label} položeno na zem · y=${fmt(first.final[1])}m (Δy ${fmt(first.final[1] - first.raw[1])})${extra}`;
       setDropReport({ text, kind: first.mode, at: Date.now() });
     }
-  }, [selection, setItems]);
+  }, [selection, setItems, autoSanitize]);
 
   // Auto-hide the drop report after a couple of seconds.
   useEffect(() => {
@@ -3455,6 +3469,11 @@ export function StageBuilder3D() {
   }, []);
   const [marqueeMode, setMarqueeMode] = useState(false);
   const [realistic, setRealistic] = useState(false);
+  const [autoSanitize, setAutoSanitize] = useState<boolean>(() => {
+    if (typeof window === "undefined") return false;
+    return localStorage.getItem("stage.autoSanitize") === "1";
+  });
+  useEffect(() => { localStorage.setItem("stage.autoSanitize", autoSanitize ? "1" : "0"); }, [autoSanitize]);
   const [viewMode, setViewMode] = useState<"3d" | "schema" | "grid" | "elev" | "iso">("3d");
   const [marquee, setMarquee] = useState<null | { x1: number; y1: number; x2: number; y2: number; additive: boolean }>(null);
   const cameraRef = useRef<THREE.Camera | null>(null);
@@ -3813,6 +3832,13 @@ export function StageBuilder3D() {
         >
           <Boxes size={12} /> Srovnat stacky
         </button>
+        <button
+          onClick={() => setAutoSanitize((v) => !v)}
+          className={`flex items-center gap-1 rounded px-2 py-1 ${autoSanitize ? "bg-cyan-500 text-neutral-950" : "bg-neutral-100 hover:bg-neutral-200"}`}
+          title="Po každém dropu automaticky srovnat stacky (žádné bedny v půlce jiných)."
+        >
+          <Boxes size={12} /> Auto srovnat {autoSanitize ? "· ON" : "· OFF"}
+        </button>
         <button onClick={() => { setMode("select"); setPendingFrom(null); setMarqueeMode(false); }} className={`flex items-center gap-1 rounded px-2 py-1 ${mode === "select" && !marqueeMode ? "bg-lime-500 text-neutral-950" : "bg-neutral-100 hover:bg-neutral-200"}`}><MousePointer2 size={12} /> Výběr</button>
         <button onClick={() => { setMode("select"); setPendingFrom(null); setMarqueeMode((v) => !v); }} className={`flex items-center gap-1 rounded px-2 py-1 ${marqueeMode ? "bg-lime-500 text-neutral-950" : "bg-neutral-100 hover:bg-neutral-200"}`} title="Táhni myší přes bedny (Shift = přidat k výběru)"><BoxSelect size={12} /> Skupinový výběr</button>
         <button
@@ -4117,6 +4143,7 @@ export function StageBuilder3D() {
               showConnectorLabels={showConnectorLabels}
               showCableLabels={showCableLabels}
               realistic={realistic}
+              autoSanitize={autoSanitize}
             />
           </Canvas>
 
