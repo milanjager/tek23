@@ -2238,6 +2238,9 @@ function SceneContent({
           items={items}
           objectsRef={objectsRef}
         />
+      )}
+
+
 
       {/* Transient drop report — shows where the item actually landed vs the ghost preview. */}
       {dropReport && (
