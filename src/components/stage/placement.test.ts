@@ -21,7 +21,10 @@ const modeAt = (
 
 describe("placement: grid snap", () => {
   it("rounds XZ to GRID_STEP and preserves Y", () => {
-    expect(snapToGridXZ([0.34, 1.5, -0.27])).toEqual([0.3, 1.5, -0.3]);
+    const r = snapToGridXZ([0.34, 1.5, -0.27]);
+    expect(r[0]).toBeCloseTo(0.3, 6);
+    expect(r[1]).toBe(1.5);
+    expect(r[2]).toBeCloseTo(-0.3, 6);
   });
 });
 
