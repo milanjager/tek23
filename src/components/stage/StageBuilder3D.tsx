@@ -4512,113 +4512,184 @@ export function StageBuilder3D() {
             );
           })()}
 
-          <div className="border-b border-neutral-200 px-3 py-2 text-xs font-bold uppercase tracking-wider text-neutral-500">
-            Komponenty na scéně ({items.length})
+          <div className="flex items-center justify-between border-b border-neutral-200 px-3 py-2">
+            <span className="text-xs font-bold uppercase tracking-wider text-neutral-500">
+              Vrstvy ({items.length})
+            </span>
+            <div className="flex items-center gap-1">
+              <button
+                onClick={groupSelection}
+                disabled={selection.length < 2}
+                className="rounded bg-neutral-100 px-1.5 py-0.5 text-[10px] hover:bg-neutral-200 disabled:opacity-40"
+                title="Seskupit výběr (Ctrl+G)"
+              ><GroupIcon size={10} className="inline" /> Seskupit</button>
+              <button
+                onClick={ungroupSelection}
+                disabled={!selection.length}
+                className="rounded bg-neutral-100 px-1.5 py-0.5 text-[10px] hover:bg-neutral-200 disabled:opacity-40"
+                title="Rozpustit skupinu (Ctrl+Shift+G)"
+              ><Ungroup size={10} className="inline" /> Rozpustit</button>
+            </div>
           </div>
           <div className="flex-1 overflow-y-auto p-2">
             {items.length === 0 && (
               <div className="p-4 text-center text-[11px] text-neutral-500">Zatím žádné komponenty. Přidej z levého panelu nebo načti preset.</div>
             )}
-            {items.map((it) => {
-              const spec = SPECS[it.kind];
-              const isSel = selection.includes(it.id);
-              const isKorg = it.kind === "korg" || it.kind === "korg_red" || it.kind === "korg_blue";
-              return (
-                <div
-                  key={it.id}
-                  className={`mb-1.5 rounded border p-2 text-[11px] transition ${isSel ? "border-lime-500 bg-neutral-100" : "border-neutral-200 bg-neutral-50 hover:border-neutral-300"}`}
-                >
-                  <button
-                    onClick={() => { setMode("select"); setSelection([it.id]); }}
-                    className="mb-1.5 flex w-full items-center gap-2 text-left"
+            {(() => {
+              // Photoshop-like Layers: group by groupId, ungrouped last.
+              const groups = new Map<string, Placed[]>();
+              const loose: Placed[] = [];
+              for (const it of items) {
+                if (it.groupId) {
+                  if (!groups.has(it.groupId)) groups.set(it.groupId, []);
+                  groups.get(it.groupId)!.push(it);
+                } else {
+                  loose.push(it);
+                }
+              }
+              const renderItemCard = (it: Placed) => {
+                const spec = SPECS[it.kind];
+                const isSel = selection.includes(it.id);
+                const isKorg = it.kind === "korg" || it.kind === "korg_red" || it.kind === "korg_blue";
+                return (
+                  <div
+                    key={it.id}
+                    className={`mb-1.5 rounded border p-2 text-[11px] transition ${isSel ? "border-lime-500 bg-neutral-100" : "border-neutral-200 bg-neutral-50 hover:border-neutral-300"}`}
                   >
-                    <span
-                      className="inline-block h-2 w-2 shrink-0 rounded-full"
-                      style={{ backgroundColor: spec.category === "sound" ? "#a3ff12" : spec.category === "lights" ? "#f4c11a" : "#05d9e8" }}
-                    />
-                    <span className="flex-1 truncate font-semibold text-neutral-900">
-                      {it.label || spec.label}
-                    </span>
-                    <span className="font-mono text-[9px] text-neutral-500">
-                      {it.pos[0].toFixed(1)},{it.pos[2].toFixed(1)}
-                    </span>
-                  </button>
-
-                  {/* Kind (model) selector */}
-                  <label className="mb-1 block">
-                    <span className="mb-0.5 block text-[9px] uppercase tracking-wider text-neutral-500">Model / typ bedny</span>
-                    <select
-                      value={it.kind}
-                      onChange={(e) => {
-                        const newKind = e.target.value as Kind;
-                        setItems((cur) => cur.map((x) => x.id === it.id ? {
-                          ...x,
-                          kind: newKind,
-                          variant: SPECS[newKind].defaultVariant ?? x.variant,
-                        } : x));
+                    <button
+                      onClick={(e) => {
+                        setMode("select");
+                        if (e.shiftKey || e.ctrlKey || e.metaKey) {
+                          setSelection((cur) => cur.includes(it.id) ? cur.filter((x) => x !== it.id) : [...cur, it.id]);
+                        } else {
+                          setSelection([it.id]);
+                        }
                       }}
-                      className="w-full rounded border border-neutral-300 bg-white px-1.5 py-1 text-[11px] text-neutral-900 focus:border-lime-500 focus:outline-none"
+                      className="mb-1.5 flex w-full items-center gap-2 text-left"
                     >
-                      {CATEGORIES.map((cat) => (
-                        <optgroup key={cat.id} label={cat.label}>
-                          {(Object.entries(SPECS) as [Kind, Spec][])
-                            .filter(([, s]) => s.category === cat.id)
-                            .map(([k, s]) => (
-                              <option key={k} value={k}>{s.label}</option>
-                            ))}
-                        </optgroup>
-                      ))}
-                    </select>
-                  </label>
-
-                  {/* Custom label */}
-                  <label className="mb-1 block">
-                    <span className="mb-0.5 block text-[9px] uppercase tracking-wider text-neutral-500">Vlastní štítek</span>
-                    <input
-                      type="text"
-                      value={it.label ?? ""}
-                      placeholder={spec.defaultLabel ?? spec.label}
-                      onChange={(e) => {
-                        const v = e.target.value;
-                        setItems((cur) => cur.map((x) => x.id === it.id ? { ...x, label: v || undefined } : x));
-                      }}
-                      className="w-full rounded border border-neutral-300 bg-white px-1.5 py-1 font-mono text-[11px] text-lime-600 focus:border-lime-500 focus:outline-none"
-                    />
-                  </label>
-
-                  {/* Variant (Korg color) */}
-                  {isKorg && (
-                    <div className="mb-1 flex items-center gap-1">
-                      <span className="text-[9px] uppercase tracking-wider text-neutral-500">Barva:</span>
-                      {(["red", "blue"] as const).map((v) => (
-                        <button
-                          key={v}
-                          onClick={() => setItems((cur) => cur.map((x) => x.id === it.id ? { ...x, variant: v } : x))}
-                          className={`h-5 w-5 rounded border-2 ${it.variant === v ? "border-lime-400" : "border-neutral-300"}`}
-                          style={{ backgroundColor: v === "red" ? "#c81e2a" : "#1e5ec8" }}
-                          title={v === "red" ? "Červený" : "Modrý"}
-                        />
-                      ))}
+                      <span
+                        className="inline-block h-2 w-2 shrink-0 rounded-full"
+                        style={{ backgroundColor: spec.category === "sound" ? "#a3ff12" : spec.category === "lights" ? "#f4c11a" : "#05d9e8" }}
+                      />
+                      <span className="flex-1 truncate font-semibold text-neutral-900">
+                        {it.label || spec.label}
+                      </span>
+                      <span className="font-mono text-[9px] text-neutral-500">
+                        {it.pos[0].toFixed(1)},{it.pos[2].toFixed(1)}
+                      </span>
+                    </button>
+                    <label className="mb-1 block">
+                      <span className="mb-0.5 block text-[9px] uppercase tracking-wider text-neutral-500">Model / typ bedny</span>
+                      <select
+                        value={it.kind}
+                        onChange={(e) => {
+                          const newKind = e.target.value as Kind;
+                          setItems((cur) => cur.map((x) => x.id === it.id ? {
+                            ...x, kind: newKind,
+                            variant: SPECS[newKind].defaultVariant ?? x.variant,
+                          } : x));
+                        }}
+                        className="w-full rounded border border-neutral-300 bg-white px-1.5 py-1 text-[11px] text-neutral-900 focus:border-lime-500 focus:outline-none"
+                      >
+                        {CATEGORIES.map((cat) => (
+                          <optgroup key={cat.id} label={cat.label}>
+                            {(Object.entries(SPECS) as [Kind, Spec][])
+                              .filter(([, s]) => s.category === cat.id)
+                              .map(([k, s]) => (<option key={k} value={k}>{s.label}</option>))}
+                          </optgroup>
+                        ))}
+                      </select>
+                    </label>
+                    <label className="mb-1 block">
+                      <span className="mb-0.5 block text-[9px] uppercase tracking-wider text-neutral-500">Vlastní štítek</span>
+                      <input
+                        type="text" value={it.label ?? ""} placeholder={spec.defaultLabel ?? spec.label}
+                        onChange={(e) => {
+                          const v = e.target.value;
+                          setItems((cur) => cur.map((x) => x.id === it.id ? { ...x, label: v || undefined } : x));
+                        }}
+                        className="w-full rounded border border-neutral-300 bg-white px-1.5 py-1 font-mono text-[11px] text-lime-600 focus:border-lime-500 focus:outline-none"
+                      />
+                    </label>
+                    {isKorg && (
+                      <div className="mb-1 flex items-center gap-1">
+                        <span className="text-[9px] uppercase tracking-wider text-neutral-500">Barva:</span>
+                        {(["red", "blue"] as const).map((v) => (
+                          <button
+                            key={v}
+                            onClick={() => setItems((cur) => cur.map((x) => x.id === it.id ? { ...x, variant: v } : x))}
+                            className={`h-5 w-5 rounded border-2 ${it.variant === v ? "border-lime-400" : "border-neutral-300"}`}
+                            style={{ backgroundColor: v === "red" ? "#c81e2a" : "#1e5ec8" }}
+                            title={v === "red" ? "Červený" : "Modrý"}
+                          />
+                        ))}
+                      </div>
+                    )}
+                    <div className="mt-1 flex items-center justify-between">
+                      <span className="font-mono text-[9px] text-neutral-600">
+                        {spec.size[0].toFixed(2)}×{spec.size[1].toFixed(2)}×{spec.size[2].toFixed(2)} m
+                      </span>
+                      <button
+                        onClick={() => {
+                          setItems((cur) => cur.filter((x) => x.id !== it.id));
+                          setCables((cs) => cs.filter((c) => c.from !== it.id && c.to !== it.id));
+                        }}
+                        className="rounded bg-red-100 px-1.5 py-0.5 text-[10px] text-red-700 hover:bg-red-200"
+                      ><Trash2 size={10} className="inline" /></button>
+                    </div>
+                  </div>
+                );
+              };
+              return (
+                <>
+                  {Array.from(groups.entries()).map(([gid, gItems]) => {
+                    const gName = groupNames[gid] ?? `Skupina ${gid.slice(0, 4)}`;
+                    const gIds = gItems.map((x) => x.id);
+                    const allSelected = gIds.every((id) => selection.includes(id));
+                    return (
+                      <div key={gid} className="mb-2 rounded-md border border-neutral-300 bg-white">
+                        <div className="flex items-center gap-1 rounded-t-md bg-neutral-100 px-2 py-1">
+                          <button
+                            onClick={(e) => {
+                              setMode("select");
+                              if (e.shiftKey) setSelection((cur) => Array.from(new Set([...cur, ...gIds])));
+                              else setSelection(allSelected ? [] : gIds);
+                            }}
+                            className={`flex items-center gap-1 rounded px-1 py-0.5 text-[10px] font-bold uppercase tracking-wider ${allSelected ? "bg-lime-500 text-neutral-950" : "text-neutral-700 hover:bg-white"}`}
+                            title="Vybrat celou skupinu (Shift = přidat)"
+                          >
+                            <GroupIcon size={10} /> {gItems.length}
+                          </button>
+                          <input
+                            type="text"
+                            value={groupNames[gid] ?? ""}
+                            placeholder={`Skupina ${gid.slice(0, 4)}`}
+                            onChange={(e) => renameGroup(gid, e.target.value)}
+                            className="flex-1 rounded bg-transparent px-1 py-0.5 text-[11px] font-semibold text-neutral-900 focus:bg-white focus:outline focus:outline-1 focus:outline-lime-500"
+                            title="Přejmenovat skupinu"
+                          />
+                          <button
+                            onClick={() => {
+                              setItems((cur) => cur.map((i) => gIds.includes(i.id) ? { ...i, groupId: undefined } : i));
+                              renameGroup(gid, "");
+                            }}
+                            className="rounded p-0.5 text-neutral-500 hover:bg-white hover:text-red-600"
+                            title="Rozpustit skupinu"
+                          ><Ungroup size={11} /></button>
+                        </div>
+                        <div className="p-1.5">{gItems.map(renderItemCard)}</div>
+                      </div>
+                    );
+                  })}
+                  {loose.length > 0 && groups.size > 0 && (
+                    <div className="mt-2 mb-1 px-1 text-[9px] font-bold uppercase tracking-wider text-neutral-400">
+                      Nezařazené ({loose.length})
                     </div>
                   )}
-
-                  <div className="mt-1 flex items-center justify-between">
-                    <span className="font-mono text-[9px] text-neutral-600">
-                      {spec.size[0].toFixed(2)}×{spec.size[1].toFixed(2)}×{spec.size[2].toFixed(2)} m
-                    </span>
-                    <button
-                      onClick={() => {
-                        setItems((cur) => cur.filter((x) => x.id !== it.id));
-                        setCables((cs) => cs.filter((c) => c.from !== it.id && c.to !== it.id));
-                      }}
-                      className="rounded bg-red-100 px-1.5 py-0.5 text-[10px] text-red-700 hover:bg-red-200"
-                    >
-                      <Trash2 size={10} className="inline" />
-                    </button>
-                  </div>
-                </div>
+                  {loose.map(renderItemCard)}
+                </>
               );
-            })}
+            })()}
           </div>
         </aside>
       </div>
