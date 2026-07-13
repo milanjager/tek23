@@ -4070,6 +4070,24 @@ export function StageBuilder3D() {
               }}
             />
 
+          ) : viewMode === "iso" ? (
+            <IsometricView
+              items={items}
+              specs={SPECS as unknown as Record<string, { label: string; category: string; size: [number, number, number] }>}
+              selectedIds={selection}
+              onSelectItem={(id, additive) => {
+                if (id === null) { setSelection([]); return; }
+                setSelection((prev) => {
+                  if (!additive) return [id];
+                  return prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id];
+                });
+              }}
+              onDeleteItem={(id) => {
+                setItems((cur) => cur.filter((x) => x.id !== id));
+                setCables((cs) => cs.filter((c) => c.from !== id && c.to !== id));
+                setSelection((prev) => prev.filter((x) => x !== id));
+              }}
+            />
           ) : (
           <>
 
