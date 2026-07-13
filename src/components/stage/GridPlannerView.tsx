@@ -349,13 +349,7 @@ export default function GridPlannerView({
                     {stackLevel + 1}/{stackTotal}
                   </div>
                 )}
-                {/* Rotation indicator arrow (points to front) */}
-                <div
-                  className="pointer-events-none absolute left-1/2 -translate-x-1/2 text-[10px] font-bold"
-                  style={{ bottom: 1, color: color.border }}
-                >
-                  ▼
-                </div>
+                {/* Orientation arrow removed — all speakers face the audience uniformly. */}
               </div>
             );
           })}
