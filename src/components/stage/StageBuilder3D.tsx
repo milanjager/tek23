@@ -2043,7 +2043,8 @@ function SceneContent({
         });
         map.set(id, snapped);
       }
-      return [...map.values()];
+      const out = [...map.values()];
+      return autoSanitize ? sanitizeStacks(out) : out;
     });
     if (reports.length) {
       const fmt = (v: number) => v.toFixed(2);
