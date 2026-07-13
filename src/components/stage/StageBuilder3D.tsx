@@ -3824,11 +3824,25 @@ export function StageBuilder3D() {
       else if (meta && (e.key.toLowerCase() === "y" || (e.shiftKey && e.key.toLowerCase() === "z"))) { redo(); e.preventDefault(); }
       else if (e.key === "[") { setPaletteOpen((v) => !v); }
       else if (e.key === "]") { setRightOpen((v) => !v); }
-
+      // Arrow-key nudge: 0.1m, Shift = 1m. Alt = Y axis (up/down).
+      else if (selection.length && (e.key === "ArrowLeft" || e.key === "ArrowRight" || e.key === "ArrowUp" || e.key === "ArrowDown")) {
+        const step = e.shiftKey ? 1.0 : 0.1;
+        let dx = 0, dy = 0, dz = 0;
+        if (e.altKey) {
+          if (e.key === "ArrowUp") dy = step;
+          else if (e.key === "ArrowDown") dy = -step;
+        } else {
+          if (e.key === "ArrowLeft") dx = -step;
+          else if (e.key === "ArrowRight") dx = step;
+          else if (e.key === "ArrowUp") dz = -step;
+          else if (e.key === "ArrowDown") dz = step;
+        }
+        if (dx || dy || dz) { nudgeSelection(dx, dy, dz); e.preventDefault(); }
+      }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [deleteSelection, copySelection, pasteSelection, duplicateSelection, groupSelection, ungroupSelection, undo, redo]);
+  }, [deleteSelection, copySelection, pasteSelection, duplicateSelection, groupSelection, ungroupSelection, undo, redo, nudgeSelection, selection.length]);
 
   const palette = useMemo(
     () => (Object.entries(SPECS) as [Kind, Spec][]).filter(([, s]) => s.category === category),
