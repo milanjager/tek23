@@ -1100,13 +1100,13 @@ function MovingHeadModel({ size }: { size: [number, number, number] }) {
         </mesh>
       ))}
       {/* Head */}
-      <mesh position={[0, h * 0.7, 0]} castShadow>
-        <cylinderGeometry args={[w * 0.32, w * 0.32, h * 0.5, 20]} rotation-z={Math.PI / 2} />
+      <mesh position={[0, h * 0.7, 0]} rotation={[0, 0, Math.PI / 2]} castShadow>
+        <cylinderGeometry args={[w * 0.32, w * 0.32, h * 0.5, 20]} />
         <meshStandardMaterial color="#0a0a0a" metalness={0.6} roughness={0.4} />
       </mesh>
       {/* Lens */}
-      <mesh position={[0, h * 0.7, d * 0.35]}>
-        <cylinderGeometry args={[w * 0.25, w * 0.25, 0.02, 24]} rotation-x={Math.PI / 2} />
+      <mesh position={[0, h * 0.7, d * 0.35]} rotation={[Math.PI / 2, 0, 0]}>
+        <cylinderGeometry args={[w * 0.25, w * 0.25, 0.02, 24]} />
         <meshStandardMaterial color="#a3ff12" emissive="#a3ff12" emissiveIntensity={1.4} />
       </mesh>
     </group>
