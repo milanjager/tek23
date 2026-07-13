@@ -4249,6 +4249,7 @@ export function StageBuilder3D() {
           </div>
         </aside>
       </div>
+      <PlacementDevPanel />
     </div>
   );
 
