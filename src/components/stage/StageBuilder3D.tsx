@@ -3626,67 +3626,68 @@ export function StageBuilder3D() {
   const alignSelection = useCallback((op: AlignOp) => {
     if (selection.length < 2) return;
     setItems((cur) => {
-      const sel = cur.filter((i) => selection.includes(i.id));
-      if (sel.length < 2) return cur;
-      const bounds = sel.map((i) => {
-        const [w, h, d] = SPECS[i.kind].size;
-        return {
-          id: i.id,
-          minX: i.pos[0] - w / 2, maxX: i.pos[0] + w / 2, cx: i.pos[0],
-          minZ: i.pos[2] - d / 2, maxZ: i.pos[2] + d / 2, cz: i.pos[2],
-          minY: i.pos[1],         maxY: i.pos[1] + h,     cy: i.pos[1] + h / 2,
-          w, h, d,
-        };
-      });
-      const minX = Math.min(...bounds.map((b) => b.minX));
-      const maxX = Math.max(...bounds.map((b) => b.maxX));
-      const minZ = Math.min(...bounds.map((b) => b.minZ));
-      const maxZ = Math.max(...bounds.map((b) => b.maxZ));
-      const minY = Math.min(...bounds.map((b) => b.minY));
-      const maxY = Math.max(...bounds.map((b) => b.maxY));
+      const units = layoutUnitsForSelection(cur, selection);
+      if (units.length < 2) return cur;
+      const minX = Math.min(...units.map((b) => b.minX));
+      const maxX = Math.max(...units.map((b) => b.maxX));
+      const minZ = Math.min(...units.map((b) => b.minZ));
+      const maxZ = Math.max(...units.map((b) => b.maxZ));
+      const minY = Math.min(...units.map((b) => b.minY));
+      const maxY = Math.max(...units.map((b) => b.maxY));
       const cxAll = (minX + maxX) / 2;
       const czAll = (minZ + maxZ) / 2;
       const cyAll = (minY + maxY) / 2;
-      const targetPos = new Map<string, [number, number, number]>();
-      for (const b of bounds) {
-        const src = sel.find((i) => i.id === b.id)!;
-        let [x, y, z] = src.pos;
+      const deltaById = new Map<string, [number, number, number]>();
+      for (const b of units) {
+        let dx = 0, dy = 0, dz = 0;
         switch (op) {
-          case "left":    x = minX + b.w / 2; break;
-          case "right":   x = maxX - b.w / 2; break;
-          case "hcenter": x = cxAll; break;
-          case "front":   z = minZ + b.d / 2; break;
-          case "back":    z = maxZ - b.d / 2; break;
-          case "vcenter": z = czAll; break;
-          case "bottom":  y = Math.max(0, minY); break;
-          case "top":     y = Math.max(0, maxY - b.h); break;
-          case "ycenter": y = Math.max(0, cyAll - b.h / 2); break;
+          case "left":    dx = minX - b.minX; break;
+          case "right":   dx = maxX - b.maxX; break;
+          case "hcenter": dx = cxAll - b.cx; break;
+          case "front":   dz = minZ - b.minZ; break;
+          case "back":    dz = maxZ - b.maxZ; break;
+          case "vcenter": dz = czAll - b.cz; break;
+          case "bottom":  dy = Math.max(0, minY) - b.minY; break;
+          case "top":     dy = maxY - b.maxY; break;
+          case "ycenter": dy = cyAll - b.cy; break;
         }
-        targetPos.set(b.id, [x, y, z]);
+        for (const id of b.ids) deltaById.set(id, [dx, dy, dz]);
       }
-      return normalizeScene(cur.map((it) => targetPos.has(it.id) ? { ...it, pos: targetPos.get(it.id)! } : it));
+      return normalizeScene(cur.map((it) => {
+        const d = deltaById.get(it.id);
+        return d ? { ...it, pos: [it.pos[0] + d[0], Math.max(0, it.pos[1] + d[1]), it.pos[2] + d[2]] as [number, number, number] } : it;
+      }));
     });
   }, [selection]);
 
-  // Distribute evenly across an axis (center-to-center spacing).
+  // Distribute evenly across an axis by selected layer/group bounds (Photoshop-style spacing).
   const distributeSelection = useCallback((axis: "x" | "z" | "y") => {
     if (selection.length < 3) return;
     setItems((cur) => {
-      const sel = cur.filter((i) => selection.includes(i.id));
-      if (sel.length < 3) return cur;
-      const idx = axis === "x" ? 0 : axis === "y" ? 1 : 2;
-      const sorted = [...sel].sort((a, b) => a.pos[idx] - b.pos[idx]);
-      const first = sorted[0].pos[idx];
-      const last = sorted[sorted.length - 1].pos[idx];
-      const step = (last - first) / (sorted.length - 1);
-      const targetPos = new Map<string, [number, number, number]>();
-      sorted.forEach((it, i) => {
-        const p: [number, number, number] = [...it.pos] as [number, number, number];
-        p[idx] = first + step * i;
-        if (idx === 1) p[1] = Math.max(0, p[1]);
-        targetPos.set(it.id, p);
+      const units = layoutUnitsForSelection(cur, selection);
+      if (units.length < 3) return cur;
+      const minKey = `min${axis.toUpperCase()}` as keyof LayoutUnit;
+      const maxKey = `max${axis.toUpperCase()}` as keyof LayoutUnit;
+      const cKey = axis === "x" ? "cx" : axis === "y" ? "cy" : "cz";
+      const sorted = [...units].sort((a, b) => (a[cKey] as number) - (b[cKey] as number));
+      const start = sorted[0][minKey] as number;
+      const end = sorted[sorted.length - 1][maxKey] as number;
+      const totalSize = sorted.reduce((sum, u) => sum + ((u[maxKey] as number) - (u[minKey] as number)), 0);
+      const gap = Math.max(0, (end - start - totalSize) / (sorted.length - 1));
+      let cursor = start;
+      const deltaById = new Map<string, [number, number, number]>();
+      sorted.forEach((u) => {
+        const unitSize = (u[maxKey] as number) - (u[minKey] as number);
+        const delta = cursor - (u[minKey] as number);
+        for (const id of u.ids) {
+          deltaById.set(id, axis === "x" ? [delta, 0, 0] : axis === "y" ? [0, delta, 0] : [0, 0, delta]);
+        }
+        cursor += unitSize + gap;
       });
-      return normalizeScene(cur.map((it) => targetPos.has(it.id) ? { ...it, pos: targetPos.get(it.id)! } : it));
+      return normalizeScene(cur.map((it) => {
+        const d = deltaById.get(it.id);
+        return d ? { ...it, pos: [it.pos[0] + d[0], Math.max(0, it.pos[1] + d[1]), it.pos[2] + d[2]] as [number, number, number] } : it;
+      }));
     });
   }, [selection]);
 
