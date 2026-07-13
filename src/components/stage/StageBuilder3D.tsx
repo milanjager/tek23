@@ -2238,7 +2238,32 @@ function SceneContent({
           items={items}
           objectsRef={objectsRef}
         />
+
+      {/* Transient drop report — shows where the item actually landed vs the ghost preview. */}
+      {dropReport && (
+        <Html fullscreen prepend zIndexRange={[100, 0]} style={{ pointerEvents: "none" }}>
+          <div
+            style={{
+              position: "absolute",
+              left: "50%",
+              bottom: 24,
+              transform: "translateX(-50%)",
+              padding: "8px 14px",
+              borderRadius: 10,
+              background: "rgba(15,17,22,0.86)",
+              color: dropReport.kind === "stack" ? "#7fe3ff" : "#8fffb0",
+              fontSize: 12,
+              fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
+              boxShadow: "0 6px 20px rgba(0,0,0,0.35)",
+              border: `1px solid ${dropReport.kind === "stack" ? "rgba(127,227,255,0.4)" : "rgba(143,255,176,0.4)"}`,
+              whiteSpace: "nowrap",
+            }}
+          >
+            {dropReport.kind === "stack" ? "▣ stack" : "▤ zem"} · {dropReport.text}
+          </div>
+        </Html>
       )}
+
 
       {/* Ghost cable — visible while the user is dragging a plug to a target */}
       {mode === "cable" && pendingFrom && cursorWorld && (() => {
