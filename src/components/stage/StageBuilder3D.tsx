@@ -3266,7 +3266,7 @@ export function StageBuilder3D() {
         if (parsed.groupNames && typeof parsed.groupNames === "object") setGroupNames(parsed.groupNames);
         if (parsed.groupSpacing && typeof parsed.groupSpacing === "object") setGroupSpacing(parsed.groupSpacing);
       } else {
-        setItems(normalizeScene(loadPreset("techno")));
+        setItems(normalizeScene(loadPreset("picus_wall")));
       }
     } catch { /* noop */ }
     finally { setSceneHydrated(true); }
