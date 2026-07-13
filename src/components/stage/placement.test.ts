@@ -44,10 +44,13 @@ describe("placement: ground vs stack vs bad", () => {
     expect(r.snappedPos).toEqual([0, 0.6, 0]);
   });
 
-  it("dragged laterally into another box at ground level → bad", () => {
+  it("laterally over another box at low rawY → auto-stacked to top (ground mode)", () => {
+    // stackY promotes the ghost onto the target's top surface even below the
+    // stack-snap lift threshold — this is intentional so the ghost never
+    // clips through neighbours. Result: green, resting at oTop.
     const r = computeGhostMode(moving, [base], [0.1, 0, 0.1]);
-    expect(r.mode).toBe("bad");
-    expect(r.collided).toContain("base");
+    expect(r.mode).toBe("ground");
+    expect(r.snappedPos[1]).toBe(0.6);
   });
 
   it("rawY below floor → bad (buried), no collision list", () => {
