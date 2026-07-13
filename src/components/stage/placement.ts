@@ -184,6 +184,10 @@ export function computeGhostMode(
     candidate.pos = [sx, y, sz];
   }
 
+
+
+
+
   const buried = rawY < T.buriedY;
   const collides = hasCollision(candidate, others);
   const bad = buried || collides;
@@ -206,4 +210,32 @@ export function computeGhostMode(
   }
 
   return { mode, snappedPos: candidate.pos, ontoId, buried, collided };
+}
+
+/**
+ * Repairs partial vertical overlaps: any item whose XZ footprint overlaps
+ * a lower item is lifted so its bottom sits exactly on the highest such
+ * neighbor's top. Runs in bottom-up order so cascading stacks resolve.
+ * Pure — returns a new array; caller decides whether to persist.
+ */
+export function sanitizeStacks<It extends PlacementItem>(items: It[]): It[] {
+  const TUN = PLACEMENT_TUNING;
+  const sorted = [...items].sort((a, b) => a.pos[1] - b.pos[1]);
+  const fixed: It[] = [];
+  for (const it of sorted) {
+    const halfW = it.size[0] / 2, halfD = it.size[2] / 2;
+    let requiredBottom = 0;
+    for (const o of fixed) {
+      if (o.id === it.id) continue;
+      const oHalfW = o.size[0] / 2, oHalfD = o.size[2] / 2;
+      const ox = Math.min(it.pos[0] + halfW, o.pos[0] + oHalfW) - Math.max(it.pos[0] - halfW, o.pos[0] - oHalfW);
+      const oz = Math.min(it.pos[2] + halfD, o.pos[2] + oHalfD) - Math.max(it.pos[2] - halfD, o.pos[2] - oHalfD);
+      if (ox > TUN.stackOverlapMin && oz > TUN.stackOverlapMin) {
+        requiredBottom = Math.max(requiredBottom, o.pos[1] + o.size[1]);
+      }
+    }
+    const finalY = requiredBottom > 0 ? requiredBottom : Math.max(0, it.pos[1]);
+    fixed.push({ ...it, pos: [it.pos[0], finalY, it.pos[2]] });
+  }
+  return fixed;
 }
