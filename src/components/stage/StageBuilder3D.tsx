@@ -212,6 +212,17 @@ function connectorsFor(kind: Kind): Connector[] {
         { type: "power", role: "out", offset: [-bx * 0.35, by * 0.35,  bz * 0.50] },
       ];
 
+    // Power distro — 1× PWR in, 4× PWR out + DMX pass-through.
+    case "distro":
+      return [
+        { type: "power", role: "in",  offset: [-bx * 0.40, by * 0.60, -bz * 0.50] },
+        { type: "power", role: "out", offset: [ bx * 0.10, by * 0.60, -bz * 0.50] },
+        { type: "power", role: "out", offset: [ bx * 0.25, by * 0.60, -bz * 0.50] },
+        { type: "power", role: "out", offset: [ bx * 0.40, by * 0.60, -bz * 0.50] },
+        { type: "dmx",   role: "in",  offset: [-bx * 0.40, by * 0.25, -bz * 0.50] },
+        { type: "dmx",   role: "out", offset: [ bx * 0.40, by * 0.25, -bz * 0.50] },
+      ];
+
     // Passive furniture — no connectors.
     case "bar":
     case "dj_table":
