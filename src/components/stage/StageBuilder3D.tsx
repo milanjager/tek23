@@ -1671,19 +1671,25 @@ function stackSnapTarget(
 // - Red translucent box    = collides with / buries into other cabinets.
 // Colliding items are also outlined in red so the conflict is obvious.
 function PlacementGhost({
-  selection, items, objectsRef,
+  selection, items, objectsRef, onSnapChange,
 }: {
   selection: string[];
   items: Placed[];
   objectsRef: React.MutableRefObject<Map<string, THREE.Object3D>>;
+  onSnapChange?: (info: { id: string; mode: "ground" | "stack" | "bad"; ontoId?: string; ontoLabel?: string }) => void;
 }) {
   const groupRef = useRef<THREE.Group>(null);
   const meshRefs = useRef<Map<string, THREE.Mesh>>(new Map());
   const highlightRefs = useRef<Map<string, THREE.Mesh>>(new Map());
+  // Snap target visualization: highlighted top face + tolerance box, per selected id.
+  const snapCapRefs = useRef<Map<string, THREE.Mesh>>(new Map());
+  const snapTolRefs = useRef<Map<string, THREE.LineSegments>>(new Map());
+  const lastModeRef = useRef<Map<string, "ground" | "stack" | "bad">>(new Map());
 
   useFrame(() => {
     const others = items.filter((o) => !selection.includes(o.id));
     const collided = new Set<string>();
+    const activeSnaps = new Set<string>();
 
     for (const id of selection) {
       const src = items.find((i) => i.id === id);
@@ -1700,9 +1706,11 @@ function PlacementGhost({
 
       const snap = stackSnapTarget(candidate, others, rawY);
       let mode: "ground" | "stack" | "bad" = "ground";
+      let ontoId: string | undefined;
       if (snap) {
         candidate.pos = [snap.x, snap.y, snap.z];
         mode = "stack";
+        ontoId = snap.ontoId;
       } else {
         const y = stackY(candidate, others);
         candidate.pos = [sx, y, sz];
@@ -1733,6 +1741,55 @@ function PlacementGhost({
       mat.opacity = mode === "bad" ? 0.35 + 0.15 * pulse
                     : mode === "stack" ? 0.28 + 0.12 * pulse
                     : 0.22;
+
+      // Snap-target visualization: only render for the currently-hovered stack target.
+      const cap = snapCapRefs.current.get(id);
+      const tol = snapTolRefs.current.get(id);
+      if (snap && ontoId && mode !== "bad") {
+        const target = others.find((o) => o.id === ontoId);
+        if (target) {
+          const ts = SPECS[target.kind].size;
+          const halfW = s[0] / 2, halfD = s[2] / 2;
+          const rx = ts[0] / 2 + halfW * PLACEMENT_TUNING.stackSnapRadiusFactor;
+          const rz = ts[2] / 2 + halfD * PLACEMENT_TUNING.stackSnapRadiusFactor;
+          const topY = target.pos[1] + ts[1] + 0.001;
+          if (cap) {
+            cap.visible = true;
+            cap.position.set(target.pos[0], topY, target.pos[2]);
+            cap.scale.set(ts[0], 1, ts[2]);
+            const cm = cap.material as THREE.MeshBasicMaterial;
+            cm.opacity = 0.35 + 0.25 * pulse;
+          }
+          if (tol) {
+            tol.visible = true;
+            tol.position.set(target.pos[0], topY + 0.002, target.pos[2]);
+            tol.scale.set(rx * 2, 1, rz * 2);
+            const tm = tol.material as THREE.LineBasicMaterial;
+            tm.opacity = 0.6 + 0.3 * pulse;
+          }
+          activeSnaps.add(id);
+        }
+      }
+      if (!activeSnaps.has(id)) {
+        if (cap) cap.visible = false;
+        if (tol) tol.visible = false;
+      }
+
+      // Emit mode-change events so the parent can flash a tooltip.
+      const prev = lastModeRef.current.get(id);
+      if (prev !== mode) {
+        lastModeRef.current.set(id, mode);
+        if (onSnapChange) {
+          const ontoLabel = ontoId
+            ? (() => {
+                const t = items.find((i) => i.id === ontoId);
+                if (!t) return undefined;
+                return t.label ?? SPECS[t.kind].defaultLabel ?? SPECS[t.kind].label;
+              })()
+            : undefined;
+          onSnapChange({ id, mode, ontoId, ontoLabel });
+        }
+      }
     }
 
     for (const [oid, h] of highlightRefs.current) {
@@ -1757,16 +1814,40 @@ function PlacementGhost({
         if (!it) return null;
         const s = SPECS[it.kind].size;
         return (
-          <mesh
-            key={id}
-            ref={(m) => {
-              if (m) meshRefs.current.set(id, m);
-              else meshRefs.current.delete(id);
-            }}
-          >
-            <boxGeometry args={[s[0] + 0.02, s[1] + 0.02, s[2] + 0.02]} />
-            <meshBasicMaterial color="#22c55e" transparent opacity={0.22} depthWrite={false} />
-          </mesh>
+          <React.Fragment key={id}>
+            <mesh
+              ref={(m) => {
+                if (m) meshRefs.current.set(id, m);
+                else meshRefs.current.delete(id);
+              }}
+            >
+              <boxGeometry args={[s[0] + 0.02, s[1] + 0.02, s[2] + 0.02]} />
+              <meshBasicMaterial color="#22c55e" transparent opacity={0.22} depthWrite={false} />
+            </mesh>
+            {/* Snap target top-face plate (cyan, 1m×1m base scaled to target). */}
+            <mesh
+              rotation={[-Math.PI / 2, 0, 0]}
+              visible={false}
+              ref={(m) => {
+                if (m) snapCapRefs.current.set(id, m);
+                else snapCapRefs.current.delete(id);
+              }}
+            >
+              <planeGeometry args={[1, 1]} />
+              <meshBasicMaterial color="#22d3ee" transparent opacity={0.4} depthWrite={false} side={THREE.DoubleSide} />
+            </mesh>
+            {/* Snap tolerance boundary (dashed cyan rectangle on target top). */}
+            <lineSegments
+              visible={false}
+              ref={(m) => {
+                if (m) snapTolRefs.current.set(id, m as THREE.LineSegments);
+                else snapTolRefs.current.delete(id);
+              }}
+            >
+              <edgesGeometry args={[new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2)]} />
+              <lineBasicMaterial color="#67e8f9" transparent opacity={0.85} depthTest={false} />
+            </lineSegments>
+          </React.Fragment>
         );
       })}
       {/* Collision highlight overlays for every non-selected item — hidden
@@ -1787,6 +1868,7 @@ function PlacementGhost({
     </group>
   );
 }
+
 
 /* ============================================================
    Scene root with TransformControls
@@ -1900,6 +1982,12 @@ function SceneContent({
   }, [primaryId, primaryObj, selection, setItems]);
 
   const [dropReport, setDropReport] = useState<{ text: string; kind: "stack" | "ground"; at: number } | null>(null);
+  const [snapTooltip, setSnapTooltip] = useState<{ text: string; kind: "stack" | "ground" | "bad"; at: number } | null>(null);
+  useEffect(() => {
+    if (!snapTooltip) return;
+    const t = setTimeout(() => setSnapTooltip((s) => (s && s.at === snapTooltip.at ? null : s)), 1600);
+    return () => clearTimeout(t);
+  }, [snapTooltip]);
   const handleTransformEnd = useCallback(() => {
     const reports: { label: string; raw: [number, number, number]; final: [number, number, number]; mode: "stack" | "ground"; onto?: string }[] = [];
     setItems((cur) => {
@@ -2189,8 +2277,47 @@ function SceneContent({
           selection={selection}
           items={items}
           objectsRef={objectsRef}
+          onSnapChange={(info) => {
+            // Only announce transitions to/from stack — the interesting change.
+            if (info.mode === "stack") {
+              setSnapTooltip({ text: `▣ Snap na ${info.ontoLabel ?? "bednu"}`, kind: "stack", at: Date.now() });
+            } else if (info.mode === "ground") {
+              setSnapTooltip({ text: "▤ Volno – snap uvolněn", kind: "ground", at: Date.now() });
+            } else {
+              setSnapTooltip({ text: "✗ Kolize – nelze položit", kind: "bad", at: Date.now() });
+            }
+          }}
         />
       )}
+
+      {/* Snap-mode transition tooltip */}
+      {snapTooltip && dragging && (
+        <Html fullscreen prepend zIndexRange={[100, 0]} style={{ pointerEvents: "none" }}>
+          <div
+            style={{
+              position: "absolute",
+              left: "50%",
+              top: 68,
+              transform: "translateX(-50%)",
+              padding: "6px 12px",
+              borderRadius: 999,
+              background: "rgba(15,17,22,0.92)",
+              color: snapTooltip.kind === "stack" ? "#7fe3ff" : snapTooltip.kind === "bad" ? "#ffb0b0" : "#8fffb0",
+              fontSize: 11.5,
+              fontWeight: 600,
+              fontFamily: "ui-sans-serif, system-ui",
+              boxShadow: "0 4px 14px rgba(0,0,0,0.3)",
+              border: `1px solid ${snapTooltip.kind === "stack" ? "rgba(127,227,255,0.55)" : snapTooltip.kind === "bad" ? "rgba(255,120,120,0.55)" : "rgba(143,255,176,0.5)"}`,
+              whiteSpace: "nowrap",
+              opacity: Math.max(0, 1 - (Date.now() - snapTooltip.at) / 1600),
+              transition: "opacity .25s linear",
+            }}
+          >
+            {snapTooltip.text}
+          </div>
+        </Html>
+      )}
+
 
 
 
@@ -3343,6 +3470,45 @@ export function StageBuilder3D() {
     localStorage.setItem(STORAGE, JSON.stringify({ items, cables }));
   }, [items, cables]);
 
+  /* ---------------- Undo / Redo history ---------------- */
+  const historyRef = useRef<{ items: Placed[]; cables: Cable[] }[]>([]);
+  const historyIdxRef = useRef(-1);
+  const skipHistoryRef = useRef(false);
+  const [, forceHistoryTick] = useState(0);
+  useEffect(() => {
+    if (skipHistoryRef.current) { skipHistoryRef.current = false; return; }
+    // Skip pushing an identical snapshot (avoids duplicates from unrelated re-renders).
+    const top = historyRef.current[historyIdxRef.current];
+    if (top && top.items === items && top.cables === cables) return;
+    historyRef.current = historyRef.current.slice(0, historyIdxRef.current + 1);
+    historyRef.current.push({ items, cables });
+    if (historyRef.current.length > 120) historyRef.current.shift();
+    historyIdxRef.current = historyRef.current.length - 1;
+    forceHistoryTick((t) => t + 1);
+  }, [items, cables]);
+
+  const undo = useCallback(() => {
+    if (historyIdxRef.current <= 0) return;
+    historyIdxRef.current--;
+    const s = historyRef.current[historyIdxRef.current];
+    skipHistoryRef.current = true;
+    setItems(s.items);
+    setCables(s.cables);
+    forceHistoryTick((t) => t + 1);
+  }, []);
+  const redo = useCallback(() => {
+    if (historyIdxRef.current >= historyRef.current.length - 1) return;
+    historyIdxRef.current++;
+    const s = historyRef.current[historyIdxRef.current];
+    skipHistoryRef.current = true;
+    setItems(s.items);
+    setCables(s.cables);
+    forceHistoryTick((t) => t + 1);
+  }, []);
+  const canUndo = historyIdxRef.current > 0;
+  const canRedo = historyIdxRef.current < historyRef.current.length - 1;
+
+
   useEffect(() => { if (panelsHydrated) localStorage.setItem("stage.panel.left", paletteOpen ? "1" : "0"); }, [paletteOpen, panelsHydrated]);
   useEffect(() => { if (panelsHydrated) localStorage.setItem("stage.panel.right", rightOpen ? "1" : "0"); }, [rightOpen, panelsHydrated]);
 
@@ -3531,13 +3697,15 @@ export function StageBuilder3D() {
       else if (e.key === "Escape") { setSelection([]); setPendingFrom(null); }
       else if (e.key.toLowerCase() === "t") { setMode("select"); setTool("translate"); }
       else if (e.key.toLowerCase() === "c" && !meta) { setMode((m) => (m === "cable" ? "select" : "cable")); setSelection([]); setPendingFrom(null); }
+      else if (meta && !e.shiftKey && e.key.toLowerCase() === "z") { undo(); e.preventDefault(); }
+      else if (meta && (e.key.toLowerCase() === "y" || (e.shiftKey && e.key.toLowerCase() === "z"))) { redo(); e.preventDefault(); }
       else if (e.key === "[") { setPaletteOpen((v) => !v); }
       else if (e.key === "]") { setRightOpen((v) => !v); }
 
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [deleteSelection, copySelection, pasteSelection, duplicateSelection, groupSelection, ungroupSelection]);
+  }, [deleteSelection, copySelection, pasteSelection, duplicateSelection, groupSelection, ungroupSelection, undo, redo]);
 
   const palette = useMemo(
     () => (Object.entries(SPECS) as [Kind, Spec][]).filter(([, s]) => s.category === category),
@@ -3675,6 +3843,8 @@ export function StageBuilder3D() {
         </button>
 
 
+        <button onClick={undo} disabled={!canUndo} title="Zpět (Ctrl+Z)" className="flex items-center gap-1 rounded bg-neutral-100 px-2 py-1 hover:bg-neutral-200 disabled:opacity-40">↶ Zpět</button>
+        <button onClick={redo} disabled={!canRedo} title="Vpřed (Ctrl+Shift+Z / Ctrl+Y)" className="flex items-center gap-1 rounded bg-neutral-100 px-2 py-1 hover:bg-neutral-200 disabled:opacity-40">↷ Vpřed</button>
         <button onClick={duplicateSelection} disabled={!selection.length} className="flex items-center gap-1 rounded bg-neutral-100 px-2 py-1 hover:bg-neutral-200 disabled:opacity-40"><Copy size={12} /> Duplikovat</button>
         <button onClick={copySelection} disabled={!selection.length} className="rounded bg-neutral-100 px-2 py-1 hover:bg-neutral-200 disabled:opacity-40">Kopírovat</button>
         <button onClick={pasteSelection} disabled={!clipboard.length} className="flex items-center gap-1 rounded bg-neutral-100 px-2 py-1 hover:bg-neutral-200 disabled:opacity-40"><ClipboardPaste size={12} /> Vložit</button>
