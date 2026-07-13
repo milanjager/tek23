@@ -191,10 +191,10 @@ export function computeGhostMode(
  * Runs in bottom-up order so cascading stacks resolve correctly.
  * Pure — returns a NEW array; caller decides whether to persist.
  */
-export function sanitizeStacks<T extends PlacementItem>(items: T[]): T[] {
-  const T = PLACEMENT_TUNING;
+export function sanitizeStacks<It extends PlacementItem>(items: It[]): It[] {
+  const TUN = PLACEMENT_TUNING;
   const sorted = [...items].sort((a, b) => a.pos[1] - b.pos[1]);
-  const fixed: T[] = [];
+  const fixed: It[] = [];
   for (const it of sorted) {
     const halfW = it.size[0] / 2, halfD = it.size[2] / 2;
     let requiredBottom = 0;
@@ -203,19 +203,16 @@ export function sanitizeStacks<T extends PlacementItem>(items: T[]): T[] {
       const oHalfW = o.size[0] / 2, oHalfD = o.size[2] / 2;
       const ox = Math.min(it.pos[0] + halfW, o.pos[0] + oHalfW) - Math.max(it.pos[0] - halfW, o.pos[0] - oHalfW);
       const oz = Math.min(it.pos[2] + halfD, o.pos[2] + oHalfD) - Math.max(it.pos[2] - halfD, o.pos[2] - oHalfD);
-      if (ox > T.stackOverlapMin && oz > T.stackOverlapMin) {
+      if (ox > TUN.stackOverlapMin && oz > TUN.stackOverlapMin) {
         requiredBottom = Math.max(requiredBottom, o.pos[1] + o.size[1]);
       }
     }
-    const newY = Math.max(it.pos[1] < 0 ? 0 : it.pos[1], requiredBottom);
-    // Also: if the item is floating above but XZ overlaps something below,
-    // drop it down to sit on that neighbour (no floating in-air stacks).
     const finalY = requiredBottom > 0 ? requiredBottom : Math.max(0, it.pos[1]);
     fixed.push({ ...it, pos: [it.pos[0], finalY, it.pos[2]] });
-    void newY;
   }
   return fixed;
 }
+
 
 
   const buried = rawY < T.buriedY;
