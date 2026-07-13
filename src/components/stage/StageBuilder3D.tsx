@@ -3470,6 +3470,45 @@ export function StageBuilder3D() {
     localStorage.setItem(STORAGE, JSON.stringify({ items, cables }));
   }, [items, cables]);
 
+  /* ---------------- Undo / Redo history ---------------- */
+  const historyRef = useRef<{ items: Placed[]; cables: Cable[] }[]>([]);
+  const historyIdxRef = useRef(-1);
+  const skipHistoryRef = useRef(false);
+  const [, forceHistoryTick] = useState(0);
+  useEffect(() => {
+    if (skipHistoryRef.current) { skipHistoryRef.current = false; return; }
+    // Skip pushing an identical snapshot (avoids duplicates from unrelated re-renders).
+    const top = historyRef.current[historyIdxRef.current];
+    if (top && top.items === items && top.cables === cables) return;
+    historyRef.current = historyRef.current.slice(0, historyIdxRef.current + 1);
+    historyRef.current.push({ items, cables });
+    if (historyRef.current.length > 120) historyRef.current.shift();
+    historyIdxRef.current = historyRef.current.length - 1;
+    forceHistoryTick((t) => t + 1);
+  }, [items, cables]);
+
+  const undo = useCallback(() => {
+    if (historyIdxRef.current <= 0) return;
+    historyIdxRef.current--;
+    const s = historyRef.current[historyIdxRef.current];
+    skipHistoryRef.current = true;
+    setItems(s.items);
+    setCables(s.cables);
+    forceHistoryTick((t) => t + 1);
+  }, []);
+  const redo = useCallback(() => {
+    if (historyIdxRef.current >= historyRef.current.length - 1) return;
+    historyIdxRef.current++;
+    const s = historyRef.current[historyIdxRef.current];
+    skipHistoryRef.current = true;
+    setItems(s.items);
+    setCables(s.cables);
+    forceHistoryTick((t) => t + 1);
+  }, []);
+  const canUndo = historyIdxRef.current > 0;
+  const canRedo = historyIdxRef.current < historyRef.current.length - 1;
+
+
   useEffect(() => { if (panelsHydrated) localStorage.setItem("stage.panel.left", paletteOpen ? "1" : "0"); }, [paletteOpen, panelsHydrated]);
   useEffect(() => { if (panelsHydrated) localStorage.setItem("stage.panel.right", rightOpen ? "1" : "0"); }, [rightOpen, panelsHydrated]);
 
