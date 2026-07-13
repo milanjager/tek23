@@ -3807,7 +3807,7 @@ export function StageBuilder3D() {
           </button>
         </div>
         <button
-          onClick={() => { pushHistory(); setItems((cur) => sanitizeStacks(cur)); }}
+          onClick={() => setItems((cur) => sanitizeStacks(cur))}
           className="flex items-center gap-1 rounded bg-neutral-100 px-2 py-1 hover:bg-neutral-200"
           title="Srovná stackovací věže — každá bedna dosedne přesně na horní plochu bedny pod sebou (žádné zanořené kusy)."
         >
