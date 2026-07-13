@@ -3576,6 +3576,7 @@ export function StageBuilder3D() {
   const [selection, setSelection] = useState<string[]>([]);
   const [groupNames, setGroupNames] = useState<Record<string, string>>({});
   const [groupSpacing, setGroupSpacing] = useState<Record<string, number>>({});
+  const [sceneHydrated, setSceneHydrated] = useState(false);
   const [tool, setTool] = useState<"translate" | "rotate">("translate");
   const [mode, setMode] = useState<"select" | "cable">("select");
   const [cableType, setCableType] = useState<CableType>("signal");
@@ -3626,11 +3627,13 @@ export function StageBuilder3D() {
         setItems(normalizeScene(loadPreset("techno")));
       }
     } catch { /* noop */ }
+    finally { setSceneHydrated(true); }
   }, []);
 
   useEffect(() => {
+    if (!sceneHydrated) return;
     localStorage.setItem(STORAGE, JSON.stringify({ items, cables, groupNames, groupSpacing }));
-  }, [items, cables, groupNames, groupSpacing]);
+  }, [items, cables, groupNames, groupSpacing, sceneHydrated]);
 
   /* ---------------- Undo / Redo history ---------------- */
   const historyRef = useRef<{ items: Placed[]; cables: Cable[] }[]>([]);
