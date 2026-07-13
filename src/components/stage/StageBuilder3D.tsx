@@ -3793,12 +3793,26 @@ export function StageBuilder3D() {
             <GalleryVerticalEnd size={12} /> Nárys
           </button>
           <button
+            onClick={() => setViewMode("iso")}
+            className={`flex items-center gap-1 rounded px-2 py-0.5 text-[11px] font-semibold ${viewMode === "iso" ? "bg-white text-neutral-900 shadow-sm" : "text-neutral-600 hover:text-neutral-900"}`}
+            title="Isometrický pseudo-3D pohled — přehledné patra stacků z ptačí perspektivy"
+          >
+            <BoxIcon size={12} /> Iso
+          </button>
+          <button
             onClick={() => setViewMode("schema")}
             className={`flex items-center gap-1 rounded px-2 py-0.5 text-[11px] font-semibold ${viewMode === "schema" ? "bg-white text-neutral-900 shadow-sm" : "text-neutral-600 hover:text-neutral-900"}`}
           >
             <Workflow size={12} /> Schéma zapojení
           </button>
         </div>
+        <button
+          onClick={() => { pushHistory(); setItems((cur) => sanitizeStacks(cur)); }}
+          className="flex items-center gap-1 rounded bg-neutral-100 px-2 py-1 hover:bg-neutral-200"
+          title="Srovná stackovací věže — každá bedna dosedne přesně na horní plochu bedny pod sebou (žádné zanořené kusy)."
+        >
+          <Boxes size={12} /> Srovnat stacky
+        </button>
         <button onClick={() => { setMode("select"); setPendingFrom(null); setMarqueeMode(false); }} className={`flex items-center gap-1 rounded px-2 py-1 ${mode === "select" && !marqueeMode ? "bg-lime-500 text-neutral-950" : "bg-neutral-100 hover:bg-neutral-200"}`}><MousePointer2 size={12} /> Výběr</button>
         <button onClick={() => { setMode("select"); setPendingFrom(null); setMarqueeMode((v) => !v); }} className={`flex items-center gap-1 rounded px-2 py-1 ${marqueeMode ? "bg-lime-500 text-neutral-950" : "bg-neutral-100 hover:bg-neutral-200"}`} title="Táhni myší přes bedny (Shift = přidat k výběru)"><BoxSelect size={12} /> Skupinový výběr</button>
         <button
