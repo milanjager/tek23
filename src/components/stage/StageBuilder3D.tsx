@@ -2181,7 +2181,11 @@ function SceneContent({
         if (!it) continue;
         const raw: [number, number, number] = [it.pos[0], it.pos[1], it.pos[2]];
         const rawY = it.pos[1];
-        const snapped: Placed = { ...it, pos: snapToGridXZ(it.pos), rotY: 0 };
+        const gridSnapped = snapToGridXZ(it.pos);
+        const zSnapped: [number, number, number] = SPECS[it.kind].category === "sound"
+          ? [gridSnapped[0], gridSnapped[1], speakerLineZ]
+          : gridSnapped;
+        const snapped: Placed = { ...it, pos: zSnapped, rotY: 0 };
         const others = [...map.values()].filter((o) => o.id !== id);
         const target = stackSnapTarget(snapped, others, rawY);
         let mode: "stack" | "ground";
@@ -2224,7 +2228,7 @@ function SceneContent({
           : `${first.label} položeno na zem · y=${fmt(first.final[1])}m (Δy ${fmt(first.final[1] - first.raw[1])})${extra}`;
       setDropReport({ text, kind: first.mode, at: Date.now() });
     }
-  }, [selection, setItems, autoSanitize]);
+  }, [selection, setItems, autoSanitize, speakerLineZ]);
 
   // Auto-hide the drop report after a couple of seconds.
   useEffect(() => {
