@@ -3809,6 +3809,13 @@ export function StageBuilder3D() {
             <GalleryVerticalEnd size={12} /> Nárys
           </button>
           <button
+            onClick={() => setViewMode("top")}
+            className={`flex items-center gap-1 rounded px-2 py-0.5 text-[11px] font-semibold ${viewMode === "top" ? "bg-white text-neutral-900 shadow-sm" : "text-neutral-600 hover:text-neutral-900"}`}
+            title="Ortografický půdorys — pohled shora s rovnoběžnou projekcí, zvýrazňuje PA linii Z pro snapování"
+          >
+            <LayoutGrid size={12} /> Ortho půdorys
+          </button>
+          <button
             onClick={() => setViewMode("iso")}
             className={`flex items-center gap-1 rounded px-2 py-0.5 text-[11px] font-semibold ${viewMode === "iso" ? "bg-white text-neutral-900 shadow-sm" : "text-neutral-600 hover:text-neutral-900"}`}
             title="Isometrický pseudo-3D pohled — přehledné patra stacků z ptačí perspektivy"
