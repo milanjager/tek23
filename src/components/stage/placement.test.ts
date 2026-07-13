@@ -118,8 +118,10 @@ describe("regression: height threshold flips ground ↔ stack", () => {
   const moving = mk("mv", [0, 0, 0]);
 
   // stackSnapTarget requires rawY ≥ top − h/2  (top=0.6, h=0.6 → threshold 0.3).
-  it("just below threshold → ground", () => {
-    expect(modeAt(moving, [base], [0, 0.29, 0])).toBe("bad"); // still collides at ground
+  it("just below threshold (0.29) → stackY auto-promotes → ground on top", () => {
+    const r = computeGhostMode(moving, [base], [0, 0.29, 0]);
+    expect(r.mode).toBe("ground");
+    expect(r.snappedPos[1]).toBe(0.6);
   });
 
   it("just above threshold → stack", () => {
