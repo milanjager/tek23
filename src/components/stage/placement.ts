@@ -120,6 +120,43 @@ export function hasCollision(moving: PlacementItem, others: PlacementItem[]): bo
   return false;
 }
 
+function xzOverlapAmount(a: PlacementItem, b: PlacementItem) {
+  const ahw = a.size[0] / 2, ahd = a.size[2] / 2;
+  const bhw = b.size[0] / 2, bhd = b.size[2] / 2;
+  return {
+    x: Math.min(a.pos[0] + ahw, b.pos[0] + bhw) - Math.max(a.pos[0] - ahw, b.pos[0] - bhw),
+    z: Math.min(a.pos[2] + ahd, b.pos[2] + bhd) - Math.max(a.pos[2] - ahd, b.pos[2] - bhd),
+  };
+}
+
+function yOverlapAmount(a: PlacementItem, b: PlacementItem) {
+  return Math.min(a.pos[1] + a.size[1], b.pos[1] + b.size[1]) - Math.max(a.pos[1], b.pos[1]);
+}
+
+export function collisionIds(moving: PlacementItem, others: PlacementItem[]): string[] {
+  const T = PLACEMENT_TUNING;
+  const out: string[] = [];
+  for (const o of others) {
+    if (o.id === moving.id) continue;
+    const xz = xzOverlapAmount(moving, o);
+    if (xz.x <= T.collisionXZMin || xz.z <= T.collisionXZMin) continue;
+    if (yOverlapAmount(moving, o) > T.collisionVerticalMin) out.push(o.id);
+  }
+  return out;
+}
+
+export function hasAnyOverlap(items: PlacementItem[]): boolean {
+  const T = PLACEMENT_TUNING;
+  for (let i = 0; i < items.length; i++) {
+    for (let j = i + 1; j < items.length; j++) {
+      const xz = xzOverlapAmount(items[i], items[j]);
+      if (xz.x <= T.collisionXZMin || xz.z <= T.collisionXZMin) continue;
+      if (yOverlapAmount(items[i], items[j]) > T.collisionVerticalMin) return true;
+    }
+  }
+  return false;
+}
+
 export function stackSnapTarget(
   moving: PlacementItem,
   others: PlacementItem[],
@@ -193,21 +230,7 @@ export function computeGhostMode(
   const bad = buried || collides;
   if (bad) mode = "bad";
 
-  const collided: string[] = [];
-  if (bad && !buried) {
-    const s = candidate.size;
-    const halfW = s[0] / 2, halfD = s[2] / 2;
-    for (const o of others) {
-      if (o.id === src.id) continue;
-      const os = o.size;
-      const oHalfW = os[0] / 2, oHalfD = os[2] / 2;
-      const ox = Math.min(candidate.pos[0] + halfW, o.pos[0] + oHalfW) - Math.max(candidate.pos[0] - halfW, o.pos[0] - oHalfW);
-      const oz = Math.min(candidate.pos[2] + halfD, o.pos[2] + oHalfD) - Math.max(candidate.pos[2] - halfD, o.pos[2] - oHalfD);
-      if (ox <= T.collisionXZMin || oz <= T.collisionXZMin) continue;
-      const vy = Math.min(candidate.pos[1] + s[1], o.pos[1] + os[1]) - Math.max(candidate.pos[1], o.pos[1]);
-      if (vy > T.collisionVerticalMin) collided.push(o.id);
-    }
-  }
+  const collided = bad && !buried ? collisionIds(candidate, others) : [];
 
   return { mode, snappedPos: candidate.pos, ontoId, buried, collided };
 }
@@ -238,4 +261,33 @@ export function sanitizeStacks<It extends PlacementItem>(items: It[]): It[] {
     fixed.push({ ...it, pos: [it.pos[0], finalY, it.pos[2]] });
   }
   return fixed;
+}
+
+/**
+ * Moves a same-height horizontal row apart along X until no real volume overlap
+ * remains. Vertical stacks are kept intact because those are intentional.
+ */
+export function resolveHorizontalOverlaps<It extends PlacementItem>(items: It[], gap = 0.06): It[] {
+  const byLevel = new Map<number, It[]>();
+  for (const it of items) {
+    const key = Math.round(Math.max(0, it.pos[1]) * 20) / 20;
+    const arr = byLevel.get(key) ?? [];
+    arr.push(it);
+    byLevel.set(key, arr);
+  }
+
+  const moved = new Map<string, It>();
+  for (const row of byLevel.values()) {
+    const sorted = [...row].sort((a, b) => a.pos[0] - b.pos[0] || a.pos[2] - b.pos[2]);
+    let cursor = -Infinity;
+    for (const it of sorted) {
+      const half = it.size[0] / 2;
+      const minX = it.pos[0] - half;
+      const targetMin = Math.max(minX, cursor);
+      const nextX = targetMin + half;
+      cursor = targetMin + it.size[0] + gap;
+      moved.set(it.id, { ...it, pos: [nextX, it.pos[1], it.pos[2]] });
+    }
+  }
+  return items.map((it) => moved.get(it.id) ?? it);
 }
