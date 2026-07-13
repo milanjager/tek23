@@ -1671,19 +1671,25 @@ function stackSnapTarget(
 // - Red translucent box    = collides with / buries into other cabinets.
 // Colliding items are also outlined in red so the conflict is obvious.
 function PlacementGhost({
-  selection, items, objectsRef,
+  selection, items, objectsRef, onSnapChange,
 }: {
   selection: string[];
   items: Placed[];
   objectsRef: React.MutableRefObject<Map<string, THREE.Object3D>>;
+  onSnapChange?: (info: { id: string; mode: "ground" | "stack" | "bad"; ontoId?: string; ontoLabel?: string }) => void;
 }) {
   const groupRef = useRef<THREE.Group>(null);
   const meshRefs = useRef<Map<string, THREE.Mesh>>(new Map());
   const highlightRefs = useRef<Map<string, THREE.Mesh>>(new Map());
+  // Snap target visualization: highlighted top face + tolerance box, per selected id.
+  const snapCapRefs = useRef<Map<string, THREE.Mesh>>(new Map());
+  const snapTolRefs = useRef<Map<string, THREE.LineSegments>>(new Map());
+  const lastModeRef = useRef<Map<string, "ground" | "stack" | "bad">>(new Map());
 
   useFrame(() => {
     const others = items.filter((o) => !selection.includes(o.id));
     const collided = new Set<string>();
+    const activeSnaps = new Set<string>();
 
     for (const id of selection) {
       const src = items.find((i) => i.id === id);
@@ -1700,9 +1706,11 @@ function PlacementGhost({
 
       const snap = stackSnapTarget(candidate, others, rawY);
       let mode: "ground" | "stack" | "bad" = "ground";
+      let ontoId: string | undefined;
       if (snap) {
         candidate.pos = [snap.x, snap.y, snap.z];
         mode = "stack";
+        ontoId = snap.ontoId;
       } else {
         const y = stackY(candidate, others);
         candidate.pos = [sx, y, sz];
@@ -1733,6 +1741,55 @@ function PlacementGhost({
       mat.opacity = mode === "bad" ? 0.35 + 0.15 * pulse
                     : mode === "stack" ? 0.28 + 0.12 * pulse
                     : 0.22;
+
+      // Snap-target visualization: only render for the currently-hovered stack target.
+      const cap = snapCapRefs.current.get(id);
+      const tol = snapTolRefs.current.get(id);
+      if (snap && ontoId && mode !== "bad") {
+        const target = others.find((o) => o.id === ontoId);
+        if (target) {
+          const ts = SPECS[target.kind].size;
+          const halfW = s[0] / 2, halfD = s[2] / 2;
+          const rx = ts[0] / 2 + halfW * PLACEMENT_TUNING.stackSnapRadiusFactor;
+          const rz = ts[2] / 2 + halfD * PLACEMENT_TUNING.stackSnapRadiusFactor;
+          const topY = target.pos[1] + ts[1] + 0.001;
+          if (cap) {
+            cap.visible = true;
+            cap.position.set(target.pos[0], topY, target.pos[2]);
+            cap.scale.set(ts[0], 1, ts[2]);
+            const cm = cap.material as THREE.MeshBasicMaterial;
+            cm.opacity = 0.35 + 0.25 * pulse;
+          }
+          if (tol) {
+            tol.visible = true;
+            tol.position.set(target.pos[0], topY + 0.002, target.pos[2]);
+            tol.scale.set(rx * 2, 1, rz * 2);
+            const tm = tol.material as THREE.LineBasicMaterial;
+            tm.opacity = 0.6 + 0.3 * pulse;
+          }
+          activeSnaps.add(id);
+        }
+      }
+      if (!activeSnaps.has(id)) {
+        if (cap) cap.visible = false;
+        if (tol) tol.visible = false;
+      }
+
+      // Emit mode-change events so the parent can flash a tooltip.
+      const prev = lastModeRef.current.get(id);
+      if (prev !== mode) {
+        lastModeRef.current.set(id, mode);
+        if (onSnapChange) {
+          const ontoLabel = ontoId
+            ? (() => {
+                const t = items.find((i) => i.id === ontoId);
+                if (!t) return undefined;
+                return t.label ?? SPECS[t.kind].defaultLabel ?? SPECS[t.kind].label;
+              })()
+            : undefined;
+          onSnapChange({ id, mode, ontoId, ontoLabel });
+        }
+      }
     }
 
     for (const [oid, h] of highlightRefs.current) {
@@ -1757,16 +1814,40 @@ function PlacementGhost({
         if (!it) return null;
         const s = SPECS[it.kind].size;
         return (
-          <mesh
-            key={id}
-            ref={(m) => {
-              if (m) meshRefs.current.set(id, m);
-              else meshRefs.current.delete(id);
-            }}
-          >
-            <boxGeometry args={[s[0] + 0.02, s[1] + 0.02, s[2] + 0.02]} />
-            <meshBasicMaterial color="#22c55e" transparent opacity={0.22} depthWrite={false} />
-          </mesh>
+          <React.Fragment key={id}>
+            <mesh
+              ref={(m) => {
+                if (m) meshRefs.current.set(id, m);
+                else meshRefs.current.delete(id);
+              }}
+            >
+              <boxGeometry args={[s[0] + 0.02, s[1] + 0.02, s[2] + 0.02]} />
+              <meshBasicMaterial color="#22c55e" transparent opacity={0.22} depthWrite={false} />
+            </mesh>
+            {/* Snap target top-face plate (cyan, 1m×1m base scaled to target). */}
+            <mesh
+              rotation={[-Math.PI / 2, 0, 0]}
+              visible={false}
+              ref={(m) => {
+                if (m) snapCapRefs.current.set(id, m);
+                else snapCapRefs.current.delete(id);
+              }}
+            >
+              <planeGeometry args={[1, 1]} />
+              <meshBasicMaterial color="#22d3ee" transparent opacity={0.4} depthWrite={false} side={THREE.DoubleSide} />
+            </mesh>
+            {/* Snap tolerance boundary (dashed cyan rectangle on target top). */}
+            <lineSegments
+              visible={false}
+              ref={(m) => {
+                if (m) snapTolRefs.current.set(id, m as THREE.LineSegments);
+                else snapTolRefs.current.delete(id);
+              }}
+            >
+              <edgesGeometry args={[new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2)]} />
+              <lineBasicMaterial color="#67e8f9" transparent opacity={0.85} depthTest={false} />
+            </lineSegments>
+          </React.Fragment>
         );
       })}
       {/* Collision highlight overlays for every non-selected item — hidden
@@ -1787,6 +1868,7 @@ function PlacementGhost({
     </group>
   );
 }
+
 
 /* ============================================================
    Scene root with TransformControls
