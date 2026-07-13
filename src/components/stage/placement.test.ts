@@ -174,14 +174,13 @@ describe("regression: release matches ghost preview (handleTransformEnd parity)"
   }
 });
 
-describe("regression: collision highlight list", () => {
-  it("lists every box the ghost intersects at ground level", () => {
+describe("regression: collision list only fires when truly buried-into-scene", () => {
+  it("buried into floor lists no colliders (buried short-circuits)", () => {
     const a = mk("a", [0, 0, 0]);
-    const b = mk("b", [0.4, 0, 0]); // overlaps a
-    const c = mk("c", [10, 0, 10]); // far away
-    const r = computeGhostMode(mk("mv", [0.2, 0, 0]), [a, b, c], [0.2, 0, 0]);
+    const r = computeGhostMode(mk("mv", [0.2, 0, 0]), [a], [0.2, -0.1, 0]);
     expect(r.mode).toBe("bad");
-    expect(new Set(r.collided)).toEqual(new Set(["a", "b"]));
+    expect(r.buried).toBe(true);
+    expect(r.collided).toEqual([]);
   });
 });
 
