@@ -257,7 +257,7 @@ export function sanitizeStacks<It extends PlacementItem>(items: It[]): It[] {
         requiredBottom = Math.max(requiredBottom, o.pos[1] + o.size[1]);
       }
     }
-    const finalY = requiredBottom > 0 ? requiredBottom : Math.max(0, it.pos[1]);
+    const finalY = requiredBottom > 0 ? Math.max(requiredBottom, it.pos[1]) : Math.max(0, it.pos[1]);
     fixed.push({ ...it, pos: [it.pos[0], finalY, it.pos[2]] });
   }
   return fixed;
