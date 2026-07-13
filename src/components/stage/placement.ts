@@ -3,8 +3,59 @@
 //
 // The rules encoded here drive the ghost preview colors, so keep this
 // module in sync with `PlacementGhost` in StageBuilder3D.tsx.
+//
+// Thresholds live in a mutable PLACEMENT_TUNING object so a dev panel
+// can tweak them at runtime without touching source. Ghost useFrame
+// reads these each frame, so changes re-render immediately.
 
 export const GRID_STEP = 0.1;
+
+export interface PlacementTuning {
+  /** XZ grid snap step (m). */
+  gridStep: number;
+  /** stackY: min XZ footprint overlap to consider "on top of" (m). */
+  stackOverlapMin: number;
+  /** stackY: how close a new candidate top must be to the current best (m). */
+  stackTopTolerance: number;
+  /** stackY: fraction of half-footprint used as center-alignment tolerance. */
+  stackCenterFactor: number;
+  /** hasCollision: min XZ overlap (m) before a collision is even considered. */
+  collisionXZMin: number;
+  /** hasCollision: min vertical overlap (m) to count as a real collision. */
+  collisionVerticalMin: number;
+  /** stackSnapTarget: magnetic radius as fraction of moving half-footprint. */
+  stackSnapRadiusFactor: number;
+  /** stackSnapTarget: how high moving must be lifted (fraction of its own height) before snap engages. */
+  stackSnapLiftFactor: number;
+  /** stackSnapTarget: tolerance for "tied top" preference of nearer target (m). */
+  stackSnapTopTie: number;
+  /** computeGhostMode: Y below this = buried (bad). */
+  buriedY: number;
+}
+
+export const DEFAULT_TUNING: PlacementTuning = {
+  gridStep: 0.1,
+  stackOverlapMin: 0.02,
+  stackTopTolerance: 0.02,
+  stackCenterFactor: 0.9,
+  collisionXZMin: 0.05,
+  collisionVerticalMin: 0.05,
+  stackSnapRadiusFactor: 0.6,
+  stackSnapLiftFactor: 0.5,
+  stackSnapTopTie: 0.01,
+  buriedY: -0.02,
+};
+
+/** Live-tunable thresholds. Mutated by the dev panel; read every frame. */
+export const PLACEMENT_TUNING: PlacementTuning = { ...DEFAULT_TUNING };
+
+export function setPlacementTuning(patch: Partial<PlacementTuning>) {
+  Object.assign(PLACEMENT_TUNING, patch);
+}
+
+export function resetPlacementTuning() {
+  Object.assign(PLACEMENT_TUNING, DEFAULT_TUNING);
+}
 
 export type Vec3 = [number, number, number];
 
@@ -15,7 +66,7 @@ export interface PlacementItem {
   size: Vec3;
 }
 
-export function snapToGridXZ(v: Vec3, step: number = GRID_STEP): Vec3 {
+export function snapToGridXZ(v: Vec3, step: number = PLACEMENT_TUNING.gridStep): Vec3 {
   return [
     Math.round(v[0] / step) * step,
     v[1],
@@ -24,6 +75,7 @@ export function snapToGridXZ(v: Vec3, step: number = GRID_STEP): Vec3 {
 }
 
 export function stackY(moving: PlacementItem, others: PlacementItem[]): number {
+  const T = PLACEMENT_TUNING;
   const s = moving.size;
   const halfW = s[0] / 2, halfD = s[2] / 2;
   let best = 0;
@@ -34,10 +86,10 @@ export function stackY(moving: PlacementItem, others: PlacementItem[]): number {
     const oHalfW = os[0] / 2, oHalfD = os[2] / 2;
     const overlapX = Math.min(moving.pos[0] + halfW, o.pos[0] + oHalfW) - Math.max(moving.pos[0] - halfW, o.pos[0] - oHalfW);
     const overlapZ = Math.min(moving.pos[2] + halfD, o.pos[2] + oHalfD) - Math.max(moving.pos[2] - halfD, o.pos[2] - oHalfD);
-    if (overlapX > 0.02 && overlapZ > 0.02 && oTop > best - 0.02) {
+    if (overlapX > T.stackOverlapMin && overlapZ > T.stackOverlapMin && oTop > best - T.stackTopTolerance) {
       if (
-        Math.abs(moving.pos[0] - o.pos[0]) < oHalfW + halfW * 0.9 &&
-        Math.abs(moving.pos[2] - o.pos[2]) < oHalfD + halfD * 0.9
+        Math.abs(moving.pos[0] - o.pos[0]) < oHalfW + halfW * T.stackCenterFactor &&
+        Math.abs(moving.pos[2] - o.pos[2]) < oHalfD + halfD * T.stackCenterFactor
       ) {
         best = Math.max(best, oTop);
       }
@@ -47,6 +99,7 @@ export function stackY(moving: PlacementItem, others: PlacementItem[]): number {
 }
 
 export function hasCollision(moving: PlacementItem, others: PlacementItem[]): boolean {
+  const T = PLACEMENT_TUNING;
   const s = moving.size;
   const halfW = s[0] / 2, halfD = s[2] / 2;
   const my = moving.pos[1];
@@ -59,9 +112,9 @@ export function hasCollision(moving: PlacementItem, others: PlacementItem[]): bo
     const oTop = oy + os[1];
     const overlapX = Math.min(moving.pos[0] + halfW, o.pos[0] + oHalfW) - Math.max(moving.pos[0] - halfW, o.pos[0] - oHalfW);
     const overlapZ = Math.min(moving.pos[2] + halfD, o.pos[2] + oHalfD) - Math.max(moving.pos[2] - halfD, o.pos[2] - oHalfD);
-    if (overlapX > 0.05 && overlapZ > 0.05) {
+    if (overlapX > T.collisionXZMin && overlapZ > T.collisionXZMin) {
       const vOverlap = Math.min(myTop, oTop) - Math.max(my, oy);
-      if (vOverlap > 0.05) return true;
+      if (vOverlap > T.collisionVerticalMin) return true;
     }
   }
   return false;
@@ -72,6 +125,7 @@ export function stackSnapTarget(
   others: PlacementItem[],
   rawY: number,
 ): { x: number; z: number; y: number; ontoId: string } | null {
+  const T = PLACEMENT_TUNING;
   const s = moving.size;
   const halfW = s[0] / 2, halfD = s[2] / 2;
   let best: { it: PlacementItem; dist: number; top: number } | null = null;
@@ -81,13 +135,13 @@ export function stackSnapTarget(
     const oHalfW = os[0] / 2, oHalfD = os[2] / 2;
     const dx = moving.pos[0] - o.pos[0];
     const dz = moving.pos[2] - o.pos[2];
-    const rx = oHalfW + halfW * 0.6;
-    const rz = oHalfD + halfD * 0.6;
+    const rx = oHalfW + halfW * T.stackSnapRadiusFactor;
+    const rz = oHalfD + halfD * T.stackSnapRadiusFactor;
     if (Math.abs(dx) > rx || Math.abs(dz) > rz) continue;
     const top = o.pos[1] + os[1];
-    if (rawY < top - s[1] * 0.5) continue;
+    if (rawY < top - s[1] * T.stackSnapLiftFactor) continue;
     const dist = Math.hypot(dx, dz);
-    if (!best || top > best.top + 0.01 || (Math.abs(top - best.top) < 0.01 && dist < best.dist)) {
+    if (!best || top > best.top + T.stackSnapTopTie || (Math.abs(top - best.top) < T.stackSnapTopTie && dist < best.dist)) {
       best = { it: o, dist, top };
     }
   }
@@ -102,17 +156,14 @@ export type GhostMode = "ground" | "stack" | "bad";
  *   - "stack"  → cyan (snapped onto another box)
  *   - "ground" → green (valid floor placement)
  *   - "bad"    → red (buried or collides)
- *
- * `rawPos` is the live drag position (pre-snap). The XZ is grid-snapped,
- * Y is used both for the buried check (rawPos[1] < -0.02) and the
- * stack-target lift check.
  */
 export function computeGhostMode(
   src: PlacementItem,
   others: PlacementItem[],
   rawPos: Vec3,
-  step: number = GRID_STEP,
+  step: number = PLACEMENT_TUNING.gridStep,
 ): { mode: GhostMode; snappedPos: Vec3; ontoId?: string; buried: boolean; collided: string[] } {
+  const T = PLACEMENT_TUNING;
   const sx = Math.round(rawPos[0] / step) * step;
   const sz = Math.round(rawPos[2] / step) * step;
   const rawY = rawPos[1];
@@ -133,7 +184,7 @@ export function computeGhostMode(
     candidate.pos = [sx, y, sz];
   }
 
-  const buried = rawY < -0.02;
+  const buried = rawY < T.buriedY;
   const collides = hasCollision(candidate, others);
   const bad = buried || collides;
   if (bad) mode = "bad";
@@ -148,9 +199,9 @@ export function computeGhostMode(
       const oHalfW = os[0] / 2, oHalfD = os[2] / 2;
       const ox = Math.min(candidate.pos[0] + halfW, o.pos[0] + oHalfW) - Math.max(candidate.pos[0] - halfW, o.pos[0] - oHalfW);
       const oz = Math.min(candidate.pos[2] + halfD, o.pos[2] + oHalfD) - Math.max(candidate.pos[2] - halfD, o.pos[2] - oHalfD);
-      if (ox <= 0.05 || oz <= 0.05) continue;
+      if (ox <= T.collisionXZMin || oz <= T.collisionXZMin) continue;
       const vy = Math.min(candidate.pos[1] + s[1], o.pos[1] + os[1]) - Math.max(candidate.pos[1], o.pos[1]);
-      if (vy > 0.05) collided.push(o.id);
+      if (vy > T.collisionVerticalMin) collided.push(o.id);
     }
   }
 
