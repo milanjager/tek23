@@ -3489,6 +3489,7 @@ export function StageBuilder3D() {
         const parsed = JSON.parse(raw);
         if (Array.isArray(parsed.items)) setItems(parsed.items);
         if (Array.isArray(parsed.cables)) setCables(parsed.cables);
+        if (parsed.groupNames && typeof parsed.groupNames === "object") setGroupNames(parsed.groupNames);
       } else {
         setItems(loadPreset("techno"));
       }
@@ -3496,8 +3497,8 @@ export function StageBuilder3D() {
   }, []);
 
   useEffect(() => {
-    localStorage.setItem(STORAGE, JSON.stringify({ items, cables }));
-  }, [items, cables]);
+    localStorage.setItem(STORAGE, JSON.stringify({ items, cables, groupNames }));
+  }, [items, cables, groupNames]);
 
   /* ---------------- Undo / Redo history ---------------- */
   const historyRef = useRef<{ items: Placed[]; cables: Cable[] }[]>([]);
