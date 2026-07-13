@@ -3495,9 +3495,10 @@ export function StageBuilder3D() {
     setItems((cur) => normalizeScene(cur.map((it) => {
       if (!selection.includes(it.id)) return it;
       const ny = Math.max(0, it.pos[1] + dy);
-      return { ...it, pos: [it.pos[0] + dx, ny, it.pos[2] + dz] as [number, number, number] };
+      const nz = isSpeakerKind(it.kind) ? speakerLineZ : it.pos[2] + dz;
+      return { ...it, pos: [it.pos[0] + dx, ny, nz] as [number, number, number] };
     })));
-  }, [selection]);
+  }, [selection, isSpeakerKind, speakerLineZ]);
 
   /* ── Photoshop-style alignment ──────────────────────────────────────
      Uses top-down XZ footprint (X = horizontal, Z = "vertical" on plan)
