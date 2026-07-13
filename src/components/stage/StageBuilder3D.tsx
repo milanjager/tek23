@@ -1949,29 +1949,66 @@ function SceneContent({
     prev.current = { pos: newPos, rotY: newRotY };
   }, [primaryId, primaryObj, selection, setItems]);
 
+  const [dropReport, setDropReport] = useState<{ text: string; kind: "stack" | "ground"; at: number } | null>(null);
   const handleTransformEnd = useCallback(() => {
+    const reports: { label: string; raw: [number, number, number]; final: [number, number, number]; mode: "stack" | "ground"; onto?: string }[] = [];
     setItems((cur) => {
       const map = new Map(cur.map((i) => [i.id, i]));
       for (const id of selection) {
         const it = map.get(id);
         if (!it) continue;
+        const raw: [number, number, number] = [it.pos[0], it.pos[1], it.pos[2]];
         const rawY = it.pos[1];
         const snapped: Placed = { ...it, pos: snapToGridXZ(it.pos), rotY: 0 };
         const others = [...map.values()].filter((o) => o.id !== id);
-        // Prefer clean stack snap if hovering above another cabinet — same
-        // logic the ghost preview uses so the release matches what you saw.
         const target = stackSnapTarget(snapped, others, rawY);
+        let mode: "stack" | "ground";
+        let ontoLabel: string | undefined;
         if (target) {
           snapped.pos = [target.x, target.y, target.z];
+          mode = "stack";
+          const onto = others.find((o) => o.id === target.ontoId);
+          ontoLabel = onto ? (onto.label ?? SPECS[onto.kind].defaultLabel ?? SPECS[onto.kind].label) : undefined;
         } else {
           const y = stackY(snapped, others);
           snapped.pos = [snapped.pos[0], y, snapped.pos[2]];
+          mode = "ground";
         }
+        reports.push({
+          label: it.label ?? SPECS[it.kind].defaultLabel ?? SPECS[it.kind].label,
+          raw,
+          final: [snapped.pos[0], snapped.pos[1], snapped.pos[2]],
+          mode,
+          onto: ontoLabel,
+        });
         map.set(id, snapped);
       }
       return [...map.values()];
     });
+    if (reports.length) {
+      const fmt = (v: number) => v.toFixed(2);
+      for (const r of reports) {
+        // eslint-disable-next-line no-console
+        console.log(
+          `[drop] ${r.label} → ${r.mode}${r.onto ? ` on ${r.onto}` : ""} | raw (${fmt(r.raw[0])}, ${fmt(r.raw[1])}, ${fmt(r.raw[2])}) → final (${fmt(r.final[0])}, ${fmt(r.final[1])}, ${fmt(r.final[2])}) | Δy=${fmt(r.final[1] - r.raw[1])}`,
+        );
+      }
+      const first = reports[0];
+      const extra = reports.length > 1 ? ` (+${reports.length - 1})` : "";
+      const text =
+        first.mode === "stack"
+          ? `${first.label} položeno na ${first.onto ?? "bednu"} · y=${fmt(first.final[1])}m (Δy ${fmt(first.final[1] - first.raw[1])})${extra}`
+          : `${first.label} položeno na zem · y=${fmt(first.final[1])}m (Δy ${fmt(first.final[1] - first.raw[1])})${extra}`;
+      setDropReport({ text, kind: first.mode, at: Date.now() });
+    }
   }, [selection, setItems]);
+
+  // Auto-hide the drop report after a couple of seconds.
+  useEffect(() => {
+    if (!dropReport) return;
+    const t = setTimeout(() => setDropReport((r) => (r && r.at === dropReport.at ? null : r)), 2600);
+    return () => clearTimeout(t);
+  }, [dropReport]);
 
   // Disable orbit while gizmo dragging
   const [dragging, setDragging] = useState(false);
