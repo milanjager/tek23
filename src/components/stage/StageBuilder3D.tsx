@@ -3447,6 +3447,7 @@ export function StageBuilder3D() {
   const [items, setItems] = useState<Placed[]>([]);
   const [cables, setCables] = useState<Cable[]>([]);
   const [selection, setSelection] = useState<string[]>([]);
+  const [groupNames, setGroupNames] = useState<Record<string, string>>({});
   const [tool, setTool] = useState<"translate" | "rotate">("translate");
   const [mode, setMode] = useState<"select" | "cable">("select");
   const [cableType, setCableType] = useState<CableType>("signal");
@@ -3488,6 +3489,7 @@ export function StageBuilder3D() {
         const parsed = JSON.parse(raw);
         if (Array.isArray(parsed.items)) setItems(parsed.items);
         if (Array.isArray(parsed.cables)) setCables(parsed.cables);
+        if (parsed.groupNames && typeof parsed.groupNames === "object") setGroupNames(parsed.groupNames);
       } else {
         setItems(loadPreset("techno"));
       }
@@ -3495,8 +3497,8 @@ export function StageBuilder3D() {
   }, []);
 
   useEffect(() => {
-    localStorage.setItem(STORAGE, JSON.stringify({ items, cables }));
-  }, [items, cables]);
+    localStorage.setItem(STORAGE, JSON.stringify({ items, cables, groupNames }));
+  }, [items, cables, groupNames]);
 
   /* ---------------- Undo / Redo history ---------------- */
   const historyRef = useRef<{ items: Placed[]; cables: Cable[] }[]>([]);
@@ -3621,6 +3623,99 @@ export function StageBuilder3D() {
     setItems((cur) => cur.map((i) => selection.includes(i.id) ? { ...i, groupId: undefined } : i));
   }, [selection]);
 
+  const renameGroup = useCallback((gid: string, name: string) => {
+    setGroupNames((cur) => {
+      const next = { ...cur };
+      if (name.trim()) next[gid] = name;
+      else delete next[gid];
+      return next;
+    });
+  }, []);
+
+  // Nudge selection by dx/dy/dz (world meters). dy clamped ≥ 0 on the ground.
+  const nudgeSelection = useCallback((dx: number, dy: number, dz: number) => {
+    if (!selection.length) return;
+    setItems((cur) => cur.map((it) => {
+      if (!selection.includes(it.id)) return it;
+      const ny = Math.max(0, it.pos[1] + dy);
+      return { ...it, pos: [it.pos[0] + dx, ny, it.pos[2] + dz] as [number, number, number] };
+    }));
+  }, [selection]);
+
+  /* ── Photoshop-style alignment ──────────────────────────────────────
+     Uses top-down XZ footprint (X = horizontal, Z = "vertical" on plan)
+     plus Y (elevation). All ops operate on the current selection. */
+  type AlignOp =
+    | "left" | "right" | "hcenter"   // X axis
+    | "front" | "back" | "vcenter"   // Z axis
+    | "top" | "bottom" | "ycenter";  // Y axis
+  const alignSelection = useCallback((op: AlignOp) => {
+    if (selection.length < 2) return;
+    setItems((cur) => {
+      const sel = cur.filter((i) => selection.includes(i.id));
+      if (sel.length < 2) return cur;
+      const bounds = sel.map((i) => {
+        const [w, h, d] = SPECS[i.kind].size;
+        return {
+          id: i.id,
+          minX: i.pos[0] - w / 2, maxX: i.pos[0] + w / 2, cx: i.pos[0],
+          minZ: i.pos[2] - d / 2, maxZ: i.pos[2] + d / 2, cz: i.pos[2],
+          minY: i.pos[1],         maxY: i.pos[1] + h,     cy: i.pos[1] + h / 2,
+          w, h, d,
+        };
+      });
+      const minX = Math.min(...bounds.map((b) => b.minX));
+      const maxX = Math.max(...bounds.map((b) => b.maxX));
+      const minZ = Math.min(...bounds.map((b) => b.minZ));
+      const maxZ = Math.max(...bounds.map((b) => b.maxZ));
+      const minY = Math.min(...bounds.map((b) => b.minY));
+      const maxY = Math.max(...bounds.map((b) => b.maxY));
+      const cxAll = (minX + maxX) / 2;
+      const czAll = (minZ + maxZ) / 2;
+      const cyAll = (minY + maxY) / 2;
+      const targetPos = new Map<string, [number, number, number]>();
+      for (const b of bounds) {
+        const src = sel.find((i) => i.id === b.id)!;
+        let [x, y, z] = src.pos;
+        switch (op) {
+          case "left":    x = minX + b.w / 2; break;
+          case "right":   x = maxX - b.w / 2; break;
+          case "hcenter": x = cxAll; break;
+          case "front":   z = minZ + b.d / 2; break;
+          case "back":    z = maxZ - b.d / 2; break;
+          case "vcenter": z = czAll; break;
+          case "bottom":  y = Math.max(0, minY); break;
+          case "top":     y = Math.max(0, maxY - b.h); break;
+          case "ycenter": y = Math.max(0, cyAll - b.h / 2); break;
+        }
+        targetPos.set(b.id, [x, y, z]);
+      }
+      return cur.map((it) => targetPos.has(it.id) ? { ...it, pos: targetPos.get(it.id)! } : it);
+    });
+  }, [selection]);
+
+  // Distribute evenly across an axis (center-to-center spacing).
+  const distributeSelection = useCallback((axis: "x" | "z" | "y") => {
+    if (selection.length < 3) return;
+    setItems((cur) => {
+      const sel = cur.filter((i) => selection.includes(i.id));
+      if (sel.length < 3) return cur;
+      const idx = axis === "x" ? 0 : axis === "y" ? 1 : 2;
+      const sorted = [...sel].sort((a, b) => a.pos[idx] - b.pos[idx]);
+      const first = sorted[0].pos[idx];
+      const last = sorted[sorted.length - 1].pos[idx];
+      const step = (last - first) / (sorted.length - 1);
+      const targetPos = new Map<string, [number, number, number]>();
+      sorted.forEach((it, i) => {
+        const p: [number, number, number] = [...it.pos] as [number, number, number];
+        p[idx] = first + step * i;
+        if (idx === 1) p[1] = Math.max(0, p[1]);
+        targetPos.set(it.id, p);
+      });
+      return cur.map((it) => targetPos.has(it.id) ? { ...it, pos: targetPos.get(it.id)! } : it);
+    });
+  }, [selection]);
+
   // Auto-layout: place all items on the ground in tidy rows by category so
   // nothing overlaps. Stacks (shared groupId) are kept together as one unit;
   // vertical Y positions inside a stack are preserved.
@@ -3729,11 +3824,25 @@ export function StageBuilder3D() {
       else if (meta && (e.key.toLowerCase() === "y" || (e.shiftKey && e.key.toLowerCase() === "z"))) { redo(); e.preventDefault(); }
       else if (e.key === "[") { setPaletteOpen((v) => !v); }
       else if (e.key === "]") { setRightOpen((v) => !v); }
-
+      // Arrow-key nudge: 0.1m, Shift = 1m. Alt = Y axis (up/down).
+      else if (selection.length && (e.key === "ArrowLeft" || e.key === "ArrowRight" || e.key === "ArrowUp" || e.key === "ArrowDown")) {
+        const step = e.shiftKey ? 1.0 : 0.1;
+        let dx = 0, dy = 0, dz = 0;
+        if (e.altKey) {
+          if (e.key === "ArrowUp") dy = step;
+          else if (e.key === "ArrowDown") dy = -step;
+        } else {
+          if (e.key === "ArrowLeft") dx = -step;
+          else if (e.key === "ArrowRight") dx = step;
+          else if (e.key === "ArrowUp") dz = -step;
+          else if (e.key === "ArrowDown") dz = step;
+        }
+        if (dx || dy || dz) { nudgeSelection(dx, dy, dz); e.preventDefault(); }
+      }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [deleteSelection, copySelection, pasteSelection, duplicateSelection, groupSelection, ungroupSelection, undo, redo]);
+  }, [deleteSelection, copySelection, pasteSelection, duplicateSelection, groupSelection, ungroupSelection, undo, redo, nudgeSelection, selection.length]);
 
   const palette = useMemo(
     () => (Object.entries(SPECS) as [Kind, Spec][]).filter(([, s]) => s.category === category),
@@ -3850,6 +3959,32 @@ export function StageBuilder3D() {
         </button>
         <button onClick={() => setTool("translate")} disabled={mode !== "select"} className={`flex items-center gap-1 rounded px-2 py-1 ${tool === "translate" && mode === "select" ? "bg-lime-500 text-neutral-950" : "bg-neutral-100 hover:bg-neutral-200"} disabled:opacity-40`}><MoveIcon size={12} /> Posun (T)</button>
         {/* Rotace UI odstraněna — bedny mají fixní orientaci */}
+        {/* ── Zarovnání (Photoshop-style) ─────────────────────── */}
+        {selection.length >= 2 && (
+          <div className="flex items-center gap-0.5 rounded bg-neutral-100 p-0.5" title="Zarovnání vybraných komponent">
+            <span className="px-1 text-[9px] font-bold uppercase tracking-wider text-neutral-500">Zarovnat</span>
+            <button onClick={() => alignSelection("left")}    className="rounded px-1.5 py-0.5 font-mono text-[11px] hover:bg-white" title="Zarovnat vlevo (X min)">⇤</button>
+            <button onClick={() => alignSelection("hcenter")} className="rounded px-1.5 py-0.5 font-mono text-[11px] hover:bg-white" title="Vodorovně na střed (X)">⇔</button>
+            <button onClick={() => alignSelection("right")}   className="rounded px-1.5 py-0.5 font-mono text-[11px] hover:bg-white" title="Zarovnat vpravo (X max)">⇥</button>
+            <span className="mx-0.5 h-4 w-px bg-neutral-300" />
+            <button onClick={() => alignSelection("front")}   className="rounded px-1.5 py-0.5 font-mono text-[11px] hover:bg-white" title="Zarovnat dopředu (Z min)">⤒</button>
+            <button onClick={() => alignSelection("vcenter")} className="rounded px-1.5 py-0.5 font-mono text-[11px] hover:bg-white" title="Do hloubky na střed (Z)">⇕</button>
+            <button onClick={() => alignSelection("back")}    className="rounded px-1.5 py-0.5 font-mono text-[11px] hover:bg-white" title="Zarovnat dozadu (Z max)">⤓</button>
+            <span className="mx-0.5 h-4 w-px bg-neutral-300" />
+            <button onClick={() => alignSelection("bottom")}  className="rounded px-1.5 py-0.5 font-mono text-[11px] hover:bg-white" title="Zarovnat dolů (Y min)">▁</button>
+            <button onClick={() => alignSelection("ycenter")} className="rounded px-1.5 py-0.5 font-mono text-[11px] hover:bg-white" title="Výškově na střed (Y)">▬</button>
+            <button onClick={() => alignSelection("top")}     className="rounded px-1.5 py-0.5 font-mono text-[11px] hover:bg-white" title="Zarovnat nahoru (Y max)">▔</button>
+            {selection.length >= 3 && (
+              <>
+                <span className="mx-0.5 h-4 w-px bg-neutral-300" />
+                <span className="px-1 text-[9px] font-bold uppercase tracking-wider text-neutral-500">Rozmístit</span>
+                <button onClick={() => distributeSelection("x")} className="rounded px-1.5 py-0.5 font-mono text-[11px] hover:bg-white" title="Rovnoměrně po X">↔</button>
+                <button onClick={() => distributeSelection("z")} className="rounded px-1.5 py-0.5 font-mono text-[11px] hover:bg-white" title="Rovnoměrně po Z (hloubka)">↕</button>
+                <button onClick={() => distributeSelection("y")} className="rounded px-1.5 py-0.5 font-mono text-[11px] hover:bg-white" title="Rovnoměrně po Y (výška)">⇅</button>
+              </>
+            )}
+          </div>
+        )}
         <div className="mx-2 h-5 w-px bg-neutral-700" />
         <button onClick={() => { setMode("cable"); setSelection([]); }} className={`flex items-center gap-1 rounded px-2 py-1 ${mode === "cable" ? "bg-lime-500 text-neutral-950" : "bg-neutral-100 hover:bg-neutral-200"}`}><CableIcon size={12} /> Kabely</button>
         {mode === "cable" && (
@@ -4377,113 +4512,184 @@ export function StageBuilder3D() {
             );
           })()}
 
-          <div className="border-b border-neutral-200 px-3 py-2 text-xs font-bold uppercase tracking-wider text-neutral-500">
-            Komponenty na scéně ({items.length})
+          <div className="flex items-center justify-between border-b border-neutral-200 px-3 py-2">
+            <span className="text-xs font-bold uppercase tracking-wider text-neutral-500">
+              Vrstvy ({items.length})
+            </span>
+            <div className="flex items-center gap-1">
+              <button
+                onClick={groupSelection}
+                disabled={selection.length < 2}
+                className="rounded bg-neutral-100 px-1.5 py-0.5 text-[10px] hover:bg-neutral-200 disabled:opacity-40"
+                title="Seskupit výběr (Ctrl+G)"
+              ><GroupIcon size={10} className="inline" /> Seskupit</button>
+              <button
+                onClick={ungroupSelection}
+                disabled={!selection.length}
+                className="rounded bg-neutral-100 px-1.5 py-0.5 text-[10px] hover:bg-neutral-200 disabled:opacity-40"
+                title="Rozpustit skupinu (Ctrl+Shift+G)"
+              ><Ungroup size={10} className="inline" /> Rozpustit</button>
+            </div>
           </div>
           <div className="flex-1 overflow-y-auto p-2">
             {items.length === 0 && (
               <div className="p-4 text-center text-[11px] text-neutral-500">Zatím žádné komponenty. Přidej z levého panelu nebo načti preset.</div>
             )}
-            {items.map((it) => {
-              const spec = SPECS[it.kind];
-              const isSel = selection.includes(it.id);
-              const isKorg = it.kind === "korg" || it.kind === "korg_red" || it.kind === "korg_blue";
-              return (
-                <div
-                  key={it.id}
-                  className={`mb-1.5 rounded border p-2 text-[11px] transition ${isSel ? "border-lime-500 bg-neutral-100" : "border-neutral-200 bg-neutral-50 hover:border-neutral-300"}`}
-                >
-                  <button
-                    onClick={() => { setMode("select"); setSelection([it.id]); }}
-                    className="mb-1.5 flex w-full items-center gap-2 text-left"
+            {(() => {
+              // Photoshop-like Layers: group by groupId, ungrouped last.
+              const groups = new Map<string, Placed[]>();
+              const loose: Placed[] = [];
+              for (const it of items) {
+                if (it.groupId) {
+                  if (!groups.has(it.groupId)) groups.set(it.groupId, []);
+                  groups.get(it.groupId)!.push(it);
+                } else {
+                  loose.push(it);
+                }
+              }
+              const renderItemCard = (it: Placed) => {
+                const spec = SPECS[it.kind];
+                const isSel = selection.includes(it.id);
+                const isKorg = it.kind === "korg" || it.kind === "korg_red" || it.kind === "korg_blue";
+                return (
+                  <div
+                    key={it.id}
+                    className={`mb-1.5 rounded border p-2 text-[11px] transition ${isSel ? "border-lime-500 bg-neutral-100" : "border-neutral-200 bg-neutral-50 hover:border-neutral-300"}`}
                   >
-                    <span
-                      className="inline-block h-2 w-2 shrink-0 rounded-full"
-                      style={{ backgroundColor: spec.category === "sound" ? "#a3ff12" : spec.category === "lights" ? "#f4c11a" : "#05d9e8" }}
-                    />
-                    <span className="flex-1 truncate font-semibold text-neutral-900">
-                      {it.label || spec.label}
-                    </span>
-                    <span className="font-mono text-[9px] text-neutral-500">
-                      {it.pos[0].toFixed(1)},{it.pos[2].toFixed(1)}
-                    </span>
-                  </button>
-
-                  {/* Kind (model) selector */}
-                  <label className="mb-1 block">
-                    <span className="mb-0.5 block text-[9px] uppercase tracking-wider text-neutral-500">Model / typ bedny</span>
-                    <select
-                      value={it.kind}
-                      onChange={(e) => {
-                        const newKind = e.target.value as Kind;
-                        setItems((cur) => cur.map((x) => x.id === it.id ? {
-                          ...x,
-                          kind: newKind,
-                          variant: SPECS[newKind].defaultVariant ?? x.variant,
-                        } : x));
+                    <button
+                      onClick={(e) => {
+                        setMode("select");
+                        if (e.shiftKey || e.ctrlKey || e.metaKey) {
+                          setSelection((cur) => cur.includes(it.id) ? cur.filter((x) => x !== it.id) : [...cur, it.id]);
+                        } else {
+                          setSelection([it.id]);
+                        }
                       }}
-                      className="w-full rounded border border-neutral-300 bg-white px-1.5 py-1 text-[11px] text-neutral-900 focus:border-lime-500 focus:outline-none"
+                      className="mb-1.5 flex w-full items-center gap-2 text-left"
                     >
-                      {CATEGORIES.map((cat) => (
-                        <optgroup key={cat.id} label={cat.label}>
-                          {(Object.entries(SPECS) as [Kind, Spec][])
-                            .filter(([, s]) => s.category === cat.id)
-                            .map(([k, s]) => (
-                              <option key={k} value={k}>{s.label}</option>
-                            ))}
-                        </optgroup>
-                      ))}
-                    </select>
-                  </label>
-
-                  {/* Custom label */}
-                  <label className="mb-1 block">
-                    <span className="mb-0.5 block text-[9px] uppercase tracking-wider text-neutral-500">Vlastní štítek</span>
-                    <input
-                      type="text"
-                      value={it.label ?? ""}
-                      placeholder={spec.defaultLabel ?? spec.label}
-                      onChange={(e) => {
-                        const v = e.target.value;
-                        setItems((cur) => cur.map((x) => x.id === it.id ? { ...x, label: v || undefined } : x));
-                      }}
-                      className="w-full rounded border border-neutral-300 bg-white px-1.5 py-1 font-mono text-[11px] text-lime-600 focus:border-lime-500 focus:outline-none"
-                    />
-                  </label>
-
-                  {/* Variant (Korg color) */}
-                  {isKorg && (
-                    <div className="mb-1 flex items-center gap-1">
-                      <span className="text-[9px] uppercase tracking-wider text-neutral-500">Barva:</span>
-                      {(["red", "blue"] as const).map((v) => (
-                        <button
-                          key={v}
-                          onClick={() => setItems((cur) => cur.map((x) => x.id === it.id ? { ...x, variant: v } : x))}
-                          className={`h-5 w-5 rounded border-2 ${it.variant === v ? "border-lime-400" : "border-neutral-300"}`}
-                          style={{ backgroundColor: v === "red" ? "#c81e2a" : "#1e5ec8" }}
-                          title={v === "red" ? "Červený" : "Modrý"}
-                        />
-                      ))}
+                      <span
+                        className="inline-block h-2 w-2 shrink-0 rounded-full"
+                        style={{ backgroundColor: spec.category === "sound" ? "#a3ff12" : spec.category === "lights" ? "#f4c11a" : "#05d9e8" }}
+                      />
+                      <span className="flex-1 truncate font-semibold text-neutral-900">
+                        {it.label || spec.label}
+                      </span>
+                      <span className="font-mono text-[9px] text-neutral-500">
+                        {it.pos[0].toFixed(1)},{it.pos[2].toFixed(1)}
+                      </span>
+                    </button>
+                    <label className="mb-1 block">
+                      <span className="mb-0.5 block text-[9px] uppercase tracking-wider text-neutral-500">Model / typ bedny</span>
+                      <select
+                        value={it.kind}
+                        onChange={(e) => {
+                          const newKind = e.target.value as Kind;
+                          setItems((cur) => cur.map((x) => x.id === it.id ? {
+                            ...x, kind: newKind,
+                            variant: SPECS[newKind].defaultVariant ?? x.variant,
+                          } : x));
+                        }}
+                        className="w-full rounded border border-neutral-300 bg-white px-1.5 py-1 text-[11px] text-neutral-900 focus:border-lime-500 focus:outline-none"
+                      >
+                        {CATEGORIES.map((cat) => (
+                          <optgroup key={cat.id} label={cat.label}>
+                            {(Object.entries(SPECS) as [Kind, Spec][])
+                              .filter(([, s]) => s.category === cat.id)
+                              .map(([k, s]) => (<option key={k} value={k}>{s.label}</option>))}
+                          </optgroup>
+                        ))}
+                      </select>
+                    </label>
+                    <label className="mb-1 block">
+                      <span className="mb-0.5 block text-[9px] uppercase tracking-wider text-neutral-500">Vlastní štítek</span>
+                      <input
+                        type="text" value={it.label ?? ""} placeholder={spec.defaultLabel ?? spec.label}
+                        onChange={(e) => {
+                          const v = e.target.value;
+                          setItems((cur) => cur.map((x) => x.id === it.id ? { ...x, label: v || undefined } : x));
+                        }}
+                        className="w-full rounded border border-neutral-300 bg-white px-1.5 py-1 font-mono text-[11px] text-lime-600 focus:border-lime-500 focus:outline-none"
+                      />
+                    </label>
+                    {isKorg && (
+                      <div className="mb-1 flex items-center gap-1">
+                        <span className="text-[9px] uppercase tracking-wider text-neutral-500">Barva:</span>
+                        {(["red", "blue"] as const).map((v) => (
+                          <button
+                            key={v}
+                            onClick={() => setItems((cur) => cur.map((x) => x.id === it.id ? { ...x, variant: v } : x))}
+                            className={`h-5 w-5 rounded border-2 ${it.variant === v ? "border-lime-400" : "border-neutral-300"}`}
+                            style={{ backgroundColor: v === "red" ? "#c81e2a" : "#1e5ec8" }}
+                            title={v === "red" ? "Červený" : "Modrý"}
+                          />
+                        ))}
+                      </div>
+                    )}
+                    <div className="mt-1 flex items-center justify-between">
+                      <span className="font-mono text-[9px] text-neutral-600">
+                        {spec.size[0].toFixed(2)}×{spec.size[1].toFixed(2)}×{spec.size[2].toFixed(2)} m
+                      </span>
+                      <button
+                        onClick={() => {
+                          setItems((cur) => cur.filter((x) => x.id !== it.id));
+                          setCables((cs) => cs.filter((c) => c.from !== it.id && c.to !== it.id));
+                        }}
+                        className="rounded bg-red-100 px-1.5 py-0.5 text-[10px] text-red-700 hover:bg-red-200"
+                      ><Trash2 size={10} className="inline" /></button>
+                    </div>
+                  </div>
+                );
+              };
+              return (
+                <>
+                  {Array.from(groups.entries()).map(([gid, gItems]) => {
+                    const gName = groupNames[gid] ?? `Skupina ${gid.slice(0, 4)}`;
+                    const gIds = gItems.map((x) => x.id);
+                    const allSelected = gIds.every((id) => selection.includes(id));
+                    return (
+                      <div key={gid} className="mb-2 rounded-md border border-neutral-300 bg-white">
+                        <div className="flex items-center gap-1 rounded-t-md bg-neutral-100 px-2 py-1">
+                          <button
+                            onClick={(e) => {
+                              setMode("select");
+                              if (e.shiftKey) setSelection((cur) => Array.from(new Set([...cur, ...gIds])));
+                              else setSelection(allSelected ? [] : gIds);
+                            }}
+                            className={`flex items-center gap-1 rounded px-1 py-0.5 text-[10px] font-bold uppercase tracking-wider ${allSelected ? "bg-lime-500 text-neutral-950" : "text-neutral-700 hover:bg-white"}`}
+                            title="Vybrat celou skupinu (Shift = přidat)"
+                          >
+                            <GroupIcon size={10} /> {gItems.length}
+                          </button>
+                          <input
+                            type="text"
+                            value={groupNames[gid] ?? ""}
+                            placeholder={`Skupina ${gid.slice(0, 4)}`}
+                            onChange={(e) => renameGroup(gid, e.target.value)}
+                            className="flex-1 rounded bg-transparent px-1 py-0.5 text-[11px] font-semibold text-neutral-900 focus:bg-white focus:outline focus:outline-1 focus:outline-lime-500"
+                            title="Přejmenovat skupinu"
+                          />
+                          <button
+                            onClick={() => {
+                              setItems((cur) => cur.map((i) => gIds.includes(i.id) ? { ...i, groupId: undefined } : i));
+                              renameGroup(gid, "");
+                            }}
+                            className="rounded p-0.5 text-neutral-500 hover:bg-white hover:text-red-600"
+                            title="Rozpustit skupinu"
+                          ><Ungroup size={11} /></button>
+                        </div>
+                        <div className="p-1.5">{gItems.map(renderItemCard)}</div>
+                      </div>
+                    );
+                  })}
+                  {loose.length > 0 && groups.size > 0 && (
+                    <div className="mt-2 mb-1 px-1 text-[9px] font-bold uppercase tracking-wider text-neutral-400">
+                      Nezařazené ({loose.length})
                     </div>
                   )}
-
-                  <div className="mt-1 flex items-center justify-between">
-                    <span className="font-mono text-[9px] text-neutral-600">
-                      {spec.size[0].toFixed(2)}×{spec.size[1].toFixed(2)}×{spec.size[2].toFixed(2)} m
-                    </span>
-                    <button
-                      onClick={() => {
-                        setItems((cur) => cur.filter((x) => x.id !== it.id));
-                        setCables((cs) => cs.filter((c) => c.from !== it.id && c.to !== it.id));
-                      }}
-                      className="rounded bg-red-100 px-1.5 py-0.5 text-[10px] text-red-700 hover:bg-red-200"
-                    >
-                      <Trash2 size={10} className="inline" />
-                    </button>
-                  </div>
-                </div>
+                  {loose.map(renderItemCard)}
+                </>
               );
-            })}
+            })()}
           </div>
         </aside>
       </div>
