@@ -4556,6 +4556,10 @@ export function StageBuilder3D() {
                 return (
                   <div
                     key={it.id}
+                    ref={(el) => {
+                      if (el) layerRowRefs.current.set(it.id, el);
+                      else layerRowRefs.current.delete(it.id);
+                    }}
                     className={`mb-1.5 rounded border p-2 text-[11px] transition ${isSel ? "border-lime-500 bg-neutral-100" : "border-neutral-200 bg-neutral-50 hover:border-neutral-300"}`}
                   >
                     <button
