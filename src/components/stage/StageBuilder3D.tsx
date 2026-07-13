@@ -20,6 +20,7 @@ import {
 import SchematicView from "./SchematicView";
 import GridPlannerView from "./GridPlannerView";
 import ElevationView from "./ElevationView";
+import { PlacementDevPanel } from "./PlacementDevPanel";
 
 
 /* ============================================================
