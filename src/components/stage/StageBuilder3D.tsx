@@ -1690,7 +1690,7 @@ function stackSnapTarget(
   moving: Placed,
   others: Placed[],
   rawY: number,
-): { x: number; z: number; y: number } | null {
+): { x: number; z: number; y: number; ontoId?: string } | null {
   const s = SPECS[moving.kind].size;
   const halfW = s[0] / 2, halfD = s[2] / 2;
   let best: { it: Placed; dist: number; top: number } | null = null;
@@ -1703,8 +1703,6 @@ function stackSnapTarget(
     const rz = oHalfD + halfD * 0.6;
     if (Math.abs(dx) > rx || Math.abs(dz) > rz) continue;
     const top = o.pos[1] + os[1];
-    // Only treat as a stack target if the drag height is at least half-way
-    // up the target box (otherwise it's still a ground move next to it).
     if (rawY < top - s[1] * 0.5) continue;
     const dist = Math.hypot(dx, dz);
     if (!best || top > best.top + 0.01 || (Math.abs(top - best.top) < 0.01 && dist < best.dist)) {
@@ -1712,7 +1710,7 @@ function stackSnapTarget(
     }
   }
   if (!best) return null;
-  return { x: best.it.pos[0], z: best.it.pos[2], y: best.top };
+  return { x: best.it.pos[0], z: best.it.pos[2], y: best.top, ontoId: best.it.id };
 }
 
 // Ghost preview of the currently-dragged selection at its snapped position.
