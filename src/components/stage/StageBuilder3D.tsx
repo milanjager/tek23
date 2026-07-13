@@ -182,6 +182,16 @@ function connectorsFor(kind: Kind): Connector[] {
     case "img_0841":
     case "img_0842":
     case "img_0843":
+    case "picus_scoop_lo":
+    case "picus_scoop_hi":
+    case "picus_bass_row":
+    case "picus_shelf_bin":
+    case "picus_mid_grill":
+    case "picus_mid_stack":
+    case "picus_top_3way":
+    case "picus_hex_horn":
+    case "picus_wing_horn":
+    case "picus_deep_sub":
     case "linearray":
     case "monitor":
       return passiveSpeaker;
