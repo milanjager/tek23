@@ -3959,6 +3959,32 @@ export function StageBuilder3D() {
         </button>
         <button onClick={() => setTool("translate")} disabled={mode !== "select"} className={`flex items-center gap-1 rounded px-2 py-1 ${tool === "translate" && mode === "select" ? "bg-lime-500 text-neutral-950" : "bg-neutral-100 hover:bg-neutral-200"} disabled:opacity-40`}><MoveIcon size={12} /> Posun (T)</button>
         {/* Rotace UI odstraněna — bedny mají fixní orientaci */}
+        {/* ── Zarovnání (Photoshop-style) ─────────────────────── */}
+        {selection.length >= 2 && (
+          <div className="flex items-center gap-0.5 rounded bg-neutral-100 p-0.5" title="Zarovnání vybraných komponent">
+            <span className="px-1 text-[9px] font-bold uppercase tracking-wider text-neutral-500">Zarovnat</span>
+            <button onClick={() => alignSelection("left")}    className="rounded px-1.5 py-0.5 font-mono text-[11px] hover:bg-white" title="Zarovnat vlevo (X min)">⇤</button>
+            <button onClick={() => alignSelection("hcenter")} className="rounded px-1.5 py-0.5 font-mono text-[11px] hover:bg-white" title="Vodorovně na střed (X)">⇔</button>
+            <button onClick={() => alignSelection("right")}   className="rounded px-1.5 py-0.5 font-mono text-[11px] hover:bg-white" title="Zarovnat vpravo (X max)">⇥</button>
+            <span className="mx-0.5 h-4 w-px bg-neutral-300" />
+            <button onClick={() => alignSelection("front")}   className="rounded px-1.5 py-0.5 font-mono text-[11px] hover:bg-white" title="Zarovnat dopředu (Z min)">⤒</button>
+            <button onClick={() => alignSelection("vcenter")} className="rounded px-1.5 py-0.5 font-mono text-[11px] hover:bg-white" title="Do hloubky na střed (Z)">⇕</button>
+            <button onClick={() => alignSelection("back")}    className="rounded px-1.5 py-0.5 font-mono text-[11px] hover:bg-white" title="Zarovnat dozadu (Z max)">⤓</button>
+            <span className="mx-0.5 h-4 w-px bg-neutral-300" />
+            <button onClick={() => alignSelection("bottom")}  className="rounded px-1.5 py-0.5 font-mono text-[11px] hover:bg-white" title="Zarovnat dolů (Y min)">▁</button>
+            <button onClick={() => alignSelection("ycenter")} className="rounded px-1.5 py-0.5 font-mono text-[11px] hover:bg-white" title="Výškově na střed (Y)">▬</button>
+            <button onClick={() => alignSelection("top")}     className="rounded px-1.5 py-0.5 font-mono text-[11px] hover:bg-white" title="Zarovnat nahoru (Y max)">▔</button>
+            {selection.length >= 3 && (
+              <>
+                <span className="mx-0.5 h-4 w-px bg-neutral-300" />
+                <span className="px-1 text-[9px] font-bold uppercase tracking-wider text-neutral-500">Rozmístit</span>
+                <button onClick={() => distributeSelection("x")} className="rounded px-1.5 py-0.5 font-mono text-[11px] hover:bg-white" title="Rovnoměrně po X">↔</button>
+                <button onClick={() => distributeSelection("z")} className="rounded px-1.5 py-0.5 font-mono text-[11px] hover:bg-white" title="Rovnoměrně po Z (hloubka)">↕</button>
+                <button onClick={() => distributeSelection("y")} className="rounded px-1.5 py-0.5 font-mono text-[11px] hover:bg-white" title="Rovnoměrně po Y (výška)">⇅</button>
+              </>
+            )}
+          </div>
+        )}
         <div className="mx-2 h-5 w-px bg-neutral-700" />
         <button onClick={() => { setMode("cable"); setSelection([]); }} className={`flex items-center gap-1 rounded px-2 py-1 ${mode === "cable" ? "bg-lime-500 text-neutral-950" : "bg-neutral-100 hover:bg-neutral-200"}`}><CableIcon size={12} /> Kabely</button>
         {mode === "cable" && (
