@@ -80,6 +80,18 @@ const SPECS: Record<Kind, Spec> = {
   img_0841:     { label: "JB218 2×18\" RCF LF18N401", category: "sound", size: [1.20, 0.80, 0.95], stackable: true, hint: "2× JB218 – RCF LF18N401", defaultLabel: "JB218 2×18\"" },
   img_0842:     { label: "JB181 stack",       category: "sound",  size: [0.75, 1.80, 0.85], stackable: true,  hint: "Stack JB181 skříní", defaultLabel: "JB181 stack" },
   img_0843:     { label: "Picus top grill",   category: "sound",  size: [1.80, 1.60, 0.85], stackable: true,  hint: "Top řada s hex mřížkou", defaultLabel: "Picus top" },
+
+  // --- Picus wall (10 kabinetů z reference fotky) ---
+  picus_scoop_lo:   { label: "Picus Scoop Lo 4×18\"",   category: "sound", size: [1.00, 1.00, 0.90], stackable: true, hint: "Spodní řada – 4×18\" scoop sub (žluté kříže)",     defaultLabel: "Picus Scoop Lo" },
+  picus_scoop_hi:   { label: "Picus Scoop Hi 4×18\"",   category: "sound", size: [1.00, 1.00, 0.90], stackable: true, hint: "Druhá řada – 4×18\" scoop sub (žluté kříže)",     defaultLabel: "Picus Scoop Hi" },
+  picus_bass_row:   { label: "Picus Bass 2×15\"",       category: "sound", size: [1.00, 0.55, 0.75], stackable: true, hint: "Horní krátká řada – 2×15\" bass shelf",           defaultLabel: "Picus Bass" },
+  picus_shelf_bin:  { label: "Picus Shelf 1×15\"",      category: "sound", size: [0.80, 0.55, 0.70], stackable: true, hint: "Doplňková krátká shelf bedna",                    defaultLabel: "Picus Shelf" },
+  picus_mid_grill:  { label: "Picus Mid Grill 2×12\"",  category: "sound", size: [0.80, 1.80, 0.55], stackable: true, hint: "Centrální perforovaná mid věž (2×12\")",          defaultLabel: "Picus Mid Grill" },
+  picus_mid_stack:  { label: "Picus Mid Stack 2×12\"",  category: "sound", size: [0.90, 1.40, 0.70], stackable: true, hint: "Dvojitý mid stack ve středu (2×12\" v páru)",     defaultLabel: "Picus Mid Stack" },
+  picus_top_3way:   { label: "Picus Top 3-way",         category: "sound", size: [0.90, 0.70, 0.60], stackable: true, hint: "Letěný 3-way top (mid + horn) se žlutou vzpěrou", defaultLabel: "Picus Top 3-way" },
+  picus_hex_horn:   { label: "Picus Hex Horn",          category: "sound", size: [1.40, 0.90, 0.60], stackable: true, hint: "Boční hex-array cluster (3× šestihran)",          defaultLabel: "Picus Hex" },
+  picus_wing_horn:  { label: "Picus Wing Horn",         category: "sound", size: [1.10, 0.70, 0.55], stackable: true, hint: "Boční wing horn (2× drivery)",                    defaultLabel: "Picus Wing" },
+  picus_deep_sub:   { label: "Picus Deep Sub 2×21\"",   category: "sound", size: [1.20, 1.10, 1.05], stackable: true, hint: "Hluboký scoop-sub s prodlouženou komorou",        defaultLabel: "Picus Deep Sub" },
   amp:          { label: "Amp rack",         category: "infra",  size: [0.60, 0.90, 0.60], stackable: true,  hint: "Rack zesilovačů" },
   powersoft:    { label: "Powersoft K20",    category: "infra",  size: [0.60, 0.90, 0.60], stackable: true,  hint: "Powersoft výkonový amp", defaultLabel: "Powersoft" },
   mixer:        { label: "Mixer",            category: "infra",  size: [0.80, 0.15, 0.55], stackable: false, hint: "Mixážní pult" },
