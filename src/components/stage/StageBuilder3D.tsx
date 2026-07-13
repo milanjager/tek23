@@ -1758,7 +1758,7 @@ function findOpenGroundPosition(kind: Kind, items: Placed[], desired: [number, n
   return snapToGridXZ([desired[0] + items.length * 0.6, 0, desired[2]]);
 }
 
-function spreadGroupItems(items: Placed[], groupId: string, gap: number): Placed[] {
+function spreadGroupItems(items: Placed[], groupId: string, gap: GroupGap): Placed[] {
   const group = items.filter((i) => i.groupId === groupId);
   if (group.length < 2) return items;
   const rows = new Map<number, Placed[]>();
@@ -1773,15 +1773,36 @@ function spreadGroupItems(items: Placed[], groupId: string, gap: number): Placed
     if (row.length < 2) continue;
     const sorted = [...row].sort((a, b) => a.pos[0] - b.pos[0]);
     const center = sorted.reduce((sum, it) => sum + it.pos[0], 0) / sorted.length;
-    const totalWidth = sorted.reduce((sum, it) => sum + SPECS[it.kind].size[0], 0) + gap * (sorted.length - 1);
+    const totalWidth = sorted.reduce((sum, it) => sum + SPECS[it.kind].size[0], 0) + gap.x * (sorted.length - 1);
     let cursor = center - totalWidth / 2;
     for (const it of sorted) {
       const w = SPECS[it.kind].size[0];
       nextPos.set(it.id, [cursor + w / 2, it.pos[1], it.pos[2]]);
-      cursor += w + gap;
+      cursor += w + gap.x;
     }
   }
-  return items.map((it) => nextPos.has(it.id) ? { ...it, pos: nextPos.get(it.id)! } : it);
+  const xSpread = items.map((it) => nextPos.has(it.id) ? { ...it, pos: nextPos.get(it.id)! } : it);
+  if (gap.y <= 0) return xSpread;
+
+  const columns = new Map<string, Placed[]>();
+  for (const it of xSpread.filter((i) => i.groupId === groupId)) {
+    const key = `${Math.round(it.pos[0] * 20) / 20}:${Math.round(it.pos[2] * 20) / 20}`;
+    const col = columns.get(key) ?? [];
+    col.push(it);
+    columns.set(key, col);
+  }
+  const nextY = new Map<string, [number, number, number]>();
+  for (const col of columns.values()) {
+    if (col.length < 2) continue;
+    const sorted = [...col].sort((a, b) => a.pos[1] - b.pos[1]);
+    let y = Math.min(...sorted.map((it) => it.pos[1]));
+    for (const it of sorted) {
+      const p = nextPos.get(it.id) ?? it.pos;
+      nextY.set(it.id, [p[0], y, p[2]]);
+      y += SPECS[it.kind].size[1] + gap.y;
+    }
+  }
+  return xSpread.map((it) => nextY.has(it.id) ? { ...it, pos: nextY.get(it.id)! } : it);
 }
 
 function itemScreenBounds(it: Placed, camera: THREE.Camera, width: number, height: number) {
