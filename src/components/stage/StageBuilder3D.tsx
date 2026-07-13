@@ -2993,11 +2993,39 @@ function SceneContent({
         />
       )}
 
+      {topView && (
+        <>
+          <OrthographicCamera
+            makeDefault
+            position={[0, 40, 0]}
+            zoom={40}
+            near={0.1}
+            far={200}
+          />
+          {/* PA linie Z – zvýrazněná kóta, na kterou se snapují reproduktory */}
+          <Line
+            points={[[-40, 0.02, speakerLineZ], [40, 0.02, speakerLineZ]]}
+            color="#f59e0b"
+            lineWidth={2}
+            dashed
+            dashSize={0.4}
+            gapSize={0.25}
+          />
+          <Html position={[-6, 0.03, speakerLineZ]} center distanceFactor={20} style={{ pointerEvents: "none" }}>
+            <div style={{ background: "rgba(245,158,11,.95)", color: "#111", padding: "2px 6px", borderRadius: 4, fontSize: 11, fontWeight: 700, whiteSpace: "nowrap" }}>
+              PA linie Z = {speakerLineZ.toFixed(2)} m
+            </div>
+          </Html>
+        </>
+      )}
+
       <OrbitControls
         ref={orbitRef}
-        makeDefault
-        target={[0, 1, 0]}
-        maxPolarAngle={Math.PI / 2 - 0.02}
+        makeDefault={!topView}
+        target={[0, topView ? 0 : 1, 0]}
+        maxPolarAngle={topView ? 0.001 : Math.PI / 2 - 0.02}
+        minPolarAngle={topView ? 0 : 0}
+        enableRotate={!topView}
         enableDamping
         dampingFactor={0.1}
       />
