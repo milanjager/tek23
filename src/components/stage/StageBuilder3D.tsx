@@ -3815,6 +3815,22 @@ export function StageBuilder3D() {
         >
           <Sparkles size={12} /> {realistic ? "Realistický" : "Realističtější vzhled"}
         </button>
+        <button
+          onClick={() => setDark((v) => !v)}
+          className={`flex items-center gap-1 rounded px-2 py-1 ${dark ? "bg-neutral-900 text-neutral-100" : "bg-neutral-100 hover:bg-neutral-200"}`}
+          title="Přepnout světlý / tmavý režim"
+        >
+          {dark ? "☾ Tmavý" : "☀ Světlý"}
+        </button>
+        <div className="flex items-center gap-1 rounded bg-neutral-100 px-2 py-1" title="Osa (Z) linie reproduktorů — všechny reprobedny se srovnají na tuto hodnotu">
+          <span className="text-[10px] text-neutral-500">PA linie Z</span>
+          <input
+            type="number"
+            step={0.1}
+            value={speakerLineZ}
+            onChange={(e) => setSpeakerLineZ(Number(e.target.value) || 0)}
+            className="w-14 rounded border border-neutral-300 bg-white px-1 py-0.5 text-[11px]"
+          />
         <button onClick={() => setTool("translate")} disabled={mode !== "select"} className={`flex items-center gap-1 rounded px-2 py-1 ${tool === "translate" && mode === "select" ? "bg-lime-500 text-neutral-950" : "bg-neutral-100 hover:bg-neutral-200"} disabled:opacity-40`}><MoveIcon size={12} /> Posun (T)</button>
         {/* Rotace UI odstraněna — bedny mají fixní orientaci */}
         {/* ── Zarovnání (Photoshop-style) ─────────────────────── */}
