@@ -3705,7 +3705,7 @@ export function StageBuilder3D() {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [deleteSelection, copySelection, pasteSelection, duplicateSelection, groupSelection, ungroupSelection]);
+  }, [deleteSelection, copySelection, pasteSelection, duplicateSelection, groupSelection, ungroupSelection, undo, redo]);
 
   const palette = useMemo(
     () => (Object.entries(SPECS) as [Kind, Spec][]).filter(([, s]) => s.category === category),
