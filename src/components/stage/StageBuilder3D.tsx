@@ -2026,7 +2026,7 @@ function RealisticTuner({ enabled }: { enabled: boolean }) {
 function SceneContent({
   items, setItems, selection, setSelection, tool,
   cables, setCables, mode, cableType, setCableType, pendingFrom, setPendingFrom,
-  showConnectorLabels, showCableLabels, realistic, autoSanitize,
+  showConnectorLabels, showCableLabels, realistic, autoSanitize, frontView,
 }: {
   items: Placed[];
   setItems: React.Dispatch<React.SetStateAction<Placed[]>>;
@@ -2044,6 +2044,7 @@ function SceneContent({
   showCableLabels: boolean;
   realistic: boolean;
   autoSanitize: boolean;
+  frontView: boolean;
 }) {
 
 
@@ -2051,6 +2052,37 @@ function SceneContent({
   const objectsRef = useRef<Map<string, THREE.Object3D>>(new Map());
   const orbitRef = useRef<any>(null);
   const transformRef = useRef<any>(null);
+  const { camera } = useThree();
+
+  useEffect(() => {
+    if (!frontView) return;
+    const bounds = items.reduce(
+      (acc, it) => {
+        const s = SPECS[it.kind].size;
+        acc.minX = Math.min(acc.minX, it.pos[0] - s[0] / 2);
+        acc.maxX = Math.max(acc.maxX, it.pos[0] + s[0] / 2);
+        acc.minY = Math.min(acc.minY, it.pos[1]);
+        acc.maxY = Math.max(acc.maxY, it.pos[1] + s[1]);
+        acc.minZ = Math.min(acc.minZ, it.pos[2] - s[2] / 2);
+        acc.maxZ = Math.max(acc.maxZ, it.pos[2] + s[2] / 2);
+        return acc;
+      },
+      { minX: -4, maxX: 4, minY: 0, maxY: 3, minZ: -2, maxZ: 2 },
+    );
+    const cx = (bounds.minX + bounds.maxX) / 2;
+    const cy = Math.max(1, (bounds.minY + bounds.maxY) / 2);
+    const cz = (bounds.minZ + bounds.maxZ) / 2;
+    const width = Math.max(6, bounds.maxX - bounds.minX);
+    const height = Math.max(4, bounds.maxY - bounds.minY);
+    const dist = Math.max(9, width * 1.25, height * 2.2);
+    camera.position.set(cx, cy, cz + dist);
+    camera.lookAt(cx, cy, cz);
+    camera.updateProjectionMatrix();
+    if (orbitRef.current) {
+      orbitRef.current.target.set(cx, cy, cz);
+      orbitRef.current.update();
+    }
+  }, [camera, frontView, items]);
 
   const registerObject = useCallback((id: string, obj: THREE.Object3D | null) => {
     if (obj) objectsRef.current.set(id, obj);
@@ -2139,7 +2171,7 @@ function SceneContent({
         map.set(id, snapped);
       }
       const out = [...map.values()];
-      return autoSanitize ? sanitizeStacks(out) : out;
+      return autoSanitize ? normalizeScene(out) : resolveHorizontalOverlaps(out);
     });
     if (reports.length) {
       const fmt = (v: number) => v.toFixed(2);
