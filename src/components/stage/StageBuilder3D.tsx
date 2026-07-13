@@ -1487,6 +1487,16 @@ function ModelFor({ kind, size, variant }: { kind: Kind; size: [number, number, 
     case "img_0841": return <PicusBinModel size={size} cols={2} rows={2} hasTopVent={false} />;
     case "img_0842": return <PicusBinModel size={size} cols={1} rows={3} hasTopVent />;
     case "img_0843": return <PicusTopGrillModel size={size} />;
+    case "picus_scoop_lo":  return <PicusBinModel size={size} cols={1} rows={1} hasTopVent />;
+    case "picus_scoop_hi":  return <PicusBinModel size={size} cols={1} rows={1} hasTopVent />;
+    case "picus_bass_row":  return <PicusBinModel size={size} cols={2} rows={1} hasTopVent={false} />;
+    case "picus_shelf_bin": return <PicusBinModel size={size} cols={1} rows={1} hasTopVent={false} />;
+    case "picus_mid_grill": return <PicusTopGrillModel size={size} />;
+    case "picus_mid_stack": return <PicusBinModel size={size} cols={1} rows={2} hasTopVent />;
+    case "picus_top_3way":  return <PicusBinModel size={size} cols={2} rows={1} hasTopVent />;
+    case "picus_hex_horn":  return <PicusTopGrillModel size={size} />;
+    case "picus_wing_horn": return <PicusBinModel size={size} cols={2} rows={1} hasTopVent={false} />;
+    case "picus_deep_sub":  return <PicusBinModel size={size} cols={1} rows={1} hasTopVent />;
     case "linearray": return <LineArrayModel size={size} />;
     case "monitor": return <MonitorModel size={size} />;
     case "amp": return <AmpRack size={size} />;
