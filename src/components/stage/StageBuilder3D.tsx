@@ -1068,8 +1068,8 @@ function LaserModel({ size }: { size: [number, number, number] }) {
         <meshStandardMaterial color="#0a0a0a" metalness={0.7} roughness={0.35} />
       </mesh>
       {/* Aperture */}
-      <mesh position={[0, h / 2, d / 2 + 0.005]}>
-        <cylinderGeometry args={[0.04, 0.04, 0.02, 16]} rotation-x={Math.PI / 2} />
+      <mesh position={[0, h / 2, d / 2 + 0.005]} rotation={[Math.PI / 2, 0, 0]}>
+        <cylinderGeometry args={[0.04, 0.04, 0.02, 16]} />
         <meshStandardMaterial color="#ff2a6d" emissive="#ff2a6d" emissiveIntensity={2.5} />
       </mesh>
       {/* Heatsink fins */}
