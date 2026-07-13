@@ -23,6 +23,18 @@ import ElevationView from "./ElevationView";
 import IsometricView from "./IsometricView";
 import { PlacementDevPanel } from "./PlacementDevPanel";
 
+// Lovable's preview annotates JSX with data-tsd-source. R3F treats dashed
+// props as nested Three.js paths (data → tsd → source), so provide that path
+// on Three prototypes instead of letting the renderer crash in the preview.
+function ensureThreePreviewDataPath(proto: object) {
+  const p = proto as { data?: { tsd?: Record<string, unknown> } };
+  if (!p.data) p.data = { tsd: {} };
+  else if (!p.data.tsd) p.data.tsd = {};
+}
+ensureThreePreviewDataPath(THREE.Object3D.prototype);
+ensureThreePreviewDataPath(THREE.Material.prototype);
+ensureThreePreviewDataPath(THREE.BufferGeometry.prototype);
+
 
 /* ============================================================
    Types & Catalog
