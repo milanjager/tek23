@@ -3359,7 +3359,7 @@ export function StageBuilder3D() {
   const [selection, setSelection] = useState<string[]>([]);
   const [groupNames, setGroupNames] = useState<Record<string, string>>({});
   const [groupSpacing, setGroupSpacing] = useState<GroupSpacingState>({});
-  const [sceneHydrated, setSceneHydrated] = useState(false);
+  const [sceneHydrated, setSceneHydrated] = useState(true);
   const [tool, setTool] = useState<"translate" | "rotate">("translate");
   const [mode, setMode] = useState<"select" | "cable">("select");
   const [cableType, setCableType] = useState<CableType>("signal");
