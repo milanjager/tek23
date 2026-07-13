@@ -3516,6 +3516,7 @@ export function StageBuilder3D() {
   const [cables, setCables] = useState<Cable[]>([]);
   const [selection, setSelection] = useState<string[]>([]);
   const [groupNames, setGroupNames] = useState<Record<string, string>>({});
+  const [groupSpacing, setGroupSpacing] = useState<Record<string, number>>({});
   const [tool, setTool] = useState<"translate" | "rotate">("translate");
   const [mode, setMode] = useState<"select" | "cable">("select");
   const [cableType, setCableType] = useState<CableType>("signal");
@@ -3558,18 +3559,19 @@ export function StageBuilder3D() {
       const raw = localStorage.getItem(STORAGE);
       if (raw) {
         const parsed = JSON.parse(raw);
-        if (Array.isArray(parsed.items)) setItems(parsed.items);
+        if (Array.isArray(parsed.items)) setItems(normalizeScene(parsed.items));
         if (Array.isArray(parsed.cables)) setCables(parsed.cables);
         if (parsed.groupNames && typeof parsed.groupNames === "object") setGroupNames(parsed.groupNames);
+        if (parsed.groupSpacing && typeof parsed.groupSpacing === "object") setGroupSpacing(parsed.groupSpacing);
       } else {
-        setItems(loadPreset("techno"));
+        setItems(normalizeScene(loadPreset("techno")));
       }
     } catch { /* noop */ }
   }, []);
 
   useEffect(() => {
-    localStorage.setItem(STORAGE, JSON.stringify({ items, cables, groupNames }));
-  }, [items, cables, groupNames]);
+    localStorage.setItem(STORAGE, JSON.stringify({ items, cables, groupNames, groupSpacing }));
+  }, [items, cables, groupNames, groupSpacing]);
 
   /* ---------------- Undo / Redo history ---------------- */
   const historyRef = useRef<{ items: Placed[]; cables: Cable[] }[]>([]);
@@ -3703,14 +3705,20 @@ export function StageBuilder3D() {
     });
   }, []);
 
+  const setGroupGap = useCallback((gid: string, gap: number) => {
+    const safeGap = Math.max(0, Math.min(2, Number.isFinite(gap) ? gap : 0));
+    setGroupSpacing((cur) => ({ ...cur, [gid]: safeGap }));
+    setItems((cur) => normalizeScene(spreadGroupItems(cur, gid, safeGap), safeGap));
+  }, []);
+
   // Nudge selection by dx/dy/dz (world meters). dy clamped ≥ 0 on the ground.
   const nudgeSelection = useCallback((dx: number, dy: number, dz: number) => {
     if (!selection.length) return;
-    setItems((cur) => cur.map((it) => {
+    setItems((cur) => normalizeScene(cur.map((it) => {
       if (!selection.includes(it.id)) return it;
       const ny = Math.max(0, it.pos[1] + dy);
       return { ...it, pos: [it.pos[0] + dx, ny, it.pos[2] + dz] as [number, number, number] };
-    }));
+    })));
   }, [selection]);
 
   /* ── Photoshop-style alignment ──────────────────────────────────────
