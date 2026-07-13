@@ -3773,11 +3773,12 @@ export function StageBuilder3D() {
       return normalizeScene(cur.map((it) => {
         const p = byId.get(it.id);
         if (!p) return it;
-        return { ...it, pos: [p.x, it.pos[1], p.z] as [number, number, number], rotY: 0 };
+        const z = SPECS[it.kind].category === "sound" ? speakerLineZ : p.z;
+        return { ...it, pos: [p.x, it.pos[1], z] as [number, number, number], rotY: 0 };
       }));
     });
     setSelection([]);
-  }, []);
+  }, [speakerLineZ]);
 
   // Keyboard shortcuts
   useEffect(() => {
