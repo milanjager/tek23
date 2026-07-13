@@ -3454,14 +3454,17 @@ export function StageBuilder3D() {
       const raw = localStorage.getItem(STORAGE);
       if (raw) {
         const parsed = JSON.parse(raw);
-        if (Array.isArray(parsed.items)) setItems(normalizeScene(parsed.items));
+        const loadedItems = Array.isArray(parsed.items) && parsed.items.length > 0
+          ? parsed.items
+          : loadPreset("namel_wall");
+        setItems(normalizeScene(loadedItems));
         if (Array.isArray(parsed.cables)) setCables(parsed.cables);
         if (parsed.groupNames && typeof parsed.groupNames === "object") setGroupNames(parsed.groupNames);
         if (parsed.groupSpacing && typeof parsed.groupSpacing === "object") setGroupSpacing(parsed.groupSpacing);
       } else {
         setItems(normalizeScene(loadPreset("namel_wall")));
       }
-    } catch { /* noop */ }
+    } catch { setItems(normalizeScene(loadPreset("namel_wall"))); }
     finally { setSceneHydrated(true); }
   }, []);
 
