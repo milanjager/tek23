@@ -3832,6 +3832,12 @@ export function StageBuilder3D() {
         >
           <Boxes size={12} /> Srovnat stacky
         </button>
+        <button
+          onClick={() => setAutoSanitize((v) => !v)}
+          className={`flex items-center gap-1 rounded px-2 py-1 ${autoSanitize ? "bg-cyan-500 text-neutral-950" : "bg-neutral-100 hover:bg-neutral-200"}`}
+          title="Po každém dropu automaticky srovnat stacky (žádné bedny v půlce jiných)."
+        >
+          <Boxes size={12} /> Auto srovnat {autoSanitize ? "· ON" : "· OFF"}
         <button onClick={() => { setMode("select"); setPendingFrom(null); setMarqueeMode(false); }} className={`flex items-center gap-1 rounded px-2 py-1 ${mode === "select" && !marqueeMode ? "bg-lime-500 text-neutral-950" : "bg-neutral-100 hover:bg-neutral-200"}`}><MousePointer2 size={12} /> Výběr</button>
         <button onClick={() => { setMode("select"); setPendingFrom(null); setMarqueeMode((v) => !v); }} className={`flex items-center gap-1 rounded px-2 py-1 ${marqueeMode ? "bg-lime-500 text-neutral-950" : "bg-neutral-100 hover:bg-neutral-200"}`} title="Táhni myší přes bedny (Shift = přidat k výběru)"><BoxSelect size={12} /> Skupinový výběr</button>
         <button
