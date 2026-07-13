@@ -4824,6 +4824,22 @@ export function StageBuilder3D() {
                             title="Rozpustit skupinu"
                           ><Ungroup size={11} /></button>
                         </div>
+                        <div className="border-b border-neutral-200 bg-neutral-50 px-2 py-1.5">
+                          <div className="mb-1 flex items-center justify-between text-[9px] font-bold uppercase tracking-wider text-neutral-500">
+                            <span>Odsazení beden ve skupině</span>
+                            <span className="font-mono text-neutral-700">{(groupSpacing[gid] ?? 0.06).toFixed(2)} m</span>
+                          </div>
+                          <input
+                            type="range"
+                            min={0}
+                            max={1.2}
+                            step={0.02}
+                            value={groupSpacing[gid] ?? 0.06}
+                            onChange={(e) => setGroupGap(gid, Number(e.target.value))}
+                            className="w-full accent-lime-500"
+                            title="Rozestup beden v rámci skupiny — po změně se automaticky odstraní překryvy"
+                          />
+                        </div>
                         <div className="p-1.5">{gItems.map(renderItemCard)}</div>
                       </div>
                     );
