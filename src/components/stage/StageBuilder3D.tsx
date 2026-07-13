@@ -2478,6 +2478,7 @@ function SceneContent({
               setSnapTooltip({ text: "✗ Kolize – nelze položit", kind: "bad", at: Date.now() });
             }
           }}
+          speakerLineZ={speakerLineZ}
         />
       )}
 
