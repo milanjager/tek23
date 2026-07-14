@@ -2578,7 +2578,12 @@ function SceneContent({
         />
       ))}
 
-      {/* Placement ghost — snapped preview while dragging a selected item */}
+      {/* Group selection AABB — wireframe box + axes so it's obvious what will move */}
+      {mode === "select" && selection.length >= 2 && (
+        <SelectionBounds items={items} selection={selection} />
+      )}
+
+
       {dragging && mode === "select" && (
         <PlacementGhost
           selection={selection}
