@@ -4754,6 +4754,8 @@ export function StageBuilder3D() {
               frontView={viewMode === "front3d"}
               topView={viewMode === "top"}
               speakerLineZ={speakerLineZ}
+              cableRouteY={cableRouteY}
+
             />
           </Canvas>
 
