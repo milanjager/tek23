@@ -3126,6 +3126,8 @@ function SceneContent({
         const dimmed = anyFocus && !isFocus;
         const baseOpacity = isReconnecting ? 0.4 : dimmed ? 0.18 : 0.95;
         const width = isFocus ? meta.width + 3 : dimmed ? Math.max(1, meta.width - 0.5) : meta.width;
+        const drawColor = overload ? "#ff2020" : meta.color;
+
 
         return (
           <group key={c.id} renderOrder={isFocus ? 20 : dimmed ? 0 : 10}>
