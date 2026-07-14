@@ -497,6 +497,72 @@ const TEAL = "#0d8a8a";        // signature teal/cyan grille frame
 const YELLOW = "#f4c11a";      // freetekno yellow crosshair
 const PALLET_WOOD = "#7a5a30";
 
+/* Shared textures — created once, reused across every cabinet.
+   Perforated grille (round holes on dark cloth) is the single biggest
+   readability uplift for PA speakers at close range. */
+let _grilleTex: THREE.CanvasTexture | null = null;
+function getGrilleTexture(): THREE.CanvasTexture {
+  if (_grilleTex) return _grilleTex;
+  const S = 256;
+  const c = document.createElement("canvas");
+  c.width = c.height = S;
+  const ctx = c.getContext("2d")!;
+  ctx.fillStyle = "#0a0a0a";
+  ctx.fillRect(0, 0, S, S);
+  // hex-packed holes
+  const step = 12;
+  const r = 2.4;
+  ctx.fillStyle = "#1c1c1c";
+  for (let y = 0; y < S + step; y += step) {
+    const row = Math.round(y / step);
+    const xOff = row % 2 === 0 ? 0 : step / 2;
+    for (let x = -step; x < S + step; x += step) {
+      ctx.beginPath();
+      ctx.arc(x + xOff, y, r, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+  // subtle horizontal cloth streaks
+  ctx.globalAlpha = 0.08;
+  ctx.fillStyle = "#ffffff";
+  for (let y = 0; y < S; y += 3) ctx.fillRect(0, y, S, 1);
+  ctx.globalAlpha = 1;
+  const tex = new THREE.CanvasTexture(c);
+  tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+  tex.anisotropy = 8;
+  _grilleTex = tex;
+  return tex;
+}
+
+// L-shaped steel corner protector (3 thin plates meeting at a corner).
+function CornerBracket({ sx, sy, sz, w, h, d, color }:
+  { sx: number; sy: number; sz: number; w: number; h: number; d: number; color: string }) {
+  const t = 0.012;     // plate thickness
+  const L = 0.11;      // arm length
+  const x = sx * (w / 2 - L / 2);
+  const y = sy * (h / 2 - L / 2);
+  const z = sz * (d / 2 - L / 2);
+  const cx = sx * (w / 2 - t / 2);
+  const cy = sy * (h / 2 - t / 2);
+  const cz = sz * (d / 2 - t / 2);
+  return (
+    <group>
+      <mesh position={[cx, y, z]}>
+        <boxGeometry args={[t, L, L]} />
+        <meshStandardMaterial color={color} metalness={0.75} roughness={0.35} />
+      </mesh>
+      <mesh position={[x, cy, z]}>
+        <boxGeometry args={[L, t, L]} />
+        <meshStandardMaterial color={color} metalness={0.75} roughness={0.35} />
+      </mesh>
+      <mesh position={[x, y, cz]}>
+        <boxGeometry args={[L, L, t]} />
+        <meshStandardMaterial color={color} metalness={0.75} roughness={0.35} />
+      </mesh>
+    </group>
+  );
+}
+
 function Pallet({ w, d }: { w: number; d: number }) {
   // EUR pallet-ish: 3 top planks, 3 bottom blocks
   const H = 0.14;
@@ -517,6 +583,7 @@ function Pallet({ w, d }: { w: number; d: number }) {
     </group>
   );
 }
+
 
 function Cabinet({
   size, color = WOOD, grilleColor = GRILLE, cornerColor = TEAL,
