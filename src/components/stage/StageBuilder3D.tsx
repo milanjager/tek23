@@ -66,7 +66,10 @@ interface Spec {
   hint: string;
   defaultLabel?: string;
   defaultVariant?: "red" | "blue";
+  /** Typical power draw at nominal load (Watts). Passive PA cabinets = 0 (fed by amp). */
+  powerW?: number;
 }
+
 
 const SPECS: Record<Kind, Spec> = {
   horn:         { label: "Horn",             category: "sound",  size: [0.60, 0.40, 0.40], stackable: true,  hint: "Výškový horn" },
@@ -95,23 +98,23 @@ const SPECS: Record<Kind, Spec> = {
   picus_hex_horn:   { label: "Picus Hex Horn",          category: "sound", size: [1.40, 0.90, 0.60], stackable: true, hint: "Boční hex-array cluster (3× šestihran)",          defaultLabel: "Picus Hex" },
   picus_wing_horn:  { label: "Picus Wing Horn",         category: "sound", size: [1.10, 0.70, 0.55], stackable: true, hint: "Boční wing horn (2× drivery)",                    defaultLabel: "Picus Wing" },
   picus_deep_sub:   { label: "Picus Deep Sub 2×21\"",   category: "sound", size: [1.20, 1.10, 1.05], stackable: true, hint: "Hluboký scoop-sub s prodlouženou komorou",        defaultLabel: "Picus Deep Sub" },
-  amp:          { label: "Amp rack",         category: "infra",  size: [0.60, 0.90, 0.60], stackable: true,  hint: "Rack zesilovačů" },
-  powersoft:    { label: "Powersoft K20",    category: "infra",  size: [0.60, 0.90, 0.60], stackable: true,  hint: "Powersoft výkonový amp", defaultLabel: "Powersoft" },
-  mixer:        { label: "Mixer",            category: "infra",  size: [0.80, 0.15, 0.55], stackable: false, hint: "Mixážní pult" },
-  dj:           { label: "DJ booth",         category: "infra",  size: [1.60, 1.00, 0.70], stackable: true,  hint: "DJ pult" },
-  dj_table:     { label: "DJ stůl",          category: "infra",  size: [1.80, 0.95, 0.70], stackable: true,  hint: "Stůl pod DJ techniku (Korg, CDJ, mixer…)" },
+  amp:          { label: "Amp rack",         category: "infra",  size: [0.60, 0.90, 0.60], stackable: true,  hint: "Rack zesilovačů" , powerW: 1500 },
+  powersoft:    { label: "Powersoft K20",    category: "infra",  size: [0.60, 0.90, 0.60], stackable: true,  hint: "Powersoft výkonový amp", defaultLabel: "Powersoft" , powerW: 3500 },
+  mixer:        { label: "Mixer",            category: "infra",  size: [0.80, 0.15, 0.55], stackable: false, hint: "Mixážní pult" , powerW: 120 },
+  dj:           { label: "DJ booth",         category: "infra",  size: [1.60, 1.00, 0.70], stackable: true,  hint: "DJ pult" , powerW: 250 },
+  dj_table:     { label: "DJ stůl",          category: "infra",  size: [1.80, 0.95, 0.70], stackable: true,  hint: "Stůl pod DJ techniku (Korg, CDJ, mixer…)" , powerW: 0 },
 
-  cdj:          { label: "CDJ",              category: "infra",  size: [0.35, 0.10, 0.42], stackable: false, hint: "CDJ přehrávač" },
-  korg:         { label: "Korg live",        category: "infra",  size: [0.75, 0.10, 0.40], stackable: false, hint: "Korg groovebox" },
-  korg_red:     { label: "Korg červený",     category: "infra",  size: [0.75, 0.10, 0.40], stackable: false, hint: "Korg groovebox – červený", defaultLabel: "Korg červený", defaultVariant: "red" },
-  korg_blue:    { label: "Korg modrý",       category: "infra",  size: [0.75, 0.10, 0.40], stackable: false, hint: "Korg groovebox – modrý",   defaultLabel: "Korg modrý",   defaultVariant: "blue" },
-  turntable:    { label: "Gramofon",         category: "infra",  size: [0.45, 0.15, 0.35], stackable: false, hint: "Vinyl deck" },
-  strobe:       { label: "Strobo",           category: "lights", size: [0.45, 0.30, 0.20], stackable: false, hint: "Stroboskop" },
-  laser:        { label: "Laser",            category: "lights", size: [0.40, 0.25, 0.35], stackable: false, hint: "Laser" },
-  movinghead:   { label: "Moving head",      category: "lights", size: [0.35, 0.55, 0.35], stackable: false, hint: "Otočná hlava" },
-  bar:          { label: "Bar",              category: "infra",  size: [2.40, 1.10, 0.65], stackable: false, hint: "Bar pult" },
-  generator:    { label: "Aggregát",         category: "infra",  size: [0.70, 0.60, 0.55], stackable: false, hint: "Přenosný invertorový agregát (CEE 16A + 2× Schuko + 12V + 2× USB)" },
-  distro:       { label: "Rozdělovač",       category: "infra",  size: [0.60, 0.35, 0.40], stackable: true,  hint: "Silový rozvaděč / power distro (CEE in → 230V outs + DMX/SIG patch)", defaultLabel: "Rozdělovač" },
+  cdj:          { label: "CDJ",              category: "infra",  size: [0.35, 0.10, 0.42], stackable: false, hint: "CDJ přehrávač" , powerW: 40 },
+  korg:         { label: "Korg live",        category: "infra",  size: [0.75, 0.10, 0.40], stackable: false, hint: "Korg groovebox" , powerW: 30 },
+  korg_red:     { label: "Korg červený",     category: "infra",  size: [0.75, 0.10, 0.40], stackable: false, hint: "Korg groovebox – červený", defaultLabel: "Korg červený", defaultVariant: "red" , powerW: 30 },
+  korg_blue:    { label: "Korg modrý",       category: "infra",  size: [0.75, 0.10, 0.40], stackable: false, hint: "Korg groovebox – modrý",   defaultLabel: "Korg modrý",   defaultVariant: "blue" , powerW: 30 },
+  turntable:    { label: "Gramofon",         category: "infra",  size: [0.45, 0.15, 0.35], stackable: false, hint: "Vinyl deck" , powerW: 30 },
+  strobe:       { label: "Strobo",           category: "lights", size: [0.45, 0.30, 0.20], stackable: false, hint: "Stroboskop" , powerW: 250 },
+  laser:        { label: "Laser",            category: "lights", size: [0.40, 0.25, 0.35], stackable: false, hint: "Laser" , powerW: 350 },
+  movinghead:   { label: "Moving head",      category: "lights", size: [0.35, 0.55, 0.35], stackable: false, hint: "Otočná hlava" , powerW: 450 },
+  bar:          { label: "Bar",              category: "infra",  size: [2.40, 1.10, 0.65], stackable: false, hint: "Bar pult" , powerW: 400 },
+  generator:    { label: "Aggregát",         category: "infra",  size: [0.70, 0.60, 0.55], stackable: false, hint: "Přenosný invertorový agregát (CEE 16A + 2× Schuko + 12V + 2× USB)" , powerW: 0 },
+  distro:       { label: "Rozdělovač",       category: "infra",  size: [0.60, 0.35, 0.40], stackable: true,  hint: "Silový rozvaděč / power distro (CEE in → 230V outs + DMX/SIG patch)", defaultLabel: "Rozdělovač" , powerW: 0 },
   
 };
 
@@ -130,7 +133,10 @@ interface Placed {
   groupId?: string;
   label?: string;
   variant?: "red" | "blue";
+  /** Free-form wiring/technical notes shown in inspector and export. */
+  notes?: string;
 }
+
 
 type PresetKind = "namel_wall" | "club_stack" | "festival_ground";
 
@@ -380,29 +386,68 @@ function cablePoints(
   a: [number, number, number],
   b: [number, number, number],
   seed = 0,
+  routeY = 0.02,
 ): [number, number, number][] {
   const [ax, ay, az] = a;
   const [bx, by, bz] = b;
   // Lateral fan-out so parallel runs don't overlap.
   const spread = ((seed % 9) - 4) * 0.05;
-  const floorY = 0.02 + Math.abs((seed % 5) * 0.008); // rest on the ground
-  // Route on ground: down → over-Z → over-X → up. Choose leg order based on
+  const busY = routeY + Math.abs((seed % 5) * 0.008);
+  // Route on ground/bus: down → over-Z → over-X → up. Choose leg order based on
   // deltas to keep the visible bend closer to the shorter side.
   const dx = bx - ax, dz = bz - az;
   const zFirst = Math.abs(dz) >= Math.abs(dx);
   const midX = ax + (zFirst ? 0 : dx * 0.5);
   const midZ = az + (zFirst ? dz * 0.5 : 0);
+  // Slack drop: half-way between connector and bus so it looks like a
+  // physical cable, not a laser beam.
+  const slackA = Math.max(busY + 0.02, Math.min(ay, ay * 0.35 + 0.05));
+  const slackB = Math.max(busY + 0.02, Math.min(by, by * 0.35 + 0.05));
   return [
     [ax, ay, az],
-    [ax, ay * 0.35 + 0.05, az],                    // slack drop out of connector
-    [ax + spread, floorY, az + spread],            // land on floor
-    [zFirst ? ax + spread : midX + spread, floorY, zFirst ? midZ + spread : az + spread],
-    [zFirst ? bx + spread : midX + spread, floorY, zFirst ? midZ + spread : bz + spread],
-    [bx + spread, floorY, bz + spread],            // arrive at target foot
-    [bx, by * 0.35 + 0.05, bz],                    // rise to target connector
+    [ax, slackA, az],                              // slack drop out of connector
+    [ax + spread, busY, az + spread],              // land on route bus
+    [zFirst ? ax + spread : midX + spread, busY, zFirst ? midZ + spread : az + spread],
+    [zFirst ? bx + spread : midX + spread, busY, zFirst ? midZ + spread : bz + spread],
+    [bx + spread, busY, bz + spread],              // arrive at target foot
+    [bx, slackB, bz],                              // rise to target connector
     [bx, by, bz],
   ];
 }
+
+// ---- Power / overload accounting -------------------------------------------
+// Standard CEE 16A / Schuko 16A branch: 230 V × 16 A = 3680 W nominal.
+// We compute the sum of downstream power draws following PWR cables from a
+// source (generator/distro output) through any pass-through distros.
+const PWR_BRANCH_MAX_W = 3680;
+
+function computeCableLoads(items: Placed[], cables: Cable[]): Record<string, number> {
+  const byId = new Map(items.map((it) => [it.id, it] as const));
+  // Adjacency: for each item, which OTHER items are downstream via PWR cables.
+  // Convention: a PWR cable's "from" is the source side (out), "to" is the load side.
+  const outAdj = new Map<string, { cableId: string; to: string }[]>();
+  for (const c of cables) {
+    if (c.type !== "power") continue;
+    if (!outAdj.has(c.from)) outAdj.set(c.from, []);
+    outAdj.get(c.from)!.push({ cableId: c.id, to: c.to });
+  }
+  const draw = (id: string): number => {
+    const it = byId.get(id);
+    if (!it) return 0;
+    const self = SPECS[it.kind].powerW ?? 0;
+    let dn = 0;
+    for (const e of outAdj.get(id) ?? []) dn += draw(e.to);
+    return self + dn;
+  };
+  const loads: Record<string, number> = {};
+  for (const c of cables) {
+    if (c.type !== "power") continue;
+    loads[c.id] = draw(c.to);
+  }
+  return loads;
+}
+
+
 
 
 
@@ -2519,6 +2564,7 @@ function SceneContent({
   items, setItems, selection, setSelection, tool,
   cables, setCables, mode, cableType, setCableType, pendingFrom, setPendingFrom,
   showConnectorLabels, showCableLabels, realistic, autoSanitize, frontView, topView, speakerLineZ,
+  cableRouteY,
 }: {
   items: Placed[];
   setItems: React.Dispatch<React.SetStateAction<Placed[]>>;
@@ -2539,7 +2585,12 @@ function SceneContent({
   frontView: boolean;
   topView: boolean;
   speakerLineZ: number;
+  /** Y-height (m) at which the cable bus runs. 0.02 = on the floor, higher = truss/aerial. */
+  cableRouteY: number;
 }) {
+
+  const cableLoads = useMemo(() => computeCableLoads(items, cables), [items, cables]);
+
 
 
 
@@ -3015,7 +3066,7 @@ function SceneContent({
             ?? connectorsFor(src.kind).find((c) => c.type === cableType))?.offset;
         const p1 = srcLocal ? localToWorld(src, srcLocal) : anchorFor(src, cableType);
         const seed = pendingFrom.split("").reduce((s, ch) => s + ch.charCodeAt(0), 0);
-        const pts = cablePoints(p1, cursorWorld, seed);
+        const pts = cablePoints(p1, cursorWorld, seed, cableRouteY);
         return (
           <group>
             <Line
@@ -3047,7 +3098,10 @@ function SceneContent({
         const { p1, p2 } = bestAnchorPair(a, b, c.type);
         // Per-cable seed so parallel runs fan out at slightly different bus heights.
         const seed = c.id.split("").reduce((s, ch) => s + ch.charCodeAt(0), 0);
-        const pts = cablePoints(p1, p2, seed);
+        const pts = cablePoints(p1, p2, seed, cableRouteY);
+        const branchW = cableLoads[c.id] ?? 0;
+        const overload = c.type === "power" && branchW > PWR_BRANCH_MAX_W;
+
         const mid = pts[Math.floor(pts.length / 2)];
         const isSelected = selectedCableId === c.id;
         const isReconnecting = reconnect?.cableId === c.id;
@@ -3072,27 +3126,32 @@ function SceneContent({
         const dimmed = anyFocus && !isFocus;
         const baseOpacity = isReconnecting ? 0.4 : dimmed ? 0.18 : 0.95;
         const width = isFocus ? meta.width + 3 : dimmed ? Math.max(1, meta.width - 0.5) : meta.width;
+        const drawColor = overload ? "#ff2020" : meta.color;
+
 
         return (
           <group key={c.id} renderOrder={isFocus ? 20 : dimmed ? 0 : 10}>
-            {/* Soft glow halo behind the focused cable */}
-            {isFocus && (
+            {/* Soft glow halo behind the focused cable OR overloaded cable */}
+            {(isFocus || overload) && (
               <Line
                 points={pts as unknown as [number, number, number][]}
-                color={meta.color}
-                lineWidth={width + 5}
+                color={drawColor}
+                lineWidth={width + (overload ? 4 : 5)}
                 transparent
-                opacity={0.22}
+                opacity={overload ? 0.35 : 0.22}
                 depthTest={false}
               />
             )}
             <Line
               points={pts as unknown as [number, number, number][]}
-              color={meta.color}
+              color={drawColor}
               lineWidth={width}
               transparent
               opacity={baseOpacity}
               depthTest={!isFocus}
+              dashed={overload}
+              dashSize={0.22}
+              gapSize={0.12}
               onPointerOver={(e) => { e.stopPropagation(); setHoveredCableId(c.id); }}
               onPointerOut={(e) => { e.stopPropagation(); setHoveredCableId((cur) => (cur === c.id ? null : cur)); }}
               onClick={(e) => {
@@ -3104,12 +3163,13 @@ function SceneContent({
             />
             {/* Animated flow overlay on hover/selected — dashes travel from source to target */}
             {isFocus && (
-              <CableFlow points={pts} color={meta.color} width={width} />
+              <CableFlow points={pts} color={drawColor} width={width} />
             )}
 
             {/* Highlighted endpoints — pulse when picking a new target */}
-            <CableEndpoint position={p1} color={meta.color} state={fromState} />
-            <CableEndpoint position={p2} color={meta.color} state={toState} />
+            <CableEndpoint position={p1} color={drawColor} state={fromState} />
+            <CableEndpoint position={p2} color={drawColor} state={toState} />
+
 
 
 
@@ -3131,7 +3191,7 @@ function SceneContent({
                   }}
                   title={`${meta.label}: ${fromName} → ${toName}`}
                 >
-                  {meta.short} · {fromName}→{toName}
+                  {meta.short} · {fromName}→{toName}{c.type === "power" && branchW > 0 ? ` · ${Math.round(branchW)} W${overload ? " ⚠" : ""}` : ""}
                 </div>
               </Html>
             )}
@@ -3790,6 +3850,11 @@ export function StageBuilder3D() {
     return Number.isFinite(v) ? v : -1.4;
   });
   useEffect(() => { localStorage.setItem("stage.speakerLineZ", String(speakerLineZ)); }, [speakerLineZ]);
+
+  // Cable routing: 0.02 = on the floor, higher = aerial along truss.
+  const [autoRoute, setAutoRoute] = useState<boolean>(true);
+  const [cableRouteY, setCableRouteY] = useState<number>(0.02);
+
   const isSpeakerKind = useCallback((k: Kind) => {
     if (SPECS[k].category !== "sound") return false;
     return true;
@@ -4424,6 +4489,64 @@ export function StageBuilder3D() {
           Popisky kabelů
         </button>
 
+        {/* Cable route auto / aerial height */}
+        <button
+          onClick={() => setAutoRoute((v) => { const nv = !v; if (nv) setCableRouteY(0.02); return nv; })}
+          className={`rounded px-2 py-1 text-[11px] ${autoRoute ? "bg-lime-500 text-neutral-950" : "bg-neutral-100 text-neutral-500 hover:bg-neutral-200"}`}
+          title="Auto: kabely vedeny po podlaze. Vypni pro vlastní výšku (truss)."
+        >
+          Auto kabel {autoRoute ? "· PODLAHA" : "· TRUSS"}
+        </button>
+        {!autoRoute && (
+          <label className="flex items-center gap-1 rounded bg-neutral-100 px-2 py-1 text-[11px]" title="Výška trasy kabelů nad podlahou (m)">
+            Výška
+            <input
+              type="number"
+              min={0}
+              max={6}
+              step={0.1}
+              value={cableRouteY}
+              onChange={(e) => setCableRouteY(Math.max(0, Number(e.target.value) || 0))}
+              className="w-14 rounded bg-white px-1 py-0.5 text-[11px]"
+            />
+            m
+          </label>
+        )}
+        <button
+          onClick={() => {
+            const rows = [["ID","Typ","Barva","Zdroj","Cíl","Zátěž W","Přetíženo"]];
+            const byId = new Map(items.map((i) => [i.id, i] as const));
+            const loads = computeCableLoads(items, cables);
+            const nameOf = (it: Placed | undefined, id: string) =>
+              it ? (it.label ?? SPECS[it.kind].defaultLabel ?? SPECS[it.kind].label) : id;
+            for (const c of cables) {
+              const a = byId.get(c.from), b = byId.get(c.to);
+              const w = loads[c.id] ?? 0;
+              rows.push([
+                c.id, CABLE_META[c.type].label, CABLE_META[c.type].color,
+                nameOf(a, c.from), nameOf(b, c.to),
+                c.type === "power" ? String(Math.round(w)) : "",
+                c.type === "power" && w > PWR_BRANCH_MAX_W ? "ANO" : "",
+              ]);
+            }
+
+            const csv = rows.map((r) => r.map((cell) => `"${String(cell).replace(/"/g,'""')}"`).join(",")).join("\n");
+            const blob = new Blob(["\ufeff" + csv], { type: "text/csv;charset=utf-8" });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url; a.download = `kabelaz-${new Date().toISOString().slice(0,10)}.csv`;
+            a.click();
+            URL.revokeObjectURL(url);
+          }}
+          disabled={!cables.length}
+          className="rounded bg-neutral-100 px-2 py-1 text-[11px] hover:bg-neutral-200 disabled:opacity-40"
+          title="Exportovat seznam kabelů pro technika (CSV)"
+        >
+          ⤓ Export kabelů
+        </button>
+
+
+
 
         <button onClick={undo} disabled={!canUndo} title="Zpět (Ctrl+Z)" className="flex items-center gap-1 rounded bg-neutral-100 px-2 py-1 hover:bg-neutral-200 disabled:opacity-40">↶ Zpět</button>
         <button onClick={redo} disabled={!canRedo} title="Vpřed (Ctrl+Shift+Z / Ctrl+Y)" className="flex items-center gap-1 rounded bg-neutral-100 px-2 py-1 hover:bg-neutral-200 disabled:opacity-40">↷ Vpřed</button>
@@ -4694,6 +4817,8 @@ export function StageBuilder3D() {
               frontView={viewMode === "front3d"}
               topView={viewMode === "top"}
               speakerLineZ={speakerLineZ}
+              cableRouteY={cableRouteY}
+
             />
           </Canvas>
 
@@ -4830,6 +4955,47 @@ export function StageBuilder3D() {
                 <div className="mb-2 rounded bg-neutral-100 px-2 py-1 font-mono text-[10px] text-neutral-700">
                   Š×V×H&nbsp; {pspec.size[0].toFixed(2)} × {pspec.size[1].toFixed(2)} × {pspec.size[2].toFixed(2)} m
                 </div>
+
+                {/* Napájení */}
+                {(() => {
+                  const own = pspec.powerW ?? 0;
+                  // Sum of downstream draws (this item as PWR source).
+                  const loads = computeCableLoads(items, cables);
+                  const outgoing = cables.filter((c) => c.type === "power" && c.from === primary.id);
+                  const incoming = cables.filter((c) => c.type === "power" && c.to === primary.id);
+                  const feeds = outgoing.reduce((s, c) => s + (loads[c.id] ?? 0), 0);
+                  const overloadedBranch = outgoing.some((c) => (loads[c.id] ?? 0) > PWR_BRANCH_MAX_W);
+                  if (own === 0 && outgoing.length === 0 && incoming.length === 0) return null;
+                  return (
+                    <div className={`mb-2 rounded px-2 py-1 text-[10px] ${overloadedBranch ? "border border-red-400 bg-red-50 text-red-900" : "bg-amber-50 text-amber-900"}`}>
+                      <div className="mb-0.5 font-bold uppercase tracking-wider">Napájení</div>
+                      {own > 0 && <div>Vlastní odběr: <b>{own} W</b></div>}
+                      {outgoing.length > 0 && (
+                        <div>
+                          Napájí ({outgoing.length} větv{outgoing.length === 1 ? "e" : "í"}): <b>{Math.round(feeds)} W</b>
+                          <span className="ml-1 text-[9px] text-neutral-500">/ max {PWR_BRANCH_MAX_W} W na CEE 16A</span>
+                          {overloadedBranch && <div className="mt-0.5 font-bold">⚠ PŘETÍŽENO — rozděl na víc větví!</div>}
+                        </div>
+                      )}
+                      {incoming.length > 0 && <div>Napájeno z {incoming.length} zdroje/-ů</div>}
+                    </div>
+                  );
+                })()}
+
+                {/* Poznámky pro techniku */}
+                <div className="mb-2">
+                  <div className="mb-0.5 text-[9px] uppercase tracking-wider text-neutral-500">Poznámky (zapojení, IN/OUT)</div>
+                  <textarea
+                    value={primary.notes ?? ""}
+                    onChange={(e) => setItems((cur) => cur.map((x) => x.id === primary.id ? { ...x, notes: e.target.value } : x))}
+                    placeholder="např. IN: XLR z FOH · OUT: SpeakON A→sub 1, B→sub 2"
+                    className="w-full rounded border border-neutral-300 bg-white px-1.5 py-1 font-mono text-[10px] text-neutral-800"
+                    rows={2}
+                  />
+                </div>
+
+
+
 
                 {/* Patra */}
                 <div className="mb-2">
