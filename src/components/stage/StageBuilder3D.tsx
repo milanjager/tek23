@@ -180,7 +180,10 @@ interface Connector {
   type: CableType;
   role: ConnRole;
   offset: [number, number, number]; // local (before rotation)
+  subtype?: string;   // e.g. "cee16", "schuko", "dc12", "usb" — display-only
+  label?: string;     // short badge text override (defaults to CABLE_META short)
 }
+
 
 function connectorsFor(kind: Kind): Connector[] {
   const [bx, by, bz] = SPECS[kind].size;
