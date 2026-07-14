@@ -264,12 +264,20 @@ function connectorsFor(kind: Kind): Connector[] {
         { type: "power", role: "in", offset: [-bx * 0.30, by * 0.55, -bz * 0.50] },
       ];
 
-    // Generator — pure PWR source.
+    // Generator (DeWalt-style inverter) — pure PWR source with multiple socket types.
+    // All map to CableType "power" for compat, but subtype/label distinguishes them
+    // in the 3D scene and inspector.
     case "generator":
       return [
-        { type: "power", role: "out", offset: [ bx * 0.35, by * 0.35,  bz * 0.50] },
-        { type: "power", role: "out", offset: [-bx * 0.35, by * 0.35,  bz * 0.50] },
+        // Front-left control panel (facing +Z). x=left/right, y=height, z=+bz*0.5 = front face.
+        { type: "power", role: "out", offset: [-bx * 0.38, by * 0.62,  bz * 0.50], subtype: "cee16",  label: "CEE 16A" },
+        { type: "power", role: "out", offset: [-bx * 0.20, by * 0.62,  bz * 0.50], subtype: "schuko", label: "230V" },
+        { type: "power", role: "out", offset: [-bx * 0.05, by * 0.62,  bz * 0.50], subtype: "schuko", label: "230V" },
+        { type: "power", role: "out", offset: [-bx * 0.38, by * 0.38,  bz * 0.50], subtype: "dc12",   label: "12V DC" },
+        { type: "power", role: "out", offset: [-bx * 0.22, by * 0.38,  bz * 0.50], subtype: "usb",    label: "USB" },
+        { type: "power", role: "out", offset: [-bx * 0.10, by * 0.38,  bz * 0.50], subtype: "usb",    label: "USB" },
       ];
+
 
     // Power distro — 1× PWR in, 4× PWR out + DMX pass-through.
     case "distro":
