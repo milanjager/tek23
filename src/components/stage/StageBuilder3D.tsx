@@ -4294,6 +4294,20 @@ export function StageBuilder3D() {
                 setSelection((prev) => prev.filter((x) => x !== id));
               }}
             />
+          ) : viewMode === "tech" ? (
+            <TechnicalView
+              items={items}
+              cables={cables}
+              specs={SPECS as unknown as Record<string, { label: string; category: string; size: [number, number, number] }>}
+              selectedIds={selection}
+              onSelectItem={(id, additive) => {
+                if (id === null) { setSelection([]); return; }
+                setSelection((prev) => {
+                  if (!additive) return [id];
+                  return prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id];
+                });
+              }}
+            />
           ) : (
           <>
 
