@@ -3191,7 +3191,7 @@ function SceneContent({
                   }}
                   title={`${meta.label}: ${fromName} → ${toName}`}
                 >
-                  {meta.short} · {fromName}→{toName}
+                  {meta.short} · {fromName}→{toName}{c.type === "power" && branchW > 0 ? ` · ${Math.round(branchW)} W${overload ? " ⚠" : ""}` : ""}
                 </div>
               </Html>
             )}
