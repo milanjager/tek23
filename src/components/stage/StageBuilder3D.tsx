@@ -1278,32 +1278,188 @@ function BarModel({ size }: { size: [number, number, number] }) {
   );
 }
 
+/* DeWalt-style portable inverter generator.
+   Yellow rounded body inside a black protective frame, side control panel
+   with visible sockets (CEE 16A, Schuko, 12V DC, USB), wheels, top handle. */
 function GeneratorModel({ size }: { size: [number, number, number] }) {
   const [w, h, d] = size;
+
+  // Side-panel silkscreen texture with the "DeWALT" wordmark.
+  const dewaltTex = useMemo(() => {
+    const S = 512, HS = 256;
+    const c = document.createElement("canvas");
+    c.width = S; c.height = HS;
+    const ctx = c.getContext("2d")!;
+    ctx.fillStyle = "#febd11"; // DeWalt yellow
+    ctx.fillRect(0, 0, S, HS);
+    ctx.fillStyle = "#000";
+    ctx.font = "bold 110px Arial, sans-serif";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText("DeWALT", S / 2, HS / 2 + 6);
+    // small warning label bottom
+    ctx.fillStyle = "#000";
+    ctx.fillRect(S * 0.35, HS * 0.82, S * 0.30, HS * 0.09);
+    ctx.fillStyle = "#febd11";
+    ctx.font = "bold 18px Arial";
+    ctx.fillText("⚠  WARNING  ⚠", S / 2, HS * 0.87);
+    const t = new THREE.CanvasTexture(c);
+    t.colorSpace = THREE.SRGBColorSpace;
+    t.anisotropy = 8;
+    return t;
+  }, []);
+
+  const YELLOW = "#febd11";
+  const BLACK = "#111";
+  const RUBBER = "#1a1a1a";
+
   return (
     <group>
+      {/* Inner yellow body (slightly inset) */}
       <mesh castShadow position={[0, h / 2, 0]}>
-        <boxGeometry args={[w, h, d]} />
-        <meshStandardMaterial color="#2f4a1e" roughness={0.6} metalness={0.4} />
+        <boxGeometry args={[w * 0.94, h * 0.88, d * 0.92]} />
+        <meshPhysicalMaterial color={YELLOW} roughness={0.5} metalness={0.15} clearcoat={0.4} clearcoatRoughness={0.4} />
       </mesh>
-      {/* Exhaust */}
-      <mesh position={[w * 0.35, h + 0.2, -d * 0.3]}>
-        <cylinderGeometry args={[0.06, 0.06, 0.4, 12]} />
-        <meshStandardMaterial color="#333" metalness={0.7} roughness={0.4} />
+      {/* Black protective frame — top, bottom, and 4 vertical corner posts */}
+      <mesh position={[0, h - 0.02, 0]}>
+        <boxGeometry args={[w, 0.08, d]} />
+        <meshStandardMaterial color={BLACK} roughness={0.7} metalness={0.25} />
       </mesh>
-      {/* Grille */}
-      <mesh position={[0, h * 0.5, d / 2 + 0.001]}>
-        <planeGeometry args={[w * 0.7, h * 0.4]} />
-        <meshStandardMaterial color="#111" roughness={0.9} />
+      <mesh position={[0, 0.04, 0]}>
+        <boxGeometry args={[w, 0.08, d]} />
+        <meshStandardMaterial color={BLACK} roughness={0.7} metalness={0.25} />
       </mesh>
-      {/* Warning stripe */}
-      <mesh position={[0, h + 0.005, 0]}>
-        <boxGeometry args={[w * 1.01, 0.004, d * 1.01]} />
-        <meshStandardMaterial color="#f4c11a" emissive="#f4c11a" emissiveIntensity={0.4} />
+      {([-1, 1] as const).map((sx) => ([-1, 1] as const).map((sz) => (
+        <mesh key={`p${sx}${sz}`} position={[sx * (w / 2 - 0.03), h / 2, sz * (d / 2 - 0.03)]}>
+          <boxGeometry args={[0.07, h * 0.98, 0.07]} />
+          <meshStandardMaterial color={BLACK} roughness={0.75} metalness={0.2} />
+        </mesh>
+      )))}
+
+      {/* Right side: DeWalt logo panel */}
+      <mesh position={[w / 2 + 0.001, h * 0.55, 0]} rotation={[0, Math.PI / 2, 0]}>
+        <planeGeometry args={[d * 0.82, h * 0.6]} />
+        <meshStandardMaterial map={dewaltTex} roughness={0.55} metalness={0.1} />
+      </mesh>
+      {/* Left side: cooling vents (dark grid) */}
+      <mesh position={[-w / 2 - 0.001, h * 0.4, 0]} rotation={[0, -Math.PI / 2, 0]}>
+        <planeGeometry args={[d * 0.7, h * 0.5]} />
+        <meshStandardMaterial color="#0a0a0a" roughness={0.95} />
+      </mesh>
+      {/* Vent slats */}
+      {Array.from({ length: 8 }).map((_, i) => (
+        <mesh
+          key={`v${i}`}
+          position={[-w / 2 - 0.003, h * 0.2 + i * (h * 0.05), 0]}
+          rotation={[0, -Math.PI / 2, 0]}
+        >
+          <planeGeometry args={[d * 0.6, 0.012]} />
+          <meshStandardMaterial color="#2a2a2a" roughness={0.8} />
+        </mesh>
+      ))}
+
+      {/* FRONT control panel (facing +Z) — yellow bezel around a black recessed panel */}
+      <mesh position={[-w * 0.24, h * 0.5, d / 2 + 0.001]}>
+        <planeGeometry args={[w * 0.5, h * 0.55]} />
+        <meshStandardMaterial color={YELLOW} roughness={0.5} metalness={0.15} />
+      </mesh>
+      <mesh position={[-w * 0.24, h * 0.5, d / 2 + 0.003]}>
+        <planeGeometry args={[w * 0.44, h * 0.48]} />
+        <meshStandardMaterial color="#0d0d0d" roughness={0.85} />
+      </mesh>
+
+      {/* Sockets on the panel (visual only — real cable snap points come from connectorsFor). */}
+      {/* CEE 16A — blue round socket, top-left */}
+      <group position={[-w * 0.38, h * 0.62, d / 2 + 0.006]}>
+        <mesh><cylinderGeometry args={[0.055, 0.055, 0.02, 20]} /><meshStandardMaterial color="#1e6fbf" roughness={0.55} metalness={0.15} /></mesh>
+        <mesh position={[0, 0, 0.011]}><cylinderGeometry args={[0.038, 0.038, 0.005, 20]} /><meshStandardMaterial color="#0a0a0a" roughness={0.9} /></mesh>
+        {/* 3 pin holes */}
+        {[0, 120, 240].map((deg) => {
+          const r = 0.02;
+          const a = (deg * Math.PI) / 180;
+          return (
+            <mesh key={deg} position={[Math.cos(a) * r, Math.sin(a) * r, 0.014]}>
+              <cylinderGeometry args={[0.006, 0.006, 0.004, 8]} />
+              <meshStandardMaterial color="#000" />
+            </mesh>
+          );
+        })}
+      </group>
+
+      {/* 2× Schuko — round white sockets */}
+      {[-0.20, -0.05].map((x, i) => (
+        <group key={`sch${i}`} position={[w * x, h * 0.62, d / 2 + 0.006]}>
+          <mesh><cylinderGeometry args={[0.05, 0.05, 0.018, 20]} /><meshStandardMaterial color="#e8e8e8" roughness={0.6} /></mesh>
+          <mesh position={[0, 0, 0.010]}><cylinderGeometry args={[0.033, 0.033, 0.005, 20]} /><meshStandardMaterial color="#0a0a0a" roughness={0.9} /></mesh>
+          <mesh position={[-0.014, 0, 0.014]}><boxGeometry args={[0.004, 0.010, 0.004]} /><meshStandardMaterial color="#000" /></mesh>
+          <mesh position={[ 0.014, 0, 0.014]}><boxGeometry args={[0.004, 0.010, 0.004]} /><meshStandardMaterial color="#000" /></mesh>
+        </group>
+      ))}
+
+      {/* 12V DC — cigarette-lighter style circular port */}
+      <group position={[-w * 0.38, h * 0.38, d / 2 + 0.006]}>
+        <mesh><cylinderGeometry args={[0.032, 0.032, 0.018, 18]} /><meshStandardMaterial color="#111" roughness={0.85} /></mesh>
+        <mesh position={[0, 0, 0.011]}><cylinderGeometry args={[0.020, 0.020, 0.005, 16]} /><meshStandardMaterial color="#c9a24a" metalness={0.85} roughness={0.3} /></mesh>
+      </group>
+
+      {/* 2× USB — small rectangular ports */}
+      {[-0.22, -0.10].map((x, i) => (
+        <group key={`usb${i}`} position={[w * x, h * 0.38, d / 2 + 0.006]}>
+          <mesh><boxGeometry args={[0.055, 0.028, 0.014]} /><meshStandardMaterial color="#eeeeee" roughness={0.5} /></mesh>
+          <mesh position={[0, 0, 0.008]}><boxGeometry args={[0.038, 0.014, 0.004]} /><meshStandardMaterial color="#111" roughness={0.9} /></mesh>
+        </group>
+      ))}
+
+      {/* Circuit breakers / small toggle switches (row of 3) */}
+      {[-0.36, -0.28, -0.20].map((x, i) => (
+        <mesh key={`br${i}`} position={[w * x, h * 0.20, d / 2 + 0.008]}>
+          <boxGeometry args={[0.025, 0.045, 0.010]} />
+          <meshStandardMaterial color="#f4c11a" roughness={0.6} metalness={0.2} />
+        </mesh>
+      ))}
+      {/* Small green power indicator */}
+      <mesh position={[-w * 0.08, h * 0.20, d / 2 + 0.008]}>
+        <cylinderGeometry args={[0.008, 0.008, 0.006, 10]} />
+        <meshStandardMaterial color="#39ff14" emissive="#39ff14" emissiveIntensity={0.9} />
+      </mesh>
+
+      {/* Top handle recess */}
+      <mesh position={[0, h - 0.02, d * 0.15]}>
+        <boxGeometry args={[w * 0.35, 0.005, 0.09]} />
+        <meshStandardMaterial color="#0a0a0a" roughness={0.9} />
+      </mesh>
+      {/* Yellow lifting-strap indicator on top */}
+      <mesh position={[w * 0.30, h - 0.015, d * 0.15]}>
+        <boxGeometry args={[0.08, 0.008, 0.06]} />
+        <meshStandardMaterial color={YELLOW} roughness={0.5} metalness={0.2} />
+      </mesh>
+
+      {/* Wheels on the right rear */}
+      <mesh position={[w / 2 - 0.05, 0.10, -d * 0.30]} rotation={[0, 0, Math.PI / 2]}>
+        <cylinderGeometry args={[0.12, 0.12, 0.06, 20]} />
+        <meshStandardMaterial color={RUBBER} roughness={0.95} />
+      </mesh>
+      <mesh position={[-w / 2 + 0.05, 0.10, -d * 0.30]} rotation={[0, 0, Math.PI / 2]}>
+        <cylinderGeometry args={[0.12, 0.12, 0.06, 20]} />
+        <meshStandardMaterial color={RUBBER} roughness={0.95} />
+      </mesh>
+      {/* Front feet */}
+      {[-1, 1].map((s) => (
+        <mesh key={`ft${s}`} position={[s * (w / 2 - 0.09), 0.03, d * 0.30]}>
+          <boxGeometry args={[0.09, 0.06, 0.09]} />
+          <meshStandardMaterial color={RUBBER} roughness={0.9} />
+        </mesh>
+      ))}
+
+      {/* Exhaust muffler on the back-top */}
+      <mesh position={[w * 0.30, h + 0.10, -d * 0.30]} rotation={[Math.PI / 2, 0, 0]}>
+        <cylinderGeometry args={[0.05, 0.05, 0.18, 14]} />
+        <meshStandardMaterial color="#2a2a2a" metalness={0.75} roughness={0.35} />
       </mesh>
     </group>
   );
 }
+
 
 /* Power distributor / rozdělovač — front panel textured from the photo. */
 function DistroModel({ size }: { size: [number, number, number] }) {
