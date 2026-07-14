@@ -3131,24 +3131,27 @@ function SceneContent({
 
         return (
           <group key={c.id} renderOrder={isFocus ? 20 : dimmed ? 0 : 10}>
-            {/* Soft glow halo behind the focused cable */}
-            {isFocus && (
+            {/* Soft glow halo behind the focused cable OR overloaded cable */}
+            {(isFocus || overload) && (
               <Line
                 points={pts as unknown as [number, number, number][]}
-                color={meta.color}
-                lineWidth={width + 5}
+                color={drawColor}
+                lineWidth={width + (overload ? 4 : 5)}
                 transparent
-                opacity={0.22}
+                opacity={overload ? 0.35 : 0.22}
                 depthTest={false}
               />
             )}
             <Line
               points={pts as unknown as [number, number, number][]}
-              color={meta.color}
+              color={drawColor}
               lineWidth={width}
               transparent
               opacity={baseOpacity}
               depthTest={!isFocus}
+              dashed={overload}
+              dashSize={0.22}
+              gapSize={0.12}
               onPointerOver={(e) => { e.stopPropagation(); setHoveredCableId(c.id); }}
               onPointerOut={(e) => { e.stopPropagation(); setHoveredCableId((cur) => (cur === c.id ? null : cur)); }}
               onClick={(e) => {
@@ -3160,12 +3163,13 @@ function SceneContent({
             />
             {/* Animated flow overlay on hover/selected — dashes travel from source to target */}
             {isFocus && (
-              <CableFlow points={pts} color={meta.color} width={width} />
+              <CableFlow points={pts} color={drawColor} width={width} />
             )}
 
             {/* Highlighted endpoints — pulse when picking a new target */}
-            <CableEndpoint position={p1} color={meta.color} state={fromState} />
-            <CableEndpoint position={p2} color={meta.color} state={toState} />
+            <CableEndpoint position={p1} color={drawColor} state={fromState} />
+            <CableEndpoint position={p2} color={drawColor} state={toState} />
+
 
 
 
