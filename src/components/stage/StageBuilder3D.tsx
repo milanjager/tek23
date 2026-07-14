@@ -22,7 +22,9 @@ import SchematicView from "./SchematicView";
 import GridPlannerView from "./GridPlannerView";
 import ElevationView from "./ElevationView";
 import IsometricView from "./IsometricView";
+import TechnicalView from "./TechnicalView";
 import { PlacementDevPanel } from "./PlacementDevPanel";
+import distroAsset from "@/assets/distro.png.asset.json";
 
 // Lovable's preview annotates JSX with data-tsd-source. R3F treats dashed
 // props as nested Three.js paths (data → tsd → source), so provide that path
@@ -1185,6 +1187,39 @@ function GeneratorModel({ size }: { size: [number, number, number] }) {
   );
 }
 
+/* Power distributor / rozdělovač — front panel textured from the photo. */
+function DistroModel({ size }: { size: [number, number, number] }) {
+  const [w, h, d] = size;
+  const tex = useMemo(() => {
+    const loader = new THREE.TextureLoader();
+    const t = loader.load(distroAsset.url);
+    t.colorSpace = THREE.SRGBColorSpace;
+    t.anisotropy = 8;
+    return t;
+  }, []);
+  return (
+    <group>
+      <mesh castShadow position={[0, h / 2, 0]}>
+        <boxGeometry args={[w, h, d]} />
+        <meshStandardMaterial color="#e9ebee" roughness={0.55} metalness={0.05} />
+      </mesh>
+      <mesh position={[0, h / 2, d / 2 + 0.001]}>
+        <planeGeometry args={[w * 0.96, h * 0.96]} />
+        <meshStandardMaterial map={tex} roughness={0.7} metalness={0.05} />
+      </mesh>
+      <mesh position={[0, h + 0.005, 0]}>
+        <boxGeometry args={[w * 0.35, 0.008, d * 0.15]} />
+        <meshStandardMaterial color="#3a3f47" roughness={0.6} metalness={0.3} />
+      </mesh>
+      <mesh position={[0, h + 0.002, d * 0.35]}>
+        <boxGeometry args={[w * 0.9, 0.003, d * 0.12]} />
+        <meshStandardMaterial color="#f5c518" emissive="#f5c518" emissiveIntensity={0.25} roughness={0.7} />
+      </mesh>
+    </group>
+  );
+}
+
+
 function CrowdModel({ size }: { size: [number, number, number] }) {
   const [w, , d] = size;
   return (
@@ -1531,6 +1566,7 @@ function ModelFor({ kind, size, variant }: { kind: Kind; size: [number, number, 
     case "movinghead": return <MovingHeadModel size={size} />;
     case "bar": return <BarModel size={size} />;
     case "generator": return <GeneratorModel size={size} />;
+    case "distro": return <DistroModel size={size} />;
     
   }
 }
@@ -3390,7 +3426,7 @@ export function StageBuilder3D() {
   useEffect(() => {
     if (panelsHydrated) localStorage.setItem("stage.autoSanitize", autoSanitize ? "1" : "0");
   }, [autoSanitize, panelsHydrated]);
-  const [viewMode, setViewMode] = useState<"3d" | "front3d" | "top" | "schema" | "grid" | "elev" | "iso">("3d");
+  const [viewMode, setViewMode] = useState<"3d" | "front3d" | "top" | "schema" | "grid" | "elev" | "iso" | "tech">("3d");
   const [marquee, setMarquee] = useState<null | { x1: number; y1: number; x2: number; y2: number; additive: boolean }>(null);
   const cameraRef = useRef<THREE.Camera | null>(null);
   const canvasWrapRef = useRef<HTMLDivElement>(null);
@@ -3918,6 +3954,13 @@ export function StageBuilder3D() {
           >
             <Workflow size={12} /> Schéma zapojení
           </button>
+          <button
+            onClick={() => setViewMode("tech")}
+            className={`flex items-center gap-1 rounded px-2 py-0.5 text-[11px] font-semibold ${viewMode === "tech" ? "bg-white text-neutral-900 shadow-sm" : "text-neutral-600 hover:text-neutral-900"}`}
+            title="Technický výkres — polygonové znázornění celé stage shora s kabeláží, kótami a legendou"
+          >
+            <Workflow size={12} /> Tech výkres
+          </button>
         </div>
         <button
           onClick={() => setItems((cur) => normalizeScene(cur))}
@@ -4249,6 +4292,20 @@ export function StageBuilder3D() {
                 setItems((cur) => cur.filter((x) => x.id !== id));
                 setCables((cs) => cs.filter((c) => c.from !== id && c.to !== id));
                 setSelection((prev) => prev.filter((x) => x !== id));
+              }}
+            />
+          ) : viewMode === "tech" ? (
+            <TechnicalView
+              items={items}
+              cables={cables}
+              specs={SPECS as unknown as Record<string, { label: string; category: string; size: [number, number, number] }>}
+              selectedIds={selection}
+              onSelectItem={(id, additive) => {
+                if (id === null) { setSelection([]); return; }
+                setSelection((prev) => {
+                  if (!additive) return [id];
+                  return prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id];
+                });
               }}
             />
           ) : (
