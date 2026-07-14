@@ -2564,6 +2564,7 @@ function SceneContent({
   items, setItems, selection, setSelection, tool,
   cables, setCables, mode, cableType, setCableType, pendingFrom, setPendingFrom,
   showConnectorLabels, showCableLabels, realistic, autoSanitize, frontView, topView, speakerLineZ,
+  cableRouteY,
 }: {
   items: Placed[];
   setItems: React.Dispatch<React.SetStateAction<Placed[]>>;
@@ -2584,7 +2585,12 @@ function SceneContent({
   frontView: boolean;
   topView: boolean;
   speakerLineZ: number;
+  /** Y-height (m) at which the cable bus runs. 0.02 = on the floor, higher = truss/aerial. */
+  cableRouteY: number;
 }) {
+
+  const cableLoads = useMemo(() => computeCableLoads(items, cables), [items, cables]);
+
 
 
 
