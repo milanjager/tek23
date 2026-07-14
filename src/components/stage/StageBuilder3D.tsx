@@ -66,7 +66,10 @@ interface Spec {
   hint: string;
   defaultLabel?: string;
   defaultVariant?: "red" | "blue";
+  /** Typical power draw at nominal load (Watts). Passive PA cabinets = 0 (fed by amp). */
+  powerW?: number;
 }
+
 
 const SPECS: Record<Kind, Spec> = {
   horn:         { label: "Horn",             category: "sound",  size: [0.60, 0.40, 0.40], stackable: true,  hint: "Výškový horn" },
