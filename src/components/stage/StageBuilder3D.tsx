@@ -497,6 +497,72 @@ const TEAL = "#0d8a8a";        // signature teal/cyan grille frame
 const YELLOW = "#f4c11a";      // freetekno yellow crosshair
 const PALLET_WOOD = "#7a5a30";
 
+/* Shared textures — created once, reused across every cabinet.
+   Perforated grille (round holes on dark cloth) is the single biggest
+   readability uplift for PA speakers at close range. */
+let _grilleTex: THREE.CanvasTexture | null = null;
+function getGrilleTexture(): THREE.CanvasTexture {
+  if (_grilleTex) return _grilleTex;
+  const S = 256;
+  const c = document.createElement("canvas");
+  c.width = c.height = S;
+  const ctx = c.getContext("2d")!;
+  ctx.fillStyle = "#0a0a0a";
+  ctx.fillRect(0, 0, S, S);
+  // hex-packed holes
+  const step = 12;
+  const r = 2.4;
+  ctx.fillStyle = "#1c1c1c";
+  for (let y = 0; y < S + step; y += step) {
+    const row = Math.round(y / step);
+    const xOff = row % 2 === 0 ? 0 : step / 2;
+    for (let x = -step; x < S + step; x += step) {
+      ctx.beginPath();
+      ctx.arc(x + xOff, y, r, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+  // subtle horizontal cloth streaks
+  ctx.globalAlpha = 0.08;
+  ctx.fillStyle = "#ffffff";
+  for (let y = 0; y < S; y += 3) ctx.fillRect(0, y, S, 1);
+  ctx.globalAlpha = 1;
+  const tex = new THREE.CanvasTexture(c);
+  tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+  tex.anisotropy = 8;
+  _grilleTex = tex;
+  return tex;
+}
+
+// L-shaped steel corner protector (3 thin plates meeting at a corner).
+function CornerBracket({ sx, sy, sz, w, h, d, color }:
+  { sx: number; sy: number; sz: number; w: number; h: number; d: number; color: string }) {
+  const t = 0.012;     // plate thickness
+  const L = 0.11;      // arm length
+  const x = sx * (w / 2 - L / 2);
+  const y = sy * (h / 2 - L / 2);
+  const z = sz * (d / 2 - L / 2);
+  const cx = sx * (w / 2 - t / 2);
+  const cy = sy * (h / 2 - t / 2);
+  const cz = sz * (d / 2 - t / 2);
+  return (
+    <group>
+      <mesh position={[cx, y, z]}>
+        <boxGeometry args={[t, L, L]} />
+        <meshStandardMaterial color={color} metalness={0.75} roughness={0.35} />
+      </mesh>
+      <mesh position={[x, cy, z]}>
+        <boxGeometry args={[L, t, L]} />
+        <meshStandardMaterial color={color} metalness={0.75} roughness={0.35} />
+      </mesh>
+      <mesh position={[x, y, cz]}>
+        <boxGeometry args={[L, L, t]} />
+        <meshStandardMaterial color={color} metalness={0.75} roughness={0.35} />
+      </mesh>
+    </group>
+  );
+}
+
 function Pallet({ w, d }: { w: number; d: number }) {
   // EUR pallet-ish: 3 top planks, 3 bottom blocks
   const H = 0.14;
@@ -518,6 +584,7 @@ function Pallet({ w, d }: { w: number; d: number }) {
   );
 }
 
+
 function Cabinet({
   size, color = WOOD, grilleColor = GRILLE, cornerColor = TEAL,
   frontDetail, tealFrame = false, yellowCross = false, onPallet = false,
@@ -534,56 +601,96 @@ function Cabinet({
 
   const [w, h, d] = size;
   const palletH = onPallet ? 0.14 : 0;
+  const grilleTex = useMemo(() => {
+    const t = getGrilleTexture();
+    const c = t.clone();
+    c.needsUpdate = true;
+    // Repeat proportional to the cabinet's front area so hole size stays constant.
+    c.repeat.set(Math.max(4, w * 8), Math.max(4, h * 8));
+    c.wrapS = c.wrapT = THREE.RepeatWrapping;
+    return c;
+  }, [w, h]);
+
   return (
     <group position={[0, palletH, 0]}>
       {onPallet && <group position={[0, -palletH, 0]}><Pallet w={w * 1.02} d={d * 1.02} /></group>}
-      {/* Body */}
+      {/* Body — painted-cabinet look via clearcoat */}
       <mesh castShadow receiveShadow position={[0, h / 2, 0]}>
         <boxGeometry args={[w, h, d]} />
-        <meshStandardMaterial color={color} roughness={0.85} metalness={0.08} />
-        <Edges threshold={15} color="#000000" scale={1.001} />
+        <meshPhysicalMaterial
+          color={color}
+          roughness={0.62}
+          metalness={0.08}
+          clearcoat={0.35}
+          clearcoatRoughness={0.55}
+          reflectivity={0.35}
+        />
+        <Edges threshold={15} color="#0a0a0a" scale={1.001} />
       </mesh>
-      {/* Front grille panel */}
-      <mesh position={[0, h / 2, d / 2 + 0.001]}>
+      {/* Recessed grille well — darker inset behind the perforated cloth */}
+      <mesh position={[0, h / 2, d / 2 + 0.0008]}>
+        <planeGeometry args={[w * 0.92, h * 0.92]} />
+        <meshStandardMaterial color="#050505" roughness={0.95} />
+      </mesh>
+      {/* Front perforated grille cloth */}
+      <mesh position={[0, h / 2, d / 2 + 0.002]}>
         <planeGeometry args={[w * 0.9, h * 0.9]} />
-        <meshStandardMaterial color={grilleColor} roughness={0.95} metalness={0.15} />
+        <meshStandardMaterial
+          color={grilleColor}
+          map={grilleTex}
+          roughness={0.9}
+          metalness={0.25}
+        />
       </mesh>
       {/* Teal frame around grille (4 bars) */}
       {tealFrame && (
-        <group position={[0, h / 2, d / 2 + 0.003]}>
-          <mesh position={[0, h * 0.44, 0]}><boxGeometry args={[w * 0.95, 0.03, 0.015]} /><meshStandardMaterial color={TEAL} roughness={0.6} metalness={0.3} /></mesh>
-          <mesh position={[0, -h * 0.44, 0]}><boxGeometry args={[w * 0.95, 0.03, 0.015]} /><meshStandardMaterial color={TEAL} roughness={0.6} metalness={0.3} /></mesh>
-          <mesh position={[w * 0.46, 0, 0]}><boxGeometry args={[0.03, h * 0.92, 0.015]} /><meshStandardMaterial color={TEAL} roughness={0.6} metalness={0.3} /></mesh>
-          <mesh position={[-w * 0.46, 0, 0]}><boxGeometry args={[0.03, h * 0.92, 0.015]} /><meshStandardMaterial color={TEAL} roughness={0.6} metalness={0.3} /></mesh>
+        <group position={[0, h / 2, d / 2 + 0.004]}>
+          <mesh position={[0, h * 0.44, 0]}><boxGeometry args={[w * 0.95, 0.03, 0.015]} /><meshStandardMaterial color={TEAL} roughness={0.5} metalness={0.45} /></mesh>
+          <mesh position={[0, -h * 0.44, 0]}><boxGeometry args={[w * 0.95, 0.03, 0.015]} /><meshStandardMaterial color={TEAL} roughness={0.5} metalness={0.45} /></mesh>
+          <mesh position={[w * 0.46, 0, 0]}><boxGeometry args={[0.03, h * 0.92, 0.015]} /><meshStandardMaterial color={TEAL} roughness={0.5} metalness={0.45} /></mesh>
+          <mesh position={[-w * 0.46, 0, 0]}><boxGeometry args={[0.03, h * 0.92, 0.015]} /><meshStandardMaterial color={TEAL} roughness={0.5} metalness={0.45} /></mesh>
         </group>
       )}
       {/* Yellow crosshair (spray-paint) */}
       {yellowCross && (
-        <group position={[0, h / 2, d / 2 + 0.004]}>
+        <group position={[0, h / 2, d / 2 + 0.005]}>
           <mesh><boxGeometry args={[w * 0.55, 0.025, 0.005]} /><meshStandardMaterial color={YELLOW} emissive={YELLOW} emissiveIntensity={0.2} roughness={0.8} /></mesh>
           <mesh><boxGeometry args={[0.025, h * 0.55, 0.005]} /><meshStandardMaterial color={YELLOW} emissive={YELLOW} emissiveIntensity={0.2} roughness={0.8} /></mesh>
         </group>
       )}
-      {/* Corner protectors (8) */}
+      {/* L-shaped steel corner brackets (8) */}
       {([-1, 1] as const).map((sx) =>
         ([-1, 1] as const).map((sy) =>
           ([-1, 1] as const).map((sz) => (
-            <mesh
-              key={`${sx}${sy}${sz}`}
-              position={[sx * (w / 2 - 0.04), h / 2 + sy * (h / 2 - 0.04), sz * (d / 2 - 0.04)]}
-            >
-              <boxGeometry args={[0.08, 0.08, 0.08]} />
-              <meshStandardMaterial color={cornerColor} metalness={0.5} roughness={0.5} />
-            </mesh>
+            <group key={`${sx}${sy}${sz}`} position={[0, h / 2, 0]}>
+              <CornerBracket sx={sx} sy={sy} sz={sz} w={w} h={h} d={d} color={cornerColor} />
+            </group>
           ))
         )
       )}
+      {/* Recessed side handles (dished cutouts) — instantly reads as "cabinet" */}
+      {[-1, 1].map((s) => (
+        <group key={`hn${s}`} position={[s * (w / 2 + 0.001), h / 2, 0]}>
+          <mesh rotation={[0, s * Math.PI / 2, 0]}>
+            <boxGeometry args={[0.006, h * 0.18, w * 0.18]} />
+            <meshStandardMaterial color="#050505" roughness={0.9} />
+          </mesh>
+        </group>
+      ))}
+      {/* Fly-point inserts on top face (rigging threads) */}
+      {[-1, 1].map((s) => (
+        <mesh key={`fp${s}`} position={[s * w * 0.28, h - 0.001, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+          <ringGeometry args={[0.012, 0.02, 12]} />
+          <meshStandardMaterial color="#333" metalness={0.9} roughness={0.35} side={THREE.DoubleSide} />
+        </mesh>
+      ))}
       {frontDetail && (
-        <group position={[0, h / 2, d / 2 + 0.006]}>{frontDetail}</group>
+        <group position={[0, h / 2, d / 2 + 0.008]}>{frontDetail}</group>
       )}
     </group>
   );
 }
+
 
 
 function Cone({ radius, depth, color = "#0e0e0e" }: { radius: number; depth: number; color?: string }) {
