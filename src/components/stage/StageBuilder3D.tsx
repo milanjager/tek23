@@ -1880,7 +1880,7 @@ const ItemObject = ({
                     boxShadow: highlight ? `0 0 8px ${meta.color}` : undefined,
                   }}
                 >
-                  {meta.short}{c.role === "out" ? "▶" : "◀"}
+                  {c.label ?? meta.short}{c.role === "out" ? "▶" : "◀"}
                 </div>
               </Html>
             )}
