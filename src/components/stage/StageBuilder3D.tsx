@@ -133,7 +133,10 @@ interface Placed {
   groupId?: string;
   label?: string;
   variant?: "red" | "blue";
+  /** Free-form wiring/technical notes shown in inspector and export. */
+  notes?: string;
 }
+
 
 type PresetKind = "namel_wall" | "club_stack" | "festival_ground";
 
