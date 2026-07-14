@@ -110,7 +110,7 @@ const SPECS: Record<Kind, Spec> = {
   laser:        { label: "Laser",            category: "lights", size: [0.40, 0.25, 0.35], stackable: false, hint: "Laser" },
   movinghead:   { label: "Moving head",      category: "lights", size: [0.35, 0.55, 0.35], stackable: false, hint: "Otočná hlava" },
   bar:          { label: "Bar",              category: "infra",  size: [2.40, 1.10, 0.65], stackable: false, hint: "Bar pult" },
-  generator:    { label: "Aggregát",         category: "infra",  size: [1.50, 1.20, 0.85], stackable: false, hint: "Diesel generátor" },
+  generator:    { label: "Aggregát",         category: "infra",  size: [0.70, 0.60, 0.55], stackable: false, hint: "Přenosný invertorový agregát (CEE 16A + 2× Schuko + 12V + 2× USB)" },
   distro:       { label: "Rozdělovač",       category: "infra",  size: [0.60, 0.35, 0.40], stackable: true,  hint: "Silový rozvaděč / power distro (CEE in → 230V outs + DMX/SIG patch)", defaultLabel: "Rozdělovač" },
   
 };
