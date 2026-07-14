@@ -386,29 +386,68 @@ function cablePoints(
   a: [number, number, number],
   b: [number, number, number],
   seed = 0,
+  routeY = 0.02,
 ): [number, number, number][] {
   const [ax, ay, az] = a;
   const [bx, by, bz] = b;
   // Lateral fan-out so parallel runs don't overlap.
   const spread = ((seed % 9) - 4) * 0.05;
-  const floorY = 0.02 + Math.abs((seed % 5) * 0.008); // rest on the ground
-  // Route on ground: down → over-Z → over-X → up. Choose leg order based on
+  const busY = routeY + Math.abs((seed % 5) * 0.008);
+  // Route on ground/bus: down → over-Z → over-X → up. Choose leg order based on
   // deltas to keep the visible bend closer to the shorter side.
   const dx = bx - ax, dz = bz - az;
   const zFirst = Math.abs(dz) >= Math.abs(dx);
   const midX = ax + (zFirst ? 0 : dx * 0.5);
   const midZ = az + (zFirst ? dz * 0.5 : 0);
+  // Slack drop: half-way between connector and bus so it looks like a
+  // physical cable, not a laser beam.
+  const slackA = Math.max(busY + 0.02, Math.min(ay, ay * 0.35 + 0.05));
+  const slackB = Math.max(busY + 0.02, Math.min(by, by * 0.35 + 0.05));
   return [
     [ax, ay, az],
-    [ax, ay * 0.35 + 0.05, az],                    // slack drop out of connector
-    [ax + spread, floorY, az + spread],            // land on floor
-    [zFirst ? ax + spread : midX + spread, floorY, zFirst ? midZ + spread : az + spread],
-    [zFirst ? bx + spread : midX + spread, floorY, zFirst ? midZ + spread : bz + spread],
-    [bx + spread, floorY, bz + spread],            // arrive at target foot
-    [bx, by * 0.35 + 0.05, bz],                    // rise to target connector
+    [ax, slackA, az],                              // slack drop out of connector
+    [ax + spread, busY, az + spread],              // land on route bus
+    [zFirst ? ax + spread : midX + spread, busY, zFirst ? midZ + spread : az + spread],
+    [zFirst ? bx + spread : midX + spread, busY, zFirst ? midZ + spread : bz + spread],
+    [bx + spread, busY, bz + spread],              // arrive at target foot
+    [bx, slackB, bz],                              // rise to target connector
     [bx, by, bz],
   ];
 }
+
+// ---- Power / overload accounting -------------------------------------------
+// Standard CEE 16A / Schuko 16A branch: 230 V × 16 A = 3680 W nominal.
+// We compute the sum of downstream power draws following PWR cables from a
+// source (generator/distro output) through any pass-through distros.
+const PWR_BRANCH_MAX_W = 3680;
+
+function computeCableLoads(items: Placed[], cables: Cable[]): Record<string, number> {
+  const byId = new Map(items.map((it) => [it.id, it] as const));
+  // Adjacency: for each item, which OTHER items are downstream via PWR cables.
+  // Convention: a PWR cable's "from" is the source side (out), "to" is the load side.
+  const outAdj = new Map<string, { cableId: string; to: string }[]>();
+  for (const c of cables) {
+    if (c.type !== "power") continue;
+    if (!outAdj.has(c.from)) outAdj.set(c.from, []);
+    outAdj.get(c.from)!.push({ cableId: c.id, to: c.to });
+  }
+  const draw = (id: string): number => {
+    const it = byId.get(id);
+    if (!it) return 0;
+    const self = SPECS[it.kind].powerW ?? 0;
+    let dn = 0;
+    for (const e of outAdj.get(id) ?? []) dn += draw(e.to);
+    return self + dn;
+  };
+  const loads: Record<string, number> = {};
+  for (const c of cables) {
+    if (c.type !== "power") continue;
+    loads[c.id] = draw(c.to);
+  }
+  return loads;
+}
+
+
 
 
 
