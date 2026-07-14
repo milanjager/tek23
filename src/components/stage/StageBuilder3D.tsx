@@ -4514,19 +4514,22 @@ export function StageBuilder3D() {
         )}
         <button
           onClick={() => {
-            const rows = [["ID","Typ","Barva","Zdroj","Zdroj konektor","Cíl","Cíl konektor","Zátěž W","Přetíženo"]];
+            const rows = [["ID","Typ","Barva","Zdroj","Cíl","Zátěž W","Přetíženo"]];
             const byId = new Map(items.map((i) => [i.id, i] as const));
+            const loads = computeCableLoads(items, cables);
+            const nameOf = (it: Placed | undefined, id: string) =>
+              it ? (it.label ?? SPECS[it.kind].defaultLabel ?? SPECS[it.kind].label) : id;
             for (const c of cables) {
               const a = byId.get(c.from), b = byId.get(c.to);
-              const w = cableLoadsForExport[c.id] ?? 0;
+              const w = loads[c.id] ?? 0;
               rows.push([
                 c.id, CABLE_META[c.type].label, CABLE_META[c.type].color,
-                a ? itemLabel(a) : c.from, c.fromConn ?? "",
-                b ? itemLabel(b) : c.to, c.toConn ?? "",
+                nameOf(a, c.from), nameOf(b, c.to),
                 c.type === "power" ? String(Math.round(w)) : "",
                 c.type === "power" && w > PWR_BRANCH_MAX_W ? "ANO" : "",
               ]);
             }
+
             const csv = rows.map((r) => r.map((cell) => `"${String(cell).replace(/"/g,'""')}"`).join(",")).join("\n");
             const blob = new Blob(["\ufeff" + csv], { type: "text/csv;charset=utf-8" });
             const url = URL.createObjectURL(blob);
