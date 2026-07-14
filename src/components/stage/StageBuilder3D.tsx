@@ -4956,6 +4956,44 @@ export function StageBuilder3D() {
                   Š×V×H&nbsp; {pspec.size[0].toFixed(2)} × {pspec.size[1].toFixed(2)} × {pspec.size[2].toFixed(2)} m
                 </div>
 
+                {/* Napájení */}
+                {(() => {
+                  const own = pspec.powerW ?? 0;
+                  // Sum of downstream draws (this item as PWR source).
+                  const loads = computeCableLoads(items, cables);
+                  const outgoing = cables.filter((c) => c.type === "power" && c.from === primary.id);
+                  const incoming = cables.filter((c) => c.type === "power" && c.to === primary.id);
+                  const feeds = outgoing.reduce((s, c) => s + (loads[c.id] ?? 0), 0);
+                  const overloadedBranch = outgoing.some((c) => (loads[c.id] ?? 0) > PWR_BRANCH_MAX_W);
+                  if (own === 0 && outgoing.length === 0 && incoming.length === 0) return null;
+                  return (
+                    <div className={`mb-2 rounded px-2 py-1 text-[10px] ${overloadedBranch ? "border border-red-400 bg-red-50 text-red-900" : "bg-amber-50 text-amber-900"}`}>
+                      <div className="mb-0.5 font-bold uppercase tracking-wider">Napájení</div>
+                      {own > 0 && <div>Vlastní odběr: <b>{own} W</b></div>}
+                      {outgoing.length > 0 && (
+                        <div>
+                          Napájí ({outgoing.length} větv{outgoing.length === 1 ? "e" : "í"}): <b>{Math.round(feeds)} W</b>
+                          <span className="ml-1 text-[9px] text-neutral-500">/ max {PWR_BRANCH_MAX_W} W na CEE 16A</span>
+                          {overloadedBranch && <div className="mt-0.5 font-bold">⚠ PŘETÍŽENO — rozděl na víc větví!</div>}
+                        </div>
+                      )}
+                      {incoming.length > 0 && <div>Napájeno z {incoming.length} zdroje/-ů</div>}
+                    </div>
+                  );
+                })()}
+
+                {/* Poznámky pro techniku */}
+                <div className="mb-2">
+                  <div className="mb-0.5 text-[9px] uppercase tracking-wider text-neutral-500">Poznámky (zapojení, IN/OUT)</div>
+                  <textarea
+                    value={primary.notes ?? ""}
+                    onChange={(e) => setItems((cur) => cur.map((x) => x.id === primary.id ? { ...x, notes: e.target.value } : x))}
+                    placeholder="např. IN: XLR z FOH · OUT: SpeakON A→sub 1, B→sub 2"
+                    className="w-full rounded border border-neutral-300 bg-white px-1.5 py-1 font-mono text-[10px] text-neutral-800"
+                    rows={2}
+                  />
+
+
                 {/* Patra */}
                 <div className="mb-2">
                   <div className="mb-0.5 text-[9px] uppercase tracking-wider text-neutral-500">Patra ve stacku ({stackIdx + 1}/{stack.length})</div>
