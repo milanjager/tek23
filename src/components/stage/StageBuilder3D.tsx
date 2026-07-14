@@ -1187,6 +1187,39 @@ function GeneratorModel({ size }: { size: [number, number, number] }) {
   );
 }
 
+/* Power distributor / rozdělovač — front panel textured from the photo. */
+function DistroModel({ size }: { size: [number, number, number] }) {
+  const [w, h, d] = size;
+  const tex = useMemo(() => {
+    const loader = new THREE.TextureLoader();
+    const t = loader.load(distroAsset.url);
+    t.colorSpace = THREE.SRGBColorSpace;
+    t.anisotropy = 8;
+    return t;
+  }, []);
+  return (
+    <group>
+      <mesh castShadow position={[0, h / 2, 0]}>
+        <boxGeometry args={[w, h, d]} />
+        <meshStandardMaterial color="#e9ebee" roughness={0.55} metalness={0.05} />
+      </mesh>
+      <mesh position={[0, h / 2, d / 2 + 0.001]}>
+        <planeGeometry args={[w * 0.96, h * 0.96]} />
+        <meshStandardMaterial map={tex} roughness={0.7} metalness={0.05} />
+      </mesh>
+      <mesh position={[0, h + 0.005, 0]}>
+        <boxGeometry args={[w * 0.35, 0.008, d * 0.15]} />
+        <meshStandardMaterial color="#3a3f47" roughness={0.6} metalness={0.3} />
+      </mesh>
+      <mesh position={[0, h + 0.002, d * 0.35]}>
+        <boxGeometry args={[w * 0.9, 0.003, d * 0.12]} />
+        <meshStandardMaterial color="#f5c518" emissive="#f5c518" emissiveIntensity={0.25} roughness={0.7} />
+      </mesh>
+    </group>
+  );
+}
+
+
 function CrowdModel({ size }: { size: [number, number, number] }) {
   const [w, , d] = size;
   return (
