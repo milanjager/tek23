@@ -22,7 +22,9 @@ import SchematicView from "./SchematicView";
 import GridPlannerView from "./GridPlannerView";
 import ElevationView from "./ElevationView";
 import IsometricView from "./IsometricView";
+import TechnicalView from "./TechnicalView";
 import { PlacementDevPanel } from "./PlacementDevPanel";
+import distroAsset from "@/assets/distro.png.asset.json";
 
 // Lovable's preview annotates JSX with data-tsd-source. R3F treats dashed
 // props as nested Three.js paths (data → tsd → source), so provide that path
