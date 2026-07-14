@@ -1566,6 +1566,7 @@ function ModelFor({ kind, size, variant }: { kind: Kind; size: [number, number, 
     case "movinghead": return <MovingHeadModel size={size} />;
     case "bar": return <BarModel size={size} />;
     case "generator": return <GeneratorModel size={size} />;
+    case "distro": return <DistroModel size={size} />;
     
   }
 }
