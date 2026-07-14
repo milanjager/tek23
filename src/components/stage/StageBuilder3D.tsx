@@ -4992,6 +4992,9 @@ export function StageBuilder3D() {
                     className="w-full rounded border border-neutral-300 bg-white px-1.5 py-1 font-mono text-[10px] text-neutral-800"
                     rows={2}
                   />
+                </div>
+
+
 
 
                 {/* Patra */}
