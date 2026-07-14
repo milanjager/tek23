@@ -4489,6 +4489,59 @@ export function StageBuilder3D() {
           Popisky kabelů
         </button>
 
+        {/* Cable route auto / aerial height */}
+        <button
+          onClick={() => setAutoRoute((v) => { const nv = !v; if (nv) setCableRouteY(0.02); return nv; })}
+          className={`rounded px-2 py-1 text-[11px] ${autoRoute ? "bg-lime-500 text-neutral-950" : "bg-neutral-100 text-neutral-500 hover:bg-neutral-200"}`}
+          title="Auto: kabely vedeny po podlaze. Vypni pro vlastní výšku (truss)."
+        >
+          Auto kabel {autoRoute ? "· PODLAHA" : "· TRUSS"}
+        </button>
+        {!autoRoute && (
+          <label className="flex items-center gap-1 rounded bg-neutral-100 px-2 py-1 text-[11px]" title="Výška trasy kabelů nad podlahou (m)">
+            Výška
+            <input
+              type="number"
+              min={0}
+              max={6}
+              step={0.1}
+              value={cableRouteY}
+              onChange={(e) => setCableRouteY(Math.max(0, Number(e.target.value) || 0))}
+              className="w-14 rounded bg-white px-1 py-0.5 text-[11px]"
+            />
+            m
+          </label>
+        )}
+        <button
+          onClick={() => {
+            const rows = [["ID","Typ","Barva","Zdroj","Zdroj konektor","Cíl","Cíl konektor","Zátěž W","Přetíženo"]];
+            const byId = new Map(items.map((i) => [i.id, i] as const));
+            for (const c of cables) {
+              const a = byId.get(c.from), b = byId.get(c.to);
+              const w = cableLoadsForExport[c.id] ?? 0;
+              rows.push([
+                c.id, CABLE_META[c.type].label, CABLE_META[c.type].color,
+                a ? itemLabel(a) : c.from, c.fromConn ?? "",
+                b ? itemLabel(b) : c.to, c.toConn ?? "",
+                c.type === "power" ? String(Math.round(w)) : "",
+                c.type === "power" && w > PWR_BRANCH_MAX_W ? "ANO" : "",
+              ]);
+            }
+            const csv = rows.map((r) => r.map((cell) => `"${String(cell).replace(/"/g,'""')}"`).join(",")).join("\n");
+            const blob = new Blob(["\ufeff" + csv], { type: "text/csv;charset=utf-8" });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url; a.download = `kabelaz-${new Date().toISOString().slice(0,10)}.csv`;
+            a.click();
+            URL.revokeObjectURL(url);
+          }}
+          disabled={!cables.length}
+          className="rounded bg-neutral-100 px-2 py-1 text-[11px] hover:bg-neutral-200 disabled:opacity-40"
+          title="Exportovat seznam kabelů pro technika (CSV)"
+        >
+          ⤓ Export kabelů
+
+
 
         <button onClick={undo} disabled={!canUndo} title="Zpět (Ctrl+Z)" className="flex items-center gap-1 rounded bg-neutral-100 px-2 py-1 hover:bg-neutral-200 disabled:opacity-40">↶ Zpět</button>
         <button onClick={redo} disabled={!canRedo} title="Vpřed (Ctrl+Shift+Z / Ctrl+Y)" className="flex items-center gap-1 rounded bg-neutral-100 px-2 py-1 hover:bg-neutral-200 disabled:opacity-40">↷ Vpřed</button>
