@@ -3850,6 +3850,11 @@ export function StageBuilder3D() {
     return Number.isFinite(v) ? v : -1.4;
   });
   useEffect(() => { localStorage.setItem("stage.speakerLineZ", String(speakerLineZ)); }, [speakerLineZ]);
+
+  // Cable routing: 0.02 = on the floor, higher = aerial along truss.
+  const [autoRoute, setAutoRoute] = useState<boolean>(true);
+  const [cableRouteY, setCableRouteY] = useState<number>(0.02);
+
   const isSpeakerKind = useCallback((k: Kind) => {
     if (SPECS[k].category !== "sound") return false;
     return true;
