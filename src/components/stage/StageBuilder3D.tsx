@@ -1573,8 +1573,78 @@ function ModelFor({ kind, size, variant }: { kind: Kind; size: [number, number, 
 
 
 /* ============================================================
+   Selection AABB — wireframe box + axes for group selections.
+   Renders a lime-green bounding box around all selected items so
+   the user sees exactly which chunk of the scene will be moved.
+   ============================================================ */
+function SelectionBounds({ items, selection }: { items: Placed[]; selection: string[] }) {
+  const bounds = useMemo(() => {
+    const sel = items.filter((it) => selection.includes(it.id));
+    if (sel.length < 2) return null;
+    let minX = Infinity, maxX = -Infinity;
+    let minY = Infinity, maxY = -Infinity;
+    let minZ = Infinity, maxZ = -Infinity;
+    for (const it of sel) {
+      const s = SPECS[it.kind].size;
+      const [px, py, pz] = it.pos;
+      const hx = s[0] / 2, hz = s[2] / 2;
+      if (px - hx < minX) minX = px - hx;
+      if (px + hx > maxX) maxX = px + hx;
+      if (py < minY) minY = py;
+      if (py + s[1] > maxY) maxY = py + s[1];
+      if (pz - hz < minZ) minZ = pz - hz;
+      if (pz + hz > maxZ) maxZ = pz + hz;
+    }
+    const pad = 0.06;
+    return {
+      cx: (minX + maxX) / 2,
+      cy: (minY + maxY) / 2,
+      cz: (minZ + maxZ) / 2,
+      sx: Math.max(0.1, maxX - minX) + pad * 2,
+      sy: Math.max(0.1, maxY - minY) + pad * 2,
+      sz: Math.max(0.1, maxZ - minZ) + pad * 2,
+      minY,
+    };
+  }, [items, selection]);
+
+  if (!bounds) return null;
+  const axisLen = Math.max(bounds.sx, bounds.sy, bounds.sz) * 0.55 + 0.4;
+
+  return (
+    <group position={[bounds.cx, bounds.cy, bounds.cz]}>
+      {/* Wireframe box */}
+      <mesh renderOrder={999}>
+        <boxGeometry args={[bounds.sx, bounds.sy, bounds.sz]} />
+        <meshBasicMaterial color="#a3ff12" wireframe transparent opacity={0.85} depthTest={false} />
+      </mesh>
+      {/* Solid tint fill for extra clarity */}
+      <mesh>
+        <boxGeometry args={[bounds.sx, bounds.sy, bounds.sz]} />
+        <meshBasicMaterial color="#a3ff12" transparent opacity={0.05} depthWrite={false} />
+      </mesh>
+      {/* Axes anchored at the group center */}
+      <axesHelper args={[axisLen]} />
+      {/* Footprint outline on the ground for readability */}
+      <mesh
+        position={[0, -(bounds.cy - bounds.minY) + 0.005, 0]}
+        rotation={[-Math.PI / 2, 0, 0]}
+      >
+        <ringGeometry args={[0, 0.001, 4]} />
+        <meshBasicMaterial visible={false} />
+      </mesh>
+      <lineSegments position={[0, -(bounds.cy - bounds.minY) + 0.006, 0]}>
+        <edgesGeometry args={[new THREE.BoxGeometry(bounds.sx, 0.001, bounds.sz)]} />
+        <lineBasicMaterial color="#a3ff12" transparent opacity={0.9} />
+      </lineSegments>
+    </group>
+  );
+}
+
+/* ============================================================
    Item mesh — receives selection + click
    ============================================================ */
+
+
 
 const ItemObject = ({
   item, selected, pending, showConnectors, showConnectorLabels, activeCableType, pendingItemId,
@@ -2578,7 +2648,12 @@ function SceneContent({
         />
       ))}
 
-      {/* Placement ghost — snapped preview while dragging a selected item */}
+      {/* Group selection AABB — wireframe box + axes so it's obvious what will move */}
+      {mode === "select" && selection.length >= 2 && (
+        <SelectionBounds items={items} selection={selection} />
+      )}
+
+
       {dragging && mode === "select" && (
         <PlacementGhost
           selection={selection}
