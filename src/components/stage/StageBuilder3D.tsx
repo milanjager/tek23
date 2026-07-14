@@ -3954,6 +3954,13 @@ export function StageBuilder3D() {
           >
             <Workflow size={12} /> Schéma zapojení
           </button>
+          <button
+            onClick={() => setViewMode("tech")}
+            className={`flex items-center gap-1 rounded px-2 py-0.5 text-[11px] font-semibold ${viewMode === "tech" ? "bg-white text-neutral-900 shadow-sm" : "text-neutral-600 hover:text-neutral-900"}`}
+            title="Technický výkres — polygonové znázornění celé stage shora s kabeláží, kótami a legendou"
+          >
+            <Workflow size={12} /> Tech výkres
+          </button>
         </div>
         <button
           onClick={() => setItems((cur) => normalizeScene(cur))}
