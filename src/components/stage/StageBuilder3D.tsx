@@ -3098,7 +3098,10 @@ function SceneContent({
         const { p1, p2 } = bestAnchorPair(a, b, c.type);
         // Per-cable seed so parallel runs fan out at slightly different bus heights.
         const seed = c.id.split("").reduce((s, ch) => s + ch.charCodeAt(0), 0);
-        const pts = cablePoints(p1, p2, seed);
+        const pts = cablePoints(p1, p2, seed, cableRouteY);
+        const branchW = cableLoads[c.id] ?? 0;
+        const overload = c.type === "power" && branchW > PWR_BRANCH_MAX_W;
+
         const mid = pts[Math.floor(pts.length / 2)];
         const isSelected = selectedCableId === c.id;
         const isReconnecting = reconnect?.cableId === c.id;
