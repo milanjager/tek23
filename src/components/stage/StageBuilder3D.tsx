@@ -3066,7 +3066,7 @@ function SceneContent({
             ?? connectorsFor(src.kind).find((c) => c.type === cableType))?.offset;
         const p1 = srcLocal ? localToWorld(src, srcLocal) : anchorFor(src, cableType);
         const seed = pendingFrom.split("").reduce((s, ch) => s + ch.charCodeAt(0), 0);
-        const pts = cablePoints(p1, cursorWorld, seed);
+        const pts = cablePoints(p1, cursorWorld, seed, cableRouteY);
         return (
           <group>
             <Line
