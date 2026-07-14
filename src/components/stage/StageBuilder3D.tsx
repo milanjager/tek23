@@ -3654,13 +3654,17 @@ export function StageBuilder3D() {
   // Nudge selection by dx/dy/dz (world meters). dy clamped ≥ 0 on the ground.
   const nudgeSelection = useCallback((dx: number, dy: number, dz: number) => {
     if (!selection.length) return;
-    setItems((cur) => normalizeScene(cur.map((it) => {
+    // Arrow-nudge: apply raw delta only. Do NOT run normalizeScene/sanitizeStacks/
+    // resolveHorizontalOverlaps here — those can shove selected boxes far away
+    // when the small nudge briefly grazes a neighbor. Precise offset control > auto-tidy.
+    setItems((cur) => cur.map((it) => {
       if (!selection.includes(it.id)) return it;
       const ny = Math.max(0, it.pos[1] + dy);
       const nz = isSpeakerKind(it.kind) ? speakerLineZ : it.pos[2] + dz;
       return { ...it, pos: [it.pos[0] + dx, ny, nz] as [number, number, number] };
-    })));
+    }));
   }, [selection, isSpeakerKind, speakerLineZ]);
+
 
   /* ── Photoshop-style alignment ──────────────────────────────────────
      Uses top-down XZ footprint (X = horizontal, Z = "vertical" on plan)
