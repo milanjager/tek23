@@ -5104,6 +5104,61 @@ export function StageBuilder3D() {
                   />
                 </div>
 
+                {/* Krokový návod zapojení pro tuto komponentu */}
+                {(() => {
+                  const allSteps = generateWiringSteps(items, cables);
+                  const mine = allSteps.filter((s) => s.fromId === primary.id || s.toId === primary.id);
+                  if (!mine.length) return null;
+                  return (
+                    <div className="mb-2 rounded border border-lime-300 bg-lime-50/60 px-2 py-1.5">
+                      <div className="mb-1 flex items-center justify-between">
+                        <span className="text-[9px] font-bold uppercase tracking-wider text-lime-800">
+                          Postup zapojení ({mine.length})
+                        </span>
+                        <span className="text-[9px] text-neutral-500">z celkem {allSteps.length}</span>
+                      </div>
+                      <ol className="flex flex-col gap-0.5">
+                        {mine.map((s) => {
+                          const meta = CABLE_META[s.type];
+                          const isSource = s.fromId === primary.id;
+                          return (
+                            <li
+                              key={s.cableId}
+                              className={`rounded px-1.5 py-1 text-[10px] ${s.overload ? "border border-red-400 bg-red-50" : "bg-white"}`}
+                            >
+                              <div className="flex items-center gap-1">
+                                <span className="inline-flex h-4 min-w-[18px] items-center justify-center rounded bg-neutral-800 px-1 font-mono text-[9px] font-bold text-white">
+                                  {s.index}
+                                </span>
+                                <span
+                                  className="rounded px-1 font-mono text-[9px] font-bold text-neutral-900"
+                                  style={{ backgroundColor: meta.color }}
+                                >
+                                  {meta.short}
+                                </span>
+                                {s.loadW !== undefined && (
+                                  <span className={`ml-auto font-mono text-[9px] ${s.overload ? "font-bold text-red-700" : "text-neutral-500"}`}>
+                                    {Math.round(s.loadW)} W{s.overload ? " ⚠" : ""}
+                                  </span>
+                                )}
+                              </div>
+                              <div className="mt-0.5 font-mono text-[9.5px] leading-tight text-neutral-800">
+                                <span className={isSource ? "font-bold text-lime-800" : ""}>{s.fromLabel}</span>
+                                <span className="text-neutral-400"> ({s.fromPort})</span>
+                                <span className="mx-1 text-neutral-500">→</span>
+                                <span className={!isSource ? "font-bold text-lime-800" : ""}>{s.toLabel}</span>
+                                <span className="text-neutral-400"> ({s.toPort})</span>
+                              </div>
+                            </li>
+                          );
+                        })}
+                      </ol>
+                    </div>
+                  );
+                })()}
+
+
+
 
 
 
