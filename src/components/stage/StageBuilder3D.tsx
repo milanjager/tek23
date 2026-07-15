@@ -4600,22 +4600,16 @@ export function StageBuilder3D() {
         )}
         <button
           onClick={() => {
-            const rows = [["ID","Typ","Barva","Zdroj","Cíl","Zátěž W","Přetíženo"]];
-            const byId = new Map(items.map((i) => [i.id, i] as const));
-            const loads = computeCableLoads(items, cables);
-            const nameOf = (it: Placed | undefined, id: string) =>
-              it ? (it.label ?? SPECS[it.kind].defaultLabel ?? SPECS[it.kind].label) : id;
-            for (const c of cables) {
-              const a = byId.get(c.from), b = byId.get(c.to);
-              const w = loads[c.id] ?? 0;
+            const steps = generateWiringSteps(items, cables);
+            const rows = [["Krok","ID","Typ","Barva","Zdroj","OUT konektor","Cíl","IN konektor","Zátěž W","Přetíženo"]];
+            for (const s of steps) {
               rows.push([
-                c.id, CABLE_META[c.type].label, CABLE_META[c.type].color,
-                nameOf(a, c.from), nameOf(b, c.to),
-                c.type === "power" ? String(Math.round(w)) : "",
-                c.type === "power" && w > PWR_BRANCH_MAX_W ? "ANO" : "",
+                String(s.index), s.cableId, CABLE_META[s.type].label, CABLE_META[s.type].color,
+                s.fromLabel, s.fromPort, s.toLabel, s.toPort,
+                s.loadW !== undefined ? String(Math.round(s.loadW)) : "",
+                s.overload ? "ANO" : "",
               ]);
             }
-
             const csv = rows.map((r) => r.map((cell) => `"${String(cell).replace(/"/g,'""')}"`).join(",")).join("\n");
             const blob = new Blob(["\ufeff" + csv], { type: "text/csv;charset=utf-8" });
             const url = URL.createObjectURL(blob);
@@ -4626,10 +4620,40 @@ export function StageBuilder3D() {
           }}
           disabled={!cables.length}
           className="rounded bg-neutral-100 px-2 py-1 text-[11px] hover:bg-neutral-200 disabled:opacity-40"
-          title="Exportovat seznam kabelů pro technika (CSV)"
+          title="Exportovat krokový seznam zapojení (CSV) — pořadí PWR → DMX → SIG → SPK, IN/OUT konektory a zátěž"
         >
           ⤓ Export kabelů
         </button>
+        <button
+          onClick={() => {
+            const steps = generateWiringSteps(items, cables);
+            const lines: string[] = [];
+            lines.push(`# Postup zapojení — ${new Date().toLocaleString("cs-CZ")}`);
+            lines.push(`# ${steps.length} kroků · pořadí: PWR → DMX → SIG → SPK`);
+            lines.push("");
+            let lastType: CableType | null = null;
+            for (const s of steps) {
+              if (s.type !== lastType) {
+                lines.push(`\n== ${CABLE_META[s.type].label.toUpperCase()} ==`);
+                lastType = s.type;
+              }
+              const w = s.loadW !== undefined ? `  [${Math.round(s.loadW)} W${s.overload ? " ⚠ PŘETÍŽENO" : ""}]` : "";
+              lines.push(`${String(s.index).padStart(3, " ")}. ${s.fromLabel}  (${s.fromPort})  →  ${s.toLabel}  (${s.toPort})${w}`);
+            }
+            const blob = new Blob([lines.join("\n")], { type: "text/plain;charset=utf-8" });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url; a.download = `postup-zapojeni-${new Date().toISOString().slice(0,10)}.txt`;
+            a.click();
+            URL.revokeObjectURL(url);
+          }}
+          disabled={!cables.length}
+          className="rounded bg-neutral-100 px-2 py-1 text-[11px] hover:bg-neutral-200 disabled:opacity-40"
+          title="Stáhnout textový krokový návod pro technika (.txt)"
+        >
+          ⤓ Postup
+        </button>
+
 
 
 
