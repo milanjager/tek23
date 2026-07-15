@@ -447,6 +447,92 @@ function computeCableLoads(items: Placed[], cables: Cable[]): Record<string, num
   return loads;
 }
 
+// ---- Wiring guide -----------------------------------------------------------
+// Produce an ordered, human-readable step list for connecting every cable
+// (IN → OUT). Ordering: PWR chain first (from generators/distros downstream
+// via BFS), then DMX (controller → fixtures), then SIG (mixer → amps),
+// finally SPK (amp → speakers). Within a group, cables are ordered by BFS
+// from roots (nodes without incoming edges of that type), so a technician
+// wires source to sink in the correct sequence.
+export interface WiringStep {
+  index: number;
+  cableId: string;
+  type: CableType;
+  fromId: string;
+  fromLabel: string;
+  fromPort: string; // e.g. "OUT · CEE 16A"
+  toId: string;
+  toLabel: string;
+  toPort: string;   // e.g. "IN · Speakon"
+  loadW?: number;
+  overload?: boolean;
+  note?: string;
+}
+
+function generateWiringSteps(items: Placed[], cables: Cable[]): WiringStep[] {
+  const byId = new Map(items.map((it) => [it.id, it] as const));
+  const nameOf = (id: string) => {
+    const it = byId.get(id);
+    if (!it) return id;
+    return it.label ?? SPECS[it.kind].defaultLabel ?? SPECS[it.kind].label;
+  };
+  const portLabel = (id: string, type: CableType, role: ConnRole): string => {
+    const it = byId.get(id);
+    if (!it) return role === "in" ? "IN" : "OUT";
+    const cs = connectorsFor(it.kind).filter((c) => c.type === type && c.role === role);
+    const sub = cs[0]?.label ?? cs[0]?.subtype ?? CABLE_META[type].short;
+    return `${role === "in" ? "IN" : "OUT"} · ${sub}`;
+  };
+  const loads = computeCableLoads(items, cables);
+
+  const orderByType = (type: CableType): Cable[] => {
+    const list = cables.filter((c) => c.type === type);
+    if (!list.length) return [];
+    const incoming = new Map<string, number>();
+    for (const c of list) incoming.set(c.to, (incoming.get(c.to) ?? 0) + 1);
+    // Roots = sources with no incoming edge of same type
+    const roots = Array.from(new Set(list.map((c) => c.from))).filter((id) => !incoming.get(id));
+    const remaining = new Set(list.map((c) => c.id));
+    const ordered: Cable[] = [];
+    const queue: string[] = [...roots];
+    const seen = new Set<string>();
+    while (queue.length) {
+      const node = queue.shift()!;
+      if (seen.has(node)) continue;
+      seen.add(node);
+      const out = list.filter((c) => c.from === node && remaining.has(c.id));
+      out.sort((a, b) => nameOf(a.to).localeCompare(nameOf(b.to)));
+      for (const c of out) {
+        ordered.push(c);
+        remaining.delete(c.id);
+        queue.push(c.to);
+      }
+    }
+    // Append any leftovers (cycles / disconnected)
+    for (const c of list) if (remaining.has(c.id)) ordered.push(c);
+    return ordered;
+  };
+
+  const priority: CableType[] = ["power", "dmx", "signal", "speaker"];
+  const ordered = priority.flatMap(orderByType);
+  return ordered.map((c, i) => {
+    const w = c.type === "power" ? loads[c.id] ?? 0 : undefined;
+    return {
+      index: i + 1,
+      cableId: c.id,
+      type: c.type,
+      fromId: c.from,
+      fromLabel: nameOf(c.from),
+      fromPort: portLabel(c.from, c.type, "out"),
+      toId: c.to,
+      toLabel: nameOf(c.to),
+      toPort: portLabel(c.to, c.type, "in"),
+      loadW: w,
+      overload: c.type === "power" && (w ?? 0) > PWR_BRANCH_MAX_W,
+    };
+  });
+}
+
 
 
 
