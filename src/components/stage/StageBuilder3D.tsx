@@ -447,6 +447,92 @@ function computeCableLoads(items: Placed[], cables: Cable[]): Record<string, num
   return loads;
 }
 
+// ---- Wiring guide -----------------------------------------------------------
+// Produce an ordered, human-readable step list for connecting every cable
+// (IN → OUT). Ordering: PWR chain first (from generators/distros downstream
+// via BFS), then DMX (controller → fixtures), then SIG (mixer → amps),
+// finally SPK (amp → speakers). Within a group, cables are ordered by BFS
+// from roots (nodes without incoming edges of that type), so a technician
+// wires source to sink in the correct sequence.
+export interface WiringStep {
+  index: number;
+  cableId: string;
+  type: CableType;
+  fromId: string;
+  fromLabel: string;
+  fromPort: string; // e.g. "OUT · CEE 16A"
+  toId: string;
+  toLabel: string;
+  toPort: string;   // e.g. "IN · Speakon"
+  loadW?: number;
+  overload?: boolean;
+  note?: string;
+}
+
+function generateWiringSteps(items: Placed[], cables: Cable[]): WiringStep[] {
+  const byId = new Map(items.map((it) => [it.id, it] as const));
+  const nameOf = (id: string) => {
+    const it = byId.get(id);
+    if (!it) return id;
+    return it.label ?? SPECS[it.kind].defaultLabel ?? SPECS[it.kind].label;
+  };
+  const portLabel = (id: string, type: CableType, role: ConnRole): string => {
+    const it = byId.get(id);
+    if (!it) return role === "in" ? "IN" : "OUT";
+    const cs = connectorsFor(it.kind).filter((c) => c.type === type && c.role === role);
+    const sub = cs[0]?.label ?? cs[0]?.subtype ?? CABLE_META[type].short;
+    return `${role === "in" ? "IN" : "OUT"} · ${sub}`;
+  };
+  const loads = computeCableLoads(items, cables);
+
+  const orderByType = (type: CableType): Cable[] => {
+    const list = cables.filter((c) => c.type === type);
+    if (!list.length) return [];
+    const incoming = new Map<string, number>();
+    for (const c of list) incoming.set(c.to, (incoming.get(c.to) ?? 0) + 1);
+    // Roots = sources with no incoming edge of same type
+    const roots = Array.from(new Set(list.map((c) => c.from))).filter((id) => !incoming.get(id));
+    const remaining = new Set(list.map((c) => c.id));
+    const ordered: Cable[] = [];
+    const queue: string[] = [...roots];
+    const seen = new Set<string>();
+    while (queue.length) {
+      const node = queue.shift()!;
+      if (seen.has(node)) continue;
+      seen.add(node);
+      const out = list.filter((c) => c.from === node && remaining.has(c.id));
+      out.sort((a, b) => nameOf(a.to).localeCompare(nameOf(b.to)));
+      for (const c of out) {
+        ordered.push(c);
+        remaining.delete(c.id);
+        queue.push(c.to);
+      }
+    }
+    // Append any leftovers (cycles / disconnected)
+    for (const c of list) if (remaining.has(c.id)) ordered.push(c);
+    return ordered;
+  };
+
+  const priority: CableType[] = ["power", "dmx", "signal", "speaker"];
+  const ordered = priority.flatMap(orderByType);
+  return ordered.map((c, i) => {
+    const w = c.type === "power" ? loads[c.id] ?? 0 : undefined;
+    return {
+      index: i + 1,
+      cableId: c.id,
+      type: c.type,
+      fromId: c.from,
+      fromLabel: nameOf(c.from),
+      fromPort: portLabel(c.from, c.type, "out"),
+      toId: c.to,
+      toLabel: nameOf(c.to),
+      toPort: portLabel(c.to, c.type, "in"),
+      loadW: w,
+      overload: c.type === "power" && (w ?? 0) > PWR_BRANCH_MAX_W,
+    };
+  });
+}
+
 
 
 
@@ -4514,22 +4600,16 @@ export function StageBuilder3D() {
         )}
         <button
           onClick={() => {
-            const rows = [["ID","Typ","Barva","Zdroj","Cíl","Zátěž W","Přetíženo"]];
-            const byId = new Map(items.map((i) => [i.id, i] as const));
-            const loads = computeCableLoads(items, cables);
-            const nameOf = (it: Placed | undefined, id: string) =>
-              it ? (it.label ?? SPECS[it.kind].defaultLabel ?? SPECS[it.kind].label) : id;
-            for (const c of cables) {
-              const a = byId.get(c.from), b = byId.get(c.to);
-              const w = loads[c.id] ?? 0;
+            const steps = generateWiringSteps(items, cables);
+            const rows = [["Krok","ID","Typ","Barva","Zdroj","OUT konektor","Cíl","IN konektor","Zátěž W","Přetíženo"]];
+            for (const s of steps) {
               rows.push([
-                c.id, CABLE_META[c.type].label, CABLE_META[c.type].color,
-                nameOf(a, c.from), nameOf(b, c.to),
-                c.type === "power" ? String(Math.round(w)) : "",
-                c.type === "power" && w > PWR_BRANCH_MAX_W ? "ANO" : "",
+                String(s.index), s.cableId, CABLE_META[s.type].label, CABLE_META[s.type].color,
+                s.fromLabel, s.fromPort, s.toLabel, s.toPort,
+                s.loadW !== undefined ? String(Math.round(s.loadW)) : "",
+                s.overload ? "ANO" : "",
               ]);
             }
-
             const csv = rows.map((r) => r.map((cell) => `"${String(cell).replace(/"/g,'""')}"`).join(",")).join("\n");
             const blob = new Blob(["\ufeff" + csv], { type: "text/csv;charset=utf-8" });
             const url = URL.createObjectURL(blob);
@@ -4540,10 +4620,40 @@ export function StageBuilder3D() {
           }}
           disabled={!cables.length}
           className="rounded bg-neutral-100 px-2 py-1 text-[11px] hover:bg-neutral-200 disabled:opacity-40"
-          title="Exportovat seznam kabelů pro technika (CSV)"
+          title="Exportovat krokový seznam zapojení (CSV) — pořadí PWR → DMX → SIG → SPK, IN/OUT konektory a zátěž"
         >
           ⤓ Export kabelů
         </button>
+        <button
+          onClick={() => {
+            const steps = generateWiringSteps(items, cables);
+            const lines: string[] = [];
+            lines.push(`# Postup zapojení — ${new Date().toLocaleString("cs-CZ")}`);
+            lines.push(`# ${steps.length} kroků · pořadí: PWR → DMX → SIG → SPK`);
+            lines.push("");
+            let lastType: CableType | null = null;
+            for (const s of steps) {
+              if (s.type !== lastType) {
+                lines.push(`\n== ${CABLE_META[s.type].label.toUpperCase()} ==`);
+                lastType = s.type;
+              }
+              const w = s.loadW !== undefined ? `  [${Math.round(s.loadW)} W${s.overload ? " ⚠ PŘETÍŽENO" : ""}]` : "";
+              lines.push(`${String(s.index).padStart(3, " ")}. ${s.fromLabel}  (${s.fromPort})  →  ${s.toLabel}  (${s.toPort})${w}`);
+            }
+            const blob = new Blob([lines.join("\n")], { type: "text/plain;charset=utf-8" });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url; a.download = `postup-zapojeni-${new Date().toISOString().slice(0,10)}.txt`;
+            a.click();
+            URL.revokeObjectURL(url);
+          }}
+          disabled={!cables.length}
+          className="rounded bg-neutral-100 px-2 py-1 text-[11px] hover:bg-neutral-200 disabled:opacity-40"
+          title="Stáhnout textový krokový návod pro technika (.txt)"
+        >
+          ⤓ Postup
+        </button>
+
 
 
 
@@ -4993,6 +5103,61 @@ export function StageBuilder3D() {
                     rows={2}
                   />
                 </div>
+
+                {/* Krokový návod zapojení pro tuto komponentu */}
+                {(() => {
+                  const allSteps = generateWiringSteps(items, cables);
+                  const mine = allSteps.filter((s) => s.fromId === primary.id || s.toId === primary.id);
+                  if (!mine.length) return null;
+                  return (
+                    <div className="mb-2 rounded border border-lime-300 bg-lime-50/60 px-2 py-1.5">
+                      <div className="mb-1 flex items-center justify-between">
+                        <span className="text-[9px] font-bold uppercase tracking-wider text-lime-800">
+                          Postup zapojení ({mine.length})
+                        </span>
+                        <span className="text-[9px] text-neutral-500">z celkem {allSteps.length}</span>
+                      </div>
+                      <ol className="flex flex-col gap-0.5">
+                        {mine.map((s) => {
+                          const meta = CABLE_META[s.type];
+                          const isSource = s.fromId === primary.id;
+                          return (
+                            <li
+                              key={s.cableId}
+                              className={`rounded px-1.5 py-1 text-[10px] ${s.overload ? "border border-red-400 bg-red-50" : "bg-white"}`}
+                            >
+                              <div className="flex items-center gap-1">
+                                <span className="inline-flex h-4 min-w-[18px] items-center justify-center rounded bg-neutral-800 px-1 font-mono text-[9px] font-bold text-white">
+                                  {s.index}
+                                </span>
+                                <span
+                                  className="rounded px-1 font-mono text-[9px] font-bold text-neutral-900"
+                                  style={{ backgroundColor: meta.color }}
+                                >
+                                  {meta.short}
+                                </span>
+                                {s.loadW !== undefined && (
+                                  <span className={`ml-auto font-mono text-[9px] ${s.overload ? "font-bold text-red-700" : "text-neutral-500"}`}>
+                                    {Math.round(s.loadW)} W{s.overload ? " ⚠" : ""}
+                                  </span>
+                                )}
+                              </div>
+                              <div className="mt-0.5 font-mono text-[9.5px] leading-tight text-neutral-800">
+                                <span className={isSource ? "font-bold text-lime-800" : ""}>{s.fromLabel}</span>
+                                <span className="text-neutral-400"> ({s.fromPort})</span>
+                                <span className="mx-1 text-neutral-500">→</span>
+                                <span className={!isSource ? "font-bold text-lime-800" : ""}>{s.toLabel}</span>
+                                <span className="text-neutral-400"> ({s.toPort})</span>
+                              </div>
+                            </li>
+                          );
+                        })}
+                      </ol>
+                    </div>
+                  );
+                })()}
+
+
 
 
 
