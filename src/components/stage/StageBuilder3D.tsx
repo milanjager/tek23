@@ -226,6 +226,13 @@ function connectorsFor(kind: Kind): Connector[] {
     case "monitor":
       return passiveSpeaker;
 
+    // Bi-amp horn-loaded scoop — LF + MF Speakon inputs on the back.
+    case "scoop_x_yellow":
+      return [
+        { type: "speaker", role: "in", offset: [ bx * 0.18, by * 0.42, -bz * 0.48], label: "LF" },
+        { type: "speaker", role: "in", offset: [ bx * 0.38, by * 0.42, -bz * 0.48], label: "MF" },
+      ];
+
     // Power amps — SIG in, SPK out, PWR in.
     case "amp":
     case "powersoft":
