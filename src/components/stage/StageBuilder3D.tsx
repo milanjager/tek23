@@ -50,6 +50,7 @@ type Kind =
   | "picus_scoop_lo" | "picus_scoop_hi" | "picus_bass_row" | "picus_shelf_bin"
   | "picus_mid_grill" | "picus_mid_stack" | "picus_top_3way" | "picus_hex_horn"
   | "picus_wing_horn" | "picus_deep_sub"
+  | "scoop_x_yellow"
   | "amp" | "powersoft" | "mixer" | "dj" | "dj_table" | "cdj"
   | "korg" | "korg_red" | "korg_blue" | "turntable"
   | "strobe" | "laser" | "movinghead"
