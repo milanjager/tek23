@@ -50,6 +50,7 @@ type Kind =
   | "picus_scoop_lo" | "picus_scoop_hi" | "picus_bass_row" | "picus_shelf_bin"
   | "picus_mid_grill" | "picus_mid_stack" | "picus_top_3way" | "picus_hex_horn"
   | "picus_wing_horn" | "picus_deep_sub"
+  | "scoop_x_yellow"
   | "amp" | "powersoft" | "mixer" | "dj" | "dj_table" | "cdj"
   | "korg" | "korg_red" | "korg_blue" | "turntable"
   | "strobe" | "laser" | "movinghead"
@@ -98,6 +99,7 @@ const SPECS: Record<Kind, Spec> = {
   picus_hex_horn:   { label: "Picus Hex Horn",          category: "sound", size: [1.40, 0.90, 0.60], stackable: true, hint: "Boční hex-array cluster (3× šestihran)",          defaultLabel: "Picus Hex" },
   picus_wing_horn:  { label: "Picus Wing Horn",         category: "sound", size: [1.10, 0.70, 0.55], stackable: true, hint: "Boční wing horn (2× drivery)",                    defaultLabel: "Picus Wing" },
   picus_deep_sub:   { label: "Picus Deep Sub 2×21\"",   category: "sound", size: [1.20, 1.10, 1.05], stackable: true, hint: "Hluboký scoop-sub s prodlouženou komorou",        defaultLabel: "Picus Deep Sub" },
+  scoop_x_yellow:   { label: "Scoop-X 1×18\" + horn",   category: "sound", size: [0.80, 1.20, 0.90], stackable: true, hint: "Horn-loaded scoop 1×18\" se žlutým křížem + MF horn (2× Speakon: LF/MF)", defaultLabel: "Scoop-X" },
   amp:          { label: "Amp rack",         category: "infra",  size: [0.60, 0.90, 0.60], stackable: true,  hint: "Rack zesilovačů" , powerW: 1500 },
   powersoft:    { label: "Powersoft K20",    category: "infra",  size: [0.60, 0.90, 0.60], stackable: true,  hint: "Powersoft výkonový amp", defaultLabel: "Powersoft" , powerW: 3500 },
   mixer:        { label: "Mixer",            category: "infra",  size: [0.80, 0.15, 0.55], stackable: false, hint: "Mixážní pult" , powerW: 120 },
@@ -223,6 +225,13 @@ function connectorsFor(kind: Kind): Connector[] {
     case "linearray":
     case "monitor":
       return passiveSpeaker;
+
+    // Bi-amp horn-loaded scoop — LF + MF Speakon inputs on the back.
+    case "scoop_x_yellow":
+      return [
+        { type: "speaker", role: "in", offset: [ bx * 0.18, by * 0.42, -bz * 0.48], label: "LF" },
+        { type: "speaker", role: "in", offset: [ bx * 0.38, by * 0.42, -bz * 0.48], label: "MF" },
+      ];
 
     // Power amps — SIG in, SPK out, PWR in.
     case "amp":
@@ -1953,6 +1962,7 @@ function ModelFor({ kind, size, variant }: { kind: Kind; size: [number, number, 
     case "picus_hex_horn":  return <PicusTopGrillModel size={size} />;
     case "picus_wing_horn": return <PicusBinModel size={size} cols={2} rows={1} hasTopVent={false} />;
     case "picus_deep_sub":  return <PicusBinModel size={size} cols={1} rows={1} hasTopVent />;
+    case "scoop_x_yellow":  return <PicusBinModel size={size} cols={2} rows={2} hasTopVent />;
     case "linearray": return <LineArrayModel size={size} />;
     case "monitor": return <MonitorModel size={size} />;
     case "amp": return <AmpRack size={size} />;
