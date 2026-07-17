@@ -99,6 +99,7 @@ const SPECS: Record<Kind, Spec> = {
   picus_hex_horn:   { label: "Picus Hex Horn",          category: "sound", size: [1.40, 0.90, 0.60], stackable: true, hint: "Boční hex-array cluster (3× šestihran)",          defaultLabel: "Picus Hex" },
   picus_wing_horn:  { label: "Picus Wing Horn",         category: "sound", size: [1.10, 0.70, 0.55], stackable: true, hint: "Boční wing horn (2× drivery)",                    defaultLabel: "Picus Wing" },
   picus_deep_sub:   { label: "Picus Deep Sub 2×21\"",   category: "sound", size: [1.20, 1.10, 1.05], stackable: true, hint: "Hluboký scoop-sub s prodlouženou komorou",        defaultLabel: "Picus Deep Sub" },
+  scoop_x_yellow:   { label: "Scoop-X 1×18\" + horn",   category: "sound", size: [0.80, 1.20, 0.90], stackable: true, hint: "Horn-loaded scoop 1×18\" se žlutým křížem + MF horn (2× Speakon: LF/MF)", defaultLabel: "Scoop-X" },
   amp:          { label: "Amp rack",         category: "infra",  size: [0.60, 0.90, 0.60], stackable: true,  hint: "Rack zesilovačů" , powerW: 1500 },
   powersoft:    { label: "Powersoft K20",    category: "infra",  size: [0.60, 0.90, 0.60], stackable: true,  hint: "Powersoft výkonový amp", defaultLabel: "Powersoft" , powerW: 3500 },
   mixer:        { label: "Mixer",            category: "infra",  size: [0.80, 0.15, 0.55], stackable: false, hint: "Mixážní pult" , powerW: 120 },
