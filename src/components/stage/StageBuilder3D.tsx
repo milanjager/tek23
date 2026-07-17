@@ -1962,6 +1962,7 @@ function ModelFor({ kind, size, variant }: { kind: Kind; size: [number, number, 
     case "picus_hex_horn":  return <PicusTopGrillModel size={size} />;
     case "picus_wing_horn": return <PicusBinModel size={size} cols={2} rows={1} hasTopVent={false} />;
     case "picus_deep_sub":  return <PicusBinModel size={size} cols={1} rows={1} hasTopVent />;
+    case "scoop_x_yellow":  return <PicusBinModel size={size} cols={2} rows={2} hasTopVent />;
     case "linearray": return <LineArrayModel size={size} />;
     case "monitor": return <MonitorModel size={size} />;
     case "amp": return <AmpRack size={size} />;
