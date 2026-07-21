@@ -1398,6 +1398,91 @@ function MovingHeadModel({ size }: { size: [number, number, number] }) {
   );
 }
 
+function HalogenWhiteModel({ size }: { size: [number, number, number] }) {
+  const [w, h, d] = size;
+  return (
+    <group>
+      {/* U-bracket base */}
+      <mesh position={[0, 0.02, 0]} castShadow>
+        <boxGeometry args={[w * 0.5, 0.02, d * 0.6]} />
+        <meshStandardMaterial color="#111" metalness={0.7} roughness={0.4} />
+      </mesh>
+      {/* Yoke arms */}
+      {[-1, 1].map((s) => (
+        <mesh key={s} position={[s * w * 0.42, h * 0.5, 0]} castShadow>
+          <boxGeometry args={[0.03, h * 0.9, 0.04]} />
+          <meshStandardMaterial color="#1a1a1a" metalness={0.7} roughness={0.4} />
+        </mesh>
+      ))}
+      {/* Housing (rectangular halogen floodlight) */}
+      <mesh position={[0, h * 0.55, 0]} castShadow>
+        <boxGeometry args={[w * 0.9, h * 0.7, d * 0.8]} />
+        <meshStandardMaterial color="#0f0f0f" metalness={0.55} roughness={0.5} />
+      </mesh>
+      {/* Front glass — bright white emissive */}
+      <mesh position={[0, h * 0.55, d * 0.42]}>
+        <boxGeometry args={[w * 0.82, h * 0.6, 0.02]} />
+        <meshStandardMaterial color="#fffce8" emissive="#ffffff" emissiveIntensity={2.2} roughness={0.15} />
+      </mesh>
+      {/* Wire grid guard */}
+      {[-0.25, 0, 0.25].map((yy, i) => (
+        <mesh key={`hg${i}`} position={[0, h * 0.55 + yy * h, d * 0.43]}>
+          <boxGeometry args={[w * 0.82, 0.008, 0.005]} />
+          <meshStandardMaterial color="#2a2a2a" metalness={0.8} roughness={0.4} />
+        </mesh>
+      ))}
+    </group>
+  );
+}
+
+function BugZapperModel({ size }: { size: [number, number, number] }) {
+  const [w, h, d] = size;
+  return (
+    <group>
+      {/* Top cap */}
+      <mesh position={[0, h - 0.03, 0]} castShadow>
+        <boxGeometry args={[w, 0.06, d]} />
+        <meshStandardMaterial color="#1c1c1c" metalness={0.6} roughness={0.5} />
+      </mesh>
+      {/* Bottom cap */}
+      <mesh position={[0, 0.03, 0]} castShadow>
+        <boxGeometry args={[w, 0.06, d]} />
+        <meshStandardMaterial color="#1c1c1c" metalness={0.6} roughness={0.5} />
+      </mesh>
+      {/* Side rails */}
+      {[-1, 1].map((s) => (
+        <mesh key={s} position={[s * w * 0.48, h / 2, 0]} castShadow>
+          <boxGeometry args={[0.02, h - 0.06, d]} />
+          <meshStandardMaterial color="#1c1c1c" metalness={0.6} roughness={0.5} />
+        </mesh>
+      ))}
+      {/* UV tube — violet glow */}
+      <mesh position={[0, h / 2, 0]} rotation={[0, 0, 0]}>
+        <cylinderGeometry args={[0.02, 0.02, h - 0.14, 12]} />
+        <meshStandardMaterial color="#b26bff" emissive="#8a2be2" emissiveIntensity={2.4} />
+      </mesh>
+      {/* Wire mesh grid front/back */}
+      {[-1, 1].map((s) => (
+        <group key={`m${s}`}>
+          {[0.15, 0.30, 0.45, 0.60, 0.75].map((yr, i) => (
+            <mesh key={`hz${i}`} position={[0, h * yr, s * d * 0.48]}>
+              <boxGeometry args={[w * 0.9, 0.004, 0.004]} />
+              <meshStandardMaterial color="#3a3a3a" metalness={0.85} roughness={0.35} />
+            </mesh>
+          ))}
+          {[-0.35, -0.18, 0, 0.18, 0.35].map((xr, i) => (
+            <mesh key={`vt${i}`} position={[w * xr, h / 2, s * d * 0.48]}>
+              <boxGeometry args={[0.004, h - 0.1, 0.004]} />
+              <meshStandardMaterial color="#3a3a3a" metalness={0.85} roughness={0.35} />
+            </mesh>
+          ))}
+        </group>
+      ))}
+    </group>
+  );
+}
+
+
 function BarModel({ size }: { size: [number, number, number] }) {
   const [w, h, d] = size;
   return (
