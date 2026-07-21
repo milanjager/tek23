@@ -53,7 +53,7 @@ type Kind =
   | "scoop_x_yellow"
   | "amp" | "powersoft" | "mixer" | "dj" | "dj_table" | "cdj"
   | "korg" | "korg_red" | "korg_blue" | "turntable"
-  | "strobe" | "laser" | "movinghead"
+  | "strobe" | "laser" | "movinghead" | "halogen_white" | "bug_zapper"
   | "bar" | "generator" | "distro";
 
 
