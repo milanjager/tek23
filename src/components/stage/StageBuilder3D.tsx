@@ -281,6 +281,13 @@ function connectorsFor(kind: Kind): Connector[] {
         { type: "power", role: "in", offset: [-bx * 0.30, by * 0.55, -bz * 0.50] },
       ];
 
+    // Simple mains-powered lights (halogen bar spot, UV insect zapper) — power only.
+    case "halogen_white":
+    case "bug_zapper":
+      return [
+        { type: "power", role: "in", offset: [0, by * 0.15, -bz * 0.45] },
+      ];
+
     // Generator (DeWalt-style inverter) — pure PWR source with multiple socket types.
     // All map to CableType "power" for compat, but subtype/label distinguishes them
     // in the 3D scene and inspector.
