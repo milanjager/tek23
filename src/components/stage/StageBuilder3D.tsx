@@ -1981,6 +1981,8 @@ function ModelFor({ kind, size, variant }: { kind: Kind; size: [number, number, 
     case "strobe": return <StrobeModel size={size} />;
     case "laser": return <LaserModel size={size} />;
     case "movinghead": return <MovingHeadModel size={size} />;
+    case "halogen_white": return <HalogenWhiteModel size={size} />;
+    case "bug_zapper": return <BugZapperModel size={size} />;
     case "bar": return <BarModel size={size} />;
     case "generator": return <GeneratorModel size={size} />;
     case "distro": return <DistroModel size={size} />;
