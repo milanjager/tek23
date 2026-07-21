@@ -53,7 +53,7 @@ type Kind =
   | "scoop_x_yellow"
   | "amp" | "powersoft" | "mixer" | "dj" | "dj_table" | "cdj"
   | "korg" | "korg_red" | "korg_blue" | "turntable"
-  | "strobe" | "laser" | "movinghead"
+  | "strobe" | "laser" | "movinghead" | "halogen_white" | "bug_zapper"
   | "bar" | "generator" | "distro";
 
 
@@ -114,6 +114,8 @@ const SPECS: Record<Kind, Spec> = {
   strobe:       { label: "Strobo",           category: "lights", size: [0.45, 0.30, 0.20], stackable: false, hint: "Stroboskop" , powerW: 250 },
   laser:        { label: "Laser",            category: "lights", size: [0.40, 0.25, 0.35], stackable: false, hint: "Laser" , powerW: 350 },
   movinghead:   { label: "Moving head",      category: "lights", size: [0.35, 0.55, 0.35], stackable: false, hint: "Otočná hlava" , powerW: 450 },
+  halogen_white:{ label: "Halogen bílé",     category: "lights", size: [0.28, 0.22, 0.20], stackable: false, hint: "Halogenový reflektor s bílým světlem (barový osvit)", defaultLabel: "Halogen", powerW: 500 },
+  bug_zapper:   { label: "Světlo na hubení havěti", category: "lights", size: [0.30, 0.45, 0.12], stackable: false, hint: "UV lapač hmyzu s mřížkou (bar/venku)", defaultLabel: "UV lapač", powerW: 40 },
   bar:          { label: "Bar",              category: "infra",  size: [2.40, 1.10, 0.65], stackable: false, hint: "Bar pult" , powerW: 400 },
   generator:    { label: "Aggregát",         category: "infra",  size: [0.70, 0.60, 0.55], stackable: false, hint: "Přenosný invertorový agregát (CEE 16A + 2× Schuko + 12V + 2× USB)" , powerW: 0 },
   distro:       { label: "Rozdělovač",       category: "infra",  size: [0.60, 0.35, 0.40], stackable: true,  hint: "Silový rozvaděč / power distro (CEE in → 230V outs + DMX/SIG patch)", defaultLabel: "Rozdělovač" , powerW: 0 },
@@ -277,6 +279,13 @@ function connectorsFor(kind: Kind): Connector[] {
       return [
         { type: "dmx",   role: "in", offset: [ bx * 0.30, by * 0.55, -bz * 0.50] },
         { type: "power", role: "in", offset: [-bx * 0.30, by * 0.55, -bz * 0.50] },
+      ];
+
+    // Simple mains-powered lights (halogen bar spot, UV insect zapper) — power only.
+    case "halogen_white":
+    case "bug_zapper":
+      return [
+        { type: "power", role: "in", offset: [0, by * 0.15, -bz * 0.45] },
       ];
 
     // Generator (DeWalt-style inverter) — pure PWR source with multiple socket types.
@@ -1389,6 +1398,91 @@ function MovingHeadModel({ size }: { size: [number, number, number] }) {
   );
 }
 
+function HalogenWhiteModel({ size }: { size: [number, number, number] }) {
+  const [w, h, d] = size;
+  return (
+    <group>
+      {/* U-bracket base */}
+      <mesh position={[0, 0.02, 0]} castShadow>
+        <boxGeometry args={[w * 0.5, 0.02, d * 0.6]} />
+        <meshStandardMaterial color="#111" metalness={0.7} roughness={0.4} />
+      </mesh>
+      {/* Yoke arms */}
+      {[-1, 1].map((s) => (
+        <mesh key={s} position={[s * w * 0.42, h * 0.5, 0]} castShadow>
+          <boxGeometry args={[0.03, h * 0.9, 0.04]} />
+          <meshStandardMaterial color="#1a1a1a" metalness={0.7} roughness={0.4} />
+        </mesh>
+      ))}
+      {/* Housing (rectangular halogen floodlight) */}
+      <mesh position={[0, h * 0.55, 0]} castShadow>
+        <boxGeometry args={[w * 0.9, h * 0.7, d * 0.8]} />
+        <meshStandardMaterial color="#0f0f0f" metalness={0.55} roughness={0.5} />
+      </mesh>
+      {/* Front glass — bright white emissive */}
+      <mesh position={[0, h * 0.55, d * 0.42]}>
+        <boxGeometry args={[w * 0.82, h * 0.6, 0.02]} />
+        <meshStandardMaterial color="#fffce8" emissive="#ffffff" emissiveIntensity={2.2} roughness={0.15} />
+      </mesh>
+      {/* Wire grid guard */}
+      {[-0.25, 0, 0.25].map((yy, i) => (
+        <mesh key={`hg${i}`} position={[0, h * 0.55 + yy * h, d * 0.43]}>
+          <boxGeometry args={[w * 0.82, 0.008, 0.005]} />
+          <meshStandardMaterial color="#2a2a2a" metalness={0.8} roughness={0.4} />
+        </mesh>
+      ))}
+    </group>
+  );
+}
+
+function BugZapperModel({ size }: { size: [number, number, number] }) {
+  const [w, h, d] = size;
+  return (
+    <group>
+      {/* Top cap */}
+      <mesh position={[0, h - 0.03, 0]} castShadow>
+        <boxGeometry args={[w, 0.06, d]} />
+        <meshStandardMaterial color="#1c1c1c" metalness={0.6} roughness={0.5} />
+      </mesh>
+      {/* Bottom cap */}
+      <mesh position={[0, 0.03, 0]} castShadow>
+        <boxGeometry args={[w, 0.06, d]} />
+        <meshStandardMaterial color="#1c1c1c" metalness={0.6} roughness={0.5} />
+      </mesh>
+      {/* Side rails */}
+      {[-1, 1].map((s) => (
+        <mesh key={s} position={[s * w * 0.48, h / 2, 0]} castShadow>
+          <boxGeometry args={[0.02, h - 0.06, d]} />
+          <meshStandardMaterial color="#1c1c1c" metalness={0.6} roughness={0.5} />
+        </mesh>
+      ))}
+      {/* UV tube — violet glow */}
+      <mesh position={[0, h / 2, 0]} rotation={[0, 0, 0]}>
+        <cylinderGeometry args={[0.02, 0.02, h - 0.14, 12]} />
+        <meshStandardMaterial color="#b26bff" emissive="#8a2be2" emissiveIntensity={2.4} />
+      </mesh>
+      {/* Wire mesh grid front/back */}
+      {[-1, 1].map((s) => (
+        <group key={`m${s}`}>
+          {[0.15, 0.30, 0.45, 0.60, 0.75].map((yr, i) => (
+            <mesh key={`hz${i}`} position={[0, h * yr, s * d * 0.48]}>
+              <boxGeometry args={[w * 0.9, 0.004, 0.004]} />
+              <meshStandardMaterial color="#3a3a3a" metalness={0.85} roughness={0.35} />
+            </mesh>
+          ))}
+          {[-0.35, -0.18, 0, 0.18, 0.35].map((xr, i) => (
+            <mesh key={`vt${i}`} position={[w * xr, h / 2, s * d * 0.48]}>
+              <boxGeometry args={[0.004, h - 0.1, 0.004]} />
+              <meshStandardMaterial color="#3a3a3a" metalness={0.85} roughness={0.35} />
+            </mesh>
+          ))}
+        </group>
+      ))}
+    </group>
+  );
+}
+
+
 function BarModel({ size }: { size: [number, number, number] }) {
   const [w, h, d] = size;
   return (
@@ -1979,6 +2073,8 @@ function ModelFor({ kind, size, variant }: { kind: Kind; size: [number, number, 
     case "strobe": return <StrobeModel size={size} />;
     case "laser": return <LaserModel size={size} />;
     case "movinghead": return <MovingHeadModel size={size} />;
+    case "halogen_white": return <HalogenWhiteModel size={size} />;
+    case "bug_zapper": return <BugZapperModel size={size} />;
     case "bar": return <BarModel size={size} />;
     case "generator": return <GeneratorModel size={size} />;
     case "distro": return <DistroModel size={size} />;
