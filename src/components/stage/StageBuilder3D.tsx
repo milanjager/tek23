@@ -4174,6 +4174,7 @@ export function StageBuilder3D() {
       rotY: 0,
       ...(spec.defaultLabel ? { label: spec.defaultLabel } : {}),
       ...(spec.defaultVariant ? { variant: spec.defaultVariant } : {}),
+      ...(spec.defaultNotes ? { notes: spec.defaultNotes } : {}),
     };
     setItems((cur) => normalizeScene([...cur, it]));
     setSelection([it.id]);
