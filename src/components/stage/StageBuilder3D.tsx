@@ -285,9 +285,12 @@ function connectorsFor(kind: Kind): Connector[] {
 
     // Simple mains-powered lights (halogen bar spot, UV insect zapper) — power only.
     case "halogen_white":
+      return [
+        { type: "power", role: "in", offset: [0, by * 0.15, -bz * 0.45], subtype: "schuko", label: "230V Schuko (500 W)" },
+      ];
     case "bug_zapper":
       return [
-        { type: "power", role: "in", offset: [0, by * 0.15, -bz * 0.45] },
+        { type: "power", role: "in", offset: [0, by * 0.15, -bz * 0.45], subtype: "schuko", label: "230V Schuko (40 W)" },
       ];
 
     // Generator (DeWalt-style inverter) — pure PWR source with multiple socket types.
