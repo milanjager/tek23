@@ -69,6 +69,8 @@ interface Spec {
   defaultVariant?: "red" | "blue";
   /** Typical power draw at nominal load (Watts). Passive PA cabinets = 0 (fed by amp). */
   powerW?: number;
+  /** Prefilled wiring notes for the technician (IN/OUT hints). */
+  defaultNotes?: string;
 }
 
 
@@ -114,8 +116,8 @@ const SPECS: Record<Kind, Spec> = {
   strobe:       { label: "Strobo",           category: "lights", size: [0.45, 0.30, 0.20], stackable: false, hint: "Stroboskop" , powerW: 250 },
   laser:        { label: "Laser",            category: "lights", size: [0.40, 0.25, 0.35], stackable: false, hint: "Laser" , powerW: 350 },
   movinghead:   { label: "Moving head",      category: "lights", size: [0.35, 0.55, 0.35], stackable: false, hint: "Otočná hlava" , powerW: 450 },
-  halogen_white:{ label: "Halogen bílé",     category: "lights", size: [0.28, 0.22, 0.20], stackable: false, hint: "Halogenový reflektor s bílým světlem (barový osvit)", defaultLabel: "Halogen", powerW: 500 },
-  bug_zapper:   { label: "Světlo na hubení havěti", category: "lights", size: [0.30, 0.45, 0.12], stackable: false, hint: "UV lapač hmyzu s mřížkou (bar/venku)", defaultLabel: "UV lapač", powerW: 40 },
+  halogen_white:{ label: "Halogen bílé",     category: "lights", size: [0.28, 0.22, 0.20], stackable: false, hint: "Halogenový reflektor s bílým světlem (barový osvit)", defaultLabel: "Halogen", powerW: 500, defaultNotes: "IN: 230V Schuko (1× fáze, 500 W halogen). Bez DMX — spínáno přes distro / spínač u baru. Pozor na horký reflektor — min. 0,5 m od textilu." },
+  bug_zapper:   { label: "Světlo na hubení havěti", category: "lights", size: [0.30, 0.45, 0.12], stackable: false, hint: "UV lapač hmyzu s mřížkou (bar/venku)", defaultLabel: "UV lapač", powerW: 40, defaultNotes: "IN: 230V Schuko (UV trubice 40 W + mřížka). Bez DMX — trvale zapnuto. Umístit min. 2 m od baru, nezakrývat mřížku." },
   bar:          { label: "Bar",              category: "infra",  size: [2.40, 1.10, 0.65], stackable: false, hint: "Bar pult" , powerW: 400 },
   generator:    { label: "Aggregát",         category: "infra",  size: [0.70, 0.60, 0.55], stackable: false, hint: "Přenosný invertorový agregát (CEE 16A + 2× Schuko + 12V + 2× USB)" , powerW: 0 },
   distro:       { label: "Rozdělovač",       category: "infra",  size: [0.60, 0.35, 0.40], stackable: true,  hint: "Silový rozvaděč / power distro (CEE in → 230V outs + DMX/SIG patch)", defaultLabel: "Rozdělovač" , powerW: 0 },
@@ -283,9 +285,12 @@ function connectorsFor(kind: Kind): Connector[] {
 
     // Simple mains-powered lights (halogen bar spot, UV insect zapper) — power only.
     case "halogen_white":
+      return [
+        { type: "power", role: "in", offset: [0, by * 0.15, -bz * 0.45], subtype: "schuko", label: "230V Schuko (500 W)" },
+      ];
     case "bug_zapper":
       return [
-        { type: "power", role: "in", offset: [0, by * 0.15, -bz * 0.45] },
+        { type: "power", role: "in", offset: [0, by * 0.15, -bz * 0.45], subtype: "schuko", label: "230V Schuko (40 W)" },
       ];
 
     // Generator (DeWalt-style inverter) — pure PWR source with multiple socket types.
@@ -4169,6 +4174,7 @@ export function StageBuilder3D() {
       rotY: 0,
       ...(spec.defaultLabel ? { label: spec.defaultLabel } : {}),
       ...(spec.defaultVariant ? { variant: spec.defaultVariant } : {}),
+      ...(spec.defaultNotes ? { notes: spec.defaultNotes } : {}),
     };
     setItems((cur) => normalizeScene([...cur, it]));
     setSelection([it.id]);
