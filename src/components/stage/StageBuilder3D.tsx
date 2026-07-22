@@ -69,6 +69,8 @@ interface Spec {
   defaultVariant?: "red" | "blue";
   /** Typical power draw at nominal load (Watts). Passive PA cabinets = 0 (fed by amp). */
   powerW?: number;
+  /** Prefilled wiring notes for the technician (IN/OUT hints). */
+  defaultNotes?: string;
 }
 
 
