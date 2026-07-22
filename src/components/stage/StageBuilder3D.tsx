@@ -4488,20 +4488,21 @@ export function StageBuilder3D() {
   );
 
   return (
-    <div className="fixed inset-0 flex flex-col bg-white text-neutral-900">
-      {/* Top toolbar */}
-      <div className="flex flex-wrap items-center gap-1.5 border-b border-neutral-200 bg-neutral-50/95 px-2 py-2 text-sm sm:gap-2 sm:px-3">
+    <div className="fixed inset-0 flex flex-col bg-background text-foreground">
+      {/* Top toolbar — morph-glass, single scrollable row on mobile, wraps on desktop */}
+      <div className="glass-strong z-30 flex flex-nowrap items-center gap-1.5 overflow-x-auto whitespace-nowrap px-2 py-2 text-sm no-scrollbar sm:gap-2 sm:px-3 md:flex-wrap md:overflow-visible md:whitespace-normal">
         <button
           onClick={() => setPaletteOpen((v) => !v)}
-          className="flex items-center gap-1 rounded bg-neutral-100 px-2 py-1 hover:bg-neutral-200 md:hidden"
+          className="glass-chip inline-flex shrink-0 items-center gap-1 rounded-full px-2.5 py-1.5 md:hidden"
           aria-label="Toggle palette"
         >
           {paletteOpen ? <X size={14} /> : <Menu size={14} />}
         </button>
-        <div className="flex items-center gap-1 font-bold text-lime-600">
-          <Boxes size={16} /> <span className="hidden xs:inline sm:inline">STAGE RIG 3D</span>
+        <div className="inline-flex shrink-0 items-center gap-1 font-bold text-lime-600">
+          <Boxes size={16} /> <span className="hidden sm:inline">STAGE RIG 3D</span>
         </div>
-        <div className="mx-3 h-5 w-px bg-neutral-700" />
+        <div className="mx-2 hidden h-5 w-px bg-neutral-300/60 md:block" />
+
         <select
           value=""
           onChange={(e) => {
@@ -4790,7 +4791,7 @@ export function StageBuilder3D() {
         {/* Mobile palette backdrop */}
         {paletteOpen && (
           <div
-            className="absolute inset-0 z-20 bg-black/30 md:hidden"
+            className="absolute inset-0 z-20 bg-black/40 backdrop-blur-sm md:hidden"
             onClick={() => setPaletteOpen(false)}
           />
         )}
@@ -4799,27 +4800,28 @@ export function StageBuilder3D() {
           <button
             onClick={() => setPaletteOpen(true)}
             title="Otevřít paletu komponent ( [ )"
-            className="absolute left-0 top-2 z-20 hidden h-10 w-6 items-center justify-center rounded-r border border-l-0 border-neutral-300 bg-white/95 text-neutral-600 shadow-md hover:bg-lime-50 hover:text-lime-700 md:flex"
+            className="glass-chip absolute left-2 top-2 z-20 hidden h-10 w-10 items-center justify-center rounded-full text-neutral-600 shadow-md hover:text-lime-600 md:flex"
           >
             <PanelLeft size={14} />
           </button>
         )}
         {/* Palette */}
         <aside
-          className={`${paletteOpen ? "absolute inset-y-0 left-0 z-30 flex w-64 shadow-2xl md:static md:z-auto md:w-56 md:shadow-none" : "hidden"} flex-col border-r border-neutral-200 bg-neutral-50 md:bg-neutral-50/80`}
+          className={`${paletteOpen ? "absolute inset-y-0 left-0 z-30 flex w-[86vw] max-w-xs shadow-2xl md:static md:z-auto md:w-56 md:shadow-none" : "hidden"} glass flex-col border-r border-neutral-200/60`}
         >
           {/* Desktop collapse header */}
-          <div className="hidden items-center justify-between border-b border-neutral-200 bg-white/60 px-2 py-1 md:flex">
+          <div className="hidden items-center justify-between border-b border-neutral-200/60 px-2 py-1 md:flex">
             <span className="text-[10px] font-bold uppercase tracking-wider text-neutral-500">Paleta ( [ )</span>
             <button
               onClick={() => setPaletteOpen(false)}
               title="Sbalit paletu"
-              className="rounded p-0.5 text-neutral-400 hover:bg-neutral-100 hover:text-neutral-700"
+              className="rounded-full p-1 text-neutral-400 hover:bg-neutral-200/40 hover:text-neutral-700"
             >
-              <X size={12} />
+              <X size={14} />
             </button>
           </div>
-          <div className="flex border-b border-neutral-200">
+          <div className="flex border-b border-neutral-200/60">
+
             {CATEGORIES.map((c) => {
               const Icon = c.icon;
               return (
@@ -5122,23 +5124,33 @@ export function StageBuilder3D() {
           <button
             onClick={() => setRightOpen(true)}
             title="Otevřít inspektor ( ] )"
-            className="absolute right-0 top-2 z-20 flex h-10 w-6 items-center justify-center rounded-l border border-r-0 border-neutral-300 bg-white/95 text-neutral-600 shadow-md hover:bg-lime-50 hover:text-lime-700"
+            className="glass-chip absolute right-2 top-2 z-20 flex h-10 w-10 items-center justify-center rounded-full text-neutral-600 shadow-md hover:text-lime-600"
           >
             <PanelRight size={14} />
           </button>
         )}
-        {/* Right inspector — per-item model / label / variant */}
-        <aside className={`${rightOpen ? "flex w-72" : "hidden"} flex-col border-l border-neutral-200 bg-neutral-50/80`}>
-          <div className="flex items-center justify-between border-b border-neutral-200 bg-white/60 px-2 py-1">
+        {/* Mobile inspector backdrop */}
+        {rightOpen && (
+          <div
+            className="absolute inset-0 z-20 bg-black/40 backdrop-blur-sm md:hidden"
+            onClick={() => setRightOpen(false)}
+          />
+        )}
+        {/* Right inspector — overlay drawer on mobile, static on md+ */}
+        <aside
+          className={`${rightOpen ? "absolute inset-y-0 right-0 z-30 flex w-[86vw] max-w-sm shadow-2xl md:static md:z-auto md:w-72 md:shadow-none" : "hidden"} glass flex-col border-l border-neutral-200/60`}
+        >
+          <div className="flex items-center justify-between border-b border-neutral-200/60 px-2 py-1">
             <span className="text-[10px] font-bold uppercase tracking-wider text-neutral-500">Inspektor ( ] )</span>
             <button
               onClick={() => setRightOpen(false)}
               title="Sbalit inspektor"
-              className="rounded p-0.5 text-neutral-400 hover:bg-neutral-100 hover:text-neutral-700"
+              className="rounded-full p-1 text-neutral-400 hover:bg-neutral-200/40 hover:text-neutral-700"
             >
-              <X size={12} />
+              <X size={14} />
             </button>
           </div>
+
           {/* ── Detail výběru ─────────────────────────────────────────── */}
           {(() => {
             const primary = items.find((x) => x.id === selection[0]);

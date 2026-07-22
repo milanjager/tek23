@@ -114,6 +114,47 @@
   text-shadow: 0 0 12px oklch(0.86 0.24 135 / 0.7);
 }
 
+/* Morph glass surfaces used by the Stage Builder shell */
+@utility glass {
+  background: color-mix(in oklab, var(--background) 55%, transparent);
+  backdrop-filter: blur(18px) saturate(150%);
+  border: 1px solid color-mix(in oklab, var(--foreground) 12%, transparent);
+  box-shadow:
+    0 1px 0 color-mix(in oklab, white 35%, transparent) inset,
+    0 8px 32px -12px color-mix(in oklab, black 40%, transparent);
+}
+.dark .glass {
+  background: color-mix(in oklab, oklch(0.20 0.02 260) 65%, transparent);
+  border-color: color-mix(in oklab, white 10%, transparent);
+  box-shadow:
+    0 1px 0 color-mix(in oklab, white 8%, transparent) inset,
+    0 10px 40px -12px color-mix(in oklab, black 70%, transparent);
+}
+@utility glass-strong {
+  background: color-mix(in oklab, var(--background) 82%, transparent);
+  backdrop-filter: blur(24px) saturate(160%);
+  border: 1px solid color-mix(in oklab, var(--foreground) 14%, transparent);
+  box-shadow: 0 20px 60px -20px color-mix(in oklab, black 55%, transparent);
+}
+.dark .glass-strong {
+  background: color-mix(in oklab, oklch(0.18 0.02 260) 88%, transparent);
+  border-color: color-mix(in oklab, white 12%, transparent);
+}
+@utility glass-chip {
+  background: color-mix(in oklab, var(--background) 65%, transparent);
+  backdrop-filter: blur(10px) saturate(140%);
+  border: 1px solid color-mix(in oklab, var(--foreground) 10%, transparent);
+}
+.dark .glass-chip {
+  background: color-mix(in oklab, oklch(0.26 0.02 260) 75%, transparent);
+  border-color: color-mix(in oklab, white 8%, transparent);
+}
+
+@utility no-scrollbar {
+  scrollbar-width: none;
+}
+.no-scrollbar::-webkit-scrollbar { display: none; }
+
 /* Stage builder dark mode: remap legacy neutral utility classes to a readable
    slate workshop palette while preserving bright action buttons. */
 .dark .bg-white { background-color: oklch(0.22 0.018 255) !important; }
