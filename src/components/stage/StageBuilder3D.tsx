@@ -4488,20 +4488,21 @@ export function StageBuilder3D() {
   );
 
   return (
-    <div className="fixed inset-0 flex flex-col bg-white text-neutral-900">
-      {/* Top toolbar */}
-      <div className="flex flex-wrap items-center gap-1.5 border-b border-neutral-200 bg-neutral-50/95 px-2 py-2 text-sm sm:gap-2 sm:px-3">
+    <div className="fixed inset-0 flex flex-col bg-background text-foreground">
+      {/* Top toolbar — morph-glass, single scrollable row on mobile, wraps on desktop */}
+      <div className="glass-strong z-30 flex flex-nowrap items-center gap-1.5 overflow-x-auto whitespace-nowrap px-2 py-2 text-sm no-scrollbar sm:gap-2 sm:px-3 md:flex-wrap md:overflow-visible md:whitespace-normal">
         <button
           onClick={() => setPaletteOpen((v) => !v)}
-          className="flex items-center gap-1 rounded bg-neutral-100 px-2 py-1 hover:bg-neutral-200 md:hidden"
+          className="glass-chip inline-flex shrink-0 items-center gap-1 rounded-full px-2.5 py-1.5 md:hidden"
           aria-label="Toggle palette"
         >
           {paletteOpen ? <X size={14} /> : <Menu size={14} />}
         </button>
-        <div className="flex items-center gap-1 font-bold text-lime-600">
-          <Boxes size={16} /> <span className="hidden xs:inline sm:inline">STAGE RIG 3D</span>
+        <div className="inline-flex shrink-0 items-center gap-1 font-bold text-lime-600">
+          <Boxes size={16} /> <span className="hidden sm:inline">STAGE RIG 3D</span>
         </div>
-        <div className="mx-3 h-5 w-px bg-neutral-700" />
+        <div className="mx-2 hidden h-5 w-px bg-neutral-300/60 md:block" />
+
         <select
           value=""
           onChange={(e) => {
