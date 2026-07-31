@@ -71,7 +71,7 @@ export const PS_MODELS: PsModel[] = [
   },
 ];
 
-interface Row { port: string; dir: "IN" | "OUT"; conn: string; note: string; }
+interface Row { port: string; dir: "IN" | "OUT" | "IN/OUT"; conn: string; note: string; }
 
 function portMap(m: PsModel): Row[] {
   const rows: Row[] = [
