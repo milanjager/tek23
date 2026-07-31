@@ -240,11 +240,21 @@ function connectorsFor(kind: Kind): Connector[] {
 
     // Power amps — SIG in, SPK out, PWR in.
     case "amp":
-    case "powersoft":
       return [
         { type: "signal",  role: "in",  offset: [-bx * 0.30, by * 0.82, -bz * 0.50] },
         { type: "speaker", role: "out", offset: [ bx * 0.30, by * 0.82, -bz * 0.50] },
         { type: "power",   role: "in",  offset: [ 0,         by * 0.15, -bz * 0.50] },
+      ];
+
+    // Powersoft — 2 analog IN (+ AES3), link out, 2 Speakon OUT, CEE napájení.
+    case "powersoft":
+      return [
+        { type: "signal",  role: "in",  offset: [-bx * 0.38, by * 0.86, -bz * 0.50], label: "IN A (XLR)" },
+        { type: "signal",  role: "in",  offset: [-bx * 0.14, by * 0.86, -bz * 0.50], label: "IN B / AES3" },
+        { type: "signal",  role: "out", offset: [ bx * 0.10, by * 0.86, -bz * 0.50], label: "LINK OUT" },
+        { type: "speaker", role: "out", offset: [ bx * 0.24, by * 0.60, -bz * 0.50], label: "OUT CH1 (NL4 1+/1−)" },
+        { type: "speaker", role: "out", offset: [ bx * 0.42, by * 0.60, -bz * 0.50], label: "OUT CH2 (NL4 2+/2−)" },
+        { type: "power",   role: "in",  offset: [ 0,         by * 0.15, -bz * 0.50], label: "AC IN (CEE 32A)" },
       ];
 
     // Mixer — signal in/out + power.
