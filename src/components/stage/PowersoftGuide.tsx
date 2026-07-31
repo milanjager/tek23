@@ -1,4 +1,5 @@
 import { useState } from "react";
+import PowersoftDiagram from "./PowersoftDiagram";
 
 /* ============================================================================
    PowersoftGuide — detailní návod na zapojení a nastavení Powersoft zesilovačů.
