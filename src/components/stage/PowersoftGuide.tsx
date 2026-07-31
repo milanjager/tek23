@@ -175,7 +175,7 @@ export default function PowersoftGuide({ label }: { label?: string }) {
           </div>
 
           <div className="mb-1.5 flex gap-1">
-            {([["ports", "Konektory"], ["hw", "Zapojení"], ["sw", "Software"]] as const).map(([k, l]) => (
+            {([["ports", "Konektory"], ["diag", "Schéma"], ["hw", "Zapojení"], ["sw", "Software"]] as const).map(([k, l]) => (
               <button
                 key={k}
                 onClick={() => setTab(k)}
