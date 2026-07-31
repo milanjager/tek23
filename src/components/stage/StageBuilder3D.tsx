@@ -104,7 +104,7 @@ const SPECS: Record<Kind, Spec> = {
   picus_deep_sub:   { label: "Picus Deep Sub 2×21\"",   category: "sound", size: [1.20, 1.10, 1.05], stackable: true, hint: "Hluboký scoop-sub s prodlouženou komorou",        defaultLabel: "Picus Deep Sub" },
   scoop_x_yellow:   { label: "Scoop-X 1×18\" + horn",   category: "sound", size: [0.80, 1.20, 0.90], stackable: true, hint: "Horn-loaded scoop 1×18\" se žlutým křížem + MF horn (2× Speakon: LF/MF)", defaultLabel: "Scoop-X" },
   amp:          { label: "Amp rack",         category: "infra",  size: [0.60, 0.90, 0.60], stackable: true,  hint: "Rack zesilovačů" , powerW: 1500 },
-  powersoft:    { label: "Powersoft K20",    category: "infra",  size: [0.60, 0.90, 0.60], stackable: true,  hint: "Powersoft výkonový amp", defaultLabel: "Powersoft" , powerW: 3500 },
+  powersoft:    { label: "Powersoft K20",    category: "infra",  size: [0.60, 0.90, 0.60], stackable: true,  hint: "Powersoft výkonový amp", defaultLabel: "Powersoft" , powerW: 3500, defaultNotes: "IN: AC CEE 32A (vlastní jistič C32!) · IN A/B XLR analog nebo AES3 · LINK OUT na další amp.\nOUT: CH1 = NL4 1+/1−, CH2 = NL4 2+/2− (min. 2 Ω/kanál, bridge jen pro sub).\nSetup: Armonía Plus → scan → speaker preset → crossover → limitery → gain → delay → uložit jako power-on preset." },
   mixer:        { label: "Mixer",            category: "infra",  size: [0.80, 0.15, 0.55], stackable: false, hint: "Mixážní pult" , powerW: 120 },
   dj:           { label: "DJ booth",         category: "infra",  size: [1.60, 1.00, 0.70], stackable: true,  hint: "DJ pult" , powerW: 250 },
   dj_table:     { label: "DJ stůl",          category: "infra",  size: [1.80, 0.95, 0.70], stackable: true,  hint: "Stůl pod DJ techniku (Korg, CDJ, mixer…)" , powerW: 0 },
