@@ -5229,6 +5229,11 @@ export function StageBuilder3D() {
                   />
                 </div>
 
+                {/* Powersoft — detailní zapojení + software setup */}
+                {(primary.kind === "powersoft" || primary.kind === "amp") && (
+                  <PowersoftGuide label={primary.label || pspec.label} />
+                )}
+
                 {/* Krokový návod zapojení pro tuto komponentu */}
                 {(() => {
                   const allSteps = generateWiringSteps(items, cables);
