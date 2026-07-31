@@ -122,7 +122,7 @@ const SW_STEPS = [
 
 export default function PowersoftGuide({ label }: { label?: string }) {
   const [modelId, setModelId] = useState(PS_MODELS[0].id);
-  const [tab, setTab] = useState<"ports" | "hw" | "sw">("ports");
+  const [tab, setTab] = useState<"ports" | "diag" | "hw" | "sw">("ports");
   const [open, setOpen] = useState(true);
   const m = PS_MODELS.find((x) => x.id === modelId) ?? PS_MODELS[0];
 
