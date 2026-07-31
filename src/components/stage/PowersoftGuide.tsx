@@ -1,4 +1,5 @@
 import { useState } from "react";
+import PowersoftDiagram from "./PowersoftDiagram";
 
 /* ============================================================================
    PowersoftGuide — detailní návod na zapojení a nastavení Powersoft zesilovačů.
@@ -121,7 +122,7 @@ const SW_STEPS = [
 
 export default function PowersoftGuide({ label }: { label?: string }) {
   const [modelId, setModelId] = useState(PS_MODELS[0].id);
-  const [tab, setTab] = useState<"ports" | "hw" | "sw">("ports");
+  const [tab, setTab] = useState<"ports" | "diag" | "hw" | "sw">("ports");
   const [open, setOpen] = useState(true);
   const m = PS_MODELS.find((x) => x.id === modelId) ?? PS_MODELS[0];
 
@@ -174,7 +175,7 @@ export default function PowersoftGuide({ label }: { label?: string }) {
           </div>
 
           <div className="mb-1.5 flex gap-1">
-            {([["ports", "Konektory"], ["hw", "Zapojení"], ["sw", "Software"]] as const).map(([k, l]) => (
+            {([["ports", "Konektory"], ["diag", "Schéma"], ["hw", "Zapojení"], ["sw", "Software"]] as const).map(([k, l]) => (
               <button
                 key={k}
                 onClick={() => setTab(k)}
@@ -201,6 +202,9 @@ export default function PowersoftGuide({ label }: { label?: string }) {
               ))}
             </div>
           )}
+
+          {tab === "diag" && <PowersoftDiagram m={m} />}
+
 
           {tab === "hw" && (
             <ol className="flex flex-col gap-0.5">
