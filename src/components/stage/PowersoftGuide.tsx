@@ -203,6 +203,9 @@ export default function PowersoftGuide({ label }: { label?: string }) {
             </div>
           )}
 
+          {tab === "diag" && <PowersoftDiagram m={m} />}
+
+
           {tab === "hw" && (
             <ol className="flex flex-col gap-0.5">
               {HW_STEPS(m).map((s, i) => (
