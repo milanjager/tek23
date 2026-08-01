@@ -4095,6 +4095,11 @@ export function StageBuilder3D() {
   }, [selection]);
   // Collapsible group folders (Photoshop-style).
   const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({});
+  // Collapsible inspector sections.
+  const [secOpen, setSecOpen] = useState<Record<string, boolean>>({ detail: true, layers: true, loose: true });
+  const toggleSec = useCallback((k: string) => {
+    setSecOpen((cur) => ({ ...cur, [k]: !(cur[k] ?? true) }));
+  }, []);
   const toggleGroupCollapsed = useCallback((gid: string) => {
     setCollapsedGroups((cur) => ({ ...cur, [gid]: !cur[gid] }));
   }, []);
