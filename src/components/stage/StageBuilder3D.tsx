@@ -5193,9 +5193,17 @@ export function StageBuilder3D() {
             return (
               <div className="border-b-2 border-lime-300 bg-white/80 px-3 py-2 text-[11px]">
                 <div className="mb-1 flex items-center justify-between">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-lime-700">Detail výběru</span>
+                  <button
+                    onClick={() => toggleSec("detail")}
+                    className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-lime-700 hover:text-lime-800"
+                    title="Sbalit / rozbalit detail"
+                  >
+                    <span className="inline-block w-3 text-center">{(secOpen.detail ?? true) ? "▾" : "▸"}</span>
+                    Detail výběru
+                  </button>
                   <span className="font-mono text-[9px] text-neutral-500">#{primary.id.slice(0, 4)}</span>
                 </div>
+                {(secOpen.detail ?? true) && (<>
                 <div className="mb-2">
                   <div className="truncate text-[13px] font-bold text-neutral-900">{primary.label || pspec.label}</div>
                   <div className="text-[10px] text-neutral-500">{pspec.label} · {pspec.hint}</div>
