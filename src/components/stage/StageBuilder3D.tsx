@@ -5639,16 +5639,22 @@ export function StageBuilder3D() {
                       </div>
                     );
                   })}
-                  {loose.length > 0 && groups.size > 0 && (
-                    <div className="mt-2 mb-1 px-1 text-[9px] font-bold uppercase tracking-wider text-neutral-400">
+                  {loose.length > 0 && (
+                    <button
+                      onClick={() => toggleSec("loose")}
+                      className="mt-2 mb-1 flex w-full items-center gap-1 px-1 text-[9px] font-bold uppercase tracking-wider text-neutral-400 hover:text-neutral-600"
+                      title="Sbalit / rozbalit nezařazené"
+                    >
+                      <span className="inline-block w-3 text-center">{(secOpen.loose ?? true) ? "▾" : "▸"}</span>
                       Nezařazené ({loose.length})
-                    </div>
+                    </button>
                   )}
-                  {loose.map(renderItemCard)}
+                  {(secOpen.loose ?? true) && loose.map(renderItemCard)}
                 </>
               );
             })()}
           </div>
+          )}
         </aside>
       </div>
       <PlacementDevPanel />
