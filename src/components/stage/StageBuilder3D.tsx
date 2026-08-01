@@ -5407,14 +5407,20 @@ export function StageBuilder3D() {
                     </div>
                   )}
                 </div>
+                </>)}
               </div>
             );
           })()}
 
           <div className="flex items-center justify-between border-b border-neutral-200 px-3 py-2">
-            <span className="text-xs font-bold uppercase tracking-wider text-neutral-500">
+            <button
+              onClick={() => toggleSec("layers")}
+              className="flex items-center gap-1 text-xs font-bold uppercase tracking-wider text-neutral-500 hover:text-neutral-800"
+              title="Sbalit / rozbalit vrstvy"
+            >
+              <span className="inline-block w-3 text-center">{(secOpen.layers ?? true) ? "▾" : "▸"}</span>
               Vrstvy ({items.length})
-            </span>
+            </button>
             <div className="flex items-center gap-1">
               <button
                 onClick={groupSelection}
@@ -5430,6 +5436,7 @@ export function StageBuilder3D() {
               ><Ungroup size={10} className="inline" /> Rozpustit</button>
             </div>
           </div>
+          {(secOpen.layers ?? true) && (
           <div className="flex-1 overflow-y-auto p-2">
             {items.length === 0 && (
               <div className="p-4 text-center text-[11px] text-neutral-500">Zatím žádné komponenty. Přidej z levého panelu nebo načti preset.</div>
