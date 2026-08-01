@@ -4095,6 +4095,11 @@ export function StageBuilder3D() {
   }, [selection]);
   // Collapsible group folders (Photoshop-style).
   const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({});
+  // Collapsible inspector sections.
+  const [secOpen, setSecOpen] = useState<Record<string, boolean>>({ detail: true, layers: true, loose: true });
+  const toggleSec = useCallback((k: string) => {
+    setSecOpen((cur) => ({ ...cur, [k]: !(cur[k] ?? true) }));
+  }, []);
   const toggleGroupCollapsed = useCallback((gid: string) => {
     setCollapsedGroups((cur) => ({ ...cur, [gid]: !cur[gid] }));
   }, []);
@@ -5188,9 +5193,17 @@ export function StageBuilder3D() {
             return (
               <div className="border-b-2 border-lime-300 bg-white/80 px-3 py-2 text-[11px]">
                 <div className="mb-1 flex items-center justify-between">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-lime-700">Detail výběru</span>
+                  <button
+                    onClick={() => toggleSec("detail")}
+                    className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-lime-700 hover:text-lime-800"
+                    title="Sbalit / rozbalit detail"
+                  >
+                    <span className="inline-block w-3 text-center">{(secOpen.detail ?? true) ? "▾" : "▸"}</span>
+                    Detail výběru
+                  </button>
                   <span className="font-mono text-[9px] text-neutral-500">#{primary.id.slice(0, 4)}</span>
                 </div>
+                {(secOpen.detail ?? true) && (<>
                 <div className="mb-2">
                   <div className="truncate text-[13px] font-bold text-neutral-900">{primary.label || pspec.label}</div>
                   <div className="text-[10px] text-neutral-500">{pspec.label} · {pspec.hint}</div>
@@ -5394,14 +5407,20 @@ export function StageBuilder3D() {
                     </div>
                   )}
                 </div>
+                </>)}
               </div>
             );
           })()}
 
           <div className="flex items-center justify-between border-b border-neutral-200 px-3 py-2">
-            <span className="text-xs font-bold uppercase tracking-wider text-neutral-500">
+            <button
+              onClick={() => toggleSec("layers")}
+              className="flex items-center gap-1 text-xs font-bold uppercase tracking-wider text-neutral-500 hover:text-neutral-800"
+              title="Sbalit / rozbalit vrstvy"
+            >
+              <span className="inline-block w-3 text-center">{(secOpen.layers ?? true) ? "▾" : "▸"}</span>
               Vrstvy ({items.length})
-            </span>
+            </button>
             <div className="flex items-center gap-1">
               <button
                 onClick={groupSelection}
@@ -5417,6 +5436,7 @@ export function StageBuilder3D() {
               ><Ungroup size={10} className="inline" /> Rozpustit</button>
             </div>
           </div>
+          {(secOpen.layers ?? true) && (
           <div className="flex-1 overflow-y-auto p-2">
             {items.length === 0 && (
               <div className="p-4 text-center text-[11px] text-neutral-500">Zatím žádné komponenty. Přidej z levého panelu nebo načti preset.</div>
@@ -5619,16 +5639,22 @@ export function StageBuilder3D() {
                       </div>
                     );
                   })}
-                  {loose.length > 0 && groups.size > 0 && (
-                    <div className="mt-2 mb-1 px-1 text-[9px] font-bold uppercase tracking-wider text-neutral-400">
+                  {loose.length > 0 && (
+                    <button
+                      onClick={() => toggleSec("loose")}
+                      className="mt-2 mb-1 flex w-full items-center gap-1 px-1 text-[9px] font-bold uppercase tracking-wider text-neutral-400 hover:text-neutral-600"
+                      title="Sbalit / rozbalit nezařazené"
+                    >
+                      <span className="inline-block w-3 text-center">{(secOpen.loose ?? true) ? "▾" : "▸"}</span>
                       Nezařazené ({loose.length})
-                    </div>
+                    </button>
                   )}
-                  {loose.map(renderItemCard)}
+                  {(secOpen.loose ?? true) && loose.map(renderItemCard)}
                 </>
               );
             })()}
           </div>
+          )}
         </aside>
       </div>
       <PlacementDevPanel />
