@@ -4911,6 +4911,7 @@ export function StageBuilder3D() {
         )}
         {/* Palette */}
         <aside
+          aria-label="Knihovna komponent"
           className={`${paletteOpen ? "absolute inset-y-0 left-0 z-30 flex w-[86vw] max-w-xs shadow-2xl md:static md:z-auto md:w-56 md:shadow-none" : "hidden"} glass flex-col border-r border-neutral-200/60`}
         >
           {/* Desktop collapse header */}
@@ -4919,7 +4920,8 @@ export function StageBuilder3D() {
             <button
               onClick={() => setPaletteOpen(false)}
               title="Sbalit paletu"
-              className="rounded-full p-1 text-neutral-400 hover:bg-neutral-200/40 hover:text-neutral-700"
+              aria-label="Sbalit paletu komponent"
+              className="rounded-full p-2 text-neutral-400 hover:bg-neutral-200/40 hover:text-neutral-700"
             >
               <X size={14} />
             </button>
@@ -4932,14 +4934,29 @@ export function StageBuilder3D() {
                 <button
                   key={c.id}
                   onClick={() => setCategory(c.id)}
-                  className={`flex flex-1 items-center justify-center gap-1 py-2 text-xs ${category === c.id ? "bg-neutral-100 text-lime-600" : "text-neutral-500 hover:text-neutral-700"}`}
+                  aria-pressed={category === c.id}
+                  className={`flex min-h-11 flex-1 items-center justify-center gap-1 py-2 text-xs ${category === c.id ? "bg-neutral-100 text-lime-600" : "text-neutral-500 hover:text-neutral-700"}`}
                 >
                   <Icon size={12} /> {c.label}
                 </button>
               );
             })}
           </div>
+          <div className="border-b border-neutral-200/60 p-2">
+            <input
+              type="search"
+              value={paletteQuery}
+              onChange={(e) => setPaletteQuery(e.target.value)}
+              placeholder="Hledat komponentu…"
+              aria-label="Hledat v knihovně komponent"
+              className="min-h-10 w-full rounded-lg border border-neutral-300 bg-white px-2 text-[12px] text-neutral-800 focus:border-lime-500 focus:outline-none"
+            />
+          </div>
           <div className="flex-1 overflow-y-auto p-2">
+            {!palette.length && (
+              <p className="px-1 py-4 text-[11px] text-neutral-500">Nic nenalezeno — zkus jiný výraz nebo jinou kategorii.</p>
+            )}
+
             {palette.map(([k, s]) => (
               <button
                 key={k}
