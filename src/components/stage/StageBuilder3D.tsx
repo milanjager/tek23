@@ -25,6 +25,7 @@ import IsometricView from "./IsometricView";
 import TechnicalView from "./TechnicalView";
 import { PlacementDevPanel } from "./PlacementDevPanel";
 import PowersoftGuide from "./PowersoftGuide";
+import { StartLauncher } from "./StartLauncher";
 import distroAsset from "@/assets/distro.png.asset.json";
 
 // Lovable's preview annotates JSX with data-tsd-source. R3F treats dashed
@@ -4020,6 +4021,7 @@ export function StageBuilder3D() {
   const [showCableLabels, setShowCableLabels] = useState(true);
   const [pendingFrom, setPendingFrom] = useState<string | null>(null);
   const [category, setCategory] = useState<Category>("sound");
+  const [paletteQuery, setPaletteQuery] = useState("");
   const [clipboard, setClipboard] = useState<Placed[]>([]);
   // Panels start closed to match SSR; hydrate from localStorage / viewport after mount.
   const [paletteOpen, setPaletteOpen] = useState<boolean>(false);
@@ -5259,6 +5261,7 @@ export function StageBuilder3D() {
         )}
         {/* Right inspector — overlay drawer on mobile, static on md+ */}
         <aside
+          aria-label="Inspektor a vrstvy"
           className={`${rightOpen ? "absolute inset-y-0 right-0 z-30 flex w-[86vw] max-w-sm shadow-2xl md:static md:z-auto md:w-72 md:shadow-none" : "hidden"} glass flex-col border-l border-neutral-200/60`}
         >
           <div className="flex items-center justify-between border-b border-neutral-200/60 px-2 py-1">
