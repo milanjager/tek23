@@ -4044,6 +4044,42 @@ export function StageBuilder3D() {
     if (panelsHydrated) localStorage.setItem("stage.autoSanitize", autoSanitize ? "1" : "0");
   }, [autoSanitize, panelsHydrated]);
   const [viewMode, setViewMode] = useState<"3d" | "front3d" | "top" | "schema" | "grid" | "elev" | "iso" | "tech">("3d");
+  // Task-based workspace modes (Stavět / Zapojit / Kontrola / Export).
+  const [workMode, setWorkMode] = useState<"build" | "wire" | "inspect" | "export">("build");
+  // Toolbar density — Standard (44px targets) vs Compact (power users).
+  const [density, setDensity] = useState<"standard" | "compact">("standard");
+  useEffect(() => {
+    const d = localStorage.getItem("stage.density");
+    if (d === "compact" || d === "standard") setDensity(d);
+  }, []);
+  useEffect(() => { localStorage.setItem("stage.density", density); }, [density]);
+  const compact = density === "compact";
+  const btnCls = compact
+    ? "inline-flex shrink-0 items-center gap-1 rounded-lg px-2 py-1 text-[11px] min-h-7"
+    : "inline-flex shrink-0 items-center gap-1.5 rounded-lg px-3 py-2 text-[12px] min-h-11";
+  // Single, consistent status channel (also announced to screen readers).
+  const [status, setStatus] = useState<string>("");
+  const statusTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const announce = useCallback((msg: string) => {
+    setStatus(msg);
+    if (statusTimer.current) clearTimeout(statusTimer.current);
+    statusTimer.current = setTimeout(() => setStatus(""), 6000);
+  }, []);
+  // First-run project launcher.
+  const [launcherOpen, setLauncherOpen] = useState(false);
+  const [hasSaved, setHasSaved] = useState(false);
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(STORAGE);
+      setHasSaved(!!raw && Array.isArray(JSON.parse(raw).items) && JSON.parse(raw).items.length > 0);
+    } catch { setHasSaved(false); }
+    if (localStorage.getItem("stage.launcher.v1") !== "done") setLauncherOpen(true);
+  }, []);
+  const closeLauncher = useCallback(() => {
+    localStorage.setItem("stage.launcher.v1", "done");
+    setLauncherOpen(false);
+  }, []);
+
   const [marquee, setMarquee] = useState<null | { x1: number; y1: number; x2: number; y2: number; additive: boolean }>(null);
   const cameraRef = useRef<THREE.Camera | null>(null);
   const canvasWrapRef = useRef<HTMLDivElement>(null);
