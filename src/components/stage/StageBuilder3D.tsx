@@ -4534,310 +4534,362 @@ export function StageBuilder3D() {
     return () => window.removeEventListener("keydown", onKey);
   }, [deleteSelection, copySelection, pasteSelection, duplicateSelection, groupSelection, ungroupSelection, undo, redo, nudgeSelection, selection.length]);
 
-  const palette = useMemo(
-    () => (Object.entries(SPECS) as [Kind, Spec][]).filter(([, s]) => s.category === category),
-    [category]
-  );
+  const palette = useMemo(() => {
+    const list = (Object.entries(SPECS) as [Kind, Spec][]).filter(([, s]) => s.category === category);
+    const q = paletteQuery.trim().toLowerCase();
+    if (!q) return list;
+    return list.filter(([k, s]) => `${k} ${s.label} ${s.hint ?? ""}`.toLowerCase().includes(q));
+  }, [category, paletteQuery]);
+
+  const exportCablesCsv = useCallback(() => {
+    const steps = generateWiringSteps(items, cables);
+    const rows = [["Krok","ID","Typ","Barva","Zdroj","OUT konektor","Cíl","IN konektor","Zátěž W","Přetíženo"]];
+    for (const s of steps) {
+      rows.push([
+        String(s.index), s.cableId, CABLE_META[s.type].label, CABLE_META[s.type].color,
+        s.fromLabel, s.fromPort, s.toLabel, s.toPort,
+        s.loadW !== undefined ? String(Math.round(s.loadW)) : "",
+        s.overload ? "ANO" : "",
+      ]);
+    }
+    const csv = rows.map((r) => r.map((cell) => `"${String(cell).replace(/"/g,'""')}"`).join(",")).join("\n");
+    const blob = new Blob(["\ufeff" + csv], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = `kabelaz-${new Date().toISOString().slice(0,10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    announce(`Seznam kabelů vyexportován jako CSV — ${steps.length} kroků.`);
+  }, [items, cables, announce]);
+
+  const exportGuideTxt = useCallback(() => {
+    const steps = generateWiringSteps(items, cables);
+    const lines: string[] = [];
+    lines.push(`# Postup zapojení — ${new Date().toLocaleString("cs-CZ")}`);
+    lines.push(`# ${steps.length} kroků · pořadí: PWR → DMX → SIG → SPK`);
+    lines.push("");
+    let lastType: CableType | null = null;
+    for (const s of steps) {
+      if (s.type !== lastType) {
+        lines.push(`\n== ${CABLE_META[s.type].label.toUpperCase()} ==`);
+        lastType = s.type;
+      }
+      const w = s.loadW !== undefined ? `  [${Math.round(s.loadW)} W${s.overload ? " ⚠ PŘETÍŽENO" : ""}]` : "";
+      lines.push(`${String(s.index).padStart(3, " ")}. ${s.fromLabel}  (${s.fromPort})  →  ${s.toLabel}  (${s.toPort})${w}`);
+    }
+    const blob = new Blob([lines.join("\n")], { type: "text/plain;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = `postup-zapojeni-${new Date().toISOString().slice(0,10)}.txt`;
+    a.click();
+    URL.revokeObjectURL(url);
+    announce(`Postup pro technika vyexportován — ${steps.length} kroků.`);
+  }, [items, cables, announce]);
+
+  const applyPreset = useCallback((v: PresetKind) => {
+    const it = normalizeScene(loadPreset(v));
+    const cs = autoWireCables(it);
+    setItems(it);
+    setCables(cs);
+    setSelection([]);
+    announce(`Preset načten — ${it.length} prvků, ${cs.length} kabelů.`);
+  }, [announce]);
+
+  const VIEWS: { id: typeof viewMode; label: string; hint: string }[] = [
+    { id: "3d", label: "3D scéna", hint: "Volná 3D kamera" },
+    { id: "front3d", label: "3D nárys", hint: "3D pohled zepředu" },
+    { id: "grid", label: "Plán 2D", hint: "Půdorys v mřížce" },
+    { id: "elev", label: "Nárys", hint: "Pohled zepředu, patra stacků" },
+    { id: "top", label: "Ortho půdorys", hint: "Ortografický pohled shora" },
+    { id: "iso", label: "Iso", hint: "Isometrický pseudo-3D pohled" },
+    { id: "schema", label: "Schéma zapojení", hint: "Kabelové schéma" },
+    { id: "tech", label: "Tech výkres", hint: "Technický výkres s kótami" },
+  ];
+
+  const MODES: { id: typeof workMode; label: string; hint: string }[] = [
+    { id: "build", label: "Stavět", hint: "Rozmísti a srovnej aparát" },
+    { id: "wire", label: "Zapojit", hint: "Kabeláž, konektory, trasy" },
+    { id: "inspect", label: "Kontrola", hint: "Zarovnání, kóty, varování" },
+    { id: "export", label: "Export", hint: "Kabelový list a podklady pro crew" },
+  ];
 
   return (
     <div className="fixed inset-0 flex flex-col bg-background text-foreground">
-      {/* Top toolbar — morph-glass, single scrollable row on mobile, wraps on desktop */}
-      <div className="glass-strong z-30 flex flex-nowrap items-center gap-1.5 overflow-x-auto whitespace-nowrap px-2 py-2 text-sm no-scrollbar sm:gap-2 sm:px-3 md:flex-wrap md:overflow-visible md:whitespace-normal">
+      <a
+        href="#stage-canvas"
+        className="sr-only focus:not-sr-only focus:absolute focus:left-2 focus:top-2 focus:z-[80] focus:rounded-lg focus:bg-lime-500 focus:px-3 focus:py-2 focus:text-[12px] focus:font-bold focus:text-neutral-950"
+      >
+        Přeskočit na plátno
+      </a>
+
+      {launcherOpen && (
+        <StartLauncher
+          hasSaved={hasSaved}
+          presets={[
+            { id: "namel_wall", title: "Namel Wall", desc: "Velká 4×18\" stěna dle reference — subs, mids, horny." },
+            { id: "club_stack", title: "Club Stack", desc: "Kompaktní 2×2 sub + top L/R pro klub." },
+            { id: "festival_ground", title: "Festival Ground", desc: "3 sub clustery + wing horny na open-air." },
+          ]}
+          onBlank={() => { setItems([]); setCables([]); setSelection([]); closeLauncher(); announce("Nový prázdný rig — přidej první bednu z palety vlevo."); }}
+          onPreset={(id) => { applyPreset(id as PresetKind); closeLauncher(); }}
+          onOpenSaved={() => { closeLauncher(); announce("Načten uložený projekt."); }}
+          onClose={closeLauncher}
+        />
+      )}
+
+      {/* ── Header: identita projektu, stav, globální akce ─────────── */}
+      <header className="glass-strong z-30 flex flex-nowrap items-center gap-2 overflow-x-auto px-2 py-1.5 no-scrollbar sm:px-3">
         <button
           onClick={() => setPaletteOpen((v) => !v)}
-          className="glass-chip inline-flex shrink-0 items-center gap-1 rounded-full px-2.5 py-1.5 md:hidden"
-          aria-label="Toggle palette"
+          className="glass-chip inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full md:hidden"
+          aria-label={paletteOpen ? "Zavřít paletu komponent" : "Otevřít paletu komponent"}
         >
-          {paletteOpen ? <X size={14} /> : <Menu size={14} />}
+          {paletteOpen ? <X size={16} /> : <Menu size={16} />}
         </button>
-        <div className="inline-flex shrink-0 items-center gap-1 font-bold text-lime-600">
-          <Boxes size={16} /> <span className="hidden sm:inline">STAGE RIG 3D</span>
+        <div className="inline-flex shrink-0 items-center gap-1.5 font-bold text-lime-600">
+          <Boxes size={18} /> <span className="hidden text-[13px] sm:inline">STAGE RIG</span>
         </div>
-        <div className="mx-2 hidden h-5 w-px bg-neutral-300/60 md:block" />
 
-        <select
-          value=""
-          onChange={(e) => {
-            const v = e.target.value as PresetKind | "";
-            if (!v) return;
-            const it = normalizeScene(loadPreset(v));
-            setItems(it);
-            // Preset ships with auto-wired cabling.
-            setCables(autoWireCables(it));
-            e.target.value = "";
-          }}
-          className="rounded border border-neutral-300 bg-white px-2 py-1 text-[12px] font-semibold text-neutral-800 hover:border-lime-500 focus:border-lime-500 focus:outline-none"
-          title="Načíst hotový sound-system preset"
-        >
-          <option value="">⚡ Načíst preset…</option>
-          <option value="namel_wall">Namel Wall — velká 4×18" stěna dle reference</option>
-          <option value="club_stack">Club Stack — 2×2 sub + top L/R (kompakt)</option>
-          <option value="festival_ground">Festival Ground — 3 sub clustery + wing horny</option>
-        </select>
-        <div className="mx-3 h-5 w-px bg-neutral-700" />
-        <div className="flex items-center gap-0.5 rounded bg-neutral-200 p-0.5" title="Přepni mezi 3D scénou a klasickým technickým schématem zapojení">
-          <button
-            onClick={() => setViewMode("3d")}
-            className={`flex items-center gap-1 rounded px-2 py-0.5 text-[11px] font-semibold ${viewMode === "3d" ? "bg-white text-neutral-900 shadow-sm" : "text-neutral-600 hover:text-neutral-900"}`}
-          >
-            <BoxIcon size={12} /> 3D scéna
-          </button>
-          <button
-            onClick={() => setViewMode("front3d")}
-            className={`flex items-center gap-1 rounded px-2 py-0.5 text-[11px] font-semibold ${viewMode === "front3d" ? "bg-white text-neutral-900 shadow-sm" : "text-neutral-600 hover:text-neutral-900"}`}
-            title="3D pohled z nárysu — stavění zepředu se zachovanými 3D modely"
-          >
-            <GalleryVerticalEnd size={12} /> 3D Nárys
-          </button>
-          <button
-            onClick={() => setViewMode("grid")}
-            className={`flex items-center gap-1 rounded px-2 py-0.5 text-[11px] font-semibold ${viewMode === "grid" ? "bg-white text-neutral-900 shadow-sm" : "text-neutral-600 hover:text-neutral-900"}`}
-            title="Půdorys stage — mřížka pro rozmístění beden z ptačí perspektivy"
-          >
-            <LayoutGrid size={12} /> Plán 2D
-          </button>
-          <button
-            onClick={() => setViewMode("elev")}
-            className={`flex items-center gap-1 rounded px-2 py-0.5 text-[11px] font-semibold ${viewMode === "elev" ? "bg-white text-neutral-900 shadow-sm" : "text-neutral-600 hover:text-neutral-900"}`}
-            title="Nárys — pohled zepředu, ukazuje výšku stacků a patra beden"
-          >
-            <GalleryVerticalEnd size={12} /> Nárys
-          </button>
-          <button
-            onClick={() => setViewMode("top")}
-            className={`flex items-center gap-1 rounded px-2 py-0.5 text-[11px] font-semibold ${viewMode === "top" ? "bg-white text-neutral-900 shadow-sm" : "text-neutral-600 hover:text-neutral-900"}`}
-            title="Ortografický půdorys — pohled shora s rovnoběžnou projekcí, zvýrazňuje PA linii Z pro snapování"
-          >
-            <LayoutGrid size={12} /> Ortho půdorys
-          </button>
-          <button
-            onClick={() => setViewMode("iso")}
-            className={`flex items-center gap-1 rounded px-2 py-0.5 text-[11px] font-semibold ${viewMode === "iso" ? "bg-white text-neutral-900 shadow-sm" : "text-neutral-600 hover:text-neutral-900"}`}
-            title="Isometrický pseudo-3D pohled — přehledné patra stacků z ptačí perspektivy"
-          >
-            <BoxIcon size={12} /> Iso
-          </button>
-          <button
-            onClick={() => setViewMode("schema")}
-            className={`flex items-center gap-1 rounded px-2 py-0.5 text-[11px] font-semibold ${viewMode === "schema" ? "bg-white text-neutral-900 shadow-sm" : "text-neutral-600 hover:text-neutral-900"}`}
-          >
-            <Workflow size={12} /> Schéma zapojení
-          </button>
-          <button
-            onClick={() => setViewMode("tech")}
-            className={`flex items-center gap-1 rounded px-2 py-0.5 text-[11px] font-semibold ${viewMode === "tech" ? "bg-white text-neutral-900 shadow-sm" : "text-neutral-600 hover:text-neutral-900"}`}
-            title="Technický výkres — polygonové znázornění celé stage shora s kabeláží, kótami a legendou"
-          >
-            <Workflow size={12} /> Tech výkres
-          </button>
-        </div>
-        <button
-          onClick={() => setItems((cur) => normalizeScene(cur))}
-          className="flex items-center gap-1 rounded bg-neutral-100 px-2 py-1 hover:bg-neutral-200"
-          title="Srovná stackovací věže — každá bedna dosedne přesně na horní plochu bedny pod sebou (žádné zanořené kusy)."
-        >
-          <Boxes size={12} /> Srovnat stacky
-        </button>
-        <button
-          onClick={() => setAutoSanitize((v) => !v)}
-          className={`flex items-center gap-1 rounded px-2 py-1 ${autoSanitize ? "bg-cyan-500 text-neutral-950" : "bg-neutral-100 hover:bg-neutral-200"}`}
-          title="Po každém dropu automaticky srovnat stacky (žádné bedny v půlce jiných)."
-        >
-          <Boxes size={12} /> Auto srovnat {autoSanitize ? "· ON" : "· OFF"}
-        </button>
-        <button onClick={() => { setMode("select"); setPendingFrom(null); setMarqueeMode(false); }} className={`flex items-center gap-1 rounded px-2 py-1 ${mode === "select" && !marqueeMode ? "bg-lime-500 text-neutral-950" : "bg-neutral-100 hover:bg-neutral-200"}`}><MousePointer2 size={12} /> Výběr</button>
-        <button onClick={() => { setMode("select"); setPendingFrom(null); setMarqueeMode((v) => !v); }} className={`flex items-center gap-1 rounded px-2 py-1 ${marqueeMode ? "bg-lime-500 text-neutral-950" : "bg-neutral-100 hover:bg-neutral-200"}`} title="Táhni myší přes bedny (Shift = přidat k výběru)"><BoxSelect size={12} /> Skupinový výběr</button>
-        <button
-          onClick={() => setRealistic((v) => !v)}
-          className={`flex items-center gap-1 rounded px-2 py-1 ${realistic ? "bg-amber-400 text-neutral-950" : "bg-neutral-100 hover:bg-neutral-200"}`}
-          title="Přepnout PBR osvětlení + ACES tone mapping pro realističtější zobrazení"
-        >
-          <Sparkles size={12} /> {realistic ? "Realistický" : "Realističtější vzhled"}
-        </button>
-        <button
-          onClick={() => setDark((v) => !v)}
-          className={`flex items-center gap-1 rounded px-2 py-1 ${dark ? "bg-neutral-900 text-neutral-100" : "bg-neutral-100 hover:bg-neutral-200"}`}
-          title="Přepnout světlý / tmavý režim"
-        >
-          {dark ? "☾ Tmavý" : "☀ Světlý"}
-        </button>
-        <div className="flex items-center gap-1 rounded bg-neutral-100 px-2 py-1" title="Společná hloubka řady reproduktorů — všechny bedny se při stavění drží v jedné rovině">
-          <span className="text-[10px] text-neutral-500">Hloubka řady</span>
-          <input
-            type="number"
-            step={0.1}
-            value={speakerLineZ}
-            onChange={(e) => setSpeakerLineZ(Number(e.target.value) || 0)}
-            className="w-14 rounded border border-neutral-300 bg-white px-1 py-0.5 text-[11px]"
-          />
-        </div>
-        <button onClick={() => setTool("translate")} disabled={mode !== "select"} className={`flex items-center gap-1 rounded px-2 py-1 ${tool === "translate" && mode === "select" ? "bg-lime-500 text-neutral-950" : "bg-neutral-100 hover:bg-neutral-200"} disabled:opacity-40`}><MoveIcon size={12} /> Posun (T)</button>
-        {/* Rotace UI odstraněna — bedny mají fixní orientaci */}
-        {/* ── Zarovnání (Photoshop-style) ─────────────────────── */}
-            {selection.length >= 2 && (
-              <div className="flex items-center gap-1 rounded bg-neutral-100 p-1" title="Zarovnání vybraných komponent nebo skupin">
-            <span className="px-1 text-[9px] font-bold uppercase tracking-wider text-neutral-500">Zarovnat</span>
-                <button onClick={() => alignSelection("left")}    className="min-h-8 min-w-8 rounded px-2 py-1 font-mono text-[18px] hover:bg-white" title="Zarovnat vlevo (X min)">⇤</button>
-                <button onClick={() => alignSelection("hcenter")} className="min-h-8 min-w-8 rounded px-2 py-1 font-mono text-[18px] hover:bg-white" title="Vodorovně na střed (X)">⇔</button>
-                <button onClick={() => alignSelection("right")}   className="min-h-8 min-w-8 rounded px-2 py-1 font-mono text-[18px] hover:bg-white" title="Zarovnat vpravo (X max)">⇥</button>
-            <span className="mx-0.5 h-4 w-px bg-neutral-300" />
-                <button onClick={() => alignSelection("front")}   className="min-h-8 min-w-8 rounded px-2 py-1 font-mono text-[18px] hover:bg-white" title="Zarovnat dopředu (Z min)">⤒</button>
-                <button onClick={() => alignSelection("vcenter")} className="min-h-8 min-w-8 rounded px-2 py-1 font-mono text-[18px] hover:bg-white" title="Do hloubky na střed (Z)">⇕</button>
-                <button onClick={() => alignSelection("back")}    className="min-h-8 min-w-8 rounded px-2 py-1 font-mono text-[18px] hover:bg-white" title="Zarovnat dozadu (Z max)">⤓</button>
-            <span className="mx-0.5 h-4 w-px bg-neutral-300" />
-                <button onClick={() => alignSelection("bottom")}  className="min-h-8 min-w-8 rounded px-2 py-1 font-mono text-[18px] hover:bg-white" title="Zarovnat dolů (Y min)">▁</button>
-                <button onClick={() => alignSelection("ycenter")} className="min-h-8 min-w-8 rounded px-2 py-1 font-mono text-[18px] hover:bg-white" title="Výškově na střed (Y)">▬</button>
-                <button onClick={() => alignSelection("top")}     className="min-h-8 min-w-8 rounded px-2 py-1 font-mono text-[18px] hover:bg-white" title="Zarovnat nahoru (Y max)">▔</button>
-            {selection.length >= 3 && (
-              <>
-                <span className="mx-0.5 h-4 w-px bg-neutral-300" />
-                <span className="px-1 text-[9px] font-bold uppercase tracking-wider text-neutral-500">Rozmístit</span>
-                    <button onClick={() => distributeSelection("x")} className="min-h-8 min-w-8 rounded px-2 py-1 font-mono text-[18px] hover:bg-white" title="Rovnoměrné mezery po X mezi skupinami / stacky">↔</button>
-                    <button onClick={() => distributeSelection("z")} className="min-h-8 min-w-8 rounded px-2 py-1 font-mono text-[18px] hover:bg-white" title="Rovnoměrné mezery po Z (hloubka)">↕</button>
-                    <button onClick={() => distributeSelection("y")} className="min-h-8 min-w-8 rounded px-2 py-1 font-mono text-[18px] hover:bg-white" title="Rovnoměrné mezery po Y (výška)">⇅</button>
-              </>
-            )}
-          </div>
-        )}
-        <div className="mx-2 h-5 w-px bg-neutral-700" />
-        <button onClick={() => { setMode("cable"); setSelection([]); }} className={`flex items-center gap-1 rounded px-2 py-1 ${mode === "cable" ? "bg-lime-500 text-neutral-950" : "bg-neutral-100 hover:bg-neutral-200"}`}><CableIcon size={12} /> Kabely</button>
-        {mode === "cable" && (
-          <div className="flex items-center gap-1 rounded bg-neutral-100 p-0.5">
-            {(Object.keys(CABLE_META) as CableType[]).map((t) => (
-              <button
-                key={t}
-                onClick={() => setCableType(t)}
-                className={`rounded px-2 py-0.5 text-[11px] font-bold ${cableType === t ? "text-neutral-950" : "text-neutral-600 hover:text-white"}`}
-                style={cableType === t ? { backgroundColor: CABLE_META[t].color } : { backgroundColor: "transparent" }}
-                title={CABLE_META[t].label}
-              >
-                <span className="mr-1 inline-block h-2 w-2 rounded-sm" style={{ backgroundColor: CABLE_META[t].color }} />
-                {CABLE_META[t].short}
-              </button>
-            ))}
-          </div>
-        )}
-        <button
-          onClick={() => setCables(autoWireCables(items))}
-          className="flex items-center gap-1 rounded bg-amber-400 px-2.5 py-1 font-bold text-neutral-950 shadow-sm hover:bg-amber-300"
-          title="Automaticky vygeneruje kompletní kabeláž: PWR z aggregátu, SIG přes mixer, SPK z ampů do beden včetně link-out řetězení, DMX daisy-chain"
-        >
-          <Zap size={13} className="inline" /> Zapojit vše
-        </button>
-        <div className="mx-2 h-5 w-px bg-neutral-700" />
-        <button
-          onClick={() => setShowConnectorLabels((v) => !v)}
-          className={`rounded px-2 py-1 text-[11px] ${showConnectorLabels ? "bg-lime-500 text-neutral-950" : "bg-neutral-100 text-neutral-500 hover:bg-neutral-200"}`}
-          title="Zobrazit / skrýt popisky konektorů (SIG▶, PWR◀, …)"
-        >
-          Popisky konektorů
-        </button>
-        <button
-          onClick={() => setShowCableLabels((v) => !v)}
-          className={`rounded px-2 py-1 text-[11px] ${showCableLabels ? "bg-lime-500 text-neutral-950" : "bg-neutral-100 text-neutral-500 hover:bg-neutral-200"}`}
-          title="Zobrazit / skrýt popisky kabelů uprostřed"
-        >
-          Popisky kabelů
-        </button>
+        <nav aria-label="Režim práce" className="ml-1 flex shrink-0 items-center gap-0.5 rounded-xl bg-neutral-200 p-0.5">
+          {MODES.map((m) => (
+            <button
+              key={m.id}
+              onClick={() => setWorkMode(m.id)}
+              aria-current={workMode === m.id ? "page" : undefined}
+              title={m.hint}
+              className={`min-h-9 rounded-lg px-2.5 text-[12px] font-bold sm:px-3 ${workMode === m.id ? "bg-white text-neutral-900 shadow-sm" : "text-neutral-600 hover:text-neutral-900"}`}
+            >
+              {m.label}
+            </button>
+          ))}
+        </nav>
 
-        {/* Cable route auto / aerial height */}
-        <button
-          onClick={() => setAutoRoute((v) => { const nv = !v; if (nv) setCableRouteY(0.02); return nv; })}
-          className={`rounded px-2 py-1 text-[11px] ${autoRoute ? "bg-lime-500 text-neutral-950" : "bg-neutral-100 text-neutral-500 hover:bg-neutral-200"}`}
-          title="Auto: kabely vedeny po podlaze. Vypni pro vlastní výšku (truss)."
-        >
-          Auto kabel {autoRoute ? "· PODLAHA" : "· TRUSS"}
-        </button>
-        {!autoRoute && (
-          <label className="flex items-center gap-1 rounded bg-neutral-100 px-2 py-1 text-[11px]" title="Výška trasy kabelů nad podlahou (m)">
-            Výška
-            <input
-              type="number"
-              min={0}
-              max={6}
-              step={0.1}
-              value={cableRouteY}
-              onChange={(e) => setCableRouteY(Math.max(0, Number(e.target.value) || 0))}
-              className="w-14 rounded bg-white px-1 py-0.5 text-[11px]"
-            />
-            m
-          </label>
-        )}
-        <button
-          onClick={() => {
-            const steps = generateWiringSteps(items, cables);
-            const rows = [["Krok","ID","Typ","Barva","Zdroj","OUT konektor","Cíl","IN konektor","Zátěž W","Přetíženo"]];
-            for (const s of steps) {
-              rows.push([
-                String(s.index), s.cableId, CABLE_META[s.type].label, CABLE_META[s.type].color,
-                s.fromLabel, s.fromPort, s.toLabel, s.toPort,
-                s.loadW !== undefined ? String(Math.round(s.loadW)) : "",
-                s.overload ? "ANO" : "",
-              ]);
-            }
-            const csv = rows.map((r) => r.map((cell) => `"${String(cell).replace(/"/g,'""')}"`).join(",")).join("\n");
-            const blob = new Blob(["\ufeff" + csv], { type: "text/csv;charset=utf-8" });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement("a");
-            a.href = url; a.download = `kabelaz-${new Date().toISOString().slice(0,10)}.csv`;
-            a.click();
-            URL.revokeObjectURL(url);
-          }}
-          disabled={!cables.length}
-          className="rounded bg-neutral-100 px-2 py-1 text-[11px] hover:bg-neutral-200 disabled:opacity-40"
-          title="Exportovat krokový seznam zapojení (CSV) — pořadí PWR → DMX → SIG → SPK, IN/OUT konektory a zátěž"
-        >
-          ⤓ Export kabelů
-        </button>
-        <button
-          onClick={() => {
-            const steps = generateWiringSteps(items, cables);
-            const lines: string[] = [];
-            lines.push(`# Postup zapojení — ${new Date().toLocaleString("cs-CZ")}`);
-            lines.push(`# ${steps.length} kroků · pořadí: PWR → DMX → SIG → SPK`);
-            lines.push("");
-            let lastType: CableType | null = null;
-            for (const s of steps) {
-              if (s.type !== lastType) {
-                lines.push(`\n== ${CABLE_META[s.type].label.toUpperCase()} ==`);
-                lastType = s.type;
+        <div className="ml-auto flex shrink-0 items-center gap-1.5">
+          <span className="hidden whitespace-nowrap text-[11px] text-neutral-500 lg:inline">
+            {items.length} prvků · {cables.length} kabelů · {selection.length} vybráno
+          </span>
+          <button onClick={undo} disabled={!canUndo} title="Zpět (Ctrl+Z)" aria-label="Zpět" className={`${btnCls} bg-neutral-100 hover:bg-neutral-200 disabled:opacity-40`}>↶</button>
+          <button onClick={redo} disabled={!canRedo} title="Vpřed (Ctrl+Shift+Z)" aria-label="Vpřed" className={`${btnCls} bg-neutral-100 hover:bg-neutral-200 disabled:opacity-40`}>↷</button>
+          <button
+            onClick={() => setDensity((d) => (d === "compact" ? "standard" : "compact"))}
+            className={`${btnCls} bg-neutral-100 hover:bg-neutral-200`}
+            title="Hustota ovládání — Standard (velké cíle) / Compact (pro zkušené)"
+          >
+            {compact ? "Compact" : "Standard"}
+          </button>
+          <button
+            onClick={() => setDark((v) => !v)}
+            className={`${btnCls} ${dark ? "bg-neutral-900 text-neutral-100" : "bg-neutral-100 hover:bg-neutral-200"}`}
+            title="Přepnout světlý / tmavý režim"
+            aria-pressed={dark}
+          >
+            {dark ? "☾" : "☀"}
+          </button>
+          <button
+            onClick={() => { localStorage.setItem(STORAGE, JSON.stringify({ items, cables, groupNames, groupSpacing })); setHasSaved(items.length > 0); announce(`Projekt uložen — ${items.length} prvků, ${cables.length} kabelů.`); }}
+            className={`${btnCls} bg-neutral-100 hover:bg-neutral-200`}
+          >
+            <Save size={13} /> <span className="hidden sm:inline">Uložit</span>
+          </button>
+          <button
+            onClick={() => {
+              if (!items.length && !cables.length) return;
+              if (confirm(`Opravdu vymazat celý rig? Odstraní se ${items.length} prvků a ${cables.length} kabelů. Vrátit zpět jde přes Ctrl+Z.`)) {
+                setItems([]); setCables([]); setSelection([]);
+                announce("Rig vymazán. Vrátit zpět můžeš přes Ctrl+Z.");
               }
-              const w = s.loadW !== undefined ? `  [${Math.round(s.loadW)} W${s.overload ? " ⚠ PŘETÍŽENO" : ""}]` : "";
-              lines.push(`${String(s.index).padStart(3, " ")}. ${s.fromLabel}  (${s.fromPort})  →  ${s.toLabel}  (${s.toPort})${w}`);
-            }
-            const blob = new Blob([lines.join("\n")], { type: "text/plain;charset=utf-8" });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement("a");
-            a.href = url; a.download = `postup-zapojeni-${new Date().toISOString().slice(0,10)}.txt`;
-            a.click();
-            URL.revokeObjectURL(url);
-          }}
-          disabled={!cables.length}
-          className="rounded bg-neutral-100 px-2 py-1 text-[11px] hover:bg-neutral-200 disabled:opacity-40"
-          title="Stáhnout textový krokový návod pro technika (.txt)"
+            }}
+            disabled={!items.length && !cables.length}
+            className={`${btnCls} border border-red-300 bg-red-100 font-semibold text-red-700 hover:bg-red-200 disabled:opacity-40`}
+            title="Smaže všechny prvky i kabely (nevratná akce, ale lze vrátit přes Ctrl+Z)"
+          >
+            <Trash2 size={13} /> <span className="hidden sm:inline">Vyčistit</span>
+          </button>
+        </div>
+      </header>
+
+      {/* ── Sekundární lišta: pohled + nástroje aktivního režimu ───── */}
+      <div className="glass z-20 flex flex-nowrap items-center gap-1.5 overflow-x-auto px-2 py-1.5 no-scrollbar sm:px-3 md:flex-wrap md:overflow-visible">
+        <label className="inline-flex shrink-0 items-center gap-1.5 text-[11px] text-neutral-500">
+          <span className="hidden sm:inline">Pohled</span>
+          <select
+            value={viewMode}
+            onChange={(e) => setViewMode(e.target.value as typeof viewMode)}
+            aria-label="Pohled na scénu"
+            className={`${compact ? "min-h-7" : "min-h-11"} rounded-lg border border-neutral-300 bg-white px-2 text-[12px] font-semibold text-neutral-800 focus:border-lime-500 focus:outline-none`}
+          >
+            {VIEWS.map((v) => (
+              <option key={v.id} value={v.id}>{v.label}</option>
+            ))}
+          </select>
+        </label>
+        <div className="mx-1 hidden h-6 w-px bg-neutral-300/70 sm:block" />
+
+        {workMode === "build" && (
+          <>
+            <select
+              value=""
+              onChange={(e) => { const v = e.target.value as PresetKind | ""; if (!v) return; applyPreset(v); e.target.value = ""; }}
+              aria-label="Načíst preset"
+              className={`${compact ? "min-h-7" : "min-h-11"} shrink-0 rounded-lg border border-neutral-300 bg-white px-2 text-[12px] font-semibold text-neutral-800 focus:border-lime-500 focus:outline-none`}
+            >
+              <option value="">⚡ Načíst preset…</option>
+              <option value="namel_wall">Namel Wall — velká 4×18&quot; stěna</option>
+              <option value="club_stack">Club Stack — 2×2 sub + top L/R</option>
+              <option value="festival_ground">Festival Ground — 3 clustery</option>
+            </select>
+            <button onClick={() => { setMode("select"); setPendingFrom(null); setMarqueeMode(false); }} className={`${btnCls} ${mode === "select" && !marqueeMode ? "bg-lime-500 text-neutral-950" : "bg-neutral-100 hover:bg-neutral-200"}`}><MousePointer2 size={13} /> Výběr</button>
+            <button onClick={() => { setMode("select"); setPendingFrom(null); setMarqueeMode((v) => !v); }} className={`${btnCls} ${marqueeMode ? "bg-lime-500 text-neutral-950" : "bg-neutral-100 hover:bg-neutral-200"}`} title="Táhni myší přes bedny (Shift = přidat k výběru)"><BoxSelect size={13} /> Rámeček</button>
+            <button onClick={() => setTool("translate")} disabled={mode !== "select"} className={`${btnCls} ${tool === "translate" && mode === "select" ? "bg-lime-500 text-neutral-950" : "bg-neutral-100 hover:bg-neutral-200"} disabled:opacity-40`}><MoveIcon size={13} /> Posun (T)</button>
+            <button onClick={duplicateSelection} disabled={!selection.length} className={`${btnCls} bg-neutral-100 hover:bg-neutral-200 disabled:opacity-40`}><Copy size={13} /> Duplikovat</button>
+            <button onClick={copySelection} disabled={!selection.length} className={`${btnCls} bg-neutral-100 hover:bg-neutral-200 disabled:opacity-40`}>Kopírovat</button>
+            <button onClick={pasteSelection} disabled={!clipboard.length} className={`${btnCls} bg-neutral-100 hover:bg-neutral-200 disabled:opacity-40`}><ClipboardPaste size={13} /> Vložit</button>
+            <button onClick={groupSelection} disabled={selection.length < 2} className={`${btnCls} bg-neutral-100 hover:bg-neutral-200 disabled:opacity-40`}><GroupIcon size={13} /> Group</button>
+            <button onClick={ungroupSelection} disabled={!selection.length} className={`${btnCls} bg-neutral-100 hover:bg-neutral-200 disabled:opacity-40`}><Ungroup size={13} /> Ungroup</button>
+            <button onClick={deleteSelection} disabled={!selection.length} className={`${btnCls} bg-red-100 text-red-700 hover:bg-red-200 disabled:opacity-40`}><Trash2 size={13} /> Smazat</button>
+            <div className={`inline-flex shrink-0 items-center gap-1 rounded-lg bg-neutral-100 px-2 ${compact ? "min-h-7" : "min-h-11"}`} title="Společná hloubka řady reproduktorů">
+              <span className="text-[10px] text-neutral-500">Hloubka řady</span>
+              <input
+                type="number"
+                step={0.1}
+                aria-label="Hloubka řady reproduktorů v metrech"
+                value={speakerLineZ}
+                onChange={(e) => setSpeakerLineZ(Number(e.target.value) || 0)}
+                className="w-14 rounded border border-neutral-300 bg-white px-1 py-1 text-[11px]"
+              />
+            </div>
+          </>
+        )}
+
+        {workMode === "wire" && (
+          <>
+            <button onClick={() => { setMode("cable"); setSelection([]); }} className={`${btnCls} ${mode === "cable" ? "bg-lime-500 text-neutral-950" : "bg-neutral-100 hover:bg-neutral-200"}`}><CableIcon size={13} /> Kabely (C)</button>
+            {mode === "cable" && (
+              <div className="inline-flex shrink-0 items-center gap-1 rounded-lg bg-neutral-100 p-0.5">
+                {(Object.keys(CABLE_META) as CableType[]).map((t) => (
+                  <button
+                    key={t}
+                    onClick={() => setCableType(t)}
+                    className={`min-h-9 rounded-lg px-2 text-[11px] font-bold ${cableType === t ? "text-neutral-950" : "text-neutral-600"}`}
+                    style={cableType === t ? { backgroundColor: CABLE_META[t].color } : { backgroundColor: "transparent" }}
+                    title={CABLE_META[t].label}
+                  >
+                    {CABLE_META[t].short}
+                  </button>
+                ))}
+              </div>
+            )}
+            <button
+              onClick={() => {
+                const cs = autoWireCables(items);
+                setCables(cs);
+                const steps = generateWiringSteps(items, cs);
+                const bad = steps.filter((s) => s.overload).length;
+                announce(`Automatická kabeláž vytvořila ${cs.length} spojů${bad ? ` · ${bad} vyžaduje kontrolu (přetížení)` : ""}. Zpět přes Ctrl+Z.`);
+              }}
+              className={`${btnCls} bg-amber-400 font-bold text-neutral-950 shadow-sm hover:bg-amber-300`}
+              title="Vygeneruje kompletní kabeláž: PWR, SIG, SPK i DMX"
+            >
+              <Zap size={14} /> Zapojit vše
+            </button>
+            <button onClick={() => setShowConnectorLabels((v) => !v)} aria-pressed={showConnectorLabels} className={`${btnCls} ${showConnectorLabels ? "bg-lime-500 text-neutral-950" : "bg-neutral-100 text-neutral-500 hover:bg-neutral-200"}`}>Popisky konektorů</button>
+            <button onClick={() => setShowCableLabels((v) => !v)} aria-pressed={showCableLabels} className={`${btnCls} ${showCableLabels ? "bg-lime-500 text-neutral-950" : "bg-neutral-100 text-neutral-500 hover:bg-neutral-200"}`}>Popisky kabelů</button>
+            <button
+              onClick={() => setAutoRoute((v) => { const nv = !v; if (nv) setCableRouteY(0.02); return nv; })}
+              className={`${btnCls} ${autoRoute ? "bg-lime-500 text-neutral-950" : "bg-neutral-100 text-neutral-500 hover:bg-neutral-200"}`}
+              title="Auto: kabely po podlaze. Vypni pro vlastní výšku (truss)."
+            >
+              Trasa {autoRoute ? "· PODLAHA" : "· TRUSS"}
+            </button>
+            {!autoRoute && (
+              <label className={`inline-flex shrink-0 items-center gap-1 rounded-lg bg-neutral-100 px-2 text-[11px] ${compact ? "min-h-7" : "min-h-11"}`}>
+                Výška
+                <input type="number" min={0} max={6} step={0.1} value={cableRouteY} onChange={(e) => setCableRouteY(Math.max(0, Number(e.target.value) || 0))} className="w-14 rounded bg-white px-1 py-1 text-[11px]" />
+                m
+              </label>
+            )}
+          </>
+        )}
+
+        {workMode === "inspect" && (
+          <>
+            <button
+              onClick={() => { setItems((cur) => normalizeScene(cur)); announce("Stacky srovnány — každá bedna dosedla na bednu pod sebou."); }}
+              className={`${btnCls} bg-neutral-100 hover:bg-neutral-200`}
+              title="Srovná stackovací věže — žádné zanořené kusy."
+            >
+              <Boxes size={13} /> Srovnat stacky
+            </button>
+            <button
+              onClick={() => { setAutoSanitize((v) => { announce(v ? "Auto srovnání vypnuto." : "Auto srovnání zapnuto — po každém dropu se stacky srovnají."); return !v; }); }}
+              aria-pressed={autoSanitize}
+              className={`${btnCls} ${autoSanitize ? "bg-cyan-500 text-neutral-950" : "bg-neutral-100 hover:bg-neutral-200"}`}
+            >
+              <Boxes size={13} /> Auto srovnat {autoSanitize ? "· ON" : "· OFF"}
+            </button>
+            <button
+              onClick={() => { const n = items.length; autoLayout(); announce(`Auto rozmístění srovnalo ${n} prvků do řad bez překryvů.`); }}
+              disabled={!items.length}
+              className={`${btnCls} bg-lime-100 font-semibold text-lime-800 hover:bg-lime-200 disabled:opacity-40`}
+            >
+              ⇹ Auto rozmístit
+            </button>
+            <button
+              onClick={() => setRealistic((v) => !v)}
+              aria-pressed={realistic}
+              className={`${btnCls} ${realistic ? "bg-amber-400 text-neutral-950" : "bg-neutral-100 hover:bg-neutral-200"}`}
+              title="PBR osvětlení + ACES tone mapping (načte se až při zapnutí)"
+            >
+              <Sparkles size={13} /> Realistický vzhled
+            </button>
+            {selection.length >= 2 && (
+              <div className="inline-flex shrink-0 items-center gap-1 rounded-lg bg-neutral-100 p-1" role="group" aria-label="Zarovnání výběru">
+                <span className="px-1 text-[9px] font-bold uppercase tracking-wider text-neutral-500">Zarovnat</span>
+                <button onClick={() => alignSelection("left")}    className="min-h-11 min-w-11 rounded font-mono text-[18px] hover:bg-white" title="Zarovnat vlevo (X min)" aria-label="Zarovnat vlevo">⇤</button>
+                <button onClick={() => alignSelection("hcenter")} className="min-h-11 min-w-11 rounded font-mono text-[18px] hover:bg-white" title="Vodorovně na střed" aria-label="Vodorovně na střed">⇔</button>
+                <button onClick={() => alignSelection("right")}   className="min-h-11 min-w-11 rounded font-mono text-[18px] hover:bg-white" title="Zarovnat vpravo (X max)" aria-label="Zarovnat vpravo">⇥</button>
+                <span className="mx-0.5 h-5 w-px bg-neutral-300" />
+                <button onClick={() => alignSelection("front")}   className="min-h-11 min-w-11 rounded font-mono text-[18px] hover:bg-white" title="Zarovnat dopředu (Z min)" aria-label="Zarovnat dopředu">⤒</button>
+                <button onClick={() => alignSelection("vcenter")} className="min-h-11 min-w-11 rounded font-mono text-[18px] hover:bg-white" title="Do hloubky na střed" aria-label="Do hloubky na střed">⇕</button>
+                <button onClick={() => alignSelection("back")}    className="min-h-11 min-w-11 rounded font-mono text-[18px] hover:bg-white" title="Zarovnat dozadu (Z max)" aria-label="Zarovnat dozadu">⤓</button>
+                <span className="mx-0.5 h-5 w-px bg-neutral-300" />
+                <button onClick={() => alignSelection("bottom")}  className="min-h-11 min-w-11 rounded font-mono text-[18px] hover:bg-white" title="Zarovnat dolů (Y min)" aria-label="Zarovnat dolů">▁</button>
+                <button onClick={() => alignSelection("ycenter")} className="min-h-11 min-w-11 rounded font-mono text-[18px] hover:bg-white" title="Výškově na střed" aria-label="Výškově na střed">▬</button>
+                <button onClick={() => alignSelection("top")}     className="min-h-11 min-w-11 rounded font-mono text-[18px] hover:bg-white" title="Zarovnat nahoru (Y max)" aria-label="Zarovnat nahoru">▔</button>
+                {selection.length >= 3 && (
+                  <>
+                    <span className="mx-0.5 h-5 w-px bg-neutral-300" />
+                    <span className="px-1 text-[9px] font-bold uppercase tracking-wider text-neutral-500">Rozmístit</span>
+                    <button onClick={() => distributeSelection("x")} className="min-h-11 min-w-11 rounded font-mono text-[18px] hover:bg-white" title="Rovnoměrné mezery po X" aria-label="Rozmístit po X">↔</button>
+                    <button onClick={() => distributeSelection("z")} className="min-h-11 min-w-11 rounded font-mono text-[18px] hover:bg-white" title="Rovnoměrné mezery po Z" aria-label="Rozmístit po Z">↕</button>
+                    <button onClick={() => distributeSelection("y")} className="min-h-11 min-w-11 rounded font-mono text-[18px] hover:bg-white" title="Rovnoměrné mezery po Y" aria-label="Rozmístit po Y">⇅</button>
+                  </>
+                )}
+              </div>
+            )}
+          </>
+        )}
+
+        {workMode === "export" && (
+          <>
+            <button onClick={exportCablesCsv} disabled={!cables.length} className={`${btnCls} bg-neutral-100 hover:bg-neutral-200 disabled:opacity-40`} title="Kabelový list (CSV) — pořadí PWR → DMX → SIG → SPK">⤓ Seznam kabelů (CSV)</button>
+            <button onClick={exportGuideTxt} disabled={!cables.length} className={`${btnCls} bg-neutral-100 hover:bg-neutral-200 disabled:opacity-40`} title="Textový krokový návod pro technika (.txt)">⤓ Postup pro technika</button>
+            <button onClick={() => { setViewMode("tech"); window.print(); }} disabled={!items.length} className={`${btnCls} bg-neutral-100 hover:bg-neutral-200 disabled:opacity-40`} title="Vytisknout technický výkres / uložit jako PDF">⎙ Tisk výkresu</button>
+            <span className="text-[11px] text-neutral-500">
+              Checklist: plán ({items.length} prvků) · kabelový list ({cables.length}) · postup pro crew
+            </span>
+          </>
+        )}
+
+        <div
+          role="status"
+          aria-live="polite"
+          className={`ml-auto shrink-0 truncate text-[11px] font-semibold ${status ? "text-lime-700" : "text-neutral-400"}`}
         >
-          ⤓ Postup
-        </button>
-
-
-
-
-
-        <button onClick={undo} disabled={!canUndo} title="Zpět (Ctrl+Z)" className="flex items-center gap-1 rounded bg-neutral-100 px-2 py-1 hover:bg-neutral-200 disabled:opacity-40">↶ Zpět</button>
-        <button onClick={redo} disabled={!canRedo} title="Vpřed (Ctrl+Shift+Z / Ctrl+Y)" className="flex items-center gap-1 rounded bg-neutral-100 px-2 py-1 hover:bg-neutral-200 disabled:opacity-40">↷ Vpřed</button>
-        <button onClick={duplicateSelection} disabled={!selection.length} className="flex items-center gap-1 rounded bg-neutral-100 px-2 py-1 hover:bg-neutral-200 disabled:opacity-40"><Copy size={12} /> Duplikovat</button>
-        <button onClick={copySelection} disabled={!selection.length} className="rounded bg-neutral-100 px-2 py-1 hover:bg-neutral-200 disabled:opacity-40">Kopírovat</button>
-        <button onClick={pasteSelection} disabled={!clipboard.length} className="flex items-center gap-1 rounded bg-neutral-100 px-2 py-1 hover:bg-neutral-200 disabled:opacity-40"><ClipboardPaste size={12} /> Vložit</button>
-        <button onClick={groupSelection} disabled={selection.length < 2} className="flex items-center gap-1 rounded bg-neutral-100 px-2 py-1 hover:bg-neutral-200 disabled:opacity-40"><GroupIcon size={12} /> Group</button>
-        <button onClick={ungroupSelection} disabled={!selection.length} className="flex items-center gap-1 rounded bg-neutral-100 px-2 py-1 hover:bg-neutral-200 disabled:opacity-40"><Ungroup size={12} /> Ungroup</button>
-        <button onClick={deleteSelection} disabled={!selection.length} className="flex items-center gap-1 rounded bg-red-100 px-2 py-1 hover:bg-red-200 disabled:opacity-40"><Trash2 size={12} /> Smazat</button>
-        <div className="ml-auto flex w-full flex-wrap items-center gap-2 text-xs text-neutral-500 sm:w-auto">
-          <span className="whitespace-nowrap">{items.length} prvků · {cables.length} kabelů · {selection.length} vybráno</span>
-          <button onClick={autoLayout} disabled={!items.length} title="Rozmístí všechny bedny do přehledných řad, aby se nepřekrývaly" className="rounded bg-lime-100 px-2 py-1 font-semibold text-lime-800 hover:bg-lime-200 disabled:opacity-40">⇹ Auto rozmístit</button>
-          <button onClick={() => localStorage.setItem(STORAGE, JSON.stringify({ items, cables, groupNames, groupSpacing }))} className="flex items-center gap-1 rounded bg-neutral-100 px-2 py-1 hover:bg-neutral-200"><Save size={12} /> Uložit</button>
-          <button onClick={() => { if (confirm("Vymazat vše?")) { setItems([]); setCables([]); setSelection([]); }}} className="rounded bg-neutral-100 px-2 py-1 hover:bg-neutral-200">Vyčistit</button>
+          {status || MODES.find((m) => m.id === workMode)?.hint}
         </div>
       </div>
+
 
       <div className="relative flex flex-1 overflow-hidden">
         {/* Mobile palette backdrop */}
