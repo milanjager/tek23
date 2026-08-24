@@ -117,3 +117,108 @@ export function chainImpedance(ohm: number, count: number): number {
   if (count <= 0) return ohm;
   return Math.round((ohm / count) * 100) / 100;
 }
+
+/* ============================================================
+   Doporučení zapojení stacku (paralelně / sériově / bi-amp)
+   ------------------------------------------------------------
+   Pro N stejných beden spočítá výslednou zátěž zesilovače pro
+   jednotlivé varianty a vybere tu nejvýhodnější, která ještě
+   nejde pod minimální impedanci zesilovače.
+   ============================================================ */
+
+export type WiringTopology = "parallel" | "series" | "series_parallel" | "biamp" | "active";
+
+export interface WiringOption {
+  topology: WiringTopology;
+  label: string;
+  /** Zátěž na jeden kanál zesilovače (Ω). null = nedává smysl pro daný počet. */
+  loadOhm: number | null;
+  /** Kolik kanálů zesilovače varianta potřebuje. */
+  channels: number;
+  ok: boolean;
+  note: string;
+}
+
+export interface WiringRecommendation {
+  count: number;
+  ampMinOhm: number;
+  options: WiringOption[];
+  best: WiringOption | null;
+  summary: string;
+}
+
+const r2 = (v: number) => Math.round(v * 100) / 100;
+
+export function recommendWiring(d: CustomSpeaker, count: number, ampMinOhm: number): WiringRecommendation {
+  const ohm = d.ohm;
+  const options: WiringOption[] = [];
+
+  if (d.connection === "active") {
+    const opt: WiringOption = {
+      topology: "active",
+      label: "Aktivní (bez zesilovače)",
+      loadOhm: null,
+      channels: 0,
+      ok: true,
+      note: `${count}× 230V z rozdělovače (${count * d.powerW} W celkem) + XLR signál v průchozím řetězu.`,
+    };
+    return { count, ampMinOhm, options: [opt], best: opt, summary: opt.note };
+  }
+
+  if (d.connection === "nl4_biamp") {
+    const par = r2(ohm / count);
+    options.push({
+      topology: "biamp",
+      label: "Bi-amp (LF a MF/HF zvlášť)",
+      loadOhm: par,
+      channels: 2,
+      ok: par >= ampMinOhm,
+      note: `LF i MF/HF sekce zvlášť, každá ${count}× paralelně = ${par} Ω na kanál. Nikdy nespojovat sekce dohromady.`,
+    });
+  }
+
+  const par = r2(ohm / count);
+  options.push({
+    topology: "parallel",
+    label: `Paralelně (${count}× LINK OUT)`,
+    loadOhm: par,
+    channels: 1,
+    ok: par >= ampMinOhm,
+    note: par >= ampMinOhm
+      ? `Nejvyšší výkon, vše z jednoho kanálu (${par} Ω).`
+      : `${par} Ω je pod minimem zesilovače (${ampMinOhm} Ω) — hrozí ochrana nebo zničení koncáku.`,
+  });
+
+  const ser = r2(ohm * count);
+  options.push({
+    topology: "series",
+    label: `Sériově (${count}× za sebou)`,
+    loadOhm: ser,
+    channels: 1,
+    ok: ser >= ampMinOhm,
+    note: `Bezpečná, ale nejnižší výkon (${ser} Ω). Vyžaduje speciální NL4 kabeláž (2+/2−).`,
+  });
+
+  if (count % 2 === 0 && count >= 4) {
+    const sp = r2((ohm * 2) / (count / 2));
+    options.push({
+      topology: "series_parallel",
+      label: `Sérioparalelně (${count / 2}× dvojice)`,
+      loadOhm: sp,
+      channels: 1,
+      ok: sp >= ampMinOhm,
+      note: `Dvojice sériově, pak paralelně = ${sp} Ω. Kompromis mezi výkonem a bezpečností.`,
+    });
+  }
+
+  // Nejnižší (= nejvýkonnější) zátěž, která ještě splňuje minimum ampu.
+  const viable = options.filter((o) => o.ok && o.loadOhm !== null);
+  viable.sort((a, b) => (a.loadOhm! - b.loadOhm!));
+  const best = viable[0] ?? null;
+
+  const summary = best
+    ? `Doporučeno: ${best.label} → ${best.loadOhm} Ω na kanál (min. ampu ${ampMinOhm} Ω).`
+    : `Žádná varianta nevyhoví ${ampMinOhm} Ω — rozděl ${count} beden na víc kanálů zesilovače.`;
+
+  return { count, ampMinOhm, options, best, summary };
+}
