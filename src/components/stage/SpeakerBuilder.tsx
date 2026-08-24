@@ -54,6 +54,7 @@ export default function SpeakerBuilder({
   onPlace: (id: string) => void;
 }) {
   const [draft, setDraft] = useState<CustomSpeaker>(() => newCustomSpeaker());
+  const [ampMinOhm, setAmpMinOhm] = useState(4);
 
   useEffect(() => {
     if (!open) return;
