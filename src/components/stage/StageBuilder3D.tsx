@@ -2568,7 +2568,14 @@ function PlacementGhost({
   // Snap target visualization: highlighted top face + tolerance box, per selected id.
   const snapCapRefs = useRef<Map<string, THREE.Mesh>>(new Map());
   const snapTolRefs = useRef<Map<string, THREE.LineSegments>>(new Map());
+  // Magnetic alignment guides: infinite-ish lines, edge grip bars and ref dots.
+  const guideXRefs = useRef<Map<string, THREE.Mesh>>(new Map());
+  const guideZRefs = useRef<Map<string, THREE.Mesh>>(new Map());
+  const gripXRefs = useRef<Map<string, THREE.Mesh>>(new Map());
+  const gripZRefs = useRef<Map<string, THREE.Mesh>>(new Map());
+  const dotRefs = useRef<Map<string, THREE.Mesh>>(new Map());
   const lastModeRef = useRef<Map<string, "ground" | "stack" | "bad">>(new Map());
+
 
   useFrame(() => {
     const others = items.filter((o) => !selection.includes(o.id));
