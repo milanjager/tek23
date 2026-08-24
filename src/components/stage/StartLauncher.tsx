@@ -35,10 +35,12 @@ export function StartLauncher({
 
   return (
     <div
-      className="fixed inset-0 z-[70] flex items-center justify-center bg-black/55 p-3 backdrop-blur-sm"
+      className="fixed inset-0 flex items-center justify-center bg-black/55 p-3 backdrop-blur-sm"
+      style={{ zIndex: 2000000000 }}
       role="dialog"
       aria-modal="true"
       aria-labelledby="launcher-title"
+
     >
       <div className="glass-strong max-h-[92dvh] w-full max-w-2xl overflow-y-auto rounded-2xl p-5 sm:p-7">
         <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-lime-600">Stage Rig</p>

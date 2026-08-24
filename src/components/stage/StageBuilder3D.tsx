@@ -2906,7 +2906,7 @@ function SceneContent({
   items, setItems, selection, setSelection, tool,
   cables, setCables, mode, cableType, setCableType, pendingFrom, setPendingFrom,
   showConnectorLabels, showCableLabels, realistic, autoSanitize, frontView, topView, speakerLineZ,
-  cableRouteY, magnet,
+  cableRouteY, magnet, readOnly = false,
 
 }: {
   items: Placed[];
@@ -2931,7 +2931,10 @@ function SceneContent({
   /** Y-height (m) at which the cable bus runs. 0.02 = on the floor, higher = truss/aerial. */
   cableRouteY: number;
   magnet: boolean;
+  /** Viewer mode: selection + camera only, no gizmo / no geometry edits. */
+  readOnly?: boolean;
 }) {
+
 
 
   const cableLoads = useMemo(() => computeCableLoads(items, cables), [items, cables]);
@@ -3860,7 +3863,7 @@ function SceneContent({
       })()}
 
 
-      {mode === "select" && primaryObj && (
+      {mode === "select" && primaryObj && !readOnly && (
         <TransformControls
           ref={transformRef}
           object={primaryObj}
@@ -4208,6 +4211,33 @@ export function StageBuilder3D() {
   const [viewMode, setViewMode] = useState<"3d" | "front3d" | "top" | "schema" | "grid" | "elev" | "iso" | "tech">("3d");
   // Task-based workspace modes (Stavět / Zapojit / Kontrola / Export).
   const [workMode, setWorkMode] = useState<"build" | "wire" | "inspect" | "export">("build");
+  // ── Mobile viewer mode: "jen prohlížení + půdorys" ───────────────────
+  // Read-only scene (no gizmo, no palette), locked to the top-down plan,
+  // and every panel becomes a bottom sheet instead of a side drawer.
+  const [mobileViewer, setMobileViewer] = useState(false);
+  const [sheet, setSheet] = useState<null | "inspect" | "views">(null);
+  useEffect(() => {
+    const saved = localStorage.getItem("stage.mobileViewer");
+    const narrow = window.matchMedia("(max-width: 767px)").matches;
+    const on = saved !== null ? saved === "1" : narrow;
+    setMobileViewer(on);
+    if (on) { setViewMode("top"); setWorkMode("inspect"); }
+  }, []);
+  useEffect(() => {
+    if (panelsHydrated) localStorage.setItem("stage.mobileViewer", mobileViewer ? "1" : "0");
+  }, [mobileViewer, panelsHydrated]);
+  const enterViewer = useCallback(() => {
+    setMobileViewer(true);
+    setViewMode("top");
+    setWorkMode("inspect");
+    setMode("select");
+    setPendingFrom(null);
+    setMarqueeMode(false);
+    setPaletteOpen(false);
+    setRightOpen(false);
+    setSheet(null);
+  }, []);
+
   // Toolbar density — Standard (44px targets) vs Compact (power users).
   const [density, setDensity] = useState<"standard" | "compact">("standard");
   useEffect(() => {
@@ -4894,8 +4924,17 @@ export function StageBuilder3D() {
           {savedAt && (
             <span className="hidden whitespace-nowrap text-[10px] text-neutral-400 sm:inline">Uloženo {savedAt}</span>
           )}
-          <button onClick={undo} disabled={!canUndo} title="Zpět (Ctrl+Z)" aria-label="Zpět" className={`${btnCls} bg-neutral-100 hover:bg-neutral-200 disabled:opacity-40`}>↶</button>
-          <button onClick={redo} disabled={!canRedo} title="Vpřed (Ctrl+Shift+Z)" aria-label="Vpřed" className={`${btnCls} bg-neutral-100 hover:bg-neutral-200 disabled:opacity-40`}>↷</button>
+          <button onClick={undo} disabled={!canUndo || mobileViewer} title="Zpět (Ctrl+Z)" aria-label="Zpět" className={`${btnCls} bg-neutral-100 hover:bg-neutral-200 disabled:opacity-40`}>↶</button>
+          <button onClick={redo} disabled={!canRedo || mobileViewer} title="Vpřed (Ctrl+Shift+Z)" aria-label="Vpřed" className={`${btnCls} bg-neutral-100 hover:bg-neutral-200 disabled:opacity-40`}>↷</button>
+          <button
+            onClick={() => { if (mobileViewer) setMobileViewer(false); else enterViewer(); }}
+            aria-pressed={mobileViewer}
+            className={`${btnCls} ${mobileViewer ? "bg-sky-500 text-white" : "bg-neutral-100 hover:bg-neutral-200"}`}
+            title="Mobilní režim: jen prohlížení + půdorys (panely jako spodní sheet)"
+          >
+            👁 <span className="hidden sm:inline">{mobileViewer ? "Prohlížení" : "Prohlížet"}</span>
+          </button>
+
           <button
             onClick={() => setShortcutsOpen(true)}
             className={`${btnCls} bg-neutral-100 hover:bg-neutral-200`}
@@ -4966,6 +5005,7 @@ export function StageBuilder3D() {
       )}
 
       {/* ── Sekundární lišta: pohled + nástroje aktivního režimu ───── */}
+      {!mobileViewer && (
       <div className="glass z-20 flex flex-nowrap items-center gap-1.5 overflow-x-auto px-2 py-1.5 no-scrollbar sm:px-3 md:flex-wrap md:overflow-visible">
         <div className="flex shrink-0 items-center gap-0.5 rounded-xl bg-neutral-200 p-0.5" role="group" aria-label="Pohled na scénu">
           {PRIMARY_VIEWS.map((v) => (
@@ -4994,7 +5034,7 @@ export function StageBuilder3D() {
 
         <div className="mx-1 hidden h-6 w-px bg-neutral-300/70 sm:block" />
 
-        {workMode === "build" && (
+        {workMode === "build" && !mobileViewer && (
           <>
             <select
               value=""
@@ -5053,7 +5093,7 @@ export function StageBuilder3D() {
           </>
         )}
 
-        {workMode === "wire" && (
+        {workMode === "wire" && !mobileViewer && (
           <>
             <button onClick={() => { setMode("cable"); setSelection([]); }} className={`${btnCls} ${mode === "cable" ? "bg-lime-500 text-neutral-950" : "bg-neutral-100 hover:bg-neutral-200"}`}><CableIcon size={13} /> Kabely (C)</button>
             {mode === "cable" && (
@@ -5103,7 +5143,7 @@ export function StageBuilder3D() {
           </>
         )}
 
-        {workMode === "inspect" && (
+        {workMode === "inspect" && !mobileViewer && (
           <>
             <button
               onClick={() => { setItems((cur) => normalizeScene(cur)); announce("Stacky srovnány — každá bedna dosedla na bednu pod sebou."); }}
@@ -5162,7 +5202,7 @@ export function StageBuilder3D() {
           </>
         )}
 
-        {workMode === "export" && (
+        {workMode === "export" && !mobileViewer && (
           <>
             <button onClick={exportCablesCsv} disabled={!cables.length} className={`${btnCls} bg-neutral-100 hover:bg-neutral-200 disabled:opacity-40`} title="Kabelový list (CSV) — pořadí PWR → DMX → SIG → SPK">⤓ Seznam kabelů (CSV)</button>
             <button onClick={exportGuideTxt} disabled={!cables.length} className={`${btnCls} bg-neutral-100 hover:bg-neutral-200 disabled:opacity-40`} title="Textový krokový návod pro technika (.txt)">⤓ Postup pro technika</button>
@@ -5181,18 +5221,24 @@ export function StageBuilder3D() {
           {status || MODES.find((m) => m.id === workMode)?.hint}
         </div>
       </div>
+      )}
 
 
-      <div className="relative flex flex-1 overflow-hidden">
+
+      <div
+        className="relative flex flex-1 overflow-hidden"
+        style={launcherOpen ? { visibility: "hidden" } : undefined}
+      >
+
         {/* Mobile palette backdrop */}
-        {paletteOpen && (
+        {paletteOpen && !mobileViewer && (
           <div
             className="absolute inset-0 z-20 bg-black/40 backdrop-blur-sm md:hidden"
             onClick={() => setPaletteOpen(false)}
           />
         )}
         {/* Left rail (visible when palette collapsed) */}
-        {!paletteOpen && (
+        {!paletteOpen && !mobileViewer && (
           <button
             onClick={() => setPaletteOpen(true)}
             title="Otevřít paletu komponent ( [ )"
@@ -5204,7 +5250,7 @@ export function StageBuilder3D() {
         {/* Palette */}
         <aside
           aria-label="Knihovna komponent"
-          className={`${paletteOpen ? "absolute inset-y-0 left-0 z-30 flex w-[86vw] max-w-xs shadow-2xl md:static md:z-auto md:w-56 md:shadow-none" : "hidden"} glass flex-col border-r border-neutral-200/60`}
+          className={`${paletteOpen && !mobileViewer ? "absolute inset-y-0 left-0 z-30 flex w-[86vw] max-w-xs shadow-2xl md:static md:z-auto md:w-56 md:shadow-none" : "hidden"} glass flex-col border-r border-neutral-200/60`}
         >
           {/* Desktop collapse header */}
           <div className="hidden items-center justify-between border-b border-neutral-200/60 px-2 py-1 md:flex">
@@ -5467,6 +5513,7 @@ export function StageBuilder3D() {
 
               frontView={viewMode === "front3d"}
               topView={viewMode === "top"}
+              readOnly={mobileViewer}
               speakerLineZ={speakerLineZ}
               cableRouteY={cableRouteY}
 
@@ -5547,7 +5594,7 @@ export function StageBuilder3D() {
         </div>
 
         {/* Right rail (visible when inspector collapsed) */}
-        {!rightOpen && (
+        {!rightOpen && !mobileViewer && (
           <button
             onClick={() => setRightOpen(true)}
             title="Otevřít inspektor ( ] )"
@@ -5557,7 +5604,7 @@ export function StageBuilder3D() {
           </button>
         )}
         {/* Mobile inspector backdrop */}
-        {rightOpen && (
+        {rightOpen && !mobileViewer && (
           <div
             className="absolute inset-0 z-20 bg-black/40 backdrop-blur-sm md:hidden"
             onClick={() => setRightOpen(false)}
@@ -5566,7 +5613,14 @@ export function StageBuilder3D() {
         {/* Right inspector — overlay drawer on mobile, static on md+ */}
         <aside
           aria-label="Inspektor a vrstvy"
-          className={`${rightOpen ? "absolute inset-y-0 right-0 z-30 flex w-[86vw] max-w-sm shadow-2xl md:static md:z-auto md:w-72 md:shadow-none" : "hidden"} glass flex-col border-l border-neutral-200/60`}
+          style={mobileViewer && sheet === "inspect" ? { zIndex: 1000000001 } : undefined}
+          className={`${mobileViewer
+            ? (sheet === "inspect"
+                ? "absolute inset-x-0 bottom-0 flex max-h-[68dvh] w-full overflow-y-auto rounded-t-2xl border-t border-neutral-200/60 pb-14 shadow-2xl"
+                : "hidden")
+            : rightOpen
+            ? "absolute inset-y-0 right-0 z-30 flex w-[86vw] max-w-sm shadow-2xl md:static md:z-auto md:w-72 md:shadow-none border-l border-neutral-200/60"
+            : "hidden"} glass flex-col`}
         >
           <div className="flex items-center justify-between border-b border-neutral-200/60 px-2 py-1">
             <span className="text-[10px] font-bold uppercase tracking-wider text-neutral-500">Inspektor ( ] )</span>
@@ -6071,6 +6125,62 @@ export function StageBuilder3D() {
           </div>
           )}
         </aside>
+
+        {/* ── Mobilní režim prohlížení: spodní sheet místo bočních panelů ── */}
+        {mobileViewer && sheet && !launcherOpen && (
+          <div
+            className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+            style={{ zIndex: 1000000000 }}
+            onClick={() => setSheet(null)}
+          />
+        )}
+        {mobileViewer && sheet === "views" && !launcherOpen && (
+          <div className="glass absolute inset-x-0 bottom-0 rounded-t-2xl border-t border-neutral-200/60 p-3 pb-16 shadow-2xl" style={{ zIndex: 1000000001 }}>
+            <div className="mx-auto mb-2 h-1 w-10 rounded-full bg-neutral-300" />
+            <div className="mb-2 text-[10px] font-bold uppercase tracking-wider text-neutral-500">Pohled</div>
+            <div className="grid grid-cols-2 gap-2">
+              {[...PRIMARY_VIEWS, ...MORE_VIEWS].map((v) => (
+                <button
+                  key={v.id}
+                  onClick={() => { setViewMode(v.id); setSheet(null); }}
+                  aria-pressed={viewMode === v.id}
+                  className={`min-h-11 rounded-xl px-3 text-[12px] font-bold ${viewMode === v.id ? "bg-lime-500 text-neutral-950" : "bg-neutral-100 text-neutral-700"}`}
+                >
+                  {v.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+        {mobileViewer && !launcherOpen && (
+          <nav
+            aria-label="Mobilní režim prohlížení"
+            className="glass-strong absolute inset-x-0 bottom-0 flex items-stretch gap-1 border-t border-neutral-200/60 px-2 py-1.5"
+            style={{ zIndex: 1000000002 }}
+          >
+            <button
+              onClick={() => setSheet((v) => (v === "inspect" ? null : "inspect"))}
+              aria-pressed={sheet === "inspect"}
+              className={`min-h-11 flex-1 rounded-xl text-[12px] font-bold ${sheet === "inspect" ? "bg-lime-500 text-neutral-950" : "bg-neutral-100 text-neutral-700"}`}
+            >
+              Detail{selection.length > 1 ? ` (${selection.length})` : ""}
+            </button>
+            <button
+              onClick={() => setSheet((v) => (v === "views" ? null : "views"))}
+              aria-pressed={sheet === "views"}
+              className={`min-h-11 flex-1 rounded-xl text-[12px] font-bold ${sheet === "views" ? "bg-lime-500 text-neutral-950" : "bg-neutral-100 text-neutral-700"}`}
+            >
+              Pohled
+            </button>
+            <button
+              onClick={() => { setMobileViewer(false); setSheet(null); }}
+              className="min-h-11 flex-1 rounded-xl bg-neutral-900 text-[12px] font-bold text-white"
+              title="Ukončit prohlížení a zapnout úpravy"
+            >
+              Upravit
+            </button>
+          </nav>
+        )}
       </div>
       {!import.meta.env.PROD && <PlacementDevPanel />}
     </div>
