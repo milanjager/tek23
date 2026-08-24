@@ -5725,18 +5725,21 @@ export function StageBuilder3D() {
                           setSelection([it.id]);
                         }
                       }}
-                      className="mb-1.5 flex w-full items-center gap-2 text-left"
+                      className="mb-1.5 flex w-full items-start gap-2 text-left"
                     >
                       <span
-                        className="inline-block h-2 w-2 shrink-0 rounded-full"
+                        className="mt-1 inline-block h-2 w-2 shrink-0 rounded-full"
                         style={{ backgroundColor: spec.category === "sound" ? "#a3ff12" : spec.category === "lights" ? "#f4c11a" : "#05d9e8" }}
                       />
-                      <span className="flex-1 truncate font-semibold text-neutral-900">
-                        {it.label || spec.label}
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-[12px] font-bold text-neutral-900">
+                          {it.label || spec.defaultLabel || spec.label}
+                        </span>
+                        <span className="mt-0.5 block font-mono text-[9px] text-neutral-500">
+                          x {it.pos[0].toFixed(1)} · y {it.pos[2].toFixed(1)} · v {it.pos[1].toFixed(1)} m
+                        </span>
                       </span>
-                      <span className="font-mono text-[9px] text-neutral-500">
-                        {it.pos[0].toFixed(1)},{it.pos[2].toFixed(1)}
-                      </span>
+
                     </button>
                     <label className="mb-1 block">
                       <span className="mb-0.5 block text-[9px] uppercase tracking-wider text-neutral-500">Model / typ bedny</span>
@@ -5907,7 +5910,7 @@ export function StageBuilder3D() {
           )}
         </aside>
       </div>
-      <PlacementDevPanel />
+      {!import.meta.env.PROD && <PlacementDevPanel />}
     </div>
   );
 
