@@ -4660,16 +4660,19 @@ export function StageBuilder3D() {
     announce(`Preset načten — ${it.length} prvků, ${cs.length} kabelů.`);
   }, [announce]);
 
-  const VIEWS: { id: typeof viewMode; label: string; hint: string }[] = [
-    { id: "3d", label: "3D scéna", hint: "Volná 3D kamera" },
-    { id: "front3d", label: "3D nárys", hint: "3D pohled zepředu" },
-    { id: "grid", label: "Plán 2D", hint: "Půdorys v mřížce" },
-    { id: "elev", label: "Nárys", hint: "Pohled zepředu, patra stacků" },
-    { id: "top", label: "Ortho půdorys", hint: "Ortografický pohled shora" },
-    { id: "iso", label: "Iso", hint: "Isometrický pseudo-3D pohled" },
-    { id: "schema", label: "Schéma zapojení", hint: "Kabelové schéma" },
-    { id: "tech", label: "Tech výkres", hint: "Technický výkres s kótami" },
+  const PRIMARY_VIEWS: { id: typeof viewMode; label: string; hint: string }[] = [
+    { id: "3d", label: "3D", hint: "Volná 3D scéna — stavění a přesuny" },
+    { id: "grid", label: "Půdorys", hint: "Pohled shora v mřížce" },
+    { id: "schema", label: "Schéma", hint: "Schéma zapojení kabelů" },
   ];
+  const MORE_VIEWS: { id: typeof viewMode; label: string; hint: string }[] = [
+    { id: "front3d", label: "3D zepředu", hint: "3D kamera zafixovaná zepředu" },
+    { id: "elev", label: "Nárys (patra)", hint: "Pohled zepředu, patra stacků" },
+    { id: "top", label: "Ortho shora", hint: "Ortografický pohled shora" },
+    { id: "iso", label: "Isometrie", hint: "Isometrický pseudo-3D pohled" },
+    { id: "tech", label: "Technický výkres", hint: "Výkres s kótami" },
+  ];
+  const VIEWS = [...PRIMARY_VIEWS, ...MORE_VIEWS];
 
   const MODES: { id: typeof workMode; label: string; hint: string }[] = [
     { id: "build", label: "Stavět", hint: "Rozmísti a srovnej aparát" },
