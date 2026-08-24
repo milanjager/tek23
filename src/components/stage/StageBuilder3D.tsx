@@ -59,7 +59,7 @@ type Kind =
   | "bar" | "generator" | "distro";
 
 
-type Category = "sound" | "lights" | "infra";
+type Category = "sound" | "lights" | "infra" | "fun";
 
 interface Spec {
   label: string;
@@ -87,7 +87,7 @@ const SPECS: Record<Kind, Spec> = {
   badtekk_bass: { label: "Badtekk Bass",     category: "sound",  size: [0.90, 0.65, 0.75], stackable: true,  hint: "Badtekk 2×15\" bass", defaultLabel: "Badtekk Bass" },
   badtekk_top:  { label: "Badtekk Top",      category: "sound",  size: [0.65, 0.55, 0.45], stackable: true,  hint: "Badtekk W-bin top", defaultLabel: "Badtekk Top" },
   img_0838:     { label: "JB181 4×18\" RCF LF18G401", category: "sound", size: [0.80, 1.20, 0.90], stackable: true, hint: "4× JB181 – RCF LF18G401", defaultLabel: "JB181 4×18\"" },
-  img_0839:     { label: "JB181 4×18\" RCF LF18G401", category: "sound", size: [0.85, 1.30, 0.95], stackable: true, hint: "4× JB181 – RCF LF18G401", defaultLabel: "JB181 4×18\"" },
+  img_0839:     { label: "JB181 4×18\" v2 (vyšší skříň)", category: "sound", size: [0.85, 1.30, 0.95], stackable: true, hint: "4× JB181 – RCF LF18G401, vyšší varianta", defaultLabel: "JB181 4×18\" v2" },
   img_0841:     { label: "JB218 2×18\" RCF LF18N401", category: "sound", size: [1.20, 0.80, 0.95], stackable: true, hint: "2× JB218 – RCF LF18N401", defaultLabel: "JB218 2×18\"" },
   img_0842:     { label: "JB181 stack",       category: "sound",  size: [0.75, 1.80, 0.85], stackable: true,  hint: "Stack JB181 skříní", defaultLabel: "JB181 stack" },
   img_0843:     { label: "Picus top grill",   category: "sound",  size: [1.80, 1.60, 0.85], stackable: true,  hint: "Top řada s hex mřížkou", defaultLabel: "Picus top" },
@@ -119,7 +119,7 @@ const SPECS: Record<Kind, Spec> = {
   laser:        { label: "Laser",            category: "lights", size: [0.40, 0.25, 0.35], stackable: false, hint: "Laser" , powerW: 350 },
   movinghead:   { label: "Moving head",      category: "lights", size: [0.35, 0.55, 0.35], stackable: false, hint: "Otočná hlava" , powerW: 450 },
   halogen_white:{ label: "Halogen bílé",     category: "lights", size: [0.28, 0.22, 0.20], stackable: false, hint: "Halogenový reflektor s bílým světlem (barový osvit)", defaultLabel: "Halogen", powerW: 500, defaultNotes: "IN: 230V Schuko (1× fáze, 500 W halogen). Bez DMX — spínáno přes distro / spínač u baru. Pozor na horký reflektor — min. 0,5 m od textilu." },
-  bug_zapper:   { label: "Světlo na hubení havěti", category: "lights", size: [0.30, 0.45, 0.12], stackable: false, hint: "UV lapač hmyzu s mřížkou (bar/venku)", defaultLabel: "UV lapač", powerW: 40, defaultNotes: "IN: 230V Schuko (UV trubice 40 W + mřížka). Bez DMX — trvale zapnuto. Umístit min. 2 m od baru, nezakrývat mřížku." },
+  bug_zapper:   { label: "Světlo na hubení havěti", category: "fun", size: [0.30, 0.45, 0.12], stackable: false, hint: "UV lapač hmyzu s mřížkou (bar/venku)", defaultLabel: "UV lapač", powerW: 40, defaultNotes: "IN: 230V Schuko (UV trubice 40 W + mřížka). Bez DMX — trvale zapnuto. Umístit min. 2 m od baru, nezakrývat mřížku." },
   bar:          { label: "Bar",              category: "infra",  size: [2.40, 1.10, 0.65], stackable: false, hint: "Bar pult" , powerW: 400 },
   generator:    { label: "Aggregát",         category: "infra",  size: [0.70, 0.60, 0.55], stackable: false, hint: "Přenosný invertorový agregát (CEE 16A + 2× Schuko + 12V + 2× USB)" , powerW: 0 },
   distro:       { label: "Rozdělovač",       category: "infra",  size: [0.60, 0.35, 0.40], stackable: true,  hint: "Silový rozvaděč / power distro (CEE in → 230V outs + DMX/SIG patch)", defaultLabel: "Rozdělovač" , powerW: 0 },
@@ -128,10 +128,19 @@ const SPECS: Record<Kind, Spec> = {
 
 
 const CATEGORIES: { id: Category; label: string; icon: typeof Speaker }[] = [
-  { id: "sound",  label: "Sound",  icon: Volume2 },
-  { id: "lights", label: "Lights", icon: Sparkles },
+  { id: "sound",  label: "Zvuk",   icon: Volume2 },
+  { id: "lights", label: "Světla", icon: Sparkles },
   { id: "infra",  label: "Infra",  icon: Radio },
+  { id: "fun",    label: "Fun",    icon: Sparkles },
 ];
+
+/** Rough transport weight estimate (kg) — density heuristic per category. */
+export function estimateWeightKg(s: Spec): number {
+  const vol = s.size[0] * s.size[1] * s.size[2];
+  if (s.category === "sound") return Math.round(vol * 175);
+  if (s.category === "infra") return Math.round(vol * 110 + 8);
+  return Math.round(vol * 40 + 3);
+}
 
 interface Placed {
   id: string;
@@ -4536,9 +4545,63 @@ export function StageBuilder3D() {
     return () => window.removeEventListener("keydown", onKey);
   }, [deleteSelection, copySelection, pasteSelection, duplicateSelection, groupSelection, ungroupSelection, undo, redo, nudgeSelection, selection.length]);
 
+  // Recently used palette kinds (persisted) + shortcuts overlay.
+  const [recentKinds, setRecentKinds] = useState<Kind[]>([]);
+  const [shortcutsOpen, setShortcutsOpen] = useState(false);
+  const [savedAt, setSavedAt] = useState<string | null>(null);
+  useEffect(() => {
+    try {
+      const r = JSON.parse(localStorage.getItem("stage.recentKinds") || "[]");
+      if (Array.isArray(r)) setRecentKinds(r.filter((k: string) => k in SPECS).slice(0, 6) as Kind[]);
+    } catch { /* ignore */ }
+  }, []);
+  const pushRecent = useCallback((k: Kind) => {
+    setRecentKinds((cur) => {
+      const next = [k, ...cur.filter((x) => x !== k)].slice(0, 6);
+      try { localStorage.setItem("stage.recentKinds", JSON.stringify(next)); } catch { /* ignore */ }
+      return next;
+    });
+  }, []);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const t = e.target as HTMLElement | null;
+      if (t && /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName)) return;
+      if (e.key === "?" || (e.key === "/" && e.shiftKey)) { e.preventDefault(); setShortcutsOpen((v) => !v); }
+      if (e.key === "Escape") setShortcutsOpen(false);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+
+  // Autosave — debounced, so nikdo nepřijde o rozpracovaný rig.
+  useEffect(() => {
+    if (!items.length && !cables.length) return;
+    const t = setTimeout(() => {
+      try {
+        localStorage.setItem(STORAGE, JSON.stringify({ items, cables, groupNames, groupSpacing }));
+        setHasSaved(true);
+        setSavedAt(new Date().toLocaleTimeString("cs-CZ", { hour: "2-digit", minute: "2-digit" }));
+      } catch { /* ignore */ }
+    }, 1200);
+    return () => clearTimeout(t);
+  }, [items, cables, groupNames, groupSpacing]);
+
+  /** Čísla, která technika reálně pálí: hmotnost, kanály, příkon. */
+  const rigStats = useMemo(() => {
+    let kg = 0, watts = 0, speakers = 0;
+    for (const it of items) {
+      const s = SPECS[it.kind];
+      kg += estimateWeightKg(s);
+      watts += s.powerW ?? 0;
+      if (s.category === "sound") speakers += 1;
+    }
+    return { kg, kw: watts / 1000, speakers };
+  }, [items]);
+
   const palette = useMemo(() => {
-    const list = (Object.entries(SPECS) as [Kind, Spec][]).filter(([, s]) => s.category === category);
     const q = paletteQuery.trim().toLowerCase();
+    const list = (Object.entries(SPECS) as [Kind, Spec][]).filter(([, s]) => q ? true : s.category === category);
     if (!q) return list;
     return list.filter(([k, s]) => `${k} ${s.label} ${s.hint ?? ""}`.toLowerCase().includes(q));
   }, [category, paletteQuery]);
@@ -4597,16 +4660,19 @@ export function StageBuilder3D() {
     announce(`Preset načten — ${it.length} prvků, ${cs.length} kabelů.`);
   }, [announce]);
 
-  const VIEWS: { id: typeof viewMode; label: string; hint: string }[] = [
-    { id: "3d", label: "3D scéna", hint: "Volná 3D kamera" },
-    { id: "front3d", label: "3D nárys", hint: "3D pohled zepředu" },
-    { id: "grid", label: "Plán 2D", hint: "Půdorys v mřížce" },
-    { id: "elev", label: "Nárys", hint: "Pohled zepředu, patra stacků" },
-    { id: "top", label: "Ortho půdorys", hint: "Ortografický pohled shora" },
-    { id: "iso", label: "Iso", hint: "Isometrický pseudo-3D pohled" },
-    { id: "schema", label: "Schéma zapojení", hint: "Kabelové schéma" },
-    { id: "tech", label: "Tech výkres", hint: "Technický výkres s kótami" },
+  const PRIMARY_VIEWS: { id: typeof viewMode; label: string; hint: string }[] = [
+    { id: "3d", label: "3D", hint: "Volná 3D scéna — stavění a přesuny" },
+    { id: "grid", label: "Půdorys", hint: "Pohled shora v mřížce" },
+    { id: "schema", label: "Schéma", hint: "Schéma zapojení kabelů" },
   ];
+  const MORE_VIEWS: { id: typeof viewMode; label: string; hint: string }[] = [
+    { id: "front3d", label: "3D zepředu", hint: "3D kamera zafixovaná zepředu" },
+    { id: "elev", label: "Nárys (patra)", hint: "Pohled zepředu, patra stacků" },
+    { id: "top", label: "Ortho shora", hint: "Ortografický pohled shora" },
+    { id: "iso", label: "Isometrie", hint: "Isometrický pseudo-3D pohled" },
+    { id: "tech", label: "Technický výkres", hint: "Výkres s kótami" },
+  ];
+  
 
   const MODES: { id: typeof workMode; label: string; hint: string }[] = [
     { id: "build", label: "Stavět", hint: "Rozmísti a srovnej aparát" },
@@ -4667,11 +4733,26 @@ export function StageBuilder3D() {
         </nav>
 
         <div className="ml-auto flex shrink-0 items-center gap-1.5">
-          <span className="hidden whitespace-nowrap text-[11px] text-neutral-500 lg:inline">
-            {items.length} prvků · {cables.length} kabelů · {selection.length} vybráno
+          <span className="hidden whitespace-nowrap text-[11px] lg:inline" title="Odhad hmotnosti, počtu PA kanálů a příkonu (zátěž agregátu)">
+            <b className="text-neutral-800">{rigStats.kg} kg</b>
+            <span className="text-neutral-400"> · </span>
+            <b className="text-neutral-800">{rigStats.speakers}</b><span className="text-neutral-500"> kanálů</span>
+            <span className="text-neutral-400"> · </span>
+            <b className={rigStats.kw > 6 ? "text-red-600" : "text-neutral-800"}>{rigStats.kw.toFixed(1)} kW</b>
           </span>
+          {savedAt && (
+            <span className="hidden whitespace-nowrap text-[10px] text-neutral-400 sm:inline">Uloženo {savedAt}</span>
+          )}
           <button onClick={undo} disabled={!canUndo} title="Zpět (Ctrl+Z)" aria-label="Zpět" className={`${btnCls} bg-neutral-100 hover:bg-neutral-200 disabled:opacity-40`}>↶</button>
           <button onClick={redo} disabled={!canRedo} title="Vpřed (Ctrl+Shift+Z)" aria-label="Vpřed" className={`${btnCls} bg-neutral-100 hover:bg-neutral-200 disabled:opacity-40`}>↷</button>
+          <button
+            onClick={() => setShortcutsOpen(true)}
+            className={`${btnCls} bg-neutral-100 hover:bg-neutral-200`}
+            title="Klávesové zkratky (?)"
+            aria-label="Klávesové zkratky"
+          >
+            ?
+          </button>
           <button
             onClick={() => setDensity((d) => (d === "compact" ? "standard" : "compact"))}
             className={`${btnCls} bg-neutral-100 hover:bg-neutral-200`}
@@ -4688,43 +4769,78 @@ export function StageBuilder3D() {
             {dark ? "☾" : "☀"}
           </button>
           <button
-            onClick={() => { localStorage.setItem(STORAGE, JSON.stringify({ items, cables, groupNames, groupSpacing })); setHasSaved(items.length > 0); announce(`Projekt uložen — ${items.length} prvků, ${cables.length} kabelů.`); }}
+            onClick={() => {
+              localStorage.setItem(STORAGE, JSON.stringify({ items, cables, groupNames, groupSpacing }));
+              setHasSaved(items.length > 0);
+              setSavedAt(new Date().toLocaleTimeString("cs-CZ", { hour: "2-digit", minute: "2-digit" }));
+              announce(`Projekt uložen — ${items.length} prvků, ${cables.length} kabelů.`);
+            }}
             className={`${btnCls} bg-neutral-100 hover:bg-neutral-200`}
+            title="Ruční uložení (autosave běží průběžně)"
           >
             <Save size={13} /> <span className="hidden sm:inline">Uložit</span>
-          </button>
-          <button
-            onClick={() => {
-              if (!items.length && !cables.length) return;
-              if (confirm(`Opravdu vymazat celý rig? Odstraní se ${items.length} prvků a ${cables.length} kabelů. Vrátit zpět jde přes Ctrl+Z.`)) {
-                setItems([]); setCables([]); setSelection([]);
-                announce("Rig vymazán. Vrátit zpět můžeš přes Ctrl+Z.");
-              }
-            }}
-            disabled={!items.length && !cables.length}
-            className={`${btnCls} border border-red-300 bg-red-100 font-semibold text-red-700 hover:bg-red-200 disabled:opacity-40`}
-            title="Smaže všechny prvky i kabely (nevratná akce, ale lze vrátit přes Ctrl+Z)"
-          >
-            <Trash2 size={13} /> <span className="hidden sm:inline">Vyčistit</span>
           </button>
         </div>
       </header>
 
+      {shortcutsOpen && (
+        <div
+          className="fixed inset-0 z-[75] flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Klávesové zkratky"
+          onClick={() => setShortcutsOpen(false)}
+        >
+          <div className="glass-strong max-h-[85dvh] w-full max-w-md overflow-y-auto rounded-2xl p-5" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between">
+              <h2 className="text-base font-bold text-neutral-900">Klávesové zkratky</h2>
+              <button onClick={() => setShortcutsOpen(false)} aria-label="Zavřít" className="rounded-full p-2 text-neutral-500 hover:bg-neutral-200/50">
+                <X size={16} />
+              </button>
+            </div>
+            <ul className="mt-3 space-y-1.5 text-[12px] text-neutral-700">
+              <li><b>T</b> — posun · <b>C</b> — režim kabelů · <b>Del</b> — smazat výběr</li>
+              <li><b>Shift+klik</b> — přidat do výběru · <b>Rámeček</b> — tažení přes bedny</li>
+              <li><b>Ctrl+C / Ctrl+V / Ctrl+D</b> — kopírovat / vložit / duplikovat</li>
+              <li><b>Ctrl+G / Ctrl+Shift+G</b> — seskupit / rozdělit</li>
+              <li><b>Ctrl+Z / Ctrl+Shift+Z</b> — zpět / vpřed</li>
+              <li><b>Šipky</b> — posun po mřížce (Shift = větší krok)</li>
+              <li><b>[</b> — paleta · <b>?</b> — tato nápověda</li>
+            </ul>
+            <p className="mt-3 text-[11px] text-neutral-500">
+              V režimu Zapojit: klik na první bednu → klik na druhou. Klik na kabel otevře inspektor.
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* ── Sekundární lišta: pohled + nástroje aktivního režimu ───── */}
       <div className="glass z-20 flex flex-nowrap items-center gap-1.5 overflow-x-auto px-2 py-1.5 no-scrollbar sm:px-3 md:flex-wrap md:overflow-visible">
-        <label className="inline-flex shrink-0 items-center gap-1.5 text-[11px] text-neutral-500">
-          <span className="hidden sm:inline">Pohled</span>
-          <select
-            value={viewMode}
-            onChange={(e) => setViewMode(e.target.value as typeof viewMode)}
-            aria-label="Pohled na scénu"
-            className={`${compact ? "min-h-7" : "min-h-11"} rounded-lg border border-neutral-300 bg-white px-2 text-[12px] font-semibold text-neutral-800 focus:border-lime-500 focus:outline-none`}
-          >
-            {VIEWS.map((v) => (
-              <option key={v.id} value={v.id}>{v.label}</option>
-            ))}
-          </select>
-        </label>
+        <div className="flex shrink-0 items-center gap-0.5 rounded-xl bg-neutral-200 p-0.5" role="group" aria-label="Pohled na scénu">
+          {PRIMARY_VIEWS.map((v) => (
+            <button
+              key={v.id}
+              onClick={() => setViewMode(v.id)}
+              aria-pressed={viewMode === v.id}
+              title={v.hint}
+              className={`${compact ? "min-h-7" : "min-h-9"} rounded-lg px-2.5 text-[12px] font-bold ${viewMode === v.id ? "bg-white text-neutral-900 shadow-sm" : "text-neutral-600 hover:text-neutral-900"}`}
+            >
+              {v.label}
+            </button>
+          ))}
+        </div>
+        <select
+          value={MORE_VIEWS.some((v) => v.id === viewMode) ? viewMode : ""}
+          onChange={(e) => { if (e.target.value) setViewMode(e.target.value as typeof viewMode); }}
+          aria-label="Další pohledy"
+          className={`${compact ? "min-h-7" : "min-h-9"} shrink-0 rounded-lg border border-neutral-300 bg-white px-2 text-[12px] font-semibold text-neutral-800 focus:border-lime-500 focus:outline-none`}
+        >
+          <option value="">Další pohledy…</option>
+          {MORE_VIEWS.map((v) => (
+            <option key={v.id} value={v.id}>{v.label}</option>
+          ))}
+        </select>
+
         <div className="mx-1 hidden h-6 w-px bg-neutral-300/70 sm:block" />
 
         {workMode === "build" && (
@@ -4749,6 +4865,20 @@ export function StageBuilder3D() {
             <button onClick={groupSelection} disabled={selection.length < 2} className={`${btnCls} bg-neutral-100 hover:bg-neutral-200 disabled:opacity-40`}><GroupIcon size={13} /> Group</button>
             <button onClick={ungroupSelection} disabled={!selection.length} className={`${btnCls} bg-neutral-100 hover:bg-neutral-200 disabled:opacity-40`}><Ungroup size={13} /> Ungroup</button>
             <button onClick={deleteSelection} disabled={!selection.length} className={`${btnCls} bg-red-100 text-red-700 hover:bg-red-200 disabled:opacity-40`}><Trash2 size={13} /> Smazat</button>
+            <button
+              onClick={() => {
+                if (!items.length && !cables.length) return;
+                if (confirm(`Opravdu vymazat celý rig? Odstraní se ${items.length} prvků a ${cables.length} kabelů. Vrátit zpět jde přes Ctrl+Z.`)) {
+                  setItems([]); setCables([]); setSelection([]);
+                  announce("Rig vymazán. Vrátit zpět můžeš přes Ctrl+Z.");
+                }
+              }}
+              disabled={!items.length && !cables.length}
+              className={`${btnCls} border border-red-300 bg-red-50 font-semibold text-red-700 hover:bg-red-100 disabled:opacity-40`}
+              title="Smaže celou scénu (lze vrátit přes Ctrl+Z)"
+            >
+              Vyčistit vše
+            </button>
             <div className={`inline-flex shrink-0 items-center gap-1 rounded-lg bg-neutral-100 px-2 ${compact ? "min-h-7" : "min-h-11"}`} title="Společná hloubka řady reproduktorů">
               <span className="text-[10px] text-neutral-500">Hloubka řady</span>
               <input
@@ -4955,6 +5085,23 @@ export function StageBuilder3D() {
             />
           </div>
           <div className="flex-1 overflow-y-auto p-2">
+            {!paletteQuery && recentKinds.length > 0 && (
+              <div className="mb-3">
+                <div className="mb-1 px-0.5 text-[9px] font-bold uppercase tracking-wider text-neutral-500">Nedávno použité</div>
+                <div className="flex flex-wrap gap-1">
+                  {recentKinds.map((k) => (
+                    <button
+                      key={k}
+                      onClick={() => { addItem(k); pushRecent(k); setPaletteOpen(false); }}
+                      title={`${SPECS[k].label} — ${SPECS[k].hint}`}
+                      className="glass-chip max-w-full truncate rounded-full px-2 py-1 text-[10px] font-semibold text-neutral-700 hover:text-lime-600"
+                    >
+                      {SPECS[k].defaultLabel ?? SPECS[k].label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
             {!palette.length && (
               <p className="px-1 py-4 text-[11px] text-neutral-500">Nic nenalezeno — zkus jiný výraz nebo jinou kategorii.</p>
             )}
@@ -4962,27 +5109,22 @@ export function StageBuilder3D() {
             {palette.map(([k, s]) => (
               <button
                 key={k}
-                onClick={() => { addItem(k); setPaletteOpen(false); }}
+                onClick={() => { addItem(k); pushRecent(k); setPaletteOpen(false); }}
+                title={`${s.label} — ${s.hint} · ${s.size[0].toFixed(2)}×${s.size[1].toFixed(2)}×${s.size[2].toFixed(2)} m · ~${estimateWeightKg(s)} kg`}
                 className="mb-2 block w-full overflow-hidden rounded border border-neutral-200 bg-neutral-50 text-left transition hover:border-lime-500/60 hover:bg-neutral-100"
               >
                 <PaletteThumb kind={k} />
                 <div className="px-2 py-1.5">
-                  <div className="text-xs font-semibold text-neutral-900">{s.label}</div>
-                  <div className="text-[10px] text-neutral-500">{s.hint}</div>
-                  <div className="mt-0.5 font-mono text-[9px] text-neutral-600">
-                    {s.size[0].toFixed(2)}×{s.size[1].toFixed(2)}×{s.size[2].toFixed(2)} m
-                  </div>
+                  <div className="truncate text-xs font-semibold text-neutral-900">{s.defaultLabel ?? s.label}</div>
+                  <div className="truncate text-[10px] text-neutral-500">{s.hint}</div>
                 </div>
               </button>
             ))}
           </div>
           <div className="hidden border-t border-neutral-200 p-2 text-[10px] text-neutral-500 md:block">
-            <div><b>T/R</b> — posun/rotace · <b>C</b> — kabely</div>
-            <div><b>Ctrl+C/V/D</b> — kopie / vložit / duplikovat</div>
-            <div><b>Ctrl+G / Ctrl+Shift+G</b> — group / ungroup</div>
-            <div><b>Shift+klik</b> — přidat do výběru · <b>Del</b> — smazat</div>
-            <div className="mt-1 text-neutral-500">V režimu Kabely: klik na první bednu → klik na druhou. Klik na kabel = smazat.</div>
+            Tip: klávesa <b>?</b> zobrazí všechny zkratky.
           </div>
+
         </aside>
 
         {/* 3D Canvas / Schematic view */}
@@ -5583,18 +5725,21 @@ export function StageBuilder3D() {
                           setSelection([it.id]);
                         }
                       }}
-                      className="mb-1.5 flex w-full items-center gap-2 text-left"
+                      className="mb-1.5 flex w-full items-start gap-2 text-left"
                     >
                       <span
-                        className="inline-block h-2 w-2 shrink-0 rounded-full"
+                        className="mt-1 inline-block h-2 w-2 shrink-0 rounded-full"
                         style={{ backgroundColor: spec.category === "sound" ? "#a3ff12" : spec.category === "lights" ? "#f4c11a" : "#05d9e8" }}
                       />
-                      <span className="flex-1 truncate font-semibold text-neutral-900">
-                        {it.label || spec.label}
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-[12px] font-bold text-neutral-900">
+                          {it.label || spec.defaultLabel || spec.label}
+                        </span>
+                        <span className="mt-0.5 block font-mono text-[9px] text-neutral-500">
+                          x {it.pos[0].toFixed(1)} · y {it.pos[2].toFixed(1)} · v {it.pos[1].toFixed(1)} m
+                        </span>
                       </span>
-                      <span className="font-mono text-[9px] text-neutral-500">
-                        {it.pos[0].toFixed(1)},{it.pos[2].toFixed(1)}
-                      </span>
+
                     </button>
                     <label className="mb-1 block">
                       <span className="mb-0.5 block text-[9px] uppercase tracking-wider text-neutral-500">Model / typ bedny</span>
@@ -5765,7 +5910,7 @@ export function StageBuilder3D() {
           )}
         </aside>
       </div>
-      <PlacementDevPanel />
+      {!import.meta.env.PROD && <PlacementDevPanel />}
     </div>
   );
 
