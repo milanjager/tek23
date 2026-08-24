@@ -222,3 +222,152 @@ export function recommendWiring(d: CustomSpeaker, count: number, ampMinOhm: numb
 
   return { count, ampMinOhm, options, best, summary };
 }
+
+/* ============================================================
+   Profily zesilovačů + kontrola kompatibility s impedancí
+   ============================================================ */
+
+export interface AmpProfile {
+  id: string;
+  name: string;
+  channels: number;
+  /** Minimální zátěž na kanál (Ω). */
+  minOhm: number;
+  /** Minimální zátěž v bridge módu (Ω), null = bridge nepodporuje. */
+  bridgeMinOhm: number | null;
+  /** Výkon na kanál při 4 Ω a 2 Ω (W RMS). */
+  w4: number;
+  w2: number;
+  /** Podporuje 70/100 V linku. */
+  hiZ?: boolean;
+  outs: string;
+  note?: string;
+}
+
+export const AMP_PROFILES: AmpProfile[] = [
+  { id: "k20", name: "Powersoft K20 (2ch)", channels: 2, minOhm: 2, bridgeMinOhm: 4, w4: 4400, w2: 5200,
+    outs: "2× Speakon NL4", note: "CEE 32 A, nikdy 2 kusy na jednu 16 A větev." },
+  { id: "k10", name: "Powersoft K10 (2ch)", channels: 2, minOhm: 2, bridgeMinOhm: 4, w4: 2400, w2: 3000,
+    outs: "2× Speakon NL4" },
+  { id: "quattro4804", name: "Powersoft Quattrocanali 4804 (4ch)", channels: 4, minOhm: 2, bridgeMinOhm: 4, w4: 1200, w2: 1200,
+    hiZ: true, outs: "2× NL4 (CH1+2, CH3+4)" },
+  { id: "due4804", name: "Powersoft Duecanali 4804 (2ch)", channels: 2, minOhm: 2, bridgeMinOhm: 4, w4: 2400, w2: 2400,
+    outs: "1× NL4 (CH1+CH2)" },
+  { id: "generic4", name: "Obecný koncák — min. 4 Ω", channels: 2, minOhm: 4, bridgeMinOhm: 8, w4: 1000, w2: 0,
+    outs: "Speakon NL4 / svorky", note: "Levnější ampy pod 4 Ω nejdou — hlídej paralelní řetěz." },
+  { id: "generic8", name: "Instalační / 100V zesilovač", channels: 2, minOhm: 8, bridgeMinOhm: 16, w4: 0, w2: 0,
+    hiZ: true, outs: "Svorkovnice", note: "Pro nízkoimpedanční PA bedny nevhodný." },
+];
+
+export type CompatLevel = "ok" | "warn" | "error";
+
+export interface CompatIssue {
+  level: CompatLevel;
+  title: string;
+  detail: string;
+}
+
+export interface CompatReport {
+  amp: AmpProfile;
+  count: number;
+  loadOhm: number | null;
+  issues: CompatIssue[];
+  worst: CompatLevel;
+}
+
+/** Kontrola: sedí zvolená impedance a typ zapojení bedny k danému zesilovači? */
+export function checkAmpCompatibility(d: CustomSpeaker, amp: AmpProfile, count: number): CompatReport {
+  const issues: CompatIssue[] = [];
+  const load = d.connection === "active" ? null : r2(d.ohm / count);
+
+  if (d.connection === "active") {
+    issues.push({
+      level: "error",
+      title: "Aktivní bedna se do zesilovače nepřipojuje",
+      detail: `${d.name} má vlastní koncový stupeň — potřebuje 230 V z rozdělovače a XLR signál, ne výstup z ${amp.name}.`,
+    });
+    return { amp, count, loadOhm: null, issues, worst: "error" };
+  }
+
+  if (load !== null) {
+    if (load < amp.minOhm) {
+      issues.push({
+        level: "error",
+        title: `Podtížení: ${load} Ω < min. ${amp.minOhm} Ω`,
+        detail: `${count}× ${d.ohm} Ω paralelně dá ${load} Ω na kanál. ${amp.name} to nezvládne — zapoj sériově/sérioparalelně nebo rozděl bedny na víc kanálů.`,
+      });
+    } else if (load < amp.minOhm * 1.25) {
+      issues.push({
+        level: "warn",
+        title: `Na hraně minima (${load} Ω)`,
+        detail: `Zesilovač je specifikován od ${amp.minOhm} Ω. Při dlouhých kabelech a hlubokých basech hrozí zásah ochran — hlídej teploty a délku vedení (min. 2,5 mm²).`,
+      });
+    } else {
+      issues.push({
+        level: "ok",
+        title: `Impedance sedí: ${load} Ω na kanál`,
+        detail: `${amp.name} má minimum ${amp.minOhm} Ω, zátěž je bezpečná.`,
+      });
+    }
+  }
+
+  // Výkonová shoda
+  const perCh = load !== null && load <= 2.5 ? amp.w2 : amp.w4;
+  const need = d.powerW * count;
+  if (perCh > 0 && need > 0) {
+    if (perCh > need * 2) {
+      issues.push({
+        level: "warn",
+        title: "Zesilovač je výrazně předimenzovaný",
+        detail: `${perCh} W na kanál vs. ${need} W zátěže (${count}× ${d.powerW} W). Nastav limiter v DSP, jinak snadno spálíš drivery.`,
+      });
+    } else if (perCh < need * 0.5) {
+      issues.push({
+        level: "warn",
+        title: "Zesilovač je poddimenzovaný",
+        detail: `${perCh} W na kanál vs. ${need} W zátěže. Hrozí clipping a zničení výškových driverů.`,
+      });
+    }
+  } else if (amp.w4 === 0 && amp.w2 === 0) {
+    issues.push({
+      level: "error",
+      title: "Nekompatibilní typ výstupu",
+      detail: `${amp.name} je určen pro 70/100V linku, ne pro nízkoimpedanční bedny (${d.ohm} Ω).`,
+    });
+  }
+
+  // Typ konektoru / topologie
+  if (d.connection === "nl4_biamp") {
+    const needCh = count * 2;
+    issues.push({
+      level: needCh > amp.channels ? "warn" : "ok",
+      title: `Bi-amp potřebuje ${needCh} kanálů`,
+      detail: needCh > amp.channels
+        ? `${amp.name} má jen ${amp.channels} kanály — buď paralel LF sekcí, nebo přidej druhý zesilovač.`
+        : `${amp.name} má ${amp.channels} kanálů, LF i MF/HF vyjdou samostatně (${amp.outs}).`,
+    });
+  }
+  if (d.connection === "binding" || d.connection === "jack") {
+    issues.push({
+      level: "warn",
+      title: "Konektory nesedí k výstupům zesilovače",
+      detail: `Bedna má ${CONNECTION_LABELS[d.connection]}, zesilovač má ${amp.outs}. Potřebuješ redukci NL4 → ${d.connection === "jack" ? "jack" : "svorky"}; pro velké výkony to není profi řešení.`,
+    });
+  }
+  if (d.connection === "nl4_link" && count > 2 && load !== null && load >= amp.minOhm) {
+    issues.push({
+      level: "warn",
+      title: "Dlouhý daisy-chain",
+      detail: `${count}× průchozí LINK OUT na jednom kabelu zvyšuje ztráty. Nad 2 bedny veď z ampu samostatné linky nebo použij 4mm² kabel.`,
+    });
+  }
+  if (amp.note) issues.push({ level: "ok", title: "Poznámka k zesilovači", detail: amp.note });
+
+  const worst: CompatLevel = issues.some((i) => i.level === "error")
+    ? "error"
+    : issues.some((i) => i.level === "warn")
+      ? "warn"
+      : "ok";
+
+  return { amp, count, loadOhm: load, issues, worst };
+}
