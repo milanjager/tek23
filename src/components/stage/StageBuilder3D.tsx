@@ -59,7 +59,7 @@ type Kind =
   | "bar" | "generator" | "distro";
 
 
-type Category = "sound" | "lights" | "infra";
+type Category = "sound" | "lights" | "infra" | "fun";
 
 interface Spec {
   label: string;
@@ -87,7 +87,7 @@ const SPECS: Record<Kind, Spec> = {
   badtekk_bass: { label: "Badtekk Bass",     category: "sound",  size: [0.90, 0.65, 0.75], stackable: true,  hint: "Badtekk 2×15\" bass", defaultLabel: "Badtekk Bass" },
   badtekk_top:  { label: "Badtekk Top",      category: "sound",  size: [0.65, 0.55, 0.45], stackable: true,  hint: "Badtekk W-bin top", defaultLabel: "Badtekk Top" },
   img_0838:     { label: "JB181 4×18\" RCF LF18G401", category: "sound", size: [0.80, 1.20, 0.90], stackable: true, hint: "4× JB181 – RCF LF18G401", defaultLabel: "JB181 4×18\"" },
-  img_0839:     { label: "JB181 4×18\" RCF LF18G401", category: "sound", size: [0.85, 1.30, 0.95], stackable: true, hint: "4× JB181 – RCF LF18G401", defaultLabel: "JB181 4×18\"" },
+  img_0839:     { label: "JB181 4×18\" v2 (vyšší skříň)", category: "sound", size: [0.85, 1.30, 0.95], stackable: true, hint: "4× JB181 – RCF LF18G401, vyšší varianta", defaultLabel: "JB181 4×18\" v2" },
   img_0841:     { label: "JB218 2×18\" RCF LF18N401", category: "sound", size: [1.20, 0.80, 0.95], stackable: true, hint: "2× JB218 – RCF LF18N401", defaultLabel: "JB218 2×18\"" },
   img_0842:     { label: "JB181 stack",       category: "sound",  size: [0.75, 1.80, 0.85], stackable: true,  hint: "Stack JB181 skříní", defaultLabel: "JB181 stack" },
   img_0843:     { label: "Picus top grill",   category: "sound",  size: [1.80, 1.60, 0.85], stackable: true,  hint: "Top řada s hex mřížkou", defaultLabel: "Picus top" },
@@ -119,7 +119,7 @@ const SPECS: Record<Kind, Spec> = {
   laser:        { label: "Laser",            category: "lights", size: [0.40, 0.25, 0.35], stackable: false, hint: "Laser" , powerW: 350 },
   movinghead:   { label: "Moving head",      category: "lights", size: [0.35, 0.55, 0.35], stackable: false, hint: "Otočná hlava" , powerW: 450 },
   halogen_white:{ label: "Halogen bílé",     category: "lights", size: [0.28, 0.22, 0.20], stackable: false, hint: "Halogenový reflektor s bílým světlem (barový osvit)", defaultLabel: "Halogen", powerW: 500, defaultNotes: "IN: 230V Schuko (1× fáze, 500 W halogen). Bez DMX — spínáno přes distro / spínač u baru. Pozor na horký reflektor — min. 0,5 m od textilu." },
-  bug_zapper:   { label: "Světlo na hubení havěti", category: "lights", size: [0.30, 0.45, 0.12], stackable: false, hint: "UV lapač hmyzu s mřížkou (bar/venku)", defaultLabel: "UV lapač", powerW: 40, defaultNotes: "IN: 230V Schuko (UV trubice 40 W + mřížka). Bez DMX — trvale zapnuto. Umístit min. 2 m od baru, nezakrývat mřížku." },
+  bug_zapper:   { label: "Světlo na hubení havěti", category: "fun", size: [0.30, 0.45, 0.12], stackable: false, hint: "UV lapač hmyzu s mřížkou (bar/venku)", defaultLabel: "UV lapač", powerW: 40, defaultNotes: "IN: 230V Schuko (UV trubice 40 W + mřížka). Bez DMX — trvale zapnuto. Umístit min. 2 m od baru, nezakrývat mřížku." },
   bar:          { label: "Bar",              category: "infra",  size: [2.40, 1.10, 0.65], stackable: false, hint: "Bar pult" , powerW: 400 },
   generator:    { label: "Aggregát",         category: "infra",  size: [0.70, 0.60, 0.55], stackable: false, hint: "Přenosný invertorový agregát (CEE 16A + 2× Schuko + 12V + 2× USB)" , powerW: 0 },
   distro:       { label: "Rozdělovač",       category: "infra",  size: [0.60, 0.35, 0.40], stackable: true,  hint: "Silový rozvaděč / power distro (CEE in → 230V outs + DMX/SIG patch)", defaultLabel: "Rozdělovač" , powerW: 0 },
@@ -128,10 +128,19 @@ const SPECS: Record<Kind, Spec> = {
 
 
 const CATEGORIES: { id: Category; label: string; icon: typeof Speaker }[] = [
-  { id: "sound",  label: "Sound",  icon: Volume2 },
-  { id: "lights", label: "Lights", icon: Sparkles },
+  { id: "sound",  label: "Zvuk",   icon: Volume2 },
+  { id: "lights", label: "Světla", icon: Sparkles },
   { id: "infra",  label: "Infra",  icon: Radio },
+  { id: "fun",    label: "Fun",    icon: Sparkles },
 ];
+
+/** Rough transport weight estimate (kg) — density heuristic per category. */
+export function estimateWeightKg(s: Spec): number {
+  const vol = s.size[0] * s.size[1] * s.size[2];
+  if (s.category === "sound") return Math.round(vol * 175);
+  if (s.category === "infra") return Math.round(vol * 110 + 8);
+  return Math.round(vol * 40 + 3);
+}
 
 interface Placed {
   id: string;
