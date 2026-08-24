@@ -4816,19 +4816,31 @@ export function StageBuilder3D() {
 
       {/* ── Sekundární lišta: pohled + nástroje aktivního režimu ───── */}
       <div className="glass z-20 flex flex-nowrap items-center gap-1.5 overflow-x-auto px-2 py-1.5 no-scrollbar sm:px-3 md:flex-wrap md:overflow-visible">
-        <label className="inline-flex shrink-0 items-center gap-1.5 text-[11px] text-neutral-500">
-          <span className="hidden sm:inline">Pohled</span>
-          <select
-            value={viewMode}
-            onChange={(e) => setViewMode(e.target.value as typeof viewMode)}
-            aria-label="Pohled na scénu"
-            className={`${compact ? "min-h-7" : "min-h-11"} rounded-lg border border-neutral-300 bg-white px-2 text-[12px] font-semibold text-neutral-800 focus:border-lime-500 focus:outline-none`}
-          >
-            {VIEWS.map((v) => (
-              <option key={v.id} value={v.id}>{v.label}</option>
-            ))}
-          </select>
-        </label>
+        <div className="flex shrink-0 items-center gap-0.5 rounded-xl bg-neutral-200 p-0.5" role="group" aria-label="Pohled na scénu">
+          {PRIMARY_VIEWS.map((v) => (
+            <button
+              key={v.id}
+              onClick={() => setViewMode(v.id)}
+              aria-pressed={viewMode === v.id}
+              title={v.hint}
+              className={`${compact ? "min-h-7" : "min-h-9"} rounded-lg px-2.5 text-[12px] font-bold ${viewMode === v.id ? "bg-white text-neutral-900 shadow-sm" : "text-neutral-600 hover:text-neutral-900"}`}
+            >
+              {v.label}
+            </button>
+          ))}
+        </div>
+        <select
+          value={MORE_VIEWS.some((v) => v.id === viewMode) ? viewMode : ""}
+          onChange={(e) => { if (e.target.value) setViewMode(e.target.value as typeof viewMode); }}
+          aria-label="Další pohledy"
+          className={`${compact ? "min-h-7" : "min-h-9"} shrink-0 rounded-lg border border-neutral-300 bg-white px-2 text-[12px] font-semibold text-neutral-800 focus:border-lime-500 focus:outline-none`}
+        >
+          <option value="">Další pohledy…</option>
+          {MORE_VIEWS.map((v) => (
+            <option key={v.id} value={v.id}>{v.label}</option>
+          ))}
+        </select>
+
         <div className="mx-1 hidden h-6 w-px bg-neutral-300/70 sm:block" />
 
         {workMode === "build" && (
