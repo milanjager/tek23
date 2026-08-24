@@ -4545,9 +4545,63 @@ export function StageBuilder3D() {
     return () => window.removeEventListener("keydown", onKey);
   }, [deleteSelection, copySelection, pasteSelection, duplicateSelection, groupSelection, ungroupSelection, undo, redo, nudgeSelection, selection.length]);
 
+  // Recently used palette kinds (persisted) + shortcuts overlay.
+  const [recentKinds, setRecentKinds] = useState<Kind[]>([]);
+  const [shortcutsOpen, setShortcutsOpen] = useState(false);
+  const [savedAt, setSavedAt] = useState<string | null>(null);
+  useEffect(() => {
+    try {
+      const r = JSON.parse(localStorage.getItem("stage.recentKinds") || "[]");
+      if (Array.isArray(r)) setRecentKinds(r.filter((k: string) => k in SPECS).slice(0, 6) as Kind[]);
+    } catch { /* ignore */ }
+  }, []);
+  const pushRecent = useCallback((k: Kind) => {
+    setRecentKinds((cur) => {
+      const next = [k, ...cur.filter((x) => x !== k)].slice(0, 6);
+      try { localStorage.setItem("stage.recentKinds", JSON.stringify(next)); } catch { /* ignore */ }
+      return next;
+    });
+  }, []);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const t = e.target as HTMLElement | null;
+      if (t && /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName)) return;
+      if (e.key === "?" || (e.key === "/" && e.shiftKey)) { e.preventDefault(); setShortcutsOpen((v) => !v); }
+      if (e.key === "Escape") setShortcutsOpen(false);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+
+  // Autosave — debounced, so nikdo nepřijde o rozpracovaný rig.
+  useEffect(() => {
+    if (!items.length && !cables.length) return;
+    const t = setTimeout(() => {
+      try {
+        localStorage.setItem(STORAGE, JSON.stringify({ items, cables, groupNames, groupSpacing }));
+        setHasSaved(true);
+        setSavedAt(new Date().toLocaleTimeString("cs-CZ", { hour: "2-digit", minute: "2-digit" }));
+      } catch { /* ignore */ }
+    }, 1200);
+    return () => clearTimeout(t);
+  }, [items, cables, groupNames, groupSpacing]);
+
+  /** Čísla, která technika reálně pálí: hmotnost, kanály, příkon. */
+  const rigStats = useMemo(() => {
+    let kg = 0, watts = 0, speakers = 0;
+    for (const it of items) {
+      const s = SPECS[it.kind];
+      kg += estimateWeightKg(s);
+      watts += s.powerW ?? 0;
+      if (s.category === "sound") speakers += 1;
+    }
+    return { kg, kw: watts / 1000, speakers };
+  }, [items]);
+
   const palette = useMemo(() => {
-    const list = (Object.entries(SPECS) as [Kind, Spec][]).filter(([, s]) => s.category === category);
     const q = paletteQuery.trim().toLowerCase();
+    const list = (Object.entries(SPECS) as [Kind, Spec][]).filter(([, s]) => q ? true : s.category === category);
     if (!q) return list;
     return list.filter(([k, s]) => `${k} ${s.label} ${s.hint ?? ""}`.toLowerCase().includes(q));
   }, [category, paletteQuery]);
