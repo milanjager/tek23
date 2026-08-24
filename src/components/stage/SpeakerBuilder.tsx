@@ -12,6 +12,11 @@ import {
   recommendWiring,
   checkAmpCompatibility,
   AMP_PROFILES,
+  compatBadge,
+  ohmBadge,
+  connectionBadge,
+  getPreferredAmp,
+  setPreferredAmp,
 } from "./customSpeakers";
 
 /* ============================================================
@@ -56,7 +61,7 @@ export default function SpeakerBuilder({
   onPlace: (id: string) => void;
 }) {
   const [draft, setDraft] = useState<CustomSpeaker>(() => newCustomSpeaker());
-  const [ampId, setAmpId] = useState("k10");
+  const [ampId, setAmpId] = useState(() => getPreferredAmp().id);
 
   useEffect(() => {
     if (!open) return;
@@ -79,6 +84,8 @@ export default function SpeakerBuilder({
   const amp = AMP_PROFILES.find((a) => a.id === ampId) ?? AMP_PROFILES[0]!;
   const ampMinOhm = amp.minOhm;
   const compat = [2, 4].map((n) => checkAmpCompatibility(draft, amp, n));
+  const bOhm = ohmBadge(draft, amp);
+  const bConn = connectionBadge(draft, amp);
   const compatWorst = compat.some((c) => c.worst === "error")
     ? "error"
     : compat.some((c) => c.worst === "warn")
@@ -157,10 +164,13 @@ export default function SpeakerBuilder({
                   onChange={(e) => set("powerW", Math.max(0, num(e.target.value, draft.powerW)))} />
               </Field>
               <Field label="Impedance (Ω)">
-                <select className={inputCls} value={draft.ohm}
+                <select className={`${inputCls} border-2 ${bOhm.ring}`} title={bOhm.title} value={draft.ohm}
                   onChange={(e) => set("ohm", num(e.target.value, draft.ohm))}>
                   {[2, 4, 8, 16].map((o) => <option key={o} value={o}>{o} Ω</option>)}
                 </select>
+                <span title={bOhm.title} className={`mt-1 inline-block rounded-full border px-1.5 py-0.5 text-[9px] font-bold ${bOhm.chip}`}>
+                  {bOhm.icon} {bOhm.short}
+                </span>
               </Field>
               <Field label="SPL max (dB)">
                 <input className={inputCls} type="number" step="1" value={draft.spl ?? ""}
@@ -170,7 +180,8 @@ export default function SpeakerBuilder({
 
             <Field label="Typ zapojení" hint="Určuje, jaké konektory bedna dostane a jak ji zapojí automat.">
               <select
-                className={inputCls}
+                className={`${inputCls} border-2 ${bConn.ring}`}
+                title={bConn.title}
                 value={draft.connection}
                 onChange={(e) => set("connection", e.target.value as CustomConnection)}
               >
@@ -178,6 +189,9 @@ export default function SpeakerBuilder({
                   <option key={c} value={c}>{CONNECTION_LABELS[c]}</option>
                 ))}
               </select>
+              <span title={bConn.title} className={`mt-1 inline-block rounded-full border px-1.5 py-0.5 text-[9px] font-bold ${bConn.chip}`}>
+                {bConn.icon} {bConn.short} — {bConn.title}
+              </span>
             </Field>
 
             <div className="grid grid-cols-2 gap-2">
@@ -205,7 +219,7 @@ export default function SpeakerBuilder({
                   <select
                     className="max-w-[190px] rounded border border-neutral-300 bg-white px-1.5 py-1 text-[10px] text-neutral-900"
                     value={amp.id}
-                    onChange={(e) => setAmpId(e.target.value)}
+                    onChange={(e) => { setAmpId(e.target.value); setPreferredAmp(e.target.value); }}
                   >
                     {AMP_PROFILES.map((a) => (
                       <option key={a.id} value={a.id}>{a.name} · min {a.minOhm} Ω</option>
@@ -332,11 +346,20 @@ export default function SpeakerBuilder({
                 key={d.id}
                 className={`rounded-lg border p-2 ${d.id === draft.id ? "border-lime-500 bg-lime-500/10" : "border-neutral-200 bg-white/70"}`}
               >
-                <div className="truncate text-[12px] font-bold text-neutral-900">{d.name}</div>
+                <div className="flex items-center gap-1">
+                  <span className={`h-2 w-2 shrink-0 rounded-full ${compatBadge(d, amp).dot}`} title={compatBadge(d, amp).title} />
+                  <span className="truncate text-[12px] font-bold text-neutral-900">{d.name}</span>
+                </div>
                 <div className="truncate text-[10px] text-neutral-500">{customHint(d)}</div>
                 <div className="text-[10px] text-neutral-500">
                   {d.size.map((v) => v.toFixed(2)).join(" × ")} m · {CONNECTION_LABELS[d.connection]}
                 </div>
+                <span
+                  title={compatBadge(d, amp).title}
+                  className={`mt-1 inline-block rounded-full border px-1.5 py-0.5 text-[9px] font-bold ${compatBadge(d, amp).chip}`}
+                >
+                  {compatBadge(d, amp).icon} {d.ohm} Ω × {amp.name.split(" ")[1] ?? amp.name}
+                </span>
                 <div className="mt-1 flex gap-1">
                   <button
                     onClick={() => onEdit(d.id)}
