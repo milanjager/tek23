@@ -33,6 +33,8 @@ import {
   loadCustomSpeakers,
   saveCustomSpeakers,
   customHint,
+  compatBadge,
+  getPreferredAmp,
   customNotes,
 } from "./customSpeakers";
 import distroAsset from "@/assets/distro.png.asset.json";
@@ -5545,8 +5547,17 @@ export function StageBuilder3D() {
                   </div>
                 </button>
                 {s.custom && (
-                  <div className="flex items-center justify-between border-t border-neutral-200 px-2 py-1">
-                    <span className="text-[9px] font-bold uppercase tracking-wider text-lime-700">Vlastní</span>
+                  <div className="flex items-center justify-between gap-1 border-t border-neutral-200 px-2 py-1">
+                    {(() => {
+                      const def = customDefs.find((d) => d.id === k);
+                      if (!def) return <span className="text-[9px] font-bold uppercase tracking-wider text-lime-700">Vlastní</span>;
+                      const b = compatBadge(def);
+                      return (
+                        <span title={b.title} className={`rounded-full border px-1.5 py-0.5 text-[9px] font-bold ${b.chip}`}>
+                          {b.icon} {def.ohm} Ω · {b.short}
+                        </span>
+                      );
+                    })()}
                     <button
                       onClick={() => { setBuilderEditId(k); setBuilderOpen(true); }}
                       className="text-[10px] font-semibold text-neutral-600 underline hover:text-lime-600"
@@ -5904,6 +5915,19 @@ export function StageBuilder3D() {
                 <div className="mb-2">
                   <div className="truncate text-[13px] font-bold text-neutral-900">{primary.label || pspec.label}</div>
                   <div className="text-[10px] text-neutral-500">{pspec.label} · {pspec.hint}</div>
+                  {(() => {
+                    const def = customDefs.find((d) => d.id === primary.kind);
+                    if (!def) return null;
+                    const b = compatBadge(def);
+                    return (
+                      <span
+                        title={b.title}
+                        className={`mt-1 inline-block rounded-full border px-1.5 py-0.5 text-[9px] font-bold ${b.chip}`}
+                      >
+                        {b.icon} {def.ohm} Ω · {b.short} · {getPreferredAmp().name}
+                      </span>
+                    );
+                  })()}
                 </div>
 
                 {/* Rozměry */}
