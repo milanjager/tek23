@@ -2346,6 +2346,8 @@ function PulseRing({ color, size }: { color: string; size: number }) {
 
 import {
   snapToGridXZ as snapToGridXZPure,
+  edgeSnapXZ,
+
   stackY as stackYPure,
   hasCollision as hasCollisionPure,
   collisionIds as collisionIdsPure,
@@ -2549,14 +2551,17 @@ function stackSnapTarget(
 // - Red translucent box    = collides with / buries into other cabinets.
 // Colliding items are also outlined in red so the conflict is obvious.
 function PlacementGhost({
-  selection, items, objectsRef, onSnapChange, speakerLineZ,
+  selection, items, objectsRef, onSnapChange, speakerLineZ, magnet,
 }: {
   selection: string[];
   items: Placed[];
   objectsRef: React.MutableRefObject<Map<string, THREE.Object3D>>;
   onSnapChange?: (info: { id: string; mode: "ground" | "stack" | "bad"; ontoId?: string; ontoLabel?: string }) => void;
   speakerLineZ: number;
+  /** Magnetic edge/row snapping on. */
+  magnet: boolean;
 }) {
+
   const groupRef = useRef<THREE.Group>(null);
   const meshRefs = useRef<Map<string, THREE.Mesh>>(new Map());
   const highlightRefs = useRef<Map<string, THREE.Mesh>>(new Map());
@@ -2577,11 +2582,22 @@ function PlacementGhost({
       if (!src || !obj || !mesh) continue;
 
       const step = PLACEMENT_TUNING.gridStep;
-      const sx = Math.round(obj.position.x / step) * step;
+      const gx = Math.round(obj.position.x / step) * step;
       const rawSz = Math.round(obj.position.z / step) * step;
-      const sz = SPECS[src.kind].category === "sound" ? speakerLineZ : rawSz;
+      const isSound = SPECS[src.kind].category === "sound";
+      const gz = isSound ? speakerLineZ : rawSz;
       const rawY = obj.position.y;
       const s = SPECS[src.kind].size;
+      // Magnetic edge/row snap before stack resolution.
+      let sx = gx, sz = gz;
+      if (magnet) {
+        const es = edgeSnapXZ(
+          { id: src.id, pos: [gx, Math.max(0, rawY), gz], size: s },
+          others.map((o) => ({ id: o.id, pos: o.pos, size: SPECS[o.kind].size })),
+        );
+        sx = es.pos[0];
+        sz = isSound ? speakerLineZ : es.pos[2];
+      }
       const candidate: Placed = { ...src, pos: [sx, Math.max(0, rawY), sz], rotY: 0 };
 
       const snap = stackSnapTarget(candidate, others, rawY);
@@ -2595,6 +2611,7 @@ function PlacementGhost({
         const y = stackY(candidate, others);
         candidate.pos = [sx, y, sz];
       }
+
 
       const buried = rawY < PLACEMENT_TUNING.buriedY;
       const bad = buried || hasCollision(candidate, others);
@@ -2782,7 +2799,8 @@ function SceneContent({
   items, setItems, selection, setSelection, tool,
   cables, setCables, mode, cableType, setCableType, pendingFrom, setPendingFrom,
   showConnectorLabels, showCableLabels, realistic, autoSanitize, frontView, topView, speakerLineZ,
-  cableRouteY,
+  cableRouteY, magnet,
+
 }: {
   items: Placed[];
   setItems: React.Dispatch<React.SetStateAction<Placed[]>>;
@@ -2805,7 +2823,9 @@ function SceneContent({
   speakerLineZ: number;
   /** Y-height (m) at which the cable bus runs. 0.02 = on the floor, higher = truss/aerial. */
   cableRouteY: number;
+  magnet: boolean;
 }) {
+
 
   const cableLoads = useMemo(() => computeCableLoads(items, cables), [items, cables]);
 
@@ -2915,7 +2935,19 @@ function SceneContent({
           : gridSnapped;
         const snapped: Placed = { ...it, pos: zSnapped, rotY: 0 };
         const others = [...map.values()].filter((o) => o.id !== id);
+        if (magnet) {
+          const es = edgeSnapXZ(
+            { id: it.id, pos: snapped.pos, size: SPECS[it.kind].size },
+            others.map((o) => ({ id: o.id, pos: o.pos, size: SPECS[o.kind].size })),
+          );
+          snapped.pos = [
+            es.pos[0],
+            snapped.pos[1],
+            SPECS[it.kind].category === "sound" ? speakerLineZ : es.pos[2],
+          ];
+        }
         const target = stackSnapTarget(snapped, others, rawY);
+
         let mode: "stack" | "ground";
         let ontoLabel: string | undefined;
         if (target) {
@@ -2959,7 +2991,7 @@ function SceneContent({
           : `${first.label} položeno na zem · y=${fmt(first.final[1])}m (Δy ${fmt(first.final[1] - first.raw[1])})${extra}`;
       setDropReport({ text, kind: first.mode, at: Date.now() });
     }
-  }, [selection, setItems, autoSanitize, speakerLineZ]);
+  }, [selection, setItems, autoSanitize, speakerLineZ, magnet]);
 
   // Auto-hide the drop report after a couple of seconds.
   useEffect(() => {
@@ -3213,6 +3245,8 @@ function SceneContent({
             }
           }}
           speakerLineZ={speakerLineZ}
+          magnet={magnet}
+
         />
       )}
 
@@ -4045,6 +4079,16 @@ export function StageBuilder3D() {
     setPanelsHydrated(true);
   }, []);
   const [marqueeMode, setMarqueeMode] = useState(false);
+  // Magnetic edge/row snapping — on by default, persisted after hydration.
+  const [magnet, setMagnet] = useState(true);
+  useEffect(() => {
+    const saved = localStorage.getItem("stage.magnet");
+    if (saved !== null) setMagnet(saved === "1");
+  }, []);
+  useEffect(() => {
+    if (panelsHydrated) localStorage.setItem("stage.magnet", magnet ? "1" : "0");
+  }, [magnet, panelsHydrated]);
+
   const [realistic, setRealistic] = useState(false);
   const [autoSanitize, setAutoSanitize] = useState(false);
   useEffect(() => {
@@ -4858,6 +4902,15 @@ export function StageBuilder3D() {
             </select>
             <button onClick={() => { setMode("select"); setPendingFrom(null); setMarqueeMode(false); }} className={`${btnCls} ${mode === "select" && !marqueeMode ? "bg-lime-500 text-neutral-950" : "bg-neutral-100 hover:bg-neutral-200"}`}><MousePointer2 size={13} /> Výběr</button>
             <button onClick={() => { setMode("select"); setPendingFrom(null); setMarqueeMode((v) => !v); }} className={`${btnCls} ${marqueeMode ? "bg-lime-500 text-neutral-950" : "bg-neutral-100 hover:bg-neutral-200"}`} title="Táhni myší přes bedny (Shift = přidat k výběru)"><BoxSelect size={13} /> Rámeček</button>
+            <button
+              onClick={() => { setMagnet((v) => { announce(v ? "Magnety vypnuty — bedny se už nezarovnávají." : "Magnety zapnuty — bedny cvakají k hranám a do řady."); return !v; }); }}
+              aria-pressed={magnet}
+              title="Magnetické snapování: bedna cvakne hranou k sousedovi nebo se zarovná do řady (tolerance 35 cm)."
+              className={`${btnCls} ${magnet ? "bg-cyan-500 text-neutral-950" : "bg-neutral-100 hover:bg-neutral-200"}`}
+            >
+              🧲 Magnety {magnet ? "· ON" : "· OFF"}
+            </button>
+
             <button onClick={() => setTool("translate")} disabled={mode !== "select"} className={`${btnCls} ${tool === "translate" && mode === "select" ? "bg-lime-500 text-neutral-950" : "bg-neutral-100 hover:bg-neutral-200"} disabled:opacity-40`}><MoveIcon size={13} /> Posun (T)</button>
             <button onClick={duplicateSelection} disabled={!selection.length} className={`${btnCls} bg-neutral-100 hover:bg-neutral-200 disabled:opacity-40`}><Copy size={13} /> Duplikovat</button>
             <button onClick={copySelection} disabled={!selection.length} className={`${btnCls} bg-neutral-100 hover:bg-neutral-200 disabled:opacity-40`}>Kopírovat</button>
@@ -5303,6 +5356,8 @@ export function StageBuilder3D() {
               showCableLabels={showCableLabels}
               realistic={realistic}
               autoSanitize={autoSanitize}
+              magnet={magnet}
+
               frontView={viewMode === "front3d"}
               topView={viewMode === "top"}
               speakerLineZ={speakerLineZ}
