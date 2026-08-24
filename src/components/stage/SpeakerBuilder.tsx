@@ -9,6 +9,7 @@ import {
   newCustomSpeaker,
   customHint,
   chainImpedance,
+  recommendWiring,
 } from "./customSpeakers";
 
 /* ============================================================
