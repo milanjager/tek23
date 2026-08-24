@@ -10,6 +10,8 @@ import {
   customHint,
   chainImpedance,
   recommendWiring,
+  checkAmpCompatibility,
+  AMP_PROFILES,
 } from "./customSpeakers";
 
 /* ============================================================
@@ -54,7 +56,7 @@ export default function SpeakerBuilder({
   onPlace: (id: string) => void;
 }) {
   const [draft, setDraft] = useState<CustomSpeaker>(() => newCustomSpeaker());
-  const [ampMinOhm, setAmpMinOhm] = useState(4);
+  const [ampId, setAmpId] = useState("k10");
 
   useEffect(() => {
     if (!open) return;
@@ -74,6 +76,14 @@ export default function SpeakerBuilder({
     });
 
   const isNew = !defs.some((d) => d.id === draft.id);
+  const amp = AMP_PROFILES.find((a) => a.id === ampId) ?? AMP_PROFILES[0]!;
+  const ampMinOhm = amp.minOhm;
+  const compat = [2, 4].map((n) => checkAmpCompatibility(draft, amp, n));
+  const compatWorst = compat.some((c) => c.worst === "error")
+    ? "error"
+    : compat.some((c) => c.worst === "warn")
+      ? "warn"
+      : "ok";
   const parallel2 = chainImpedance(draft.ohm, 2);
   const parallel4 = chainImpedance(draft.ohm, 4);
 
@@ -191,15 +201,18 @@ export default function SpeakerBuilder({
               <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
                 <b className="text-[11px] text-neutral-900">🔌 Doporučené zapojení stacku</b>
                 <label className="flex items-center gap-1 text-[10px] font-semibold text-neutral-600">
-                  Min. impedance ampu
+                  Zesilovač
                   <select
-                    className="rounded border border-neutral-300 bg-white px-1.5 py-1 text-[10px] text-neutral-900"
-                    value={ampMinOhm}
-                    onChange={(e) => setAmpMinOhm(num(e.target.value, 4))}
+                    className="max-w-[190px] rounded border border-neutral-300 bg-white px-1.5 py-1 text-[10px] text-neutral-900"
+                    value={amp.id}
+                    onChange={(e) => setAmpId(e.target.value)}
                   >
-                    {[2, 2.7, 4, 8].map((o) => <option key={o} value={o}>{o} Ω</option>)}
+                    {AMP_PROFILES.map((a) => (
+                      <option key={a.id} value={a.id}>{a.name} · min {a.minOhm} Ω</option>
+                    ))}
                   </select>
                 </label>
+
               </div>
 
               <div className="space-y-2">
@@ -237,6 +250,41 @@ export default function SpeakerBuilder({
                 })}
               </div>
             </div>
+
+            {/* --- Kontrola kompatibility Ω × zesilovač --- */}
+            <div
+              className={`rounded-lg border p-2 ${
+                compatWorst === "error"
+                  ? "border-red-500/50 bg-red-500/10"
+                  : compatWorst === "warn"
+                    ? "border-amber-500/50 bg-amber-500/10"
+                    : "border-emerald-500/40 bg-emerald-500/10"
+              }`}
+            >
+              <div className="mb-1.5 text-[11px] font-bold text-neutral-900">
+                {compatWorst === "error" ? "⛔ Nekompatibilní kombinace" : compatWorst === "warn" ? "⚠️ Kompatibilita s výhradami" : "✅ Kompatibilita v pořádku"}
+                <span className="ml-1 font-medium text-neutral-600">— {draft.ohm} Ω / {CONNECTION_LABELS[draft.connection]} × {amp.name}</span>
+              </div>
+              <div className="space-y-1.5">
+                {compat.map((rep) => (
+                  <div key={rep.count} className="rounded-md border border-neutral-200/70 bg-white/70 p-1.5">
+                    <div className="mb-0.5 text-[10px] font-bold text-neutral-900">
+                      {rep.count}× stack paralelně → {rep.loadOhm === null ? "—" : `${rep.loadOhm} Ω`} na kanál
+                    </div>
+                    <ul className="space-y-0.5">
+                      {rep.issues.map((iss, i) => (
+                        <li key={i} className="text-[10px] leading-snug text-neutral-700">
+                          <span>{iss.level === "error" ? "⛔" : iss.level === "warn" ? "⚠️" : "✅"} </span>
+                          <b className="text-neutral-900">{iss.title}:</b> {iss.detail}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+
 
 
             <div className="flex flex-wrap gap-2 pt-1">
