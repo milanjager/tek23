@@ -184,6 +184,59 @@ export default function SpeakerBuilder({
               {draft.connection === "active" && " Aktivní bedna se nezapojuje do zesilovače — jen 230V + XLR."}
             </div>
 
+            {/* --- Doporučené zapojení stacku --- */}
+            <div className="rounded-lg border border-neutral-300/70 bg-white/70 p-2">
+              <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+                <b className="text-[11px] text-neutral-900">🔌 Doporučené zapojení stacku</b>
+                <label className="flex items-center gap-1 text-[10px] font-semibold text-neutral-600">
+                  Min. impedance ampu
+                  <select
+                    className="rounded border border-neutral-300 bg-white px-1.5 py-1 text-[10px] text-neutral-900"
+                    value={ampMinOhm}
+                    onChange={(e) => setAmpMinOhm(num(e.target.value, 4))}
+                  >
+                    {[2, 2.7, 4, 8].map((o) => <option key={o} value={o}>{o} Ω</option>)}
+                  </select>
+                </label>
+              </div>
+
+              <div className="space-y-2">
+                {[2, 4].map((n) => {
+                  const rec = recommendWiring(draft, n, ampMinOhm);
+                  return (
+                    <div key={n} className="rounded-md border border-neutral-200 bg-white/80 p-1.5">
+                      <div className="mb-1 flex items-center justify-between">
+                        <span className="text-[11px] font-bold text-neutral-900">{n}× stack</span>
+                        <span className={`text-[10px] font-semibold ${rec.best ? "text-lime-700" : "text-red-600"}`}>
+                          {rec.best ? `${rec.best.label} · ${rec.best.loadOhm ?? "—"} Ω` : "bez vhodné varianty"}
+                        </span>
+                      </div>
+                      <table className="w-full text-left text-[10px] text-neutral-700">
+                        <tbody>
+                          {rec.options.map((o) => (
+                            <tr
+                              key={o.topology}
+                              className={o === rec.best ? "bg-lime-500/15 font-semibold text-neutral-900" : ""}
+                            >
+                              <td className="py-0.5 pr-2 align-top">{o.ok ? "✅" : "⛔"}</td>
+                              <td className="py-0.5 pr-2 align-top">{o.label}</td>
+                              <td className="py-0.5 pr-2 align-top whitespace-nowrap">
+                                {o.loadOhm === null ? "—" : `${o.loadOhm} Ω`}
+                                {o.channels > 1 && ` / ${o.channels} kan.`}
+                              </td>
+                              <td className="py-0.5 align-top text-neutral-500">{o.note}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                      <div className="mt-1 text-[10px] text-neutral-600">{rec.summary}</div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+
             <div className="flex flex-wrap gap-2 pt-1">
               <button
                 onClick={() => { onSave(draft); onClose(); }}
