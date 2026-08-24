@@ -5085,6 +5085,23 @@ export function StageBuilder3D() {
             />
           </div>
           <div className="flex-1 overflow-y-auto p-2">
+            {!paletteQuery && recentKinds.length > 0 && (
+              <div className="mb-3">
+                <div className="mb-1 px-0.5 text-[9px] font-bold uppercase tracking-wider text-neutral-500">Nedávno použité</div>
+                <div className="flex flex-wrap gap-1">
+                  {recentKinds.map((k) => (
+                    <button
+                      key={k}
+                      onClick={() => { addItem(k); pushRecent(k); setPaletteOpen(false); }}
+                      title={`${SPECS[k].label} — ${SPECS[k].hint}`}
+                      className="glass-chip max-w-full truncate rounded-full px-2 py-1 text-[10px] font-semibold text-neutral-700 hover:text-lime-600"
+                    >
+                      {SPECS[k].defaultLabel ?? SPECS[k].label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
             {!palette.length && (
               <p className="px-1 py-4 text-[11px] text-neutral-500">Nic nenalezeno — zkus jiný výraz nebo jinou kategorii.</p>
             )}
@@ -5092,27 +5109,22 @@ export function StageBuilder3D() {
             {palette.map(([k, s]) => (
               <button
                 key={k}
-                onClick={() => { addItem(k); setPaletteOpen(false); }}
+                onClick={() => { addItem(k); pushRecent(k); setPaletteOpen(false); }}
+                title={`${s.label} — ${s.hint} · ${s.size[0].toFixed(2)}×${s.size[1].toFixed(2)}×${s.size[2].toFixed(2)} m · ~${estimateWeightKg(s)} kg`}
                 className="mb-2 block w-full overflow-hidden rounded border border-neutral-200 bg-neutral-50 text-left transition hover:border-lime-500/60 hover:bg-neutral-100"
               >
                 <PaletteThumb kind={k} />
                 <div className="px-2 py-1.5">
-                  <div className="text-xs font-semibold text-neutral-900">{s.label}</div>
-                  <div className="text-[10px] text-neutral-500">{s.hint}</div>
-                  <div className="mt-0.5 font-mono text-[9px] text-neutral-600">
-                    {s.size[0].toFixed(2)}×{s.size[1].toFixed(2)}×{s.size[2].toFixed(2)} m
-                  </div>
+                  <div className="truncate text-xs font-semibold text-neutral-900">{s.defaultLabel ?? s.label}</div>
+                  <div className="truncate text-[10px] text-neutral-500">{s.hint}</div>
                 </div>
               </button>
             ))}
           </div>
           <div className="hidden border-t border-neutral-200 p-2 text-[10px] text-neutral-500 md:block">
-            <div><b>T/R</b> — posun/rotace · <b>C</b> — kabely</div>
-            <div><b>Ctrl+C/V/D</b> — kopie / vložit / duplikovat</div>
-            <div><b>Ctrl+G / Ctrl+Shift+G</b> — group / ungroup</div>
-            <div><b>Shift+klik</b> — přidat do výběru · <b>Del</b> — smazat</div>
-            <div className="mt-1 text-neutral-500">V režimu Kabely: klik na první bednu → klik na druhou. Klik na kabel = smazat.</div>
+            Tip: klávesa <b>?</b> zobrazí všechny zkratky.
           </div>
+
         </aside>
 
         {/* 3D Canvas / Schematic view */}
