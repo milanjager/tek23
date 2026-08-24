@@ -191,15 +191,18 @@ export default function SpeakerBuilder({
               <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
                 <b className="text-[11px] text-neutral-900">🔌 Doporučené zapojení stacku</b>
                 <label className="flex items-center gap-1 text-[10px] font-semibold text-neutral-600">
-                  Min. impedance ampu
+                  Zesilovač
                   <select
-                    className="rounded border border-neutral-300 bg-white px-1.5 py-1 text-[10px] text-neutral-900"
-                    value={ampMinOhm}
-                    onChange={(e) => setAmpMinOhm(num(e.target.value, 4))}
+                    className="max-w-[190px] rounded border border-neutral-300 bg-white px-1.5 py-1 text-[10px] text-neutral-900"
+                    value={amp.id}
+                    onChange={(e) => setAmpId(e.target.value)}
                   >
-                    {[2, 2.7, 4, 8].map((o) => <option key={o} value={o}>{o} Ω</option>)}
+                    {AMP_PROFILES.map((a) => (
+                      <option key={a.id} value={a.id}>{a.name} · min {a.minOhm} Ω</option>
+                    ))}
                   </select>
                 </label>
+
               </div>
 
               <div className="space-y-2">
