@@ -27,6 +27,7 @@ import { PlacementDevPanel } from "./PlacementDevPanel";
 import PowersoftGuide from "./PowersoftGuide";
 import { StartLauncher } from "./StartLauncher";
 import SpeakerBuilder from "./SpeakerBuilder";
+import SpeakerWiringSchema, { type WireNode, type WireLink } from "./SpeakerWiringSchema";
 import {
   type CustomSpeaker,
   loadCustomSpeakers,
@@ -4329,6 +4330,7 @@ function PaletteThumb({ kind }: { kind: Kind }) {
 
 export function StageBuilder3D() {
   const [items, setItems] = useState<Placed[]>(() => normalizeScene(loadPreset("namel_wall")));
+  const [wiringSchemaOpen, setWiringSchemaOpen] = useState(false);
   const [cables, setCables] = useState<Cable[]>(() => autoWireCables(normalizeScene(loadPreset("namel_wall"))));
   const [selection, setSelection] = useState<string[]>([]);
   const [groupNames, setGroupNames] = useState<Record<string, string>>({});
@@ -5325,6 +5327,13 @@ export function StageBuilder3D() {
               title="Vygeneruje kompletní kabeláž: PWR, SIG, SPK i DMX"
             >
               <Zap size={14} /> Zapojit vše
+            </button>
+            <button
+              onClick={() => setWiringSchemaOpen(true)}
+              className={`${btnCls} bg-sky-500 font-bold text-white shadow-sm hover:bg-sky-400`}
+              title="Schéma NL4/Speakon linek a napájení aktivních beden"
+            >
+              <CableIcon size={14} /> Schéma NL4/PWR
             </button>
             <button onClick={() => setShowConnectorLabels((v) => !v)} aria-pressed={showConnectorLabels} className={`${btnCls} ${showConnectorLabels ? "bg-lime-500 text-neutral-950" : "bg-neutral-100 text-neutral-500 hover:bg-neutral-200"}`}>Popisky konektorů</button>
             <button onClick={() => setShowCableLabels((v) => !v)} aria-pressed={showCableLabels} className={`${btnCls} ${showCableLabels ? "bg-lime-500 text-neutral-950" : "bg-neutral-100 text-neutral-500 hover:bg-neutral-200"}`}>Popisky kabelů</button>
