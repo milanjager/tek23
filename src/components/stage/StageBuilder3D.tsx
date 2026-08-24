@@ -4221,14 +4221,14 @@ export function StageBuilder3D() {
     const narrow = window.matchMedia("(max-width: 767px)").matches;
     const on = saved !== null ? saved === "1" : narrow;
     setMobileViewer(on);
-    if (on) { setViewMode("top"); setWorkMode("inspect"); }
+    if (on) { setViewMode("grid"); setWorkMode("inspect"); }
   }, []);
   useEffect(() => {
     if (panelsHydrated) localStorage.setItem("stage.mobileViewer", mobileViewer ? "1" : "0");
   }, [mobileViewer, panelsHydrated]);
   const enterViewer = useCallback(() => {
     setMobileViewer(true);
-    setViewMode("top");
+    setViewMode("grid");
     setWorkMode("inspect");
     setMode("select");
     setPendingFrom(null);
