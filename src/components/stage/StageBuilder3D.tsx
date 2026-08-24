@@ -4089,6 +4089,62 @@ function loadPreset(kind: PresetKind): Placed[] {
 }
 
 /* ============================================================
+   Podklad pro schéma kabeláže (NL4 linky + napájení aktivních)
+   ============================================================ */
+function buildWiringSchemaData(items: Placed[], cables: Cable[], selection: string[]) {
+  const sel = new Set(selection);
+  const selectedSound = items.filter((i) => sel.has(i.id) && SPECS[i.kind]?.category === "sound");
+  let scope = new Set<string>();
+  let scopeLabel: string;
+  if (selectedSound.length) {
+    scope = new Set(selectedSound.map((i) => i.id));
+    // Rozšíření o navazující řetěz (link out) a zdroje výše v cestě.
+    for (let hop = 0; hop < 6; hop++) {
+      for (const c of cables) {
+        if (scope.has(c.to)) scope.add(c.from);
+        if (scope.has(c.from) && c.type === "speaker") scope.add(c.to);
+      }
+    }
+    scopeLabel = `Výběr: ${selectedSound.length} beden (+ napájení a zesilovače v cestě)`;
+  } else {
+    scope = new Set(items.map((i) => i.id));
+    scopeLabel = `Celá scéna — ${items.filter((i) => SPECS[i.kind]?.category === "sound").length} beden`;
+  }
+
+  const nodes: WireNode[] = items
+    .filter((i) => scope.has(i.id))
+    .map((i) => {
+      const spec = SPECS[i.kind];
+      const custom = CUSTOM_SPEAKERS.get(i.kind);
+      const conns = connectorsFor(i.kind);
+      const active = spec.category === "sound" && conns.some((c) => c.type === "power" && c.role === "in");
+      const role: WireNode["role"] =
+        i.kind === "amp" || i.kind === "powersoft" ? "amp"
+        : i.kind === "generator" || i.kind === "distro" ? "distro"
+        : spec.category === "sound" ? "speaker"
+        : i.kind === "mixer" ? "source"
+        : "other";
+      return {
+        id: i.id,
+        label: i.label || spec.label,
+        kind: i.kind,
+        category: spec.category,
+        active,
+        role,
+        ohm: custom?.ohm,
+        powerW: spec.powerW,
+      };
+    });
+
+  const links: WireLink[] = cables
+    .filter((c) => scope.has(c.from) && scope.has(c.to))
+    .map((c) => ({ id: c.id, from: c.from, to: c.to, type: c.type }));
+
+  return { nodes, links, scopeLabel };
+}
+
+
+/* ============================================================
    Auto-cabling — derive SIG / PWR / DMX routing from item types
    ============================================================ */
 
