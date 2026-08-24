@@ -371,3 +371,103 @@ export function checkAmpCompatibility(d: CustomSpeaker, amp: AmpProfile, count: 
 
   return { amp, count, loadOhm: load, issues, worst };
 }
+
+/* ============================================================
+   Barevné zvýraznění kompatibility (sdílené builderem i scénou)
+   ============================================================ */
+
+const AMP_PREF_KEY = "stage.customSpeakers.ampProfile";
+
+export function getPreferredAmp(): AmpProfile {
+  let id = "k10";
+  try {
+    id = localStorage.getItem(AMP_PREF_KEY) || id;
+  } catch { /* SSR / private mode */ }
+  return AMP_PROFILES.find((a) => a.id === id) ?? AMP_PROFILES[0]!;
+}
+
+export function setPreferredAmp(id: string) {
+  try { localStorage.setItem(AMP_PREF_KEY, id); } catch { /* ignore */ }
+}
+
+export interface CompatBadge {
+  level: CompatLevel;
+  icon: string;
+  short: string;
+  /** Třídy pro chip (pozadí + text + rámeček). */
+  chip: string;
+  /** Třídy pro rámeček inputu / řádku. */
+  ring: string;
+  /** Barva tečky. */
+  dot: string;
+  title: string;
+}
+
+const BADGE_STYLE: Record<CompatLevel, Pick<CompatBadge, "icon" | "short" | "chip" | "ring" | "dot">> = {
+  ok: {
+    icon: "✅", short: "OK",
+    chip: "border-emerald-500/50 bg-emerald-500/15 text-emerald-700",
+    ring: "border-emerald-500/60",
+    dot: "bg-emerald-500",
+  },
+  warn: {
+    icon: "⚠️", short: "Pozor",
+    chip: "border-amber-500/50 bg-amber-500/15 text-amber-700",
+    ring: "border-amber-500/70",
+    dot: "bg-amber-500",
+  },
+  error: {
+    icon: "⛔", short: "Nekompatibilní",
+    chip: "border-red-500/50 bg-red-500/15 text-red-700",
+    ring: "border-red-500/70",
+    dot: "bg-red-500",
+  },
+};
+
+export function badgeFor(level: CompatLevel, title: string): CompatBadge {
+  return { level, title, ...BADGE_STYLE[level] };
+}
+
+/** Souhrnná kompatibilita bedny s daným (nebo preferovaným) zesilovačem pro 1×/2×/4× stack. */
+export function compatBadge(d: CustomSpeaker, amp: AmpProfile = getPreferredAmp()): CompatBadge {
+  if (d.connection === "active") {
+    return badgeFor("ok", `Aktivní bedna — 230 V z rozdělovače + XLR signál, zesilovač se neřeší (${d.powerW} W).`);
+  }
+  const reports = [1, 2, 4].map((n) => checkAmpCompatibility(d, amp, n));
+  const level: CompatLevel = reports[0]!.worst === "error"
+    ? "error"
+    : reports.some((r) => r.worst === "error")
+      ? "warn"
+      : reports.some((r) => r.worst === "warn")
+        ? "warn"
+        : "ok";
+  const detail = reports
+    .map((r) => `${r.count}×: ${r.loadOhm === null ? "aktivní" : `${r.loadOhm} Ω`} — ${r.issues[0]?.title ?? "OK"}`)
+    .join(" · ");
+  return badgeFor(level, `${d.ohm} Ω / ${CONNECTION_LABELS[d.connection]} × ${amp.name}\n${detail}`);
+}
+
+/** Kompatibilita samotné impedance (bez ohledu na počet beden). */
+export function ohmBadge(d: CustomSpeaker, amp: AmpProfile = getPreferredAmp()): CompatBadge {
+  if (d.connection === "active") return badgeFor("ok", "Aktivní bedna — impedance zesilovač neřeší.");
+  if (d.ohm < amp.minOhm) return badgeFor("error", `${d.ohm} Ω je pod minimem ${amp.name} (${amp.minOhm} Ω).`);
+  if (d.ohm / 2 < amp.minOhm) return badgeFor("warn", `${d.ohm} Ω projde sólo, ale 2× paralelně (${r2(d.ohm / 2)} Ω) už ne — min. ${amp.minOhm} Ω.`);
+  return badgeFor("ok", `${d.ohm} Ω · i 2× paralelně (${r2(d.ohm / 2)} Ω) je nad minimem ${amp.minOhm} Ω.`);
+}
+
+/** Kompatibilita typu zapojení / konektorů s výstupy zesilovače. */
+export function connectionBadge(d: CustomSpeaker, amp: AmpProfile = getPreferredAmp()): CompatBadge {
+  switch (d.connection) {
+    case "active":
+      return badgeFor("error", `Aktivní bedna nepatří na výstup zesilovače (${amp.outs}) — potřebuje 230 V + XLR.`);
+    case "binding":
+    case "jack":
+      return badgeFor("warn", `${CONNECTION_LABELS[d.connection]} vs. ${amp.outs} — nutná redukce, není to profi řešení.`);
+    case "nl4_biamp":
+      return amp.channels >= 4
+        ? badgeFor("ok", `Bi-amp: ${amp.name} má ${amp.channels} kanálů, LF i MF/HF vyjdou samostatně.`)
+        : badgeFor("warn", `Bi-amp potřebuje 2 kanály na bednu — ${amp.name} má jen ${amp.channels}.`);
+    default:
+      return badgeFor("ok", `${CONNECTION_LABELS[d.connection]} sedí na ${amp.outs}.`);
+  }
+}
