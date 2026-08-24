@@ -241,6 +241,41 @@ export default function SpeakerBuilder({
               </div>
             </div>
 
+            {/* --- Kontrola kompatibility Ω × zesilovač --- */}
+            <div
+              className={`rounded-lg border p-2 ${
+                compatWorst === "error"
+                  ? "border-red-500/50 bg-red-500/10"
+                  : compatWorst === "warn"
+                    ? "border-amber-500/50 bg-amber-500/10"
+                    : "border-emerald-500/40 bg-emerald-500/10"
+              }`}
+            >
+              <div className="mb-1.5 text-[11px] font-bold text-neutral-900">
+                {compatWorst === "error" ? "⛔ Nekompatibilní kombinace" : compatWorst === "warn" ? "⚠️ Kompatibilita s výhradami" : "✅ Kompatibilita v pořádku"}
+                <span className="ml-1 font-medium text-neutral-600">— {draft.ohm} Ω / {CONNECTION_LABELS[draft.connection]} × {amp.name}</span>
+              </div>
+              <div className="space-y-1.5">
+                {compat.map((rep) => (
+                  <div key={rep.count} className="rounded-md border border-neutral-200/70 bg-white/70 p-1.5">
+                    <div className="mb-0.5 text-[10px] font-bold text-neutral-900">
+                      {rep.count}× stack paralelně → {rep.loadOhm === null ? "—" : `${rep.loadOhm} Ω`} na kanál
+                    </div>
+                    <ul className="space-y-0.5">
+                      {rep.issues.map((iss, i) => (
+                        <li key={i} className="text-[10px] leading-snug text-neutral-700">
+                          <span>{iss.level === "error" ? "⛔" : iss.level === "warn" ? "⚠️" : "✅"} </span>
+                          <b className="text-neutral-900">{iss.title}:</b> {iss.detail}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+
+
 
             <div className="flex flex-wrap gap-2 pt-1">
               <button
