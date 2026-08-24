@@ -2568,7 +2568,14 @@ function PlacementGhost({
   // Snap target visualization: highlighted top face + tolerance box, per selected id.
   const snapCapRefs = useRef<Map<string, THREE.Mesh>>(new Map());
   const snapTolRefs = useRef<Map<string, THREE.LineSegments>>(new Map());
+  // Magnetic alignment guides: infinite-ish lines, edge grip bars and ref dots.
+  const guideXRefs = useRef<Map<string, THREE.Mesh>>(new Map());
+  const guideZRefs = useRef<Map<string, THREE.Mesh>>(new Map());
+  const gripXRefs = useRef<Map<string, THREE.Mesh>>(new Map());
+  const gripZRefs = useRef<Map<string, THREE.Mesh>>(new Map());
+  const dotRefs = useRef<Map<string, THREE.Mesh>>(new Map());
   const lastModeRef = useRef<Map<string, "ground" | "stack" | "bad">>(new Map());
+
 
   useFrame(() => {
     const others = items.filter((o) => !selection.includes(o.id));
@@ -2590,14 +2597,16 @@ function PlacementGhost({
       const s = SPECS[src.kind].size;
       // Magnetic edge/row snap before stack resolution.
       let sx = gx, sz = gz;
+      let es: ReturnType<typeof edgeSnapXZ> | null = null;
       if (magnet) {
-        const es = edgeSnapXZ(
+        es = edgeSnapXZ(
           { id: src.id, pos: [gx, Math.max(0, rawY), gz], size: s },
           others.map((o) => ({ id: o.id, pos: o.pos, size: SPECS[o.kind].size })),
         );
         sx = es.pos[0];
         sz = isSound ? speakerLineZ : es.pos[2];
       }
+
       const candidate: Placed = { ...src, pos: [sx, Math.max(0, rawY), sz], rotY: 0 };
 
       const snap = stackSnapTarget(candidate, others, rawY);
@@ -2629,6 +2638,64 @@ function PlacementGhost({
       mat.opacity = mode === "bad" ? 0.35 + 0.15 * pulse
                     : mode === "stack" ? 0.28 + 0.12 * pulse
                     : 0.22;
+
+      // ---- Magnetic alignment guides (lines + grip edges + ref dots) --------
+      const gX = guideXRefs.current.get(id);
+      const gZ = guideZRefs.current.get(id);
+      const grX = gripXRefs.current.get(id);
+      const grZ = gripZRefs.current.get(id);
+      const dot = dotRefs.current.get(id);
+      const gy = candidate.pos[1] + 0.012;
+      const refItem = es?.refIds?.length ? others.find((o) => o.id === es!.refIds[0]) : undefined;
+      const guideOpacity = 0.55 + 0.35 * pulse;
+
+      if (es?.snappedX && gX) {
+        gX.visible = true;
+        gX.position.set(candidate.pos[0], gy, candidate.pos[2]);
+        gX.scale.set(1, 1, 1);
+        (gX.material as THREE.MeshBasicMaterial).opacity = guideOpacity;
+      } else if (gX) gX.visible = false;
+
+      if (es?.snappedZ && gZ) {
+        gZ.visible = true;
+        gZ.position.set(candidate.pos[0], gy, candidate.pos[2]);
+        (gZ.material as THREE.MeshBasicMaterial).opacity = guideOpacity;
+      } else if (gZ) gZ.visible = false;
+
+      // Grip edge bars: the ghost side that is being magnetically aligned.
+      if (es?.snappedX && grX) {
+        const sign = refItem ? Math.sign(refItem.pos[0] - candidate.pos[0]) || 1 : 1;
+        grX.visible = true;
+        grX.position.set(
+          candidate.pos[0] + sign * (s[0] / 2 + 0.012),
+          candidate.pos[1] + s[1] / 2,
+          candidate.pos[2],
+        );
+        grX.scale.set(0.03, s[1] * 0.96, s[2] * 0.96);
+        (grX.material as THREE.MeshBasicMaterial).opacity = 0.7 + 0.25 * pulse;
+      } else if (grX) grX.visible = false;
+
+      if (es?.snappedZ && grZ) {
+        const sign = refItem ? Math.sign(refItem.pos[2] - candidate.pos[2]) || 1 : 1;
+        grZ.visible = true;
+        grZ.position.set(
+          candidate.pos[0],
+          candidate.pos[1] + s[1] / 2,
+          candidate.pos[2] + sign * (s[2] / 2 + 0.012),
+        );
+        grZ.scale.set(s[0] * 0.96, s[1] * 0.96, 0.03);
+        (grZ.material as THREE.MeshBasicMaterial).opacity = 0.7 + 0.25 * pulse;
+      } else if (grZ) grZ.visible = false;
+
+      // Reference dot on the neighbour we align to.
+      if (refItem && (es?.snappedX || es?.snappedZ) && dot) {
+        const rs = SPECS[refItem.kind].size;
+        dot.visible = true;
+        dot.position.set(refItem.pos[0], refItem.pos[1] + rs[1] + 0.05, refItem.pos[2]);
+        (dot.material as THREE.MeshBasicMaterial).opacity = 0.65 + 0.3 * pulse;
+      } else if (dot) dot.visible = false;
+
+
 
       // Snap-target visualization: only render for the currently-hovered stack target.
       const cap = snapCapRefs.current.get(id);
@@ -2735,7 +2802,47 @@ function PlacementGhost({
               <edgesGeometry args={[new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2)]} />
               <lineBasicMaterial color="#67e8f9" transparent opacity={0.85} depthTest={false} />
             </lineSegments>
+            {/* Magnetic guide line along Z (X is aligned). */}
+            <mesh
+              visible={false}
+              ref={(m) => { if (m) guideXRefs.current.set(id, m); else guideXRefs.current.delete(id); }}
+            >
+              <boxGeometry args={[0.015, 0.015, 40]} />
+              <meshBasicMaterial color="#fbbf24" transparent opacity={0.7} depthWrite={false} depthTest={false} />
+            </mesh>
+            {/* Magnetic guide line along X (Z is aligned / same row). */}
+            <mesh
+              visible={false}
+              ref={(m) => { if (m) guideZRefs.current.set(id, m); else guideZRefs.current.delete(id); }}
+            >
+              <boxGeometry args={[40, 0.015, 0.015]} />
+              <meshBasicMaterial color="#fbbf24" transparent opacity={0.7} depthWrite={false} depthTest={false} />
+            </mesh>
+            {/* Grip edge bars — the ghost side snapping to a neighbour. */}
+            <mesh
+              visible={false}
+              ref={(m) => { if (m) gripXRefs.current.set(id, m); else gripXRefs.current.delete(id); }}
+            >
+              <boxGeometry args={[1, 1, 1]} />
+              <meshBasicMaterial color="#facc15" transparent opacity={0.85} depthWrite={false} depthTest={false} />
+            </mesh>
+            <mesh
+              visible={false}
+              ref={(m) => { if (m) gripZRefs.current.set(id, m); else gripZRefs.current.delete(id); }}
+            >
+              <boxGeometry args={[1, 1, 1]} />
+              <meshBasicMaterial color="#facc15" transparent opacity={0.85} depthWrite={false} depthTest={false} />
+            </mesh>
+            {/* Dot marking the neighbour we are aligning to. */}
+            <mesh
+              visible={false}
+              ref={(m) => { if (m) dotRefs.current.set(id, m); else dotRefs.current.delete(id); }}
+            >
+              <sphereGeometry args={[0.055, 12, 12]} />
+              <meshBasicMaterial color="#fde047" transparent opacity={0.9} depthWrite={false} depthTest={false} />
+            </mesh>
           </React.Fragment>
+
         );
       })}
       {/* Collision highlight overlays for every non-selected item — hidden
