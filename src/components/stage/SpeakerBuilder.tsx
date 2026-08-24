@@ -10,6 +10,8 @@ import {
   customHint,
   chainImpedance,
   recommendWiring,
+  checkAmpCompatibility,
+  AMP_PROFILES,
 } from "./customSpeakers";
 
 /* ============================================================
@@ -54,7 +56,7 @@ export default function SpeakerBuilder({
   onPlace: (id: string) => void;
 }) {
   const [draft, setDraft] = useState<CustomSpeaker>(() => newCustomSpeaker());
-  const [ampMinOhm, setAmpMinOhm] = useState(4);
+  const [ampId, setAmpId] = useState("k10");
 
   useEffect(() => {
     if (!open) return;
@@ -74,6 +76,14 @@ export default function SpeakerBuilder({
     });
 
   const isNew = !defs.some((d) => d.id === draft.id);
+  const amp = AMP_PROFILES.find((a) => a.id === ampId) ?? AMP_PROFILES[0]!;
+  const ampMinOhm = amp.minOhm;
+  const compat = [2, 4].map((n) => checkAmpCompatibility(draft, amp, n));
+  const compatWorst = compat.some((c) => c.worst === "error")
+    ? "error"
+    : compat.some((c) => c.worst === "warn")
+      ? "warn"
+      : "ok";
   const parallel2 = chainImpedance(draft.ohm, 2);
   const parallel4 = chainImpedance(draft.ohm, 4);
 
