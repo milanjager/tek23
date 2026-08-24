@@ -430,6 +430,9 @@ export function badgeFor(level: CompatLevel, title: string): CompatBadge {
 
 /** Souhrnná kompatibilita bedny s daným (nebo preferovaným) zesilovačem pro 1×/2×/4× stack. */
 export function compatBadge(d: CustomSpeaker, amp: AmpProfile = getPreferredAmp()): CompatBadge {
+  if (d.connection === "active") {
+    return badgeFor("ok", `Aktivní bedna — 230 V z rozdělovače + XLR signál, zesilovač se neřeší (${d.powerW} W).`);
+  }
   const reports = [1, 2, 4].map((n) => checkAmpCompatibility(d, amp, n));
   const level: CompatLevel = reports[0]!.worst === "error"
     ? "error"
@@ -461,7 +464,9 @@ export function connectionBadge(d: CustomSpeaker, amp: AmpProfile = getPreferred
     case "jack":
       return badgeFor("warn", `${CONNECTION_LABELS[d.connection]} vs. ${amp.outs} — nutná redukce, není to profi řešení.`);
     case "nl4_biamp":
-      return d.channels2Needed(amp);
+      return amp.channels >= 4
+        ? badgeFor("ok", `Bi-amp: ${amp.name} má ${amp.channels} kanálů, LF i MF/HF vyjdou samostatně.`)
+        : badgeFor("warn", `Bi-amp potřebuje 2 kanály na bednu — ${amp.name} má jen ${amp.channels}.`);
     default:
       return badgeFor("ok", `${CONNECTION_LABELS[d.connection]} sedí na ${amp.outs}.`);
   }
