@@ -26,6 +26,14 @@ import TechnicalView from "./TechnicalView";
 import { PlacementDevPanel } from "./PlacementDevPanel";
 import PowersoftGuide from "./PowersoftGuide";
 import { StartLauncher } from "./StartLauncher";
+import SpeakerBuilder from "./SpeakerBuilder";
+import {
+  type CustomSpeaker,
+  loadCustomSpeakers,
+  saveCustomSpeakers,
+  customHint,
+  customNotes,
+} from "./customSpeakers";
 import distroAsset from "@/assets/distro.png.asset.json";
 
 // Lovable's preview annotates JSX with data-tsd-source. R3F treats dashed
@@ -73,6 +81,10 @@ interface Spec {
   powerW?: number;
   /** Prefilled wiring notes for the technician (IN/OUT hints). */
   defaultNotes?: string;
+  /** Explicit transport weight (kg) — overrides the volume heuristic. */
+  weightKg?: number;
+  /** Set for user-built cabinets from the speaker builder. */
+  custom?: true;
 }
 
 
@@ -134,8 +146,73 @@ const CATEGORIES: { id: Category; label: string; icon: typeof Speaker }[] = [
   { id: "fun",    label: "Fun",    icon: Sparkles },
 ];
 
+/* ---- Custom speaker registry (speaker builder) --------------------------
+   User-built cabinets are injected into SPECS at runtime, so every existing
+   code path (placement, stacking, wiring, exports, views) treats them like
+   built-in gear. Their ids are plain strings cast to Kind. */
+
+const CUSTOM_SPEAKERS = new Map<string, CustomSpeaker>();
+
+function specFromCustom(d: CustomSpeaker): Spec {
+  const active = d.connection === "active";
+  return {
+    label: d.name,
+    category: "sound",
+    size: d.size,
+    stackable: true,
+    hint: customHint(d),
+    defaultLabel: d.name,
+    powerW: active ? d.powerW : 0,
+    defaultNotes: customNotes(d),
+    ...(d.weightKg ? { weightKg: d.weightKg } : {}),
+    custom: true,
+  };
+}
+
+function registerCustomSpeaker(d: CustomSpeaker) {
+  CUSTOM_SPEAKERS.set(d.id, d);
+  (SPECS as Record<string, Spec>)[d.id] = specFromCustom(d);
+}
+
+function unregisterCustomSpeaker(id: string) {
+  CUSTOM_SPEAKERS.delete(id);
+  delete (SPECS as Record<string, Spec>)[id];
+}
+
+for (const d of loadCustomSpeakers()) registerCustomSpeaker(d);
+
+function connectorsForCustom(d: CustomSpeaker): Connector[] {
+  const [bx, by, bz] = d.size;
+  const back = -bz * 0.5;
+  switch (d.connection) {
+    case "nl4":
+      return [{ type: "speaker", role: "in", offset: [bx * 0.28, by * 0.85, back], label: `NL4 IN (${d.ohm} Ω)` }];
+    case "nl4_link":
+      return [
+        { type: "speaker", role: "in",  offset: [bx * 0.20, by * 0.85, back], label: `NL4 IN (${d.ohm} Ω)` },
+        { type: "speaker", role: "out", offset: [bx * 0.40, by * 0.85, back], label: "NL4 LINK OUT (paralelně)" },
+      ];
+    case "nl4_biamp":
+      return [
+        { type: "speaker", role: "in", offset: [bx * 0.18, by * 0.42, back], label: `LF NL4 (${d.ohm} Ω)` },
+        { type: "speaker", role: "in", offset: [bx * 0.38, by * 0.42, back], label: `MF/HF NL4 (${d.ohm} Ω)` },
+      ];
+    case "binding":
+      return [{ type: "speaker", role: "in", offset: [bx * 0.28, by * 0.80, back], label: `Svorky +/− (${d.ohm} Ω)` }];
+    case "jack":
+      return [{ type: "speaker", role: "in", offset: [bx * 0.28, by * 0.80, back], label: `Jack 6,3 mm (${d.ohm} Ω)` }];
+    case "active":
+      return [
+        { type: "power",  role: "in",  offset: [-bx * 0.30, by * 0.15, back], subtype: "schuko", label: `230V IN (${d.powerW} W)` },
+        { type: "signal", role: "in",  offset: [ bx * 0.20, by * 0.85, back], label: "XLR IN" },
+        { type: "signal", role: "out", offset: [ bx * 0.40, by * 0.85, back], label: "XLR LINK OUT" },
+      ];
+  }
+}
+
 /** Rough transport weight estimate (kg) — density heuristic per category. */
 export function estimateWeightKg(s: Spec): number {
+  if (s.weightKg) return s.weightKg;
   const vol = s.size[0] * s.size[1] * s.size[2];
   if (s.category === "sound") return Math.round(vol * 175);
   if (s.category === "infra") return Math.round(vol * 110 + 8);
@@ -209,6 +286,8 @@ interface Connector {
 
 
 function connectorsFor(kind: Kind): Connector[] {
+  const custom = CUSTOM_SPEAKERS.get(kind);
+  if (custom) return connectorsForCustom(custom);
   const [bx, by, bz] = SPECS[kind].size;
   const passiveSpeaker: Connector[] = [
     { type: "speaker", role: "in", offset: [ bx * 0.28, by * 0.85, -bz * 0.45] },
@@ -346,6 +425,8 @@ function connectorsFor(kind: Kind): Connector[] {
       return [];
 
   }
+  // Unknown / runtime-registered kind — treat as passive cabinet.
+  return passiveSpeaker;
 }
 
 function localToWorld(
@@ -2059,6 +2140,16 @@ function PicusTopGrillModel({ size }: { size: [number, number, number] }) {
 
 
 function ModelFor({ kind, size, variant }: { kind: Kind; size: [number, number, number]; variant?: "red" | "blue" }) {
+  const custom = CUSTOM_SPEAKERS.get(kind);
+  if (custom) {
+    switch (custom.shape) {
+      case "sub":  return <PicusBinModel size={size} cols={1} rows={1} hasTopVent />;
+      case "bass": return <BassModel size={size} />;
+      case "mid":  return <MidModel size={size} />;
+      case "top":  return <PicusBinModel size={size} cols={2} rows={1} hasTopVent />;
+      case "horn": return <HornModel size={size} />;
+    }
+  }
   switch (kind) {
     case "horn": return <HornModel size={size} />;
     case "mid": return <MidModel size={size} />;
@@ -2104,8 +2195,8 @@ function ModelFor({ kind, size, variant }: { kind: Kind; size: [number, number, 
     case "bar": return <BarModel size={size} />;
     case "generator": return <GeneratorModel size={size} />;
     case "distro": return <DistroModel size={size} />;
-    
   }
+  return <PicusBinModel size={size} cols={1} rows={1} hasTopVent />;
 }
 
 
@@ -4015,7 +4106,16 @@ function autoWireCables(items: Placed[]): Cable[] {
   const amps = of(["amp", "powersoft"]);
   const sources = of(["dj", "cdj", "turntable", "korg", "korg_red", "korg_blue"]);
   const dmxFixtures = of(["movinghead", "strobe", "laser"]);
-  const passiveSpeakers = items.filter((i) => SPECS[i.kind].category === "sound");
+  // Passive cabinets = sound items with a Speakon input. Active (self-powered)
+  // boxes have PWR + XLR instead and are fed from distro + mixer directly.
+  const passiveSpeakers = items.filter(
+    (i) => SPECS[i.kind].category === "sound" &&
+      connectorsFor(i.kind).some((c) => c.type === "speaker" && c.role === "in"),
+  );
+  const activeSpeakers = items.filter(
+    (i) => SPECS[i.kind].category === "sound" &&
+      connectorsFor(i.kind).some((c) => c.type === "signal" && c.role === "in"),
+  );
 
   // Bin-family helpers.
   const SUB_KINDS: Kind[] = [
@@ -4105,6 +4205,17 @@ function autoWireCables(items: Placed[]): Cable[] {
     }
   }
 
+  // SIG — active (self-powered) cabinets get signal straight from the mixer,
+  // then daisy-chain via their XLR LINK OUT.
+  if (activeSpeakers.length) {
+    const src = mixer ?? sources[0];
+    const chain = [...activeSpeakers].sort((a, b) => a.pos[0] - b.pos[0]);
+    if (src) cables.push({ id: uid(), from: src.id, to: chain[0].id, type: "signal" });
+    for (let i = 0; i < chain.length - 1; i++) {
+      cables.push({ id: uid(), from: chain[i].id, to: chain[i + 1].id, type: "signal" });
+    }
+  }
+
   // DMX — daisy-chain all lighting fixtures.
   for (let i = 0; i < dmxFixtures.length - 1; i++) {
     cables.push({
@@ -4175,6 +4286,10 @@ export function StageBuilder3D() {
   const [pendingFrom, setPendingFrom] = useState<string | null>(null);
   const [category, setCategory] = useState<Category>("sound");
   const [paletteQuery, setPaletteQuery] = useState("");
+  // Speaker builder (custom cabinets)
+  const [customDefs, setCustomDefs] = useState<CustomSpeaker[]>(() => loadCustomSpeakers());
+  const [builderOpen, setBuilderOpen] = useState(false);
+  const [builderEditId, setBuilderEditId] = useState<string | null>(null);
   const [clipboard, setClipboard] = useState<Placed[]>([]);
   // Panels start closed to match SSR; hydrate from localStorage / viewport after mount.
   const [paletteOpen, setPaletteOpen] = useState<boolean>(false);
@@ -4785,7 +4900,38 @@ export function StageBuilder3D() {
     const list = (Object.entries(SPECS) as [Kind, Spec][]).filter(([, s]) => q ? true : s.category === category);
     if (!q) return list;
     return list.filter(([k, s]) => `${k} ${s.label} ${s.hint ?? ""}`.toLowerCase().includes(q));
-  }, [category, paletteQuery]);
+  }, [category, paletteQuery, customDefs]);
+
+  // --- Speaker builder handlers -------------------------------------------
+  const saveCustomDef = useCallback((def: CustomSpeaker) => {
+    registerCustomSpeaker(def);
+    setCustomDefs((cur) => {
+      const next = cur.some((d) => d.id === def.id)
+        ? cur.map((d) => (d.id === def.id ? def : d))
+        : [...cur, def];
+      saveCustomSpeakers(next);
+      return next;
+    });
+    // Refresh already-placed instances (size / label / notes may have changed).
+    setItems((cur) => normalizeScene(cur.map((it) => (it.kind === (def.id as Kind)
+      ? { ...it, label: it.label ?? def.name }
+      : it))));
+  }, []);
+
+  const deleteCustomDef = useCallback((id: string) => {
+    unregisterCustomSpeaker(id);
+    setCustomDefs((cur) => {
+      const next = cur.filter((d) => d.id !== id);
+      saveCustomSpeakers(next);
+      return next;
+    });
+    setItems((cur) => {
+      const gone = new Set(cur.filter((it) => it.kind === (id as Kind)).map((it) => it.id));
+      if (gone.size) setCables((cs) => cs.filter((c) => !gone.has(c.from) && !gone.has(c.to)));
+      return cur.filter((it) => !gone.has(it.id));
+    });
+  }, []);
+
 
   const exportCablesCsv = useCallback(() => {
     const steps = generateWiringSteps(items, cables);
@@ -5308,23 +5454,43 @@ export function StageBuilder3D() {
                 </div>
               </div>
             )}
+            {(category === "sound" || !!paletteQuery) && (
+              <button
+                onClick={() => { setBuilderEditId(null); setBuilderOpen(true); }}
+                className="mb-2 flex w-full items-center justify-center gap-1 rounded-lg border border-dashed border-lime-500/70 bg-lime-500/10 py-2 text-[11px] font-bold text-lime-700 hover:bg-lime-500/20"
+              >
+                🔧 Builder repro — vlastní bedna
+              </button>
+            )}
             {!palette.length && (
               <p className="px-1 py-4 text-[11px] text-neutral-500">Nic nenalezeno — zkus jiný výraz nebo jinou kategorii.</p>
             )}
 
             {palette.map(([k, s]) => (
-              <button
-                key={k}
-                onClick={() => { addItem(k); pushRecent(k); setPaletteOpen(false); }}
-                title={`${s.label} — ${s.hint} · ${s.size[0].toFixed(2)}×${s.size[1].toFixed(2)}×${s.size[2].toFixed(2)} m · ~${estimateWeightKg(s)} kg`}
-                className="mb-2 block w-full overflow-hidden rounded border border-neutral-200 bg-neutral-50 text-left transition hover:border-lime-500/60 hover:bg-neutral-100"
-              >
-                <PaletteThumb kind={k} />
-                <div className="px-2 py-1.5">
-                  <div className="truncate text-xs font-semibold text-neutral-900">{s.defaultLabel ?? s.label}</div>
-                  <div className="truncate text-[10px] text-neutral-500">{s.hint}</div>
-                </div>
-              </button>
+              <div key={k} className="mb-2 overflow-hidden rounded border border-neutral-200 bg-neutral-50 transition hover:border-lime-500/60">
+                <button
+                  onClick={() => { addItem(k); pushRecent(k); setPaletteOpen(false); }}
+                  title={`${s.label} — ${s.hint} · ${s.size[0].toFixed(2)}×${s.size[1].toFixed(2)}×${s.size[2].toFixed(2)} m · ~${estimateWeightKg(s)} kg`}
+                  className="block w-full text-left hover:bg-neutral-100"
+                >
+                  <PaletteThumb kind={k} />
+                  <div className="px-2 py-1.5">
+                    <div className="truncate text-xs font-semibold text-neutral-900">{s.defaultLabel ?? s.label}</div>
+                    <div className="truncate text-[10px] text-neutral-500">{s.hint}</div>
+                  </div>
+                </button>
+                {s.custom && (
+                  <div className="flex items-center justify-between border-t border-neutral-200 px-2 py-1">
+                    <span className="text-[9px] font-bold uppercase tracking-wider text-lime-700">Vlastní</span>
+                    <button
+                      onClick={() => { setBuilderEditId(k); setBuilderOpen(true); }}
+                      className="text-[10px] font-semibold text-neutral-600 underline hover:text-lime-600"
+                    >
+                      Upravit parametry
+                    </button>
+                  </div>
+                )}
+              </div>
             ))}
           </div>
           <div className="hidden border-t border-neutral-200 p-2 text-[10px] text-neutral-500 md:block">
@@ -6182,6 +6348,16 @@ export function StageBuilder3D() {
           </nav>
         )}
       </div>
+      <SpeakerBuilder
+        open={builderOpen}
+        defs={customDefs}
+        editId={builderEditId}
+        onClose={() => setBuilderOpen(false)}
+        onSave={saveCustomDef}
+        onDelete={deleteCustomDef}
+        onEdit={(id) => setBuilderEditId(id)}
+        onPlace={(id) => { addItem(id as Kind); pushRecent(id as Kind); }}
+      />
       {!import.meta.env.PROD && <PlacementDevPanel />}
     </div>
   );
