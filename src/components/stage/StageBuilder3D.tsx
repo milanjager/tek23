@@ -4733,11 +4733,26 @@ export function StageBuilder3D() {
         </nav>
 
         <div className="ml-auto flex shrink-0 items-center gap-1.5">
-          <span className="hidden whitespace-nowrap text-[11px] text-neutral-500 lg:inline">
-            {items.length} prvků · {cables.length} kabelů · {selection.length} vybráno
+          <span className="hidden whitespace-nowrap text-[11px] lg:inline" title="Odhad hmotnosti, počtu PA kanálů a příkonu (zátěž agregátu)">
+            <b className="text-neutral-800">{rigStats.kg} kg</b>
+            <span className="text-neutral-400"> · </span>
+            <b className="text-neutral-800">{rigStats.speakers}</b><span className="text-neutral-500"> kanálů</span>
+            <span className="text-neutral-400"> · </span>
+            <b className={rigStats.kw > 6 ? "text-red-600" : "text-neutral-800"}>{rigStats.kw.toFixed(1)} kW</b>
           </span>
+          {savedAt && (
+            <span className="hidden whitespace-nowrap text-[10px] text-neutral-400 sm:inline">Uloženo {savedAt}</span>
+          )}
           <button onClick={undo} disabled={!canUndo} title="Zpět (Ctrl+Z)" aria-label="Zpět" className={`${btnCls} bg-neutral-100 hover:bg-neutral-200 disabled:opacity-40`}>↶</button>
           <button onClick={redo} disabled={!canRedo} title="Vpřed (Ctrl+Shift+Z)" aria-label="Vpřed" className={`${btnCls} bg-neutral-100 hover:bg-neutral-200 disabled:opacity-40`}>↷</button>
+          <button
+            onClick={() => setShortcutsOpen(true)}
+            className={`${btnCls} bg-neutral-100 hover:bg-neutral-200`}
+            title="Klávesové zkratky (?)"
+            aria-label="Klávesové zkratky"
+          >
+            ?
+          </button>
           <button
             onClick={() => setDensity((d) => (d === "compact" ? "standard" : "compact"))}
             className={`${btnCls} bg-neutral-100 hover:bg-neutral-200`}
@@ -4754,27 +4769,50 @@ export function StageBuilder3D() {
             {dark ? "☾" : "☀"}
           </button>
           <button
-            onClick={() => { localStorage.setItem(STORAGE, JSON.stringify({ items, cables, groupNames, groupSpacing })); setHasSaved(items.length > 0); announce(`Projekt uložen — ${items.length} prvků, ${cables.length} kabelů.`); }}
+            onClick={() => {
+              localStorage.setItem(STORAGE, JSON.stringify({ items, cables, groupNames, groupSpacing }));
+              setHasSaved(items.length > 0);
+              setSavedAt(new Date().toLocaleTimeString("cs-CZ", { hour: "2-digit", minute: "2-digit" }));
+              announce(`Projekt uložen — ${items.length} prvků, ${cables.length} kabelů.`);
+            }}
             className={`${btnCls} bg-neutral-100 hover:bg-neutral-200`}
+            title="Ruční uložení (autosave běží průběžně)"
           >
             <Save size={13} /> <span className="hidden sm:inline">Uložit</span>
           </button>
-          <button
-            onClick={() => {
-              if (!items.length && !cables.length) return;
-              if (confirm(`Opravdu vymazat celý rig? Odstraní se ${items.length} prvků a ${cables.length} kabelů. Vrátit zpět jde přes Ctrl+Z.`)) {
-                setItems([]); setCables([]); setSelection([]);
-                announce("Rig vymazán. Vrátit zpět můžeš přes Ctrl+Z.");
-              }
-            }}
-            disabled={!items.length && !cables.length}
-            className={`${btnCls} border border-red-300 bg-red-100 font-semibold text-red-700 hover:bg-red-200 disabled:opacity-40`}
-            title="Smaže všechny prvky i kabely (nevratná akce, ale lze vrátit přes Ctrl+Z)"
-          >
-            <Trash2 size={13} /> <span className="hidden sm:inline">Vyčistit</span>
-          </button>
         </div>
       </header>
+
+      {shortcutsOpen && (
+        <div
+          className="fixed inset-0 z-[75] flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Klávesové zkratky"
+          onClick={() => setShortcutsOpen(false)}
+        >
+          <div className="glass-strong max-h-[85dvh] w-full max-w-md overflow-y-auto rounded-2xl p-5" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between">
+              <h2 className="text-base font-bold text-neutral-900">Klávesové zkratky</h2>
+              <button onClick={() => setShortcutsOpen(false)} aria-label="Zavřít" className="rounded-full p-2 text-neutral-500 hover:bg-neutral-200/50">
+                <X size={16} />
+              </button>
+            </div>
+            <ul className="mt-3 space-y-1.5 text-[12px] text-neutral-700">
+              <li><b>T</b> — posun · <b>C</b> — režim kabelů · <b>Del</b> — smazat výběr</li>
+              <li><b>Shift+klik</b> — přidat do výběru · <b>Rámeček</b> — tažení přes bedny</li>
+              <li><b>Ctrl+C / Ctrl+V / Ctrl+D</b> — kopírovat / vložit / duplikovat</li>
+              <li><b>Ctrl+G / Ctrl+Shift+G</b> — seskupit / rozdělit</li>
+              <li><b>Ctrl+Z / Ctrl+Shift+Z</b> — zpět / vpřed</li>
+              <li><b>Šipky</b> — posun po mřížce (Shift = větší krok)</li>
+              <li><b>[</b> — paleta · <b>?</b> — tato nápověda</li>
+            </ul>
+            <p className="mt-3 text-[11px] text-neutral-500">
+              V režimu Zapojit: klik na první bednu → klik na druhou. Klik na kabel otevře inspektor.
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* ── Sekundární lišta: pohled + nástroje aktivního režimu ───── */}
       <div className="glass z-20 flex flex-nowrap items-center gap-1.5 overflow-x-auto px-2 py-1.5 no-scrollbar sm:px-3 md:flex-wrap md:overflow-visible">
