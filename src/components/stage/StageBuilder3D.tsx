@@ -2597,14 +2597,16 @@ function PlacementGhost({
       const s = SPECS[src.kind].size;
       // Magnetic edge/row snap before stack resolution.
       let sx = gx, sz = gz;
+      let es: ReturnType<typeof edgeSnapXZ> | null = null;
       if (magnet) {
-        const es = edgeSnapXZ(
+        es = edgeSnapXZ(
           { id: src.id, pos: [gx, Math.max(0, rawY), gz], size: s },
           others.map((o) => ({ id: o.id, pos: o.pos, size: SPECS[o.kind].size })),
         );
         sx = es.pos[0];
         sz = isSound ? speakerLineZ : es.pos[2];
       }
+
       const candidate: Placed = { ...src, pos: [sx, Math.max(0, rawY), sz], rotY: 0 };
 
       const snap = stackSnapTarget(candidate, others, rawY);
