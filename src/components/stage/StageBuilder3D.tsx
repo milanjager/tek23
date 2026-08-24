@@ -6358,7 +6358,14 @@ export function StageBuilder3D() {
         onEdit={(id) => setBuilderEditId(id)}
         onPlace={(id) => { addItem(id as Kind); pushRecent(id as Kind); }}
       />
+      {wiringSchemaOpen && (
+        <SpeakerWiringSchema
+          {...buildWiringSchemaData(items, cables, selection)}
+          onClose={() => setWiringSchemaOpen(false)}
+        />
+      )}
       {!import.meta.env.PROD && <PlacementDevPanel />}
+
     </div>
   );
 
