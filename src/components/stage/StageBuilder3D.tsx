@@ -4672,7 +4672,7 @@ export function StageBuilder3D() {
     { id: "iso", label: "Isometrie", hint: "Isometrický pseudo-3D pohled" },
     { id: "tech", label: "Technický výkres", hint: "Výkres s kótami" },
   ];
-  const VIEWS = [...PRIMARY_VIEWS, ...MORE_VIEWS];
+  
 
   const MODES: { id: typeof workMode; label: string; hint: string }[] = [
     { id: "build", label: "Stavět", hint: "Rozmísti a srovnej aparát" },
@@ -4865,6 +4865,20 @@ export function StageBuilder3D() {
             <button onClick={groupSelection} disabled={selection.length < 2} className={`${btnCls} bg-neutral-100 hover:bg-neutral-200 disabled:opacity-40`}><GroupIcon size={13} /> Group</button>
             <button onClick={ungroupSelection} disabled={!selection.length} className={`${btnCls} bg-neutral-100 hover:bg-neutral-200 disabled:opacity-40`}><Ungroup size={13} /> Ungroup</button>
             <button onClick={deleteSelection} disabled={!selection.length} className={`${btnCls} bg-red-100 text-red-700 hover:bg-red-200 disabled:opacity-40`}><Trash2 size={13} /> Smazat</button>
+            <button
+              onClick={() => {
+                if (!items.length && !cables.length) return;
+                if (confirm(`Opravdu vymazat celý rig? Odstraní se ${items.length} prvků a ${cables.length} kabelů. Vrátit zpět jde přes Ctrl+Z.`)) {
+                  setItems([]); setCables([]); setSelection([]);
+                  announce("Rig vymazán. Vrátit zpět můžeš přes Ctrl+Z.");
+                }
+              }}
+              disabled={!items.length && !cables.length}
+              className={`${btnCls} border border-red-300 bg-red-50 font-semibold text-red-700 hover:bg-red-100 disabled:opacity-40`}
+              title="Smaže celou scénu (lze vrátit přes Ctrl+Z)"
+            >
+              Vyčistit vše
+            </button>
             <div className={`inline-flex shrink-0 items-center gap-1 rounded-lg bg-neutral-100 px-2 ${compact ? "min-h-7" : "min-h-11"}`} title="Společná hloubka řady reproduktorů">
               <span className="text-[10px] text-neutral-500">Hloubka řady</span>
               <input
