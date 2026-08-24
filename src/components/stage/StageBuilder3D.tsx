@@ -2802,7 +2802,47 @@ function PlacementGhost({
               <edgesGeometry args={[new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2)]} />
               <lineBasicMaterial color="#67e8f9" transparent opacity={0.85} depthTest={false} />
             </lineSegments>
+            {/* Magnetic guide line along Z (X is aligned). */}
+            <mesh
+              visible={false}
+              ref={(m) => { if (m) guideXRefs.current.set(id, m); else guideXRefs.current.delete(id); }}
+            >
+              <boxGeometry args={[0.015, 0.015, 40]} />
+              <meshBasicMaterial color="#fbbf24" transparent opacity={0.7} depthWrite={false} depthTest={false} />
+            </mesh>
+            {/* Magnetic guide line along X (Z is aligned / same row). */}
+            <mesh
+              visible={false}
+              ref={(m) => { if (m) guideZRefs.current.set(id, m); else guideZRefs.current.delete(id); }}
+            >
+              <boxGeometry args={[40, 0.015, 0.015]} />
+              <meshBasicMaterial color="#fbbf24" transparent opacity={0.7} depthWrite={false} depthTest={false} />
+            </mesh>
+            {/* Grip edge bars — the ghost side snapping to a neighbour. */}
+            <mesh
+              visible={false}
+              ref={(m) => { if (m) gripXRefs.current.set(id, m); else gripXRefs.current.delete(id); }}
+            >
+              <boxGeometry args={[1, 1, 1]} />
+              <meshBasicMaterial color="#facc15" transparent opacity={0.85} depthWrite={false} depthTest={false} />
+            </mesh>
+            <mesh
+              visible={false}
+              ref={(m) => { if (m) gripZRefs.current.set(id, m); else gripZRefs.current.delete(id); }}
+            >
+              <boxGeometry args={[1, 1, 1]} />
+              <meshBasicMaterial color="#facc15" transparent opacity={0.85} depthWrite={false} depthTest={false} />
+            </mesh>
+            {/* Dot marking the neighbour we are aligning to. */}
+            <mesh
+              visible={false}
+              ref={(m) => { if (m) dotRefs.current.set(id, m); else dotRefs.current.delete(id); }}
+            >
+              <sphereGeometry args={[0.055, 12, 12]} />
+              <meshBasicMaterial color="#fde047" transparent opacity={0.9} depthWrite={false} depthTest={false} />
+            </mesh>
           </React.Fragment>
+
         );
       })}
       {/* Collision highlight overlays for every non-selected item — hidden
