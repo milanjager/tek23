@@ -2639,6 +2639,64 @@ function PlacementGhost({
                     : mode === "stack" ? 0.28 + 0.12 * pulse
                     : 0.22;
 
+      // ---- Magnetic alignment guides (lines + grip edges + ref dots) --------
+      const gX = guideXRefs.current.get(id);
+      const gZ = guideZRefs.current.get(id);
+      const grX = gripXRefs.current.get(id);
+      const grZ = gripZRefs.current.get(id);
+      const dot = dotRefs.current.get(id);
+      const gy = candidate.pos[1] + 0.012;
+      const refItem = es?.refIds?.length ? others.find((o) => o.id === es!.refIds[0]) : undefined;
+      const guideOpacity = 0.55 + 0.35 * pulse;
+
+      if (es?.snappedX && gX) {
+        gX.visible = true;
+        gX.position.set(candidate.pos[0], gy, candidate.pos[2]);
+        gX.scale.set(1, 1, 1);
+        (gX.material as THREE.MeshBasicMaterial).opacity = guideOpacity;
+      } else if (gX) gX.visible = false;
+
+      if (es?.snappedZ && gZ) {
+        gZ.visible = true;
+        gZ.position.set(candidate.pos[0], gy, candidate.pos[2]);
+        (gZ.material as THREE.MeshBasicMaterial).opacity = guideOpacity;
+      } else if (gZ) gZ.visible = false;
+
+      // Grip edge bars: the ghost side that is being magnetically aligned.
+      if (es?.snappedX && grX) {
+        const sign = refItem ? Math.sign(refItem.pos[0] - candidate.pos[0]) || 1 : 1;
+        grX.visible = true;
+        grX.position.set(
+          candidate.pos[0] + sign * (s[0] / 2 + 0.012),
+          candidate.pos[1] + s[1] / 2,
+          candidate.pos[2],
+        );
+        grX.scale.set(0.03, s[1] * 0.96, s[2] * 0.96);
+        (grX.material as THREE.MeshBasicMaterial).opacity = 0.7 + 0.25 * pulse;
+      } else if (grX) grX.visible = false;
+
+      if (es?.snappedZ && grZ) {
+        const sign = refItem ? Math.sign(refItem.pos[2] - candidate.pos[2]) || 1 : 1;
+        grZ.visible = true;
+        grZ.position.set(
+          candidate.pos[0],
+          candidate.pos[1] + s[1] / 2,
+          candidate.pos[2] + sign * (s[2] / 2 + 0.012),
+        );
+        grZ.scale.set(s[0] * 0.96, s[1] * 0.96, 0.03);
+        (grZ.material as THREE.MeshBasicMaterial).opacity = 0.7 + 0.25 * pulse;
+      } else if (grZ) grZ.visible = false;
+
+      // Reference dot on the neighbour we align to.
+      if (refItem && (es?.snappedX || es?.snappedZ) && dot) {
+        const rs = SPECS[refItem.kind].size;
+        dot.visible = true;
+        dot.position.set(refItem.pos[0], refItem.pos[1] + rs[1] + 0.05, refItem.pos[2]);
+        (dot.material as THREE.MeshBasicMaterial).opacity = 0.65 + 0.3 * pulse;
+      } else if (dot) dot.visible = false;
+
+
+
       // Snap-target visualization: only render for the currently-hovered stack target.
       const cap = snapCapRefs.current.get(id);
       const tol = snapTolRefs.current.get(id);
