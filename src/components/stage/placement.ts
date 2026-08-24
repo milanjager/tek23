@@ -31,6 +31,8 @@ export interface PlacementTuning {
   stackSnapTopTie: number;
   /** computeGhostMode: Y below this = buried (bad). */
   buriedY: number;
+  /** edgeSnapXZ: magnetic tolerance for edge/row alignment (m). */
+  edgeSnapTol: number;
 }
 
 export const DEFAULT_TUNING: PlacementTuning = {
@@ -44,7 +46,9 @@ export const DEFAULT_TUNING: PlacementTuning = {
   stackSnapLiftFactor: 0.5,
   stackSnapTopTie: 0.01,
   buriedY: -0.02,
+  edgeSnapTol: 0.35,
 };
+
 
 /** Live-tunable thresholds. Mutated by the dev panel; read every frame. */
 export const PLACEMENT_TUNING: PlacementTuning = { ...DEFAULT_TUNING };
@@ -73,6 +77,72 @@ export function snapToGridXZ(v: Vec3, step: number = PLACEMENT_TUNING.gridStep):
     Math.round(v[2] / step) * step,
   ];
 }
+
+export interface EdgeSnapResult {
+  pos: Vec3;
+  /** Which axes got magnetically pulled (for ghost feedback). */
+  snappedX: boolean;
+  snappedZ: boolean;
+  /** Ids of the neighbours the snap aligned to. */
+  refIds: string[];
+}
+
+/**
+ * Magnetic edge/row snapping: pulls the moving box so its side sits flush
+ * against a neighbour, or so their centers / outer edges line up in a row.
+ * Only neighbours on a comparable height band are considered for flush X
+ * snapping (a box floating above shouldn't drag the row apart).
+ * Pure — call after grid snapping, before stack resolution.
+ */
+export function edgeSnapXZ(
+  moving: PlacementItem,
+  others: PlacementItem[],
+  tol: number = PLACEMENT_TUNING.edgeSnapTol,
+): EdgeSnapResult {
+  if (tol <= 0 || others.length === 0) {
+    return { pos: [...moving.pos] as Vec3, snappedX: false, snappedZ: false, refIds: [] };
+  }
+  const hw = moving.size[0] / 2, hd = moving.size[2] / 2;
+  const myBottom = moving.pos[1], myTop = moving.pos[1] + moving.size[1];
+
+  let bestX: { v: number; d: number; id: string } | null = null;
+  let bestZ: { v: number; d: number; id: string } | null = null;
+
+  for (const o of others) {
+    if (o.id === moving.id) continue;
+    const ohw = o.size[0] / 2, ohd = o.size[2] / 2;
+    const oBottom = o.pos[1], oTop = o.pos[1] + o.size[1];
+    // Same height band = overlapping vertical extent (a real row neighbour).
+    const sameBand = Math.min(myTop, oTop) - Math.max(myBottom, oBottom) > 0.05;
+
+    const xCands: number[] = [o.pos[0]]; // center align
+    if (sameBand) {
+      xCands.push(o.pos[0] - ohw - hw, o.pos[0] + ohw + hw); // flush side-by-side
+    }
+    xCands.push(o.pos[0] - ohw + hw, o.pos[0] + ohw - hw); // outer edges aligned
+    for (const v of xCands) {
+      const d = Math.abs(v - moving.pos[0]);
+      if (d <= tol && (!bestX || d < bestX.d)) bestX = { v, d, id: o.id };
+    }
+
+    const zCands = [o.pos[2], o.pos[2] - ohd + hd, o.pos[2] + ohd - hd];
+    if (sameBand) zCands.push(o.pos[2] - ohd - hd, o.pos[2] + ohd + hd);
+    for (const v of zCands) {
+      const d = Math.abs(v - moving.pos[2]);
+      if (d <= tol && (!bestZ || d < bestZ.d)) bestZ = { v, d, id: o.id };
+    }
+  }
+
+  const refIds = [bestX?.id, bestZ?.id].filter((v): v is string => !!v);
+  return {
+    pos: [bestX ? bestX.v : moving.pos[0], moving.pos[1], bestZ ? bestZ.v : moving.pos[2]],
+    snappedX: !!bestX,
+    snappedZ: !!bestZ,
+    refIds: [...new Set(refIds)],
+  };
+}
+
+
 
 export function stackY(moving: PlacementItem, others: PlacementItem[]): number {
   const T = PLACEMENT_TUNING;

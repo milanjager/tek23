@@ -5,6 +5,7 @@ import {
   stackY,
   hasCollision,
   snapToGridXZ,
+  edgeSnapXZ,
   type PlacementItem,
   type Vec3,
 } from "./placement";
@@ -192,5 +193,44 @@ describe("regression: hasCollision ignores clean stacking", () => {
     const base = mk("base", [0, 0, 0]);
     const top = mk("top", [0, 0.6, 0]);
     expect(hasCollision(top, [base])).toBe(false);
+  });
+});
+
+describe("magnetic edge snap", () => {
+  const base = mk("base", [0, 0, 0]); // 1 x 0.6 x 0.8 at origin
+
+  it("pulls a near-flush neighbour to touching edges", () => {
+    const moving = mk("mv", [1.12, 0, 0]);
+    const r = edgeSnapXZ(moving, [base]);
+    expect(r.snappedX).toBe(true);
+    expect(r.pos[0]).toBeCloseTo(1, 6);
+    expect(r.pos[2]).toBeCloseTo(0, 6);
+  });
+
+  it("aligns Z into the same row", () => {
+    const moving = mk("mv", [3, 0, 0.18]);
+    const r = edgeSnapXZ(moving, [base]);
+    expect(r.snappedZ).toBe(true);
+    expect(r.pos[2]).toBeCloseTo(0, 6);
+  });
+
+  it("keeps center alignment when stacking above", () => {
+    const moving = mk("mv", [0.08, 0.6, 0.05]);
+    const r = edgeSnapXZ(moving, [base]);
+    expect(r.pos[0]).toBeCloseTo(0, 6);
+    expect(r.pos[2]).toBeCloseTo(0, 6);
+  });
+
+  it("leaves far-away boxes untouched", () => {
+    const moving = mk("mv", [8, 0, 8]);
+    const r = edgeSnapXZ(moving, [base]);
+    expect(r.snappedX).toBe(false);
+    expect(r.snappedZ).toBe(false);
+    expect(r.pos).toEqual([8, 0, 8]);
+  });
+
+  it("tol=0 disables snapping", () => {
+    const r = edgeSnapXZ(mk("mv", [1.05, 0, 0]), [base], 0);
+    expect(r.pos[0]).toBeCloseTo(1.05, 6);
   });
 });
