@@ -5296,6 +5296,7 @@ export function StageBuilder3D() {
             >
               <option value="">⚡ Načíst preset…</option>
               <option value="namel_wall">Namel Wall — velká 4×18&quot; stěna</option>
+              <option value="mlk_wall">MLK Wall — mega stěna 14,5 m</option>
               <option value="club_stack">Club Stack — 2×2 sub + top L/R</option>
               <option value="festival_ground">Festival Ground — 3 clustery</option>
             </select>
