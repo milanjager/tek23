@@ -235,7 +235,7 @@ interface Placed {
 }
 
 
-type PresetKind = "namel_wall" | "club_stack" | "festival_ground";
+type PresetKind = "namel_wall" | "club_stack" | "festival_ground" | "mlk_wall";
 
 type CableType = "signal" | "speaker" | "power" | "dmx";
 
@@ -4069,6 +4069,51 @@ function loadPreset(kind: PresetKind): Placed[] {
     arr.push(mk("distro",    -2.4, 0, 1.8, "Distro"));
     arr.push(mk("mixer",      0.0, 1.0, 2.6, "Mix"));
     arr.push(mk("dj",         0.0, 0.0, 3.0, "DJ"));
+  } else if (kind === "mlk_wall") {
+    // MLK — mega stěna dle reference (1450 cm široká, 330 cm vysoká):
+    // boční sub stěny, centrální scoop věže, mids nad nimi, tops na sloupech.
+    // --- Boční sub stěny L/R (4 sloupce × 2 patra na stranu) ---
+    for (const side of [-1, 1]) {
+      for (let col = 0; col < 4; col++) {
+        const x = side * (4.6 + col * 1.15);
+        arr.push(mk("picus_deep_sub", x, 0.00, SPK_Z, `${side < 0 ? "L" : "R"} Sub ${col + 1}`));
+        arr.push(mk("picus_deep_sub", x, 1.15, SPK_Z, `${side < 0 ? "L" : "R"} Sub ${col + 5}`));
+      }
+    }
+    // --- Centrální scoop věže (4 sloupce × 2 patra) ---
+    for (let col = 0; col < 4; col++) {
+      const x = -1.75 + col * 1.15;
+      arr.push(mk("picus_scoop_lo", x, 0.00, SPK_Z, `Scoop C${col + 1}`));
+      arr.push(mk("picus_scoop_hi", x, 1.00, SPK_Z, `Scoop C${col + 5}`));
+    }
+    // --- Bass řada nad scoopy ---
+    for (let col = 0; col < 2; col++) {
+      arr.push(mk("picus_bass_row", -0.58 + col * 1.16, 2.00, SPK_Z, `Bass ${col + 1}`));
+    }
+    // --- Mid kostky L/C/R nad středem (každá 3 sloupce × 2 patra) ---
+    for (const cx of [-2.9, 0, 2.9]) {
+      for (let col = 0; col < 3; col++) {
+        const x = cx + (col - 1) * 0.78;
+        arr.push(mk("picus_mid_grill", x, 2.35, SPK_Z, `Mid ${cx < 0 ? "L" : cx > 0 ? "R" : "C"}${col + 1}`));
+        arr.push(mk("picus_mid_grill", x, 3.20, SPK_Z, `Mid ${cx < 0 ? "L" : cx > 0 ? "R" : "C"}${col + 4}`));
+      }
+    }
+    // --- Tops na sloupech nad bočními stěnami (2 na stranu) ---
+    for (const side of [-1, 1]) {
+      for (let t = 0; t < 2; t++) {
+        const x = side * (5.2 + t * 1.6);
+        arr.push(mk("picus_top_3way", x, 2.30, SPK_Z, `Top ${side < 0 ? "L" : "R"}${t + 1}`));
+      }
+    }
+    // --- Infra: 2 amp racks, distro, generátor, FOH ---
+    arr.push(mk("powersoft", -7.6, 0, 0.9, "Amp L"));
+    arr.push(mk("powersoft",  7.6, 0, 0.9, "Amp R"));
+    arr.push(mk("powersoft", -7.6, 0, 1.9, "Amp L2"));
+    arr.push(mk("powersoft",  7.6, 0, 1.9, "Amp R2"));
+    arr.push(mk("distro",     0.0, 0, 1.8, "Distro C"));
+    arr.push(mk("generator", -9.0, 0, 3.2, "Aggregát"));
+    arr.push(mk("mixer",      0.0, 1.0, 5.5, "FOH"));
+    arr.push(mk("dj",         0.0, 0.0, 3.4, "DJ"));
   } else {
     // festival_ground — three sub clusters + mid columns + wing horns
     for (let c = -1; c <= 1; c++) {
@@ -5082,6 +5127,7 @@ export function StageBuilder3D() {
           hasSaved={hasSaved}
           presets={[
             { id: "namel_wall", title: "Namel Wall", desc: "Velká 4×18\" stěna dle reference — subs, mids, horny." },
+            { id: "mlk_wall", title: "MLK Wall", desc: "Mega stěna 14,5 m — boční sub stěny, scoop věže, mid kostky, tops." },
             { id: "club_stack", title: "Club Stack", desc: "Kompaktní 2×2 sub + top L/R pro klub." },
             { id: "festival_ground", title: "Festival Ground", desc: "3 sub clustery + wing horny na open-air." },
           ]}
@@ -5250,6 +5296,7 @@ export function StageBuilder3D() {
             >
               <option value="">⚡ Načíst preset…</option>
               <option value="namel_wall">Namel Wall — velká 4×18&quot; stěna</option>
+              <option value="mlk_wall">MLK Wall — mega stěna 14,5 m</option>
               <option value="club_stack">Club Stack — 2×2 sub + top L/R</option>
               <option value="festival_ground">Festival Ground — 3 clustery</option>
             </select>
