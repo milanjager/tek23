@@ -235,7 +235,7 @@ interface Placed {
 }
 
 
-type PresetKind = "namel_wall" | "club_stack" | "festival_ground";
+type PresetKind = "namel_wall" | "club_stack" | "festival_ground" | "mlk_wall";
 
 type CableType = "signal" | "speaker" | "power" | "dmx";
 
