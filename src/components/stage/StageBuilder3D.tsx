@@ -5127,6 +5127,7 @@ export function StageBuilder3D() {
           hasSaved={hasSaved}
           presets={[
             { id: "namel_wall", title: "Namel Wall", desc: "Velká 4×18\" stěna dle reference — subs, mids, horny." },
+            { id: "mlk_wall", title: "MLK Wall", desc: "Mega stěna 14,5 m — boční sub stěny, scoop věže, mid kostky, tops." },
             { id: "club_stack", title: "Club Stack", desc: "Kompaktní 2×2 sub + top L/R pro klub." },
             { id: "festival_ground", title: "Festival Ground", desc: "3 sub clustery + wing horny na open-air." },
           ]}
