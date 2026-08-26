@@ -4557,17 +4557,19 @@ export function StageBuilder3D() {
 
   // Dark mode — toggle .dark class on <html> + persist. Initial read runs
   // in effect to avoid SSR hydration mismatches.
-  const [dark, setDark] = useState(false);
+  const [dark, setDarkState] = useState(false);
+  // Init once — idempotent under StrictMode double-mount (no write effect,
+  // which would clobber storage with the default before the read lands).
   useEffect(() => {
-    const stored = localStorage.getItem("stage.theme");
-    const wants = stored === "dark";
-    setDark(wants);
+    const wants = localStorage.getItem("stage.theme") === "dark";
+    setDarkState(wants);
+    document.documentElement.classList.toggle("dark", wants);
   }, []);
-  useEffect(() => {
-    const root = document.documentElement;
-    if (dark) root.classList.add("dark"); else root.classList.remove("dark");
-    localStorage.setItem("stage.theme", dark ? "dark" : "light");
-  }, [dark]);
+  const setDark = useCallback((v: boolean) => {
+    setDarkState(v);
+    document.documentElement.classList.toggle("dark", v);
+    try { localStorage.setItem("stage.theme", v ? "dark" : "light"); } catch { /* private mode */ }
+  }, []);
 
   // Auto-scroll active layer into view whenever selection changes.
   const layerRowRefs = useRef<Map<string, HTMLDivElement>>(new Map());
