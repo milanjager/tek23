@@ -763,8 +763,8 @@ const WOOD_DARK = "#0a0a0a";
 const GRILLE = "#050505";
 const METAL = "#1a1a1a";
 const CHROME = "#8a8f95";
-const TEAL = "#0d8a8a";        // signature teal/cyan grille frame
-const YELLOW = "#f4c11a";      // freetekno yellow crosshair
+const TEAL = "#3a4046";        // subtle graphite grille frame (mírnější než dřív)
+const YELLOW = "#6b7280";      // tlumený šedý crosshair
 const PALLET_WOOD = "#7a5a30";
 
 /* Shared textures — created once, reused across every cabinet.
@@ -777,12 +777,12 @@ function getGrilleTexture(): THREE.CanvasTexture {
   const c = document.createElement("canvas");
   c.width = c.height = S;
   const ctx = c.getContext("2d")!;
-  ctx.fillStyle = "#0a0a0a";
+  ctx.fillStyle = "#141414";
   ctx.fillRect(0, 0, S, S);
-  // hex-packed holes
-  const step = 12;
-  const r = 2.4;
-  ctx.fillStyle = "#1c1c1c";
+  // hex-packed holes — jemnější, méně kontrastní
+  const step = 10;
+  const r = 1.6;
+  ctx.fillStyle = "#242424";
   for (let y = 0; y < S + step; y += step) {
     const row = Math.round(y / step);
     const xOff = row % 2 === 0 ? 0 : step / 2;
@@ -924,8 +924,8 @@ function Cabinet({
       {/* Yellow crosshair (spray-paint) */}
       {yellowCross && (
         <group position={[0, h / 2, d / 2 + 0.005]}>
-          <mesh><boxGeometry args={[w * 0.55, 0.025, 0.005]} /><meshStandardMaterial color={YELLOW} emissive={YELLOW} emissiveIntensity={0.2} roughness={0.8} /></mesh>
-          <mesh><boxGeometry args={[0.025, h * 0.55, 0.005]} /><meshStandardMaterial color={YELLOW} emissive={YELLOW} emissiveIntensity={0.2} roughness={0.8} /></mesh>
+          <mesh><boxGeometry args={[w * 0.5, 0.012, 0.004]} /><meshStandardMaterial color={YELLOW} roughness={0.9} metalness={0.1} /></mesh>
+          <mesh><boxGeometry args={[0.012, h * 0.5, 0.004]} /><meshStandardMaterial color={YELLOW} roughness={0.9} metalness={0.1} /></mesh>
         </group>
       )}
       {/* L-shaped steel corner brackets (8) */}
