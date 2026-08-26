@@ -667,6 +667,43 @@ function generateWiringSteps(items: Placed[], cables: Cable[]): WiringStep[] {
 
 
 
+/* ============================================================
+   Shared cable animation clock
+   ------------------------------------------------------------
+   Dříve měl každý endpoint i každý flow vlastní useFrame — při
+   desítkách kabelů to znamenalo stovky callbacků za snímek.
+   Teď je jedna smyčka (`CableAnimDriver`), do které se animované
+   prvky registrují; statické (idle) prvky se neregistrují vůbec.
+   ============================================================ */
+
+type CableTick = (t: number, dt: number) => void;
+const cableTicks = new Set<CableTick>();
+
+function useCableAnim(active: boolean, tick: CableTick) {
+  const ref = useRef(tick);
+  ref.current = tick;
+  useEffect(() => {
+    if (!active) return;
+    const fn: CableTick = (t, dt) => ref.current(t, dt);
+    cableTicks.add(fn);
+    return () => { cableTicks.delete(fn); };
+  }, [active]);
+}
+
+/** Jediná useFrame smyčka pro veškerou kabelovou animaci ve scéně. */
+function CableAnimDriver() {
+  useFrame((state, dt) => {
+    if (cableTicks.size === 0) return;
+    const t = state.clock.elapsedTime;
+    for (const fn of cableTicks) fn(t, dt);
+  });
+  return null;
+}
+
+// Sdílené geometrie — endpointy se liší jen měřítkem, ne tvarem.
+const ENDPOINT_SPHERE = new THREE.SphereGeometry(1, 16, 12);
+const ENDPOINT_RING = new THREE.RingGeometry(1.4, 1.7, 24);
+
 // Highlighted connector endpoint drawn at a cable's plug position.
 // Grows and pulses when the user is picking a new target for reconnect,
 // gently glows when the cable is selected or hovered.
@@ -684,38 +721,31 @@ function CableEndpoint({
   const ringMat = useRef<THREE.MeshBasicMaterial>(null);
   const baseSize = state === "idle" ? 0.05 : state === "hover" ? 0.07 : 0.09;
   const emissive = state === "active" ? 2.4 : state === "selected" ? 1.4 : state === "hover" ? 1.0 : 0.55;
+  const pulsing = state === "active" || state === "selected";
 
-  useFrame((_, dt) => {
-    if (state === "active" && inner.current) {
-      const t = performance.now() / 1000;
-      const s = 1 + Math.sin(t * 6) * 0.35;
-      inner.current.scale.setScalar(s);
-    } else if (inner.current) {
-      inner.current.scale.setScalar(1);
+  useCableAnim(pulsing, (t) => {
+    if (inner.current) {
+      const s = state === "active" ? 1 + Math.sin(t * 6) * 0.35 : 1;
+      inner.current.scale.setScalar(baseSize * s);
     }
     if (ring.current && ringMat.current) {
-      if (state === "active" || state === "selected") {
-        const t = (performance.now() / 1000) % 1.2;
-        const p = t / 1.2;
-        const s = 1 + p * (state === "active" ? 4 : 2.5);
-        ring.current.scale.setScalar(s);
-        ringMat.current.opacity = (1 - p) * (state === "active" ? 0.9 : 0.55);
-      } else {
-        ringMat.current.opacity = 0;
-      }
+      const p = (t % 1.2) / 1.2;
+      const s = 1 + p * (state === "active" ? 4 : 2.5);
+      ring.current.scale.setScalar(baseSize * s);
+      ringMat.current.opacity = (1 - p) * (state === "active" ? 0.9 : 0.55);
     }
   });
 
   return (
     <group position={position}>
-      <mesh ref={inner}>
-        <sphereGeometry args={[baseSize, 16, 12]} />
+      <mesh ref={inner} geometry={ENDPOINT_SPHERE} scale={baseSize}>
         <meshStandardMaterial color={color} emissive={color} emissiveIntensity={emissive} />
       </mesh>
-      <mesh ref={ring} rotation={[Math.PI / 2, 0, 0]}>
-        <ringGeometry args={[baseSize * 1.4, baseSize * 1.7, 24]} />
-        <meshBasicMaterial ref={ringMat} color={color} transparent opacity={0} side={THREE.DoubleSide} depthWrite={false} />
-      </mesh>
+      {pulsing && (
+        <mesh ref={ring} geometry={ENDPOINT_RING} rotation={[Math.PI / 2, 0, 0]} scale={baseSize}>
+          <meshBasicMaterial ref={ringMat} color={color} transparent opacity={0} side={THREE.DoubleSide} depthWrite={false} />
+        </mesh>
+      )}
     </group>
   );
 }
@@ -729,10 +759,11 @@ function CableFlow({
   width: number;
 }) {
   const ref = useRef<any>(null);
-  useFrame(() => {
+  // Posun dashů je vázaný na dt, takže rychlost nezávisí na FPS.
+  useCableAnim(true, (_t, dt) => {
     const mat = ref.current?.material;
     if (mat && "dashOffset" in mat) {
-      mat.dashOffset = (mat.dashOffset ?? 0) - 0.03;
+      mat.dashOffset = (mat.dashOffset ?? 0) - dt * 1.8;
     }
   });
   return (
@@ -750,6 +781,7 @@ function CableFlow({
     />
   );
 }
+
 
 
 
@@ -3582,6 +3614,8 @@ function SceneContent({
       })()}
 
       {/* Cables */}
+      <CableAnimDriver />
+
 
       {cables.map((c) => {
         const a = items.find((i) => i.id === c.from);
