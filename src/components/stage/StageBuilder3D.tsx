@@ -29,6 +29,8 @@ import PowersoftGuide from "./PowersoftGuide";
 import { StartLauncher } from "./StartLauncher";
 import SpeakerBuilder from "./SpeakerBuilder";
 import SpeakerWiringSchema, { type WireNode, type WireLink } from "./SpeakerWiringSchema";
+import PrintReport, { type BomRow, type ChecklistRow } from "./PrintReport";
+
 import {
   type CustomSpeaker,
   loadCustomSpeakers,
@@ -4582,6 +4584,8 @@ export function StageBuilder3D() {
   // Cable routing: 0.02 = on the floor, higher = aerial along truss.
   const [autoRoute, setAutoRoute] = useState<boolean>(true);
   const [cableRouteY, setCableRouteY] = useState<number>(0.02);
+  const [showPrintReport, setShowPrintReport] = useState(false);
+
 
   const isSpeakerKind = useCallback((k: Kind) => {
     if (SPECS[k].category !== "sound") return false;
@@ -5157,6 +5161,91 @@ export function StageBuilder3D() {
     announce(`Postup pro technika vyexportován — ${steps.length} kroků.`);
   }, [items, cables, announce]);
 
+  /* ---- Tisknutelný report: BOM + checklist zapojení + doporučení ---------- */
+  const printReport = useMemo(() => {
+    // Osiřelé kabely (odkaz na smazanou bednu) do reportu nepatří.
+    const ids = new Set(items.map((it) => it.id));
+    const liveCables = cables.filter((c) => ids.has(c.from) && ids.has(c.to));
+    const steps = generateWiringSteps(items, liveCables);
+
+    // BOM — agregace podle typu bedny.
+    const byKind = new Map<string, number>();
+    for (const it of items) byKind.set(it.kind, (byKind.get(it.kind) ?? 0) + 1);
+    const bom: BomRow[] = Array.from(byKind.entries())
+      .map(([kind, count]) => {
+        const s = SPECS[kind as Kind];
+        const kgEach = Math.round(estimateWeightKg(s));
+        return {
+          kind,
+          label: s.defaultLabel ?? s.label,
+          category: s.category,
+          count,
+          size: `${s.size[0].toFixed(2)} × ${s.size[1].toFixed(2)} × ${s.size[2].toFixed(2)}`,
+          kgEach,
+          kgTotal: kgEach * count,
+          powerW: (s.powerW ?? 0) * count,
+        };
+      })
+      .sort((a, b) => a.category.localeCompare(b.category) || b.count - a.count);
+
+    // Čitelná jména — auto-generovaná id nahradíme názvem typu s pořadím.
+    const seqByKind = new Map<string, number>();
+    const prettyName = new Map<string, string>();
+    for (const it of items) {
+      const spec = SPECS[it.kind];
+      const n = (seqByKind.get(it.kind) ?? 0) + 1;
+      seqByKind.set(it.kind, n);
+      const base = spec.defaultLabel ?? spec.label;
+      const isAutoLabel = !it.label || it.label === it.id;
+      prettyName.set(it.id, isAutoLabel ? `${base} ${n}` : it.label!);
+    }
+    const nameOf = (id: string) => prettyName.get(id) ?? id;
+
+    const checklist: ChecklistRow[] = steps.map((s) => ({
+      index: s.index,
+      group: CABLE_META[s.type].label,
+      color: CABLE_META[s.type].color,
+      cableId: s.cableId,
+      from: nameOf(s.fromId),
+      fromPort: s.fromPort,
+      to: nameOf(s.toId),
+      toPort: s.toPort,
+
+      ...(s.loadW !== undefined ? { load: `${Math.round(s.loadW)} W` } : {}),
+      ...(s.overload ? { warn: "PŘETÍŽENO" } : {}),
+    }));
+
+    const byType = (t: CableType) => liveCables.filter((c) => c.type === t).length;
+    const overloads = steps.filter((s) => s.overload).length;
+    const totalW = Math.round(rigStats.kw * 1000);
+    const settings = [
+      { label: "Celkový příkon", value: `${totalW} W (${rigStats.kw.toFixed(2)} kW) — agregát dimenzuj min. na ${Math.ceil((totalW * 1.3) / 500) * 0.5} kVA` },
+      { label: "Rozdělení větví", value: `Max. ${PWR_BRANCH_MAX_W} W na jednu větev CEE 16A / Schuko 16A${overloads ? ` · ⚠ ${overloads} větev(í) přetížených — rozděl zátěž` : " · žádná větev není přetížená"}` },
+      { label: "Počty kabelů", value: `Napájení ${byType("power")} · DMX ${byType("dmx")} · Signál ${byType("signal")} · Repro ${byType("speaker")}` },
+      { label: "Vedení kabelů", value: cableRouteY > 0.5 ? `Vzdušná trasa ve výšce ${cableRouteY.toFixed(2)} m — zajisti odlehčení tahu` : "Po zemi — přechody přes cesty zakrýt kabelovými můstky" },
+      { label: "Pořadí zapínání", value: "Agregát → rozvaděč → FOH/mixpult → zesilovače (jako poslední). Vypínání v opačném pořadí." },
+      { label: "Gain / limity", value: "Zesilovače na 0 dB při zapnutí, limitery aktivní dle datasheetu bedny; před zvýšením gainu ověř impedanci větve." },
+      { label: "Kontrola před startem", value: "Ověř RCD/proudový chránič, impedanci repro větví (min. zátěž zesilovače), fázování subů a polaritu NL4." },
+    ];
+
+    const notes = items
+      .filter((it) => (it.notes ?? SPECS[it.kind].defaultNotes)?.trim())
+      .map((it) => ({
+        label: nameOf(it.id),
+
+        text: (it.notes ?? SPECS[it.kind].defaultNotes ?? "").trim(),
+      }));
+
+    return {
+      bom,
+      checklist,
+      settings,
+      notes,
+      stats: { kg: rigStats.kg, kw: rigStats.kw, speakers: rigStats.speakers, cables: liveCables.length },
+    };
+  }, [items, cables, rigStats, cableRouteY]);
+
+
   const applyPreset = useCallback((v: PresetKind) => {
     const it = normalizeScene(loadPreset(v));
     const cs = autoWireCables(it);
@@ -5541,7 +5630,9 @@ export function StageBuilder3D() {
           <>
             <button onClick={exportCablesCsv} disabled={!cables.length} className={`${btnCls} bg-neutral-100 hover:bg-neutral-200 disabled:opacity-40`} title="Kabelový list (CSV) — pořadí PWR → DMX → SIG → SPK">⤓ Seznam kabelů (CSV)</button>
             <button onClick={exportGuideTxt} disabled={!cables.length} className={`${btnCls} bg-neutral-100 hover:bg-neutral-200 disabled:opacity-40`} title="Textový krokový návod pro technika (.txt)">⤓ Postup pro technika</button>
+            <button onClick={() => setShowPrintReport(true)} disabled={!items.length} className={`${btnCls} bg-lime-500 text-neutral-900 hover:bg-lime-400 disabled:opacity-40`} title="Vygeneruje tisknutelný checklist zapojení + BOM (uložitelné jako PDF)">🧾 Checklist + BOM (PDF)</button>
             <button onClick={() => { setViewMode("tech"); window.print(); }} disabled={!items.length} className={`${btnCls} bg-neutral-100 hover:bg-neutral-200 disabled:opacity-40`} title="Vytisknout technický výkres / uložit jako PDF">⎙ Tisk výkresu</button>
+
             <span className="text-[11px] text-neutral-500">
               Checklist: plán ({items.length} prvků) · kabelový list ({cables.length}) · postup pro crew
             </span>
@@ -6576,7 +6667,20 @@ export function StageBuilder3D() {
           onClose={() => setWiringSchemaOpen(false)}
         />
       )}
+      {showPrintReport && (
+        <PrintReport
+          title="Stage rig — checklist zapojení a BOM"
+          items={items.length}
+          stats={printReport.stats}
+          bom={printReport.bom}
+          checklist={printReport.checklist}
+          settings={printReport.settings}
+          notes={printReport.notes}
+          onClose={() => setShowPrintReport(false)}
+        />
+      )}
       {!import.meta.env.PROD && <PlacementDevPanel />}
+
 
     </div>
   );
