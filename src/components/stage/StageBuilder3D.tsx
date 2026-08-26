@@ -3000,7 +3000,7 @@ function RealisticTuner({ enabled }: { enabled: boolean }) {
 function SceneContent({
   items, setItems, selection, setSelection, tool,
   cables, setCables, mode, cableType, setCableType, pendingFrom, setPendingFrom,
-  showConnectorLabels, showCableLabels, realistic, autoSanitize, frontView, topView, speakerLineZ,
+  showConnectorLabels, showCableLabels, showItemLabels, realistic, autoSanitize, frontView, topView, speakerLineZ,
   cableRouteY, magnet, readOnly = false,
 
 }: {
@@ -3018,6 +3018,7 @@ function SceneContent({
   setPendingFrom: React.Dispatch<React.SetStateAction<string | null>>;
   showConnectorLabels: boolean;
   showCableLabels: boolean;
+  showItemLabels: boolean;
   realistic: boolean;
   autoSanitize: boolean;
   frontView: boolean;
@@ -3331,6 +3332,7 @@ function SceneContent({
           showConnectors={mode === "cable"}
           showConnectorLabels={showConnectorLabels}
           activeCableType={cableType}
+          showLabel={showItemLabels}
           pendingItemId={pendingFrom}
           onConnectorPick={(itemId, conn) => {
             // Reconnect flow — pick the specific plug to reroute to.
@@ -4389,6 +4391,7 @@ export function StageBuilder3D() {
   const [cableType, setCableType] = useState<CableType>("signal");
   const [showConnectorLabels, setShowConnectorLabels] = useState(true);
   const [showCableLabels, setShowCableLabels] = useState(true);
+  const [showItemLabels, setShowItemLabels] = useState(false);
   const [pendingFrom, setPendingFrom] = useState<string | null>(null);
   const [category, setCategory] = useState<Category>("sound");
   const [paletteQuery, setPaletteQuery] = useState("");
@@ -5387,6 +5390,7 @@ export function StageBuilder3D() {
             </button>
             <button onClick={() => setShowConnectorLabels((v) => !v)} aria-pressed={showConnectorLabels} className={`${btnCls} ${showConnectorLabels ? "bg-lime-500 text-neutral-950" : "bg-neutral-100 text-neutral-500 hover:bg-neutral-200"}`}>Popisky konektorů</button>
             <button onClick={() => setShowCableLabels((v) => !v)} aria-pressed={showCableLabels} className={`${btnCls} ${showCableLabels ? "bg-lime-500 text-neutral-950" : "bg-neutral-100 text-neutral-500 hover:bg-neutral-200"}`}>Popisky kabelů</button>
+            <button onClick={() => setShowItemLabels((v) => !v)} aria-pressed={showItemLabels} title="Jména beden nad modely (vybrané se ukazují vždy)" className={`${btnCls} ${showItemLabels ? "bg-lime-500 text-neutral-950" : "bg-neutral-100 text-neutral-500 hover:bg-neutral-200"}`}>Popisky beden</button>
             <button
               onClick={() => setAutoRoute((v) => { const nv = !v; if (nv) setCableRouteY(0.02); return nv; })}
               className={`${btnCls} ${autoRoute ? "bg-lime-500 text-neutral-950" : "bg-neutral-100 text-neutral-500 hover:bg-neutral-200"}`}
@@ -5797,6 +5801,7 @@ export function StageBuilder3D() {
               setPendingFrom={setPendingFrom}
               showConnectorLabels={showConnectorLabels}
               showCableLabels={showCableLabels}
+              showItemLabels={showItemLabels}
               realistic={realistic}
               autoSanitize={autoSanitize}
               magnet={magnet}
