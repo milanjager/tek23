@@ -804,32 +804,34 @@ function getGrilleTexture(): THREE.CanvasTexture {
   return tex;
 }
 
-// L-shaped steel corner protector (3 thin plates meeting at a corner).
-function CornerBracket({ sx, sy, sz, w, h, d, color }:
-  { sx: number; sy: number; sz: number; w: number; h: number; d: number; color: string }) {
-  const t = 0.012;     // plate thickness
-  const L = 0.11;      // arm length
-  const x = sx * (w / 2 - L / 2);
-  const y = sy * (h / 2 - L / 2);
-  const z = sz * (d / 2 - L / 2);
-  const cx = sx * (w / 2 - t / 2);
-  const cy = sy * (h / 2 - t / 2);
-  const cz = sz * (d / 2 - t / 2);
+// L-shaped steel corner protectors — all 8 corners merged into ONE geometry
+// (24 plates in a single draw call instead of 24 meshes per cabinet).
+function CornerBrackets({ w, h, d, color }: { w: number; h: number; d: number; color: string }) {
+  const geo = useMemo(() => {
+    const t = 0.012;     // plate thickness
+    const L = 0.11;      // arm length
+    const parts: THREE.BoxGeometry[] = [];
+    for (const sx of [-1, 1]) for (const sy of [-1, 1]) for (const sz of [-1, 1]) {
+      const x = sx * (w / 2 - L / 2);
+      const y = sy * (h / 2 - L / 2);
+      const z = sz * (d / 2 - L / 2);
+      const cx = sx * (w / 2 - t / 2);
+      const cy = sy * (h / 2 - t / 2);
+      const cz = sz * (d / 2 - t / 2);
+      parts.push(new THREE.BoxGeometry(t, L, L).translate(cx, y, z));
+      parts.push(new THREE.BoxGeometry(L, t, L).translate(x, cy, z));
+      parts.push(new THREE.BoxGeometry(L, L, t).translate(x, y, cz));
+    }
+    const merged = mergeGeometries(parts, false);
+    parts.forEach((p) => p.dispose());
+    return merged;
+  }, [w, h, d]);
+  useEffect(() => () => { geo?.dispose(); }, [geo]);
+  if (!geo) return null;
   return (
-    <group>
-      <mesh position={[cx, y, z]}>
-        <boxGeometry args={[t, L, L]} />
-        <meshStandardMaterial color={color} metalness={0.75} roughness={0.35} />
-      </mesh>
-      <mesh position={[x, cy, z]}>
-        <boxGeometry args={[L, t, L]} />
-        <meshStandardMaterial color={color} metalness={0.75} roughness={0.35} />
-      </mesh>
-      <mesh position={[x, y, cz]}>
-        <boxGeometry args={[L, L, t]} />
-        <meshStandardMaterial color={color} metalness={0.75} roughness={0.35} />
-      </mesh>
-    </group>
+    <mesh geometry={geo}>
+      <meshStandardMaterial color={color} metalness={0.75} roughness={0.35} />
+    </mesh>
   );
 }
 
@@ -928,16 +930,10 @@ function Cabinet({
           <mesh><boxGeometry args={[0.012, h * 0.5, 0.004]} /><meshStandardMaterial color={YELLOW} roughness={0.9} metalness={0.1} /></mesh>
         </group>
       )}
-      {/* L-shaped steel corner brackets (8) */}
-      {([-1, 1] as const).map((sx) =>
-        ([-1, 1] as const).map((sy) =>
-          ([-1, 1] as const).map((sz) => (
-            <group key={`${sx}${sy}${sz}`} position={[0, h / 2, 0]}>
-              <CornerBracket sx={sx} sy={sy} sz={sz} w={w} h={h} d={d} color={cornerColor} />
-            </group>
-          ))
-        )
-      )}
+      {/* L-shaped steel corner brackets (8 corners, one merged draw call) */}
+      <group position={[0, h / 2, 0]}>
+        <CornerBrackets w={w} h={h} d={d} color={cornerColor} />
+      </group>
       {/* Recessed side handles (dished cutouts) — instantly reads as "cabinet" */}
       {[-1, 1].map((s) => (
         <group key={`hn${s}`} position={[s * (w / 2 + 0.001), h / 2, 0]}>
