@@ -12,6 +12,7 @@ import {
   OrthographicCamera,
 } from "@react-three/drei";
 import * as THREE from "three";
+import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import {
   Speaker, Trash2, Save, Copy, ClipboardPaste, Group as GroupIcon, Ungroup,
   Move as MoveIcon, Boxes, Zap, Sparkles, Radio, Volume2,
@@ -804,6 +805,22 @@ function getGrilleTexture(): THREE.CanvasTexture {
   return tex;
 }
 
+// Grille clones shared per repeat-size — one GPU texture per cabinet size,
+// not one per cabinet instance.
+const _grilleClones = new Map<string, THREE.CanvasTexture>();
+function getGrilleClone(rx: number, ry: number): THREE.CanvasTexture {
+  const key = `${rx}x${ry}`;
+  let t = _grilleClones.get(key);
+  if (!t) {
+    t = getGrilleTexture().clone();
+    t.needsUpdate = true;
+    t.repeat.set(rx, ry);
+    t.wrapS = t.wrapT = THREE.RepeatWrapping;
+    _grilleClones.set(key, t);
+  }
+  return t;
+}
+
 // L-shaped steel corner protectors — all 8 corners merged into ONE geometry
 // (24 plates in a single draw call instead of 24 meshes per cabinet).
 function CornerBrackets({ w, h, d, color }: { w: number; h: number; d: number; color: string }) {
@@ -873,15 +890,7 @@ function Cabinet({
 
   const [w, h, d] = size;
   const palletH = onPallet ? 0.14 : 0;
-  const grilleTex = useMemo(() => {
-    const t = getGrilleTexture();
-    const c = t.clone();
-    c.needsUpdate = true;
-    // Repeat proportional to the cabinet's front area so hole size stays constant.
-    c.repeat.set(Math.max(4, w * 8), Math.max(4, h * 8));
-    c.wrapS = c.wrapT = THREE.RepeatWrapping;
-    return c;
-  }, [w, h]);
+  const grilleTex = useMemo(() => getGrilleClone(Math.max(4, Math.round(w * 8)), Math.max(4, Math.round(h * 8))), [w, h]);
 
   return (
     <group position={[0, palletH, 0]}>
