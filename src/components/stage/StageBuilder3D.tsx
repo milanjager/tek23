@@ -12,6 +12,7 @@ import {
   OrthographicCamera,
 } from "@react-three/drei";
 import * as THREE from "three";
+import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import {
   Speaker, Trash2, Save, Copy, ClipboardPaste, Group as GroupIcon, Ungroup,
   Move as MoveIcon, Boxes, Zap, Sparkles, Radio, Volume2,
@@ -804,32 +805,50 @@ function getGrilleTexture(): THREE.CanvasTexture {
   return tex;
 }
 
-// L-shaped steel corner protector (3 thin plates meeting at a corner).
-function CornerBracket({ sx, sy, sz, w, h, d, color }:
-  { sx: number; sy: number; sz: number; w: number; h: number; d: number; color: string }) {
-  const t = 0.012;     // plate thickness
-  const L = 0.11;      // arm length
-  const x = sx * (w / 2 - L / 2);
-  const y = sy * (h / 2 - L / 2);
-  const z = sz * (d / 2 - L / 2);
-  const cx = sx * (w / 2 - t / 2);
-  const cy = sy * (h / 2 - t / 2);
-  const cz = sz * (d / 2 - t / 2);
+// Grille clones shared per repeat-size — one GPU texture per cabinet size,
+// not one per cabinet instance.
+const _grilleClones = new Map<string, THREE.CanvasTexture>();
+function getGrilleClone(rx: number, ry: number): THREE.CanvasTexture {
+  const key = `${rx}x${ry}`;
+  let t = _grilleClones.get(key);
+  if (!t) {
+    t = getGrilleTexture().clone();
+    t.needsUpdate = true;
+    t.repeat.set(rx, ry);
+    t.wrapS = t.wrapT = THREE.RepeatWrapping;
+    _grilleClones.set(key, t);
+  }
+  return t;
+}
+
+// L-shaped steel corner protectors — all 8 corners merged into ONE geometry
+// (24 plates in a single draw call instead of 24 meshes per cabinet).
+function CornerBrackets({ w, h, d, color }: { w: number; h: number; d: number; color: string }) {
+  const geo = useMemo(() => {
+    const t = 0.012;     // plate thickness
+    const L = 0.11;      // arm length
+    const parts: THREE.BoxGeometry[] = [];
+    for (const sx of [-1, 1]) for (const sy of [-1, 1]) for (const sz of [-1, 1]) {
+      const x = sx * (w / 2 - L / 2);
+      const y = sy * (h / 2 - L / 2);
+      const z = sz * (d / 2 - L / 2);
+      const cx = sx * (w / 2 - t / 2);
+      const cy = sy * (h / 2 - t / 2);
+      const cz = sz * (d / 2 - t / 2);
+      parts.push(new THREE.BoxGeometry(t, L, L).translate(cx, y, z));
+      parts.push(new THREE.BoxGeometry(L, t, L).translate(x, cy, z));
+      parts.push(new THREE.BoxGeometry(L, L, t).translate(x, y, cz));
+    }
+    const merged = mergeGeometries(parts, false);
+    parts.forEach((p) => p.dispose());
+    return merged;
+  }, [w, h, d]);
+  useEffect(() => () => { geo?.dispose(); }, [geo]);
+  if (!geo) return null;
   return (
-    <group>
-      <mesh position={[cx, y, z]}>
-        <boxGeometry args={[t, L, L]} />
-        <meshStandardMaterial color={color} metalness={0.75} roughness={0.35} />
-      </mesh>
-      <mesh position={[x, cy, z]}>
-        <boxGeometry args={[L, t, L]} />
-        <meshStandardMaterial color={color} metalness={0.75} roughness={0.35} />
-      </mesh>
-      <mesh position={[x, y, cz]}>
-        <boxGeometry args={[L, L, t]} />
-        <meshStandardMaterial color={color} metalness={0.75} roughness={0.35} />
-      </mesh>
-    </group>
+    <mesh geometry={geo}>
+      <meshStandardMaterial color={color} metalness={0.75} roughness={0.35} />
+    </mesh>
   );
 }
 
@@ -871,15 +890,7 @@ function Cabinet({
 
   const [w, h, d] = size;
   const palletH = onPallet ? 0.14 : 0;
-  const grilleTex = useMemo(() => {
-    const t = getGrilleTexture();
-    const c = t.clone();
-    c.needsUpdate = true;
-    // Repeat proportional to the cabinet's front area so hole size stays constant.
-    c.repeat.set(Math.max(4, w * 8), Math.max(4, h * 8));
-    c.wrapS = c.wrapT = THREE.RepeatWrapping;
-    return c;
-  }, [w, h]);
+  const grilleTex = useMemo(() => getGrilleClone(Math.max(4, Math.round(w * 8)), Math.max(4, Math.round(h * 8))), [w, h]);
 
   return (
     <group position={[0, palletH, 0]}>
@@ -928,16 +939,10 @@ function Cabinet({
           <mesh><boxGeometry args={[0.012, h * 0.5, 0.004]} /><meshStandardMaterial color={YELLOW} roughness={0.9} metalness={0.1} /></mesh>
         </group>
       )}
-      {/* L-shaped steel corner brackets (8) */}
-      {([-1, 1] as const).map((sx) =>
-        ([-1, 1] as const).map((sy) =>
-          ([-1, 1] as const).map((sz) => (
-            <group key={`${sx}${sy}${sz}`} position={[0, h / 2, 0]}>
-              <CornerBracket sx={sx} sy={sy} sz={sz} w={w} h={h} d={d} color={cornerColor} />
-            </group>
-          ))
-        )
-      )}
+      {/* L-shaped steel corner brackets (8 corners, one merged draw call) */}
+      <group position={[0, h / 2, 0]}>
+        <CornerBrackets w={w} h={h} d={d} color={cornerColor} />
+      </group>
       {/* Recessed side handles (dished cutouts) — instantly reads as "cabinet" */}
       {[-1, 1].map((s) => (
         <group key={`hn${s}`} position={[s * (w / 2 + 0.001), h / 2, 0]}>
@@ -1860,8 +1865,8 @@ function PicusBinModel({
   hasTopVent?: boolean;
 }) {
   const [w, h, d] = size;
-  const YELLOW = "#f4c11a";
-  const YELLOW_DARK = "#c99a10";
+  const YELLOW = "#5c6470"; // muted graphite — was screaming yellow #f4c11a
+  const YELLOW_DARK = "#3f4650";
   const BLACK = "#0a0a0a";
   const CONE = "#141414";
   const DUSTCAP = "#1c1c1c";
@@ -2122,7 +2127,7 @@ function PicusTopGrillModel({ size }: { size: [number, number, number] }) {
       </mesh>
       <mesh position={[0, h * 0.5, d / 2 + 0.015]}>
         <planeGeometry args={[w * 0.18, h * 0.03]} />
-        <meshStandardMaterial color="#f4c11a" emissive="#c99a10" emissiveIntensity={0.4} />
+        <meshStandardMaterial color="#4b5563" roughness={0.6} metalness={0.3} />
       </mesh>
 
       {/* Corner plates */}
@@ -2278,7 +2283,7 @@ function SelectionBounds({ items, selection }: { items: Placed[]; selection: str
 
 
 const ItemObject = ({
-  item, selected, pending, showConnectors, showConnectorLabels, activeCableType, pendingItemId,
+  item, selected, pending, showConnectors, showConnectorLabels, activeCableType, pendingItemId, showLabel,
   onSelect, onRegister, onConnectorPick,
 }: {
   item: Placed;
@@ -2286,6 +2291,7 @@ const ItemObject = ({
   pending?: boolean;
   showConnectors?: boolean;
   showConnectorLabels?: boolean;
+  showLabel?: boolean;
   activeCableType?: CableType;
   pendingItemId?: string | null;
   onSelect: (id: string, additive: boolean) => void;
@@ -2401,7 +2407,7 @@ const ItemObject = ({
         );
       })}
       {/* Custom label above the box */}
-      {item.label && (
+      {item.label && (selected || showLabel) && (
         <Html position={[0, spec.size[1] + 0.25, 0]} center distanceFactor={8} occlude={false}>
           <div className="pointer-events-none rounded bg-black/80 px-1.5 py-0.5 font-mono text-[10px] font-bold uppercase tracking-wider text-lime-600 shadow-lg">
             {item.label}
@@ -2999,7 +3005,7 @@ function RealisticTuner({ enabled }: { enabled: boolean }) {
 function SceneContent({
   items, setItems, selection, setSelection, tool,
   cables, setCables, mode, cableType, setCableType, pendingFrom, setPendingFrom,
-  showConnectorLabels, showCableLabels, realistic, autoSanitize, frontView, topView, speakerLineZ,
+  showConnectorLabels, showCableLabels, showItemLabels, realistic, autoSanitize, frontView, topView, speakerLineZ,
   cableRouteY, magnet, readOnly = false,
 
 }: {
@@ -3017,6 +3023,7 @@ function SceneContent({
   setPendingFrom: React.Dispatch<React.SetStateAction<string | null>>;
   showConnectorLabels: boolean;
   showCableLabels: boolean;
+  showItemLabels: boolean;
   realistic: boolean;
   autoSanitize: boolean;
   frontView: boolean;
@@ -3070,6 +3077,35 @@ function SceneContent({
       orbitRef.current.update();
     }
   }, [camera, frontView, items]);
+
+  // Auto-fit camera to the rig on first content — avoids the "empty canvas" on load.
+  const didAutoFit = useRef(false);
+  useEffect(() => {
+    if (didAutoFit.current || frontView || topView) return;
+    if (!items.length) return;
+    didAutoFit.current = true;
+    let minX = Infinity, maxX = -Infinity, maxY = 0, minZ = Infinity, maxZ = -Infinity;
+    for (const it of items) {
+      const s = SPECS[it.kind].size;
+      minX = Math.min(minX, it.pos[0] - s[0] / 2);
+      maxX = Math.max(maxX, it.pos[0] + s[0] / 2);
+      maxY = Math.max(maxY, it.pos[1] + s[1]);
+      minZ = Math.min(minZ, it.pos[2] - s[2] / 2);
+      maxZ = Math.max(maxZ, it.pos[2] + s[2] / 2);
+    }
+    const cx = (minX + maxX) / 2;
+    const cy = Math.max(1, maxY * 0.55);
+    const cz = (minZ + maxZ) / 2;
+    const span = Math.max(maxX - minX, maxY * 1.6, maxZ - minZ, 6);
+    const dist = span * 1.15;
+    camera.position.set(cx + dist * 0.7, cy + dist * 0.55, cz + dist * 0.9);
+    camera.lookAt(cx, cy, cz);
+    camera.updateProjectionMatrix();
+    if (orbitRef.current) {
+      orbitRef.current.target.set(cx, cy, cz);
+      orbitRef.current.update();
+    }
+  }, [camera, frontView, topView, items]);
 
   const registerObject = useCallback((id: string, obj: THREE.Object3D | null) => {
     if (obj) objectsRef.current.set(id, obj);
@@ -3330,6 +3366,7 @@ function SceneContent({
           showConnectors={mode === "cable"}
           showConnectorLabels={showConnectorLabels}
           activeCableType={cableType}
+          showLabel={showItemLabels}
           pendingItemId={pendingFrom}
           onConnectorPick={(itemId, conn) => {
             // Reconnect flow — pick the specific plug to reroute to.
@@ -4388,6 +4425,7 @@ export function StageBuilder3D() {
   const [cableType, setCableType] = useState<CableType>("signal");
   const [showConnectorLabels, setShowConnectorLabels] = useState(true);
   const [showCableLabels, setShowCableLabels] = useState(true);
+  const [showItemLabels, setShowItemLabels] = useState(false);
   const [pendingFrom, setPendingFrom] = useState<string | null>(null);
   const [category, setCategory] = useState<Category>("sound");
   const [paletteQuery, setPaletteQuery] = useState("");
@@ -4519,17 +4557,19 @@ export function StageBuilder3D() {
 
   // Dark mode — toggle .dark class on <html> + persist. Initial read runs
   // in effect to avoid SSR hydration mismatches.
-  const [dark, setDark] = useState(false);
+  const [dark, setDarkState] = useState(false);
+  // Init once — idempotent under StrictMode double-mount (no write effect,
+  // which would clobber storage with the default before the read lands).
   useEffect(() => {
-    const stored = localStorage.getItem("stage.theme");
-    const wants = stored === "dark";
-    setDark(wants);
+    const wants = localStorage.getItem("stage.theme") === "dark";
+    setDarkState(wants);
+    document.documentElement.classList.toggle("dark", wants);
   }, []);
-  useEffect(() => {
-    const root = document.documentElement;
-    if (dark) root.classList.add("dark"); else root.classList.remove("dark");
-    localStorage.setItem("stage.theme", dark ? "dark" : "light");
-  }, [dark]);
+  const setDark = useCallback((v: boolean) => {
+    setDarkState(v);
+    document.documentElement.classList.toggle("dark", v);
+    try { localStorage.setItem("stage.theme", v ? "dark" : "light"); } catch { /* private mode */ }
+  }, []);
 
   // Auto-scroll active layer into view whenever selection changes.
   const layerRowRefs = useRef<Map<string, HTMLDivElement>>(new Map());
@@ -5107,7 +5147,7 @@ export function StageBuilder3D() {
   
 
   const MODES: { id: typeof workMode; label: string; hint: string }[] = [
-    { id: "build", label: "Stavět", hint: "Rozmísti a srovnej aparát" },
+    { id: "build", label: "Stavět", hint: "Rozmisťuje a srovnává aparát" },
     { id: "wire", label: "Zapojit", hint: "Kabeláž, konektory, trasy" },
     { id: "inspect", label: "Kontrola", hint: "Zarovnání, kóty, varování" },
     { id: "export", label: "Export", hint: "Kabelový list a podklady pro crew" },
@@ -5203,7 +5243,7 @@ export function StageBuilder3D() {
             {compact ? "Compact" : "Standard"}
           </button>
           <button
-            onClick={() => setDark((v) => !v)}
+            onClick={() => setDark(!dark)}
             className={`${btnCls} ${dark ? "bg-neutral-900 text-neutral-100" : "bg-neutral-100 hover:bg-neutral-200"}`}
             title="Přepnout světlý / tmavý režim"
             aria-pressed={dark}
@@ -5292,7 +5332,7 @@ export function StageBuilder3D() {
               value=""
               onChange={(e) => { const v = e.target.value as PresetKind | ""; if (!v) return; applyPreset(v); e.target.value = ""; }}
               aria-label="Načíst preset"
-              className={`${compact ? "min-h-7" : "min-h-11"} shrink-0 rounded-lg border border-neutral-300 bg-white px-2 text-[12px] font-semibold text-neutral-800 focus:border-lime-500 focus:outline-none`}
+              className={`${compact ? "min-h-7" : "min-h-11"} max-w-[8.5rem] shrink-0 rounded-lg border border-neutral-300 bg-white px-2 text-[12px] font-semibold text-neutral-800 focus:border-lime-500 focus:outline-none sm:max-w-none`}
             >
               <option value="">⚡ Načíst preset…</option>
               <option value="namel_wall">Namel Wall — velká 4×18&quot; stěna</option>
@@ -5386,6 +5426,7 @@ export function StageBuilder3D() {
             </button>
             <button onClick={() => setShowConnectorLabels((v) => !v)} aria-pressed={showConnectorLabels} className={`${btnCls} ${showConnectorLabels ? "bg-lime-500 text-neutral-950" : "bg-neutral-100 text-neutral-500 hover:bg-neutral-200"}`}>Popisky konektorů</button>
             <button onClick={() => setShowCableLabels((v) => !v)} aria-pressed={showCableLabels} className={`${btnCls} ${showCableLabels ? "bg-lime-500 text-neutral-950" : "bg-neutral-100 text-neutral-500 hover:bg-neutral-200"}`}>Popisky kabelů</button>
+            <button onClick={() => setShowItemLabels((v) => !v)} aria-pressed={showItemLabels} title="Jména beden nad modely (vybrané se ukazují vždy)" className={`${btnCls} ${showItemLabels ? "bg-lime-500 text-neutral-950" : "bg-neutral-100 text-neutral-500 hover:bg-neutral-200"}`}>Popisky beden</button>
             <button
               onClick={() => setAutoRoute((v) => { const nv = !v; if (nv) setCableRouteY(0.02); return nv; })}
               className={`${btnCls} ${autoRoute ? "bg-lime-500 text-neutral-950" : "bg-neutral-100 text-neutral-500 hover:bg-neutral-200"}`}
@@ -5796,6 +5837,7 @@ export function StageBuilder3D() {
               setPendingFrom={setPendingFrom}
               showConnectorLabels={showConnectorLabels}
               showCableLabels={showCableLabels}
+              showItemLabels={showItemLabels}
               realistic={realistic}
               autoSanitize={autoSanitize}
               magnet={magnet}

@@ -14,24 +14,7 @@ import {
   Grid3x3,
 } from "lucide-react";
 
-// Local mirrors of the shapes we need (kept loose on purpose so we don't have
-// to export types from the giant StageBuilder3D module).
-type CableType = "signal" | "speaker" | "power" | "dmx";
-interface Placed {
-  id: string;
-  kind: string;
-  pos: [number, number, number];
-  rotY: number;
-  groupId?: string;
-  label?: string;
-  variant?: "red" | "blue";
-}
-interface Cable {
-  id: string;
-  from: string;
-  to: string;
-  type: CableType;
-}
+import type { CableType, StageItem as Placed, StageCable as Cable } from "@/types/stage";
 
 const CABLE_META: Record<CableType, { label: string; short: string; color: string; laymanLabel: string }> = {
   signal:  { label: "Signál (XLR / jack)",   short: "SIG", color: "#65a30d", laymanLabel: "Zvukový signál (tichý – jde do mixu/ampu)" },
