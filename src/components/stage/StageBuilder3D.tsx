@@ -4449,9 +4449,15 @@ function PaletteThumb({ kind }: { kind: Kind }) {
    ============================================================ */
 
 export function StageBuilder3D() {
-  const [items, setItems] = useState<Placed[]>(() => normalizeScene(loadPreset("namel_wall")));
+  // Jedna a tatáž scéna pro bedny i kabely — jinak by kabely odkazovaly na neexistující id.
+  const initialScene = useMemo(() => {
+    const scene = normalizeScene(loadPreset("namel_wall"));
+    return { scene, cables: autoWireCables(scene) };
+  }, []);
+  const [items, setItems] = useState<Placed[]>(() => initialScene.scene);
   const [wiringSchemaOpen, setWiringSchemaOpen] = useState(false);
-  const [cables, setCables] = useState<Cable[]>(() => autoWireCables(normalizeScene(loadPreset("namel_wall"))));
+  const [cables, setCables] = useState<Cable[]>(() => initialScene.cables);
+
   const [selection, setSelection] = useState<string[]>([]);
   const [groupNames, setGroupNames] = useState<Record<string, string>>({});
   const [groupSpacing, setGroupSpacing] = useState<GroupSpacingState>({});
