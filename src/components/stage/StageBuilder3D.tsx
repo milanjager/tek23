@@ -3073,6 +3073,35 @@ function SceneContent({
     }
   }, [camera, frontView, items]);
 
+  // Auto-fit camera to the rig on first content — avoids the "empty canvas" on load.
+  const didAutoFit = useRef(false);
+  useEffect(() => {
+    if (didAutoFit.current || frontView || topView) return;
+    if (!items.length) return;
+    didAutoFit.current = true;
+    let minX = Infinity, maxX = -Infinity, maxY = 0, minZ = Infinity, maxZ = -Infinity;
+    for (const it of items) {
+      const s = SPECS[it.kind].size;
+      minX = Math.min(minX, it.pos[0] - s[0] / 2);
+      maxX = Math.max(maxX, it.pos[0] + s[0] / 2);
+      maxY = Math.max(maxY, it.pos[1] + s[1]);
+      minZ = Math.min(minZ, it.pos[2] - s[2] / 2);
+      maxZ = Math.max(maxZ, it.pos[2] + s[2] / 2);
+    }
+    const cx = (minX + maxX) / 2;
+    const cy = Math.max(1, maxY * 0.55);
+    const cz = (minZ + maxZ) / 2;
+    const span = Math.max(maxX - minX, maxY * 1.6, maxZ - minZ, 6);
+    const dist = span * 1.15;
+    camera.position.set(cx + dist * 0.7, cy + dist * 0.55, cz + dist * 0.9);
+    camera.lookAt(cx, cy, cz);
+    camera.updateProjectionMatrix();
+    if (orbitRef.current) {
+      orbitRef.current.target.set(cx, cy, cz);
+      orbitRef.current.update();
+    }
+  }, [camera, frontView, topView, items]);
+
   const registerObject = useCallback((id: string, obj: THREE.Object3D | null) => {
     if (obj) objectsRef.current.set(id, obj);
     else objectsRef.current.delete(id);
