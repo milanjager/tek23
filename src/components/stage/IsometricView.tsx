@@ -1,15 +1,6 @@
 import { useMemo, useState, useRef, useEffect } from "react";
 import { X, Trash2 } from "lucide-react";
-
-interface Placed {
-  id: string;
-  kind: string;
-  pos: [number, number, number];
-  rotY: number;
-  groupId?: string;
-  label?: string;
-  variant?: "red" | "blue";
-}
+import type { StageItem as Placed } from "@/types/stage";
 
 export interface IsoSpec {
   label: string;

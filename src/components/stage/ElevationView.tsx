@@ -11,15 +11,7 @@ import {
 } from "@dnd-kit/core";
 import { createSnapModifier } from "@dnd-kit/modifiers";
 
-interface Placed {
-  id: string;
-  kind: string;
-  pos: [number, number, number];
-  rotY: number;
-  groupId?: string;
-  label?: string;
-  variant?: "red" | "blue";
-}
+import type { StageItem as Placed } from "@/types/stage";
 
 export interface ElevSpec {
   label: string;

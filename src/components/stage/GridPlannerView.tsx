@@ -1,16 +1,6 @@
 import { useMemo, useRef, useState, useEffect } from "react";
 import { Trash2, ChevronUp, ChevronDown, Plus, X, Info } from "lucide-react";
-
-// Loose local mirrors so we don't have to export types from the giant parent.
-interface Placed {
-  id: string;
-  kind: string;
-  pos: [number, number, number]; // x, y (stack), z
-  rotY: number;
-  groupId?: string;
-  label?: string;
-  variant?: "red" | "blue";
-}
+import type { StageItem as Placed } from "@/types/stage";
 
 export interface GridSpec {
   label: string;

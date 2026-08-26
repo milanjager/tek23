@@ -7,21 +7,7 @@ import { useMemo, useRef, useState, useEffect } from "react";
    coded per signal type. Ideal for print-out / documentation.
    ============================================================================ */
 
-interface Placed {
-  id: string;
-  kind: string;
-  pos: [number, number, number];
-  rotY: number;
-  label?: string;
-  variant?: "red" | "blue";
-}
-
-interface Cable {
-  id: string;
-  from: string;
-  to: string;
-  type: "power" | "signal" | "speaker" | "dmx";
-}
+import type { StageItem as Placed, StageCable as Cable } from "@/types/stage";
 
 export interface TechSpec {
   label: string;
