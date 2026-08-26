@@ -924,8 +924,8 @@ function Cabinet({
       {/* Yellow crosshair (spray-paint) */}
       {yellowCross && (
         <group position={[0, h / 2, d / 2 + 0.005]}>
-          <mesh><boxGeometry args={[w * 0.55, 0.025, 0.005]} /><meshStandardMaterial color={YELLOW} emissive={YELLOW} emissiveIntensity={0.2} roughness={0.8} /></mesh>
-          <mesh><boxGeometry args={[0.025, h * 0.55, 0.005]} /><meshStandardMaterial color={YELLOW} emissive={YELLOW} emissiveIntensity={0.2} roughness={0.8} /></mesh>
+          <mesh><boxGeometry args={[w * 0.5, 0.012, 0.004]} /><meshStandardMaterial color={YELLOW} roughness={0.9} metalness={0.1} /></mesh>
+          <mesh><boxGeometry args={[0.012, h * 0.5, 0.004]} /><meshStandardMaterial color={YELLOW} roughness={0.9} metalness={0.1} /></mesh>
         </group>
       )}
       {/* L-shaped steel corner brackets (8) */}
