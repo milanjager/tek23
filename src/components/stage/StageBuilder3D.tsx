@@ -5243,7 +5243,7 @@ export function StageBuilder3D() {
             {compact ? "Compact" : "Standard"}
           </button>
           <button
-            onClick={() => setDark((v) => !v)}
+            onClick={() => setDark(!dark)}
             className={`${btnCls} ${dark ? "bg-neutral-900 text-neutral-100" : "bg-neutral-100 hover:bg-neutral-200"}`}
             title="Přepnout světlý / tmavý režim"
             aria-pressed={dark}
