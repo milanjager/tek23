@@ -1860,8 +1860,8 @@ function PicusBinModel({
   hasTopVent?: boolean;
 }) {
   const [w, h, d] = size;
-  const YELLOW = "#f4c11a";
-  const YELLOW_DARK = "#c99a10";
+  const YELLOW = "#5c6470"; // muted graphite — was screaming yellow #f4c11a
+  const YELLOW_DARK = "#3f4650";
   const BLACK = "#0a0a0a";
   const CONE = "#141414";
   const DUSTCAP = "#1c1c1c";
@@ -2122,7 +2122,7 @@ function PicusTopGrillModel({ size }: { size: [number, number, number] }) {
       </mesh>
       <mesh position={[0, h * 0.5, d / 2 + 0.015]}>
         <planeGeometry args={[w * 0.18, h * 0.03]} />
-        <meshStandardMaterial color="#f4c11a" emissive="#c99a10" emissiveIntensity={0.4} />
+        <meshStandardMaterial color="#4b5563" roughness={0.6} metalness={0.3} />
       </mesh>
 
       {/* Corner plates */}
@@ -2278,7 +2278,7 @@ function SelectionBounds({ items, selection }: { items: Placed[]; selection: str
 
 
 const ItemObject = ({
-  item, selected, pending, showConnectors, showConnectorLabels, activeCableType, pendingItemId,
+  item, selected, pending, showConnectors, showConnectorLabels, activeCableType, pendingItemId, showLabel,
   onSelect, onRegister, onConnectorPick,
 }: {
   item: Placed;
@@ -2286,6 +2286,7 @@ const ItemObject = ({
   pending?: boolean;
   showConnectors?: boolean;
   showConnectorLabels?: boolean;
+  showLabel?: boolean;
   activeCableType?: CableType;
   pendingItemId?: string | null;
   onSelect: (id: string, additive: boolean) => void;
@@ -2401,7 +2402,7 @@ const ItemObject = ({
         );
       })}
       {/* Custom label above the box */}
-      {item.label && (
+      {item.label && (selected || showLabel) && (
         <Html position={[0, spec.size[1] + 0.25, 0]} center distanceFactor={8} occlude={false}>
           <div className="pointer-events-none rounded bg-black/80 px-1.5 py-0.5 font-mono text-[10px] font-bold uppercase tracking-wider text-lime-600 shadow-lg">
             {item.label}
@@ -5107,7 +5108,7 @@ export function StageBuilder3D() {
   
 
   const MODES: { id: typeof workMode; label: string; hint: string }[] = [
-    { id: "build", label: "Stavět", hint: "Rozmísti a srovnej aparát" },
+    { id: "build", label: "Stavět", hint: "Rozmisťuje a srovnává aparát" },
     { id: "wire", label: "Zapojit", hint: "Kabeláž, konektory, trasy" },
     { id: "inspect", label: "Kontrola", hint: "Zarovnání, kóty, varování" },
     { id: "export", label: "Export", hint: "Kabelový list a podklady pro crew" },
