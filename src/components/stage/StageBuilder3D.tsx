@@ -5325,7 +5325,7 @@ export function StageBuilder3D() {
               value=""
               onChange={(e) => { const v = e.target.value as PresetKind | ""; if (!v) return; applyPreset(v); e.target.value = ""; }}
               aria-label="Načíst preset"
-              className={`${compact ? "min-h-7" : "min-h-11"} shrink-0 rounded-lg border border-neutral-300 bg-white px-2 text-[12px] font-semibold text-neutral-800 focus:border-lime-500 focus:outline-none`}
+              className={`${compact ? "min-h-7" : "min-h-11"} max-w-[8.5rem] shrink-0 rounded-lg border border-neutral-300 bg-white px-2 text-[12px] font-semibold text-neutral-800 focus:border-lime-500 focus:outline-none sm:max-w-none`}
             >
               <option value="">⚡ Načíst preset…</option>
               <option value="namel_wall">Namel Wall — velká 4×18&quot; stěna</option>
