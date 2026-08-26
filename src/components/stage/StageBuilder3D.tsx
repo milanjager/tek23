@@ -3614,6 +3614,8 @@ function SceneContent({
       })()}
 
       {/* Cables */}
+      <CableAnimDriver />
+
 
       {cables.map((c) => {
         const a = items.find((i) => i.id === c.from);
