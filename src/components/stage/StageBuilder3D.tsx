@@ -3418,6 +3418,29 @@ function SceneContent({
   // Ghost cable state while dragging from a connector.
   const [cursorWorld, setCursorWorld] = useState<[number, number, number] | null>(null);
   const [pendingSourceConnector, setPendingSourceConnector] = useState<Connector | null>(null);
+  // Nově vzniklé kabely → přehraje se animace zapojení (id → zpoždění v s).
+  const [connectingCables, setConnectingCables] = useState<Record<string, number>>({});
+  const seenCableIds = useRef<Set<string> | null>(null);
+  useEffect(() => {
+    const cur = new Set(cables.map((c) => c.id));
+    const prev = seenCableIds.current;
+    seenCableIds.current = cur;
+    const added = prev ? cables.filter((c) => !prev.has(c.id)) : cables;
+    if (!added.length) return;
+    setConnectingCables((old) => {
+      const next = { ...old };
+      added.forEach((c, i) => { next[c.id] = Math.min(i * 0.1, 2.5); });
+      return next;
+    });
+  }, [cables]);
+  const finishConnectAnim = useCallback((id: string) => {
+    setConnectingCables((old) => {
+      if (!(id in old)) return old;
+      const next = { ...old };
+      delete next[id];
+      return next;
+    });
+  }, []);
   // Reset drag offset when switching between cables / devices.
   useEffect(() => { setPopupOffset({ x: 0, y: 0 }); }, [selectedCableId]);
   useEffect(() => { setDevicePopupOffset({ x: 0, y: 0 }); }, [inspectedItemId]);
