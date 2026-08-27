@@ -6630,13 +6630,13 @@ export function StageBuilder3D() {
         {/* ── Mobilní režim prohlížení: spodní sheet místo bočních panelů ── */}
         {mobileViewer && sheet && !launcherOpen && (
           <div
-            className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+            className="absolute inset-0 bg-black/40 backdrop-blur-sm animate-in fade-in duration-150"
             style={{ zIndex: 1000000000 }}
             onClick={() => setSheet(null)}
           />
         )}
         {mobileViewer && sheet === "views" && !launcherOpen && (
-          <div className="glass absolute inset-x-0 bottom-0 rounded-t-2xl border-t border-neutral-200/60 p-3 pb-16 shadow-2xl" style={{ zIndex: 1000000001 }}>
+          <div className="glass absolute inset-x-0 bottom-0 rounded-t-2xl border-t border-neutral-200/60 p-3 pb-16 shadow-2xl animate-in slide-in-from-bottom-8 fade-in duration-300" style={{ zIndex: 1000000001 }}>
             <div className="mx-auto mb-2 h-1 w-10 rounded-full bg-neutral-300" />
             <div className="mb-2 text-[10px] font-bold uppercase tracking-wider text-neutral-500">Pohled</div>
             <div className="grid grid-cols-2 gap-2">
