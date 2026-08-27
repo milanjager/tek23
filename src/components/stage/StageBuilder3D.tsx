@@ -3854,6 +3854,23 @@ function SceneContent({
             <CableEndpoint position={p1} color={drawColor} state={fromState} />
             <CableEndpoint position={p2} color={drawColor} state={toState} />
 
+            {/* Animace zapojení — kabel se natáhne od zdroje k cíli a potvrdí port */}
+            {c.id in connectingCables && (
+              <CableConnectAnim
+                points={pts}
+                color={drawColor}
+                delay={connectingCables[c.id]}
+                fromLabel={fromName}
+                toLabel={toName}
+                toPort={
+                  connectorsFor(b.kind).find((x) => x.type === c.type && x.role === "in")?.label
+                  ?? connectorsFor(b.kind).find((x) => x.type === c.type)?.label
+                  ?? `${meta.short} IN`
+                }
+                onDone={() => finishConnectAnim(c.id)}
+              />
+            )}
+
 
 
 
