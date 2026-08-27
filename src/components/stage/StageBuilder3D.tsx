@@ -2373,13 +2373,15 @@ const ItemObject = ({
         onSelect(item.id, e.shiftKey || e.metaKey || e.ctrlKey);
       }}
     >
-      {onPallet && (
-        <group position={[0, 0, 0]}>
-          <Pallet w={spec.size[0] * 1.02} d={spec.size[2] * 1.02} />
+      <group ref={spawnRef} scale={spawned ? 1 : 0.0001}>
+        {onPallet && (
+          <group position={[0, 0, 0]}>
+            <Pallet w={spec.size[0] * 1.02} d={spec.size[2] * 1.02} />
+          </group>
+        )}
+        <group position={[0, modelYOffset, 0]}>
+          <ModelFor kind={item.kind} size={spec.size} variant={item.variant} />
         </group>
-      )}
-      <group position={[0, modelYOffset, 0]}>
-        <ModelFor kind={item.kind} size={spec.size} variant={item.variant} />
       </group>
       {/* Selection halo */}
       {selected && (
@@ -5420,13 +5422,13 @@ export function StageBuilder3D() {
 
       {shortcutsOpen && (
         <div
-          className="fixed inset-0 z-[75] flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm"
+          className="fixed inset-0 z-[75] flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm animate-in fade-in duration-150"
           role="dialog"
           aria-modal="true"
           aria-label="Klávesové zkratky"
           onClick={() => setShortcutsOpen(false)}
         >
-          <div className="glass-strong max-h-[85dvh] w-full max-w-md overflow-y-auto rounded-2xl p-5" onClick={(e) => e.stopPropagation()}>
+          <div className="glass-strong max-h-[85dvh] w-full max-w-md overflow-y-auto rounded-2xl p-5 animate-in zoom-in-95 fade-in duration-200" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between">
               <h2 className="text-base font-bold text-neutral-900">Klávesové zkratky</h2>
               <button onClick={() => setShortcutsOpen(false)} aria-label="Zavřít" className="rounded-full p-2 text-neutral-500 hover:bg-neutral-200/50">
@@ -5706,7 +5708,7 @@ export function StageBuilder3D() {
         {/* Palette */}
         <aside
           aria-label="Knihovna komponent"
-          className={`${paletteOpen && !mobileViewer ? "absolute inset-y-0 left-0 z-30 flex w-[86vw] max-w-xs shadow-2xl md:static md:z-auto md:w-56 md:shadow-none" : "hidden"} glass flex-col border-r border-neutral-200/60`}
+          className={`${paletteOpen && !mobileViewer ? "absolute inset-y-0 left-0 z-30 flex w-[86vw] max-w-xs shadow-2xl animate-in slide-in-from-left-4 fade-in duration-200 md:static md:z-auto md:w-56 md:shadow-none" : "hidden"} glass flex-col border-r border-neutral-200/60`}
         >
           {/* Desktop collapse header */}
           <div className="hidden items-center justify-between border-b border-neutral-200/60 px-2 py-1 md:flex">
@@ -6102,10 +6104,10 @@ export function StageBuilder3D() {
           style={mobileViewer && sheet === "inspect" ? { zIndex: 1000000001 } : undefined}
           className={`${mobileViewer
             ? (sheet === "inspect"
-                ? "absolute inset-x-0 bottom-0 flex max-h-[68dvh] w-full overflow-y-auto rounded-t-2xl border-t border-neutral-200/60 pb-14 shadow-2xl"
+                ? "absolute inset-x-0 bottom-0 flex max-h-[68dvh] w-full overflow-y-auto rounded-t-2xl border-t border-neutral-200/60 pb-14 shadow-2xl animate-in slide-in-from-bottom-8 fade-in duration-300"
                 : "hidden")
             : rightOpen
-            ? "absolute inset-y-0 right-0 z-30 flex w-[86vw] max-w-sm shadow-2xl md:static md:z-auto md:w-72 md:shadow-none border-l border-neutral-200/60"
+            ? "absolute inset-y-0 right-0 z-30 flex w-[86vw] max-w-sm shadow-2xl animate-in slide-in-from-right-4 fade-in duration-200 md:static md:z-auto md:w-72 md:shadow-none border-l border-neutral-200/60"
             : "hidden"} glass flex-col`}
         >
           <div className="flex items-center justify-between border-b border-neutral-200/60 px-2 py-1">
