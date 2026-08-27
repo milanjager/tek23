@@ -5735,7 +5735,7 @@ export function StageBuilder3D() {
               <div className="mb-3">
                 <div className="mb-1 px-0.5 text-[9px] font-bold uppercase tracking-wider text-neutral-500">Nedávno použité</div>
                 <div className="flex flex-wrap gap-1">
-                  {recentKinds.map((k) => (
+                  {recentKinds.filter((k) => k in SPECS || CUSTOM_SPEAKERS.has(k)).map((k) => (
                     <button
                       key={k}
                       onClick={() => { addItem(k); pushRecent(k); setPaletteOpen(false); }}
