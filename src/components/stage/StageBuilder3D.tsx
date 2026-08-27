@@ -786,6 +786,118 @@ function CableFlow({
   );
 }
 
+/* ------------------------------------------------------------
+   Connect animation — kabel se "natáhne" od zdroje k cíli.
+   Ukazuje putující hlavu (právě propojovaný bod), název cílového
+   portu a po dokončení potvrzení "✓ zapojeno".
+   ------------------------------------------------------------ */
+function CableConnectAnim({
+  points, color, delay, fromLabel, toLabel, toPort, onDone,
+}: {
+  points: [number, number, number][];
+  color: string;
+  delay: number;
+  fromLabel: string;
+  toLabel: string;
+  toPort: string;
+  onDone: () => void;
+}) {
+  const DUR = 0.85;
+  const lineRef = useRef<any>(null);
+  const headRef = useRef<THREE.Mesh>(null);
+  const [phase, setPhase] = useState<"wait" | "run" | "done">("wait");
+  const start = useRef<number | null>(null);
+
+  // Kumulativní délky pro plynulý posun hlavy po lomené trase.
+  const { cum, total } = useMemo(() => {
+    const cum: number[] = [0];
+    let acc = 0;
+    for (let i = 1; i < points.length; i++) {
+      const [ax, ay, az] = points[i - 1];
+      const [bx, by, bz] = points[i];
+      acc += Math.hypot(bx - ax, by - ay, bz - az);
+      cum.push(acc);
+    }
+    return { cum, total: acc || 1 };
+  }, [points]);
+
+  const pointAt = (p: number): [number, number, number] => {
+    const d = p * total;
+    for (let i = 1; i < cum.length; i++) {
+      if (d <= cum[i]) {
+        const seg = cum[i] - cum[i - 1] || 1;
+        const k = (d - cum[i - 1]) / seg;
+        const a = points[i - 1], b = points[i];
+        return [a[0] + (b[0] - a[0]) * k, a[1] + (b[1] - a[1]) * k, a[2] + (b[2] - a[2]) * k];
+      }
+    }
+    return points[points.length - 1];
+  };
+
+  useCableAnim(phase !== "done", (t) => {
+    if (start.current === null) start.current = t;
+    const el = t - start.current - delay;
+    if (el < 0) return;
+    if (phase === "wait") setPhase("run");
+    const p = Math.min(1, el / DUR);
+    const mat = lineRef.current?.material;
+    if (mat) {
+      mat.dashSize = Math.max(0.001, total * p);
+      mat.gapSize = total * 2;
+      mat.opacity = 0.95;
+    }
+    if (headRef.current) {
+      headRef.current.visible = p < 1;
+      const pos = pointAt(p);
+      headRef.current.position.set(pos[0], pos[1], pos[2]);
+    }
+    if (p >= 1 && phase !== "done") setPhase("done");
+  });
+
+  useEffect(() => {
+    if (phase !== "done") return;
+    const id = setTimeout(onDone, 900);
+    return () => clearTimeout(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phase]);
+
+  const end = points[points.length - 1];
+
+  return (
+    <group renderOrder={30}>
+      <Line
+        ref={lineRef}
+        points={points as unknown as [number, number, number][]}
+        color={color}
+        lineWidth={5}
+        dashed
+        dashSize={0.001}
+        gapSize={total * 2}
+        transparent
+        opacity={0.95}
+        depthTest={false}
+      />
+      <mesh ref={headRef} geometry={ENDPOINT_SPHERE} scale={0.09} visible={phase === "run"}>
+        <meshStandardMaterial color={color} emissive={color} emissiveIntensity={3} />
+      </mesh>
+      <Html position={end} center distanceFactor={10} zIndexRange={[30, 0]}>
+        <div
+          className="animate-fade-in pointer-events-none whitespace-nowrap rounded px-1.5 py-0.5 font-mono text-[9px] font-bold uppercase leading-tight shadow-lg"
+          style={{
+            color: phase === "done" ? "#0f0f0f" : color,
+            background: phase === "done" ? color : "rgba(0,0,0,.85)",
+            border: `1px solid ${color}`,
+          }}
+        >
+          {phase === "done"
+            ? `✓ ${toLabel} · ${toPort} zapojeno`
+            : `${fromLabel} → ${toLabel} · ${toPort}`}
+        </div>
+      </Html>
+    </group>
+  );
+}
+
 
 
 
@@ -3306,6 +3418,29 @@ function SceneContent({
   // Ghost cable state while dragging from a connector.
   const [cursorWorld, setCursorWorld] = useState<[number, number, number] | null>(null);
   const [pendingSourceConnector, setPendingSourceConnector] = useState<Connector | null>(null);
+  // Nově vzniklé kabely → přehraje se animace zapojení (id → zpoždění v s).
+  const [connectingCables, setConnectingCables] = useState<Record<string, number>>({});
+  const seenCableIds = useRef<Set<string> | null>(null);
+  useEffect(() => {
+    const cur = new Set(cables.map((c) => c.id));
+    const prev = seenCableIds.current;
+    seenCableIds.current = cur;
+    const added = prev ? cables.filter((c) => !prev.has(c.id)) : cables;
+    if (!added.length) return;
+    setConnectingCables((old) => {
+      const next = { ...old };
+      added.forEach((c, i) => { next[c.id] = Math.min(i * 0.1, 2.5); });
+      return next;
+    });
+  }, [cables]);
+  const finishConnectAnim = useCallback((id: string) => {
+    setConnectingCables((old) => {
+      if (!(id in old)) return old;
+      const next = { ...old };
+      delete next[id];
+      return next;
+    });
+  }, []);
   // Reset drag offset when switching between cables / devices.
   useEffect(() => { setPopupOffset({ x: 0, y: 0 }); }, [selectedCableId]);
   useEffect(() => { setDevicePopupOffset({ x: 0, y: 0 }); }, [inspectedItemId]);
@@ -3718,6 +3853,23 @@ function SceneContent({
             {/* Highlighted endpoints — pulse when picking a new target */}
             <CableEndpoint position={p1} color={drawColor} state={fromState} />
             <CableEndpoint position={p2} color={drawColor} state={toState} />
+
+            {/* Animace zapojení — kabel se natáhne od zdroje k cíli a potvrdí port */}
+            {c.id in connectingCables && (
+              <CableConnectAnim
+                points={pts}
+                color={drawColor}
+                delay={connectingCables[c.id]}
+                fromLabel={fromName}
+                toLabel={toName}
+                toPort={
+                  connectorsFor(b.kind).find((x) => x.type === c.type && x.role === "in")?.label
+                  ?? connectorsFor(b.kind).find((x) => x.type === c.type)?.label
+                  ?? `${meta.short} IN`
+                }
+                onDone={() => finishConnectAnim(c.id)}
+              />
+            )}
 
 
 
