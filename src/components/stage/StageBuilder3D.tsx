@@ -2343,6 +2343,22 @@ const ItemObject = ({
     return () => onRegister(item.id, null);
   }, [item.id, onRegister]);
 
+  // Spawn "pop" — bedna po umístění vyskočí z podlahy s mírným překmitem.
+  // Jede přes sdílený CableAnimDriver a po dokončení se odregistruje.
+  const [spawned, setSpawned] = useState(false);
+  const spawnRef = useRef<THREE.Group>(null);
+  const spawnT = useRef(0);
+  useCableAnim(!spawned, (_, dt) => {
+    const g = spawnRef.current;
+    if (!g) return;
+    const p = Math.min(1, (spawnT.current += dt / 0.35));
+    // easeOutBack (c1 = 1.70158)
+    const x = p - 1;
+    const s = p >= 1 ? 1 : 1 + 2.70158 * x * x * x + 1.70158 * x * x;
+    g.scale.setScalar(Math.max(0.0001, s));
+    if (p >= 1) setSpawned(true);
+  });
+
   // Where the ModelFor group actually renders (accounts for pallet lift).
   const onPallet = spec.category === "sound" && item.pos[1] < 0.05 && item.kind !== "linearray" && item.kind !== "monitor";
   const modelYOffset = onPallet ? 0.14 : 0;

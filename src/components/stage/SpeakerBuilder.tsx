@@ -96,14 +96,14 @@ export default function SpeakerBuilder({
 
   return (
     <div
-      className="fixed inset-0 z-[1000000050] flex items-end justify-center bg-neutral-950/50 p-0 backdrop-blur-sm md:items-center md:p-6"
+      className="fixed inset-0 z-[1000000050] flex items-end justify-center bg-neutral-950/50 p-0 backdrop-blur-sm animate-in fade-in duration-150 md:items-center md:p-6"
       role="dialog"
       aria-modal="true"
       aria-label="Builder vlastního repra"
       onClick={onClose}
     >
       <div
-        className="glass max-h-[92vh] w-full max-w-3xl overflow-y-auto rounded-t-2xl border border-neutral-200/70 shadow-2xl md:rounded-2xl"
+        className="glass max-h-[92vh] w-full max-w-3xl overflow-y-auto rounded-t-2xl border border-neutral-200/70 shadow-2xl animate-in slide-in-from-bottom-4 fade-in duration-300 md:rounded-2xl md:zoom-in-95 md:slide-in-from-bottom-0"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="sticky top-0 z-10 flex items-center justify-between border-b border-neutral-200/60 bg-white/80 px-3 py-2 backdrop-blur">

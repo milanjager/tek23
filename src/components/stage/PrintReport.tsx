@@ -60,7 +60,7 @@ export default function PrintReport({
   const today = new Date().toLocaleString("cs-CZ");
 
   return (
-    <div className="fixed inset-0 z-[300] overflow-auto bg-neutral-800/70 print:static print:overflow-visible print:bg-white">
+    <div className="fixed inset-0 z-[300] overflow-auto bg-neutral-800/70 animate-in fade-in duration-150 print:static print:overflow-visible print:bg-white">
       <style>{`
         @page { size: A4 portrait; margin: 14mm 12mm; }
         @media print {
