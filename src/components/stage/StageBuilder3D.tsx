@@ -294,7 +294,9 @@ interface Connector {
 function connectorsFor(kind: Kind): Connector[] {
   const custom = CUSTOM_SPEAKERS.get(kind);
   if (custom) return connectorsForCustom(custom);
-  const [bx, by, bz] = SPECS[kind].size;
+  const spec = SPECS[kind];
+  if (!spec) return []; // unknown/deleted kind — no connectors instead of crash
+  const [bx, by, bz] = spec.size;
   const passiveSpeaker: Connector[] = [
     { type: "speaker", role: "in", offset: [ bx * 0.28, by * 0.85, -bz * 0.45] },
   ];
@@ -2341,6 +2343,22 @@ const ItemObject = ({
     return () => onRegister(item.id, null);
   }, [item.id, onRegister]);
 
+  // Spawn "pop" — bedna po umístění vyskočí z podlahy s mírným překmitem.
+  // Jede přes sdílený CableAnimDriver a po dokončení se odregistruje.
+  const [spawned, setSpawned] = useState(false);
+  const spawnRef = useRef<THREE.Group>(null);
+  const spawnT = useRef(0);
+  useCableAnim(!spawned, (_, dt) => {
+    const g = spawnRef.current;
+    if (!g) return;
+    const p = Math.min(1, (spawnT.current += dt / 0.35));
+    // easeOutBack (c1 = 1.70158)
+    const x = p - 1;
+    const s = p >= 1 ? 1 : 1 + 2.70158 * x * x * x + 1.70158 * x * x;
+    g.scale.setScalar(Math.max(0.0001, s));
+    if (p >= 1) setSpawned(true);
+  });
+
   // Where the ModelFor group actually renders (accounts for pallet lift).
   const onPallet = spec.category === "sound" && item.pos[1] < 0.05 && item.kind !== "linearray" && item.kind !== "monitor";
   const modelYOffset = onPallet ? 0.14 : 0;
@@ -2355,13 +2373,15 @@ const ItemObject = ({
         onSelect(item.id, e.shiftKey || e.metaKey || e.ctrlKey);
       }}
     >
-      {onPallet && (
-        <group position={[0, 0, 0]}>
-          <Pallet w={spec.size[0] * 1.02} d={spec.size[2] * 1.02} />
+      <group ref={spawnRef} scale={spawned ? 1 : 0.0001}>
+        {onPallet && (
+          <group position={[0, 0, 0]}>
+            <Pallet w={spec.size[0] * 1.02} d={spec.size[2] * 1.02} />
+          </group>
+        )}
+        <group position={[0, modelYOffset, 0]}>
+          <ModelFor kind={item.kind} size={spec.size} variant={item.variant} />
         </group>
-      )}
-      <group position={[0, modelYOffset, 0]}>
-        <ModelFor kind={item.kind} size={spec.size} variant={item.variant} />
       </group>
       {/* Selection halo */}
       {selected && (
@@ -5119,6 +5139,12 @@ export function StageBuilder3D() {
       if (gone.size) setCables((cs) => cs.filter((c) => !gone.has(c.from) && !gone.has(c.to)));
       return cur.filter((it) => !gone.has(it.id));
     });
+    // Prune stale palette recents so the palette doesn't render a deleted SPECS entry.
+    setRecentKinds((cur) => {
+      const next = cur.filter((k) => k !== id);
+      try { localStorage.setItem("stage.recentKinds", JSON.stringify(next)); } catch { /* ignore */ }
+      return next;
+    });
   }, []);
 
 
@@ -5396,13 +5422,13 @@ export function StageBuilder3D() {
 
       {shortcutsOpen && (
         <div
-          className="fixed inset-0 z-[75] flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm"
+          className="fixed inset-0 z-[75] flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm animate-in fade-in duration-150"
           role="dialog"
           aria-modal="true"
           aria-label="Klávesové zkratky"
           onClick={() => setShortcutsOpen(false)}
         >
-          <div className="glass-strong max-h-[85dvh] w-full max-w-md overflow-y-auto rounded-2xl p-5" onClick={(e) => e.stopPropagation()}>
+          <div className="glass-strong max-h-[85dvh] w-full max-w-md overflow-y-auto rounded-2xl p-5 animate-in zoom-in-95 fade-in duration-200" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between">
               <h2 className="text-base font-bold text-neutral-900">Klávesové zkratky</h2>
               <button onClick={() => setShortcutsOpen(false)} aria-label="Zavřít" className="rounded-full p-2 text-neutral-500 hover:bg-neutral-200/50">
@@ -5682,7 +5708,7 @@ export function StageBuilder3D() {
         {/* Palette */}
         <aside
           aria-label="Knihovna komponent"
-          className={`${paletteOpen && !mobileViewer ? "absolute inset-y-0 left-0 z-30 flex w-[86vw] max-w-xs shadow-2xl md:static md:z-auto md:w-56 md:shadow-none" : "hidden"} glass flex-col border-r border-neutral-200/60`}
+          className={`${paletteOpen && !mobileViewer ? "absolute inset-y-0 left-0 z-30 flex w-[86vw] max-w-xs shadow-2xl animate-in slide-in-from-left-4 fade-in duration-200 md:static md:z-auto md:w-56 md:shadow-none" : "hidden"} glass flex-col border-r border-neutral-200/60`}
         >
           {/* Desktop collapse header */}
           <div className="hidden items-center justify-between border-b border-neutral-200/60 px-2 py-1 md:flex">
@@ -5727,7 +5753,7 @@ export function StageBuilder3D() {
               <div className="mb-3">
                 <div className="mb-1 px-0.5 text-[9px] font-bold uppercase tracking-wider text-neutral-500">Nedávno použité</div>
                 <div className="flex flex-wrap gap-1">
-                  {recentKinds.map((k) => (
+                  {recentKinds.filter((k) => k in SPECS || CUSTOM_SPEAKERS.has(k)).map((k) => (
                     <button
                       key={k}
                       onClick={() => { addItem(k); pushRecent(k); setPaletteOpen(false); }}
@@ -6078,10 +6104,10 @@ export function StageBuilder3D() {
           style={mobileViewer && sheet === "inspect" ? { zIndex: 1000000001 } : undefined}
           className={`${mobileViewer
             ? (sheet === "inspect"
-                ? "absolute inset-x-0 bottom-0 flex max-h-[68dvh] w-full overflow-y-auto rounded-t-2xl border-t border-neutral-200/60 pb-14 shadow-2xl"
+                ? "absolute inset-x-0 bottom-0 flex max-h-[68dvh] w-full overflow-y-auto rounded-t-2xl border-t border-neutral-200/60 pb-14 shadow-2xl animate-in slide-in-from-bottom-8 fade-in duration-300"
                 : "hidden")
             : rightOpen
-            ? "absolute inset-y-0 right-0 z-30 flex w-[86vw] max-w-sm shadow-2xl md:static md:z-auto md:w-72 md:shadow-none border-l border-neutral-200/60"
+            ? "absolute inset-y-0 right-0 z-30 flex w-[86vw] max-w-sm shadow-2xl animate-in slide-in-from-right-4 fade-in duration-200 md:static md:z-auto md:w-72 md:shadow-none border-l border-neutral-200/60"
             : "hidden"} glass flex-col`}
         >
           <div className="flex items-center justify-between border-b border-neutral-200/60 px-2 py-1">
@@ -6604,13 +6630,13 @@ export function StageBuilder3D() {
         {/* ── Mobilní režim prohlížení: spodní sheet místo bočních panelů ── */}
         {mobileViewer && sheet && !launcherOpen && (
           <div
-            className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+            className="absolute inset-0 bg-black/40 backdrop-blur-sm animate-in fade-in duration-150"
             style={{ zIndex: 1000000000 }}
             onClick={() => setSheet(null)}
           />
         )}
         {mobileViewer && sheet === "views" && !launcherOpen && (
-          <div className="glass absolute inset-x-0 bottom-0 rounded-t-2xl border-t border-neutral-200/60 p-3 pb-16 shadow-2xl" style={{ zIndex: 1000000001 }}>
+          <div className="glass absolute inset-x-0 bottom-0 rounded-t-2xl border-t border-neutral-200/60 p-3 pb-16 shadow-2xl animate-in slide-in-from-bottom-8 fade-in duration-300" style={{ zIndex: 1000000001 }}>
             <div className="mx-auto mb-2 h-1 w-10 rounded-full bg-neutral-300" />
             <div className="mb-2 text-[10px] font-bold uppercase tracking-wider text-neutral-500">Pohled</div>
             <div className="grid grid-cols-2 gap-2">

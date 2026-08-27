@@ -132,12 +132,12 @@ export default function SpeakerWiringSchema({ nodes, links, scopeLabel, onClose 
 
   return (
     <div
-      className="fixed inset-0 flex items-center justify-center bg-neutral-950/60 p-2 backdrop-blur-sm"
+      className="fixed inset-0 flex items-center justify-center bg-neutral-950/60 p-2 backdrop-blur-sm animate-in fade-in duration-150"
       style={{ zIndex: 1000000005 }}
       onClick={onClose}
     >
       <div
-        className="flex max-h-[92dvh] w-full max-w-3xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl"
+        className="flex max-h-[92dvh] w-full max-w-3xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl animate-in zoom-in-95 fade-in duration-200"
         onClick={(e) => e.stopPropagation()}
       >
         <header className="flex items-center justify-between border-b border-neutral-200 px-4 py-2">
