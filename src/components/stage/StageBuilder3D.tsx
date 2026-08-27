@@ -294,7 +294,9 @@ interface Connector {
 function connectorsFor(kind: Kind): Connector[] {
   const custom = CUSTOM_SPEAKERS.get(kind);
   if (custom) return connectorsForCustom(custom);
-  const [bx, by, bz] = SPECS[kind].size;
+  const spec = SPECS[kind];
+  if (!spec) return []; // unknown/deleted kind — no connectors instead of crash
+  const [bx, by, bz] = spec.size;
   const passiveSpeaker: Connector[] = [
     { type: "speaker", role: "in", offset: [ bx * 0.28, by * 0.85, -bz * 0.45] },
   ];
@@ -5118,6 +5120,12 @@ export function StageBuilder3D() {
       const gone = new Set(cur.filter((it) => it.kind === (id as Kind)).map((it) => it.id));
       if (gone.size) setCables((cs) => cs.filter((c) => !gone.has(c.from) && !gone.has(c.to)));
       return cur.filter((it) => !gone.has(it.id));
+    });
+    // Prune stale palette recents so the palette doesn't render a deleted SPECS entry.
+    setRecentKinds((cur) => {
+      const next = cur.filter((k) => k !== id);
+      try { localStorage.setItem("stage.recentKinds", JSON.stringify(next)); } catch { /* ignore */ }
+      return next;
     });
   }, []);
 
