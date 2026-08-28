@@ -5582,6 +5582,7 @@ export function StageBuilder3D() {
     { id: "export", label: "Export", hint: "Kabelový list a podklady pro crew" },
   ];
 
+  console.log("[render] launcherOpen=", launcherOpen);
   return (
     <div className="fixed inset-0 flex flex-col bg-background text-foreground">
       <a
