@@ -4761,7 +4761,13 @@ export function StageBuilder3D() {
       const raw = localStorage.getItem(STORAGE);
       setHasSaved(!!raw && Array.isArray(JSON.parse(raw).items) && JSON.parse(raw).items.length > 0);
     } catch { setHasSaved(false); }
-    if (localStorage.getItem("stage.launcher.v1") !== "done") setLauncherOpen(true);
+    const done = localStorage.getItem("stage.launcher.v1") === "done";
+    console.log("[launcher init] done=", done, "key=", localStorage.getItem("stage.launcher.v1"));
+    if (!done) setLauncherOpen(true);
+  }, []);
+  useEffect(() => {
+    // @ts-expect-error dev helper
+    window.__setLauncherOpen = setLauncherOpen;
   }, []);
   const closeLauncher = useCallback(() => {
     localStorage.setItem("stage.launcher.v1", "done");
