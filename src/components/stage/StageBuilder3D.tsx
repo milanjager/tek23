@@ -3465,7 +3465,7 @@ function SceneContent({
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [setPendingFrom]);
+  }, [setPendingFrom, pendingFrom]);
 
 
   const itemLabel = (it: Placed) => it.label ?? SPECS[it.kind].defaultLabel ?? SPECS[it.kind].label;
@@ -6089,8 +6089,32 @@ export function StageBuilder3D() {
               <p className="px-1 py-4 text-[11px] text-neutral-500">Nic nenalezeno — zkus jiný výraz nebo jinou kategorii.</p>
             )}
 
-            {palette.map(([k, s]) => (
-              <div key={k} className="mb-2 overflow-hidden rounded border border-neutral-200 bg-neutral-50 transition hover:border-lime-500/60">
+            {palette.map(([k, s]) => {
+              // Během tažení kabelu zvýraznit v paletě jen komponenty, které
+              // mají kompatibilní port — jsou platným dalším krokem zapojení.
+              const wiringPending = mode === "cable" && !!pendingFrom;
+              const wireable = wiringPending && hasConnector(k, cableType);
+              const wireMeta = wiringPending ? CABLE_META[cableType] : null;
+              return (
+              <div
+                key={k}
+                className={`mb-2 overflow-hidden rounded border bg-neutral-50 transition ${
+                  wiringPending
+                    ? wireable
+                      ? "border-transparent"
+                      : "border-neutral-200 opacity-40 saturate-50"
+                    : "border-neutral-200 hover:border-lime-500/60"
+                }`}
+                style={wireable && wireMeta ? { boxShadow: `0 0 0 2px ${wireMeta.color}, 0 0 12px ${wireMeta.color}55` } : undefined}
+              >
+                {wireable && wireMeta && (
+                  <div
+                    className="flex items-center gap-1 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider"
+                    style={{ backgroundColor: `${wireMeta.color}22`, color: wireMeta.color }}
+                  >
+                    ◀ Zapojitelné — {wireMeta.label}
+                  </div>
+                )}
                 <button
                   onClick={() => { addItem(k); pushRecent(k); setPaletteOpen(false); }}
                   title={`${s.label} — ${s.hint} · ${s.size[0].toFixed(2)}×${s.size[1].toFixed(2)}×${s.size[2].toFixed(2)} m · ~${estimateWeightKg(s)} kg`}
