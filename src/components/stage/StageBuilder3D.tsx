@@ -3461,7 +3461,7 @@ function SceneContent({
   // ESC cancels a pending cable drag.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") { setPendingFrom(null); setCursorWorld(null); setPendingSourceConnector(null); }
+      if (e.key === "Escape") { if (pendingFrom) sfxCancel(); setPendingFrom(null); setCursorWorld(null); setPendingSourceConnector(null); }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
