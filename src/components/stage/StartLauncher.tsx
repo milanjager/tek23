@@ -32,7 +32,11 @@ export function StartLauncher({
       if (e.key === "Escape") onClose();
     };
     window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
+    console.log("[StartLauncher] mount");
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      console.log("[StartLauncher] unmount");
+    };
   }, [onClose]);
 
   console.log("[StartLauncher] render");
