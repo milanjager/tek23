@@ -6147,7 +6147,8 @@ export function StageBuilder3D() {
                   </div>
                 )}
               </div>
-            ))}
+              );
+            })}
           </div>
           <div className="hidden border-t border-neutral-200 p-2 text-[10px] text-neutral-500 md:block">
             Tip: klávesa <b>?</b> zobrazí všechny zkratky.
