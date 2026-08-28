@@ -32,14 +32,9 @@ export function StartLauncher({
       if (e.key === "Escape") onClose();
     };
     window.addEventListener("keydown", onKey);
-    console.log("[StartLauncher] mount");
-    return () => {
-      window.removeEventListener("keydown", onKey);
-      console.log("[StartLauncher] unmount");
-    };
+    return () => window.removeEventListener("keydown", onKey);
   }, [onClose]);
 
-  console.log("[StartLauncher] render");
   return (
     <div
       className="fixed inset-0 flex items-center justify-center bg-black/55 p-3 backdrop-blur-sm"
