@@ -35,6 +35,7 @@ export function StartLauncher({
     return () => window.removeEventListener("keydown", onKey);
   }, [onClose]);
 
+  console.log("[StartLauncher] render");
   return (
     <div
       className="fixed inset-0 flex items-center justify-center bg-black/55 p-3 backdrop-blur-sm"
