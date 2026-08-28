@@ -3623,19 +3623,23 @@ function SceneContent({
             if (mode === "cable") {
               const target = items.find((x) => x.id === id);
               if (!target) return;
-              if (!hasConnector(target.kind, cableType)) return;
+              if (!hasConnector(target.kind, cableType)) { sfxCancel(); return; }
               if (!pendingFrom) {
                 setPendingFrom(id);
+                sfxCableStart();
               } else if (pendingFrom === id) {
                 setPendingFrom(null);
+                sfxCancel();
               } else {
                 const source = items.find((x) => x.id === pendingFrom);
                 if (!source || !hasConnector(source.kind, cableType)) {
                   setPendingFrom(id);
+                  sfxCableStart();
                   return;
                 }
                 setCables((cs) => [...cs, { id: uid(), from: pendingFrom!, to: id, type: cableType }]);
                 setPendingFrom(null);
+                sfxPortConnect(); sfxCableComplete();
               }
               return;
             }
