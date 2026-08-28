@@ -4753,21 +4753,18 @@ export function StageBuilder3D() {
     if (statusTimer.current) clearTimeout(statusTimer.current);
     statusTimer.current = setTimeout(() => setStatus(""), 6000);
   }, []);
-  // First-run project launcher.
-  const [launcherOpen, setLauncherOpen] = useState(false);
+  // First-run project launcher. Use lazy initial state so the modal can render
+  // on the very first client paint instead of waiting for a post-mount effect.
+  const [launcherOpen, setLauncherOpen] = useState(() => {
+    if (typeof window === "undefined") return false;
+    return localStorage.getItem("stage.launcher.v1") !== "done";
+  });
   const [hasSaved, setHasSaved] = useState(false);
   useEffect(() => {
     try {
       const raw = localStorage.getItem(STORAGE);
       setHasSaved(!!raw && Array.isArray(JSON.parse(raw).items) && JSON.parse(raw).items.length > 0);
     } catch { setHasSaved(false); }
-    const done = localStorage.getItem("stage.launcher.v1") === "done";
-    console.log("[launcher init] done=", done, "key=", localStorage.getItem("stage.launcher.v1"));
-    if (!done) setLauncherOpen(true);
-  }, []);
-  useEffect(() => {
-    // @ts-expect-error dev helper
-    window.__setLauncherOpen = setLauncherOpen;
   }, []);
   const closeLauncher = useCallback(() => {
     localStorage.setItem("stage.launcher.v1", "done");
