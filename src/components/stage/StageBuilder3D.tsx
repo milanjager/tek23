@@ -31,6 +31,7 @@ import { Walkthrough } from "./Walkthrough";
 import SpeakerBuilder from "./SpeakerBuilder";
 import SpeakerWiringSchema, { type WireNode, type WireLink } from "./SpeakerWiringSchema";
 import PrintReport, { type BomRow, type ChecklistRow } from "./PrintReport";
+import { sfxCableStart, sfxPortConnect, sfxCableComplete, sfxCancel } from "./sfx";
 
 import {
   type CustomSpeaker,
@@ -2521,7 +2522,10 @@ const ItemObject = ({
           isPendingElsewhere && isTypeActive && (c.role === "in" || connectors.filter(x => x.type === c.type).every(x => x.role !== "in"));
         const isSourceCandidate = !pendingItemId && isTypeActive;
         const highlight = isCompatibleTarget || isSourceCandidate;
-        const size = highlight ? 0.14 : 0.11;
+        // Během tažení kabelu ztlumit porty, které nejsou platným dalším
+        // krokem — na scéně zůstanou výrazné jen zapojitelné cíle.
+        const dimmed = !!pendingItemId && !highlight;
+        const size = highlight ? 0.14 : dimmed ? 0.09 : 0.11;
 
         return (
           <group key={i} position={[c.offset[0], modelYOffset + c.offset[1], c.offset[2]]}>
@@ -2544,7 +2548,9 @@ const ItemObject = ({
               <meshStandardMaterial
                 color={meta.color}
                 emissive={meta.color}
-                emissiveIntensity={highlight ? 1.4 : isTypeActive ? 0.9 : 0.35}
+                emissiveIntensity={highlight ? 1.4 : dimmed ? 0.06 : isTypeActive ? 0.9 : 0.35}
+                transparent={dimmed}
+                opacity={dimmed ? 0.15 : 1}
                 metalness={0.5}
                 roughness={0.35}
               />
@@ -3455,11 +3461,11 @@ function SceneContent({
   // ESC cancels a pending cable drag.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") { setPendingFrom(null); setCursorWorld(null); setPendingSourceConnector(null); }
+      if (e.key === "Escape") { if (pendingFrom) sfxCancel(); setPendingFrom(null); setCursorWorld(null); setPendingSourceConnector(null); }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [setPendingFrom]);
+  }, [setPendingFrom, pendingFrom]);
 
 
   const itemLabel = (it: Placed) => it.label ?? SPECS[it.kind].defaultLabel ?? SPECS[it.kind].label;
@@ -3565,10 +3571,11 @@ function SceneContent({
               const target = items.find((x) => x.id === itemId);
               if (!cable || !target) return;
               const other = reconnect.end === "from" ? cable.to : cable.from;
-              if (other === itemId) { setReconnectError("Nelze zapojit oba konce do stejné bedny."); return; }
-              if (conn.type !== cable.type) { setReconnectError(`Konektor je ${CABLE_META[conn.type].short}, kabel je ${CABLE_META[cable.type].short}.`); return; }
+              if (other === itemId) { setReconnectError("Nelze zapojit oba konce do stejné bedny."); sfxCancel(); return; }
+              if (conn.type !== cable.type) { setReconnectError(`Konektor je ${CABLE_META[conn.type].short}, kabel je ${CABLE_META[cable.type].short}.`); sfxCancel(); return; }
               setCables((cs) => cs.map((c) => c.id === cable.id ? { ...c, [reconnect.end]: itemId } : c));
               setReconnect(null); setReconnectError(null);
+              sfxPortConnect(); sfxCableComplete();
               return;
             }
             if (!pendingFrom) {
@@ -3579,15 +3586,17 @@ function SceneContent({
               if (conn.type !== cableType) setCableType(conn.type);
               const src = items.find((x) => x.id === itemId);
               if (src) setCursorWorld(localToWorld(src, conn.offset));
+              sfxCableStart();
               return;
             }
             if (pendingFrom === itemId) return; // ignore same-item second click
             // Complete: type must match the pending cable type.
-            if (conn.type !== cableType) return;
+            if (conn.type !== cableType) { sfxCancel(); return; }
             setCables((cs) => [...cs, { id: uid(), from: pendingFrom!, to: itemId, type: cableType }]);
             setPendingFrom(null);
             setPendingSourceConnector(null);
             setCursorWorld(null);
+            sfxPortConnect(); sfxCableComplete();
           }}
 
           onSelect={(id, additive) => {
@@ -3614,19 +3623,23 @@ function SceneContent({
             if (mode === "cable") {
               const target = items.find((x) => x.id === id);
               if (!target) return;
-              if (!hasConnector(target.kind, cableType)) return;
+              if (!hasConnector(target.kind, cableType)) { sfxCancel(); return; }
               if (!pendingFrom) {
                 setPendingFrom(id);
+                sfxCableStart();
               } else if (pendingFrom === id) {
                 setPendingFrom(null);
+                sfxCancel();
               } else {
                 const source = items.find((x) => x.id === pendingFrom);
                 if (!source || !hasConnector(source.kind, cableType)) {
                   setPendingFrom(id);
+                  sfxCableStart();
                   return;
                 }
                 setCables((cs) => [...cs, { id: uid(), from: pendingFrom!, to: id, type: cableType }]);
                 setPendingFrom(null);
+                sfxPortConnect(); sfxCableComplete();
               }
               return;
             }
@@ -6076,8 +6089,32 @@ export function StageBuilder3D() {
               <p className="px-1 py-4 text-[11px] text-neutral-500">Nic nenalezeno — zkus jiný výraz nebo jinou kategorii.</p>
             )}
 
-            {palette.map(([k, s]) => (
-              <div key={k} className="mb-2 overflow-hidden rounded border border-neutral-200 bg-neutral-50 transition hover:border-lime-500/60">
+            {palette.map(([k, s]) => {
+              // Během tažení kabelu zvýraznit v paletě jen komponenty, které
+              // mají kompatibilní port — jsou platným dalším krokem zapojení.
+              const wiringPending = mode === "cable" && !!pendingFrom;
+              const wireable = wiringPending && hasConnector(k, cableType);
+              const wireMeta = wiringPending ? CABLE_META[cableType] : null;
+              return (
+              <div
+                key={k}
+                className={`mb-2 overflow-hidden rounded border bg-neutral-50 transition ${
+                  wiringPending
+                    ? wireable
+                      ? "border-transparent"
+                      : "border-neutral-200 opacity-40 saturate-50"
+                    : "border-neutral-200 hover:border-lime-500/60"
+                }`}
+                style={wireable && wireMeta ? { boxShadow: `0 0 0 2px ${wireMeta.color}, 0 0 12px ${wireMeta.color}55` } : undefined}
+              >
+                {wireable && wireMeta && (
+                  <div
+                    className="flex items-center gap-1 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider"
+                    style={{ backgroundColor: `${wireMeta.color}22`, color: wireMeta.color }}
+                  >
+                    ◀ Zapojitelné — {wireMeta.label}
+                  </div>
+                )}
                 <button
                   onClick={() => { addItem(k); pushRecent(k); setPaletteOpen(false); }}
                   title={`${s.label} — ${s.hint} · ${s.size[0].toFixed(2)}×${s.size[1].toFixed(2)}×${s.size[2].toFixed(2)} m · ~${estimateWeightKg(s)} kg`}
@@ -6110,7 +6147,8 @@ export function StageBuilder3D() {
                   </div>
                 )}
               </div>
-            ))}
+              );
+            })}
           </div>
           <div className="hidden border-t border-neutral-200 p-2 text-[10px] text-neutral-500 md:block">
             Tip: klávesa <b>?</b> zobrazí všechny zkratky.
