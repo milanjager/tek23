@@ -31,6 +31,7 @@ import { Walkthrough } from "./Walkthrough";
 import SpeakerBuilder from "./SpeakerBuilder";
 import SpeakerWiringSchema, { type WireNode, type WireLink } from "./SpeakerWiringSchema";
 import PrintReport, { type BomRow, type ChecklistRow } from "./PrintReport";
+import { sfxCableStart, sfxPortConnect, sfxCableComplete, sfxCancel } from "./sfx";
 
 import {
   type CustomSpeaker,
@@ -2521,7 +2522,10 @@ const ItemObject = ({
           isPendingElsewhere && isTypeActive && (c.role === "in" || connectors.filter(x => x.type === c.type).every(x => x.role !== "in"));
         const isSourceCandidate = !pendingItemId && isTypeActive;
         const highlight = isCompatibleTarget || isSourceCandidate;
-        const size = highlight ? 0.14 : 0.11;
+        // Během tažení kabelu ztlumit porty, které nejsou platným dalším
+        // krokem — na scéně zůstanou výrazné jen zapojitelné cíle.
+        const dimmed = !!pendingItemId && !highlight;
+        const size = highlight ? 0.14 : dimmed ? 0.09 : 0.11;
 
         return (
           <group key={i} position={[c.offset[0], modelYOffset + c.offset[1], c.offset[2]]}>
