@@ -12,6 +12,7 @@ export function StartLauncher({
   onBlank,
   onPreset,
   onOpenSaved,
+  onDemo,
   onClose,
 }: {
   presets: PresetChoice[];
@@ -19,6 +20,7 @@ export function StartLauncher({
   onBlank: () => void;
   onPreset: (id: string) => void;
   onOpenSaved: () => void;
+  onDemo?: () => void;
   onClose: () => void;
 }) {
   const [showPresets, setShowPresets] = useState(false);
@@ -53,26 +55,33 @@ export function StartLauncher({
         </p>
 
         {!showPresets ? (
-          <div className="mt-5 grid gap-3 sm:grid-cols-3">
+          <div className="mt-5 grid gap-3 sm:grid-cols-2">
             <button
               ref={firstRef}
               onClick={onBlank}
-              className="min-h-24 rounded-xl border-2 border-lime-500 bg-lime-100 p-4 text-left transition hover:bg-lime-200"
+              className="min-h-20 rounded-xl border-2 border-lime-500 bg-lime-100 p-4 text-left transition hover:bg-lime-200"
             >
               <div className="text-sm font-bold text-neutral-900">Začít nový rig</div>
               <div className="mt-1 text-[12px] text-neutral-600">Prázdná stage se základními vodítky</div>
             </button>
             <button
               onClick={() => setShowPresets(true)}
-              className="min-h-24 rounded-xl border border-neutral-300 bg-white p-4 text-left transition hover:border-lime-500"
+              className="min-h-20 rounded-xl border border-neutral-300 bg-white p-4 text-left transition hover:border-lime-500"
             >
               <div className="text-sm font-bold text-neutral-900">Vybrat preset</div>
               <div className="mt-1 text-[12px] text-neutral-600">Rychlý start podle typu akce a systému</div>
             </button>
             <button
+              onClick={onDemo}
+              className="min-h-20 rounded-xl border border-sky-300 bg-sky-50 p-4 text-left transition hover:border-sky-500 hover:bg-sky-100"
+            >
+              <div className="text-sm font-bold text-sky-900">🎓 Demo návod</div>
+              <div className="mt-1 text-[12px] text-sky-800">Ukázkový rig a krátký průvodce ovládáním</div>
+            </button>
+            <button
               onClick={onOpenSaved}
               disabled={!hasSaved}
-              className="min-h-24 rounded-xl border border-neutral-300 bg-white p-4 text-left transition hover:border-lime-500 disabled:opacity-45"
+              className="min-h-20 rounded-xl border border-neutral-300 bg-white p-4 text-left transition hover:border-lime-500 disabled:opacity-45"
             >
               <div className="text-sm font-bold text-neutral-900">Otevřít uložený rig</div>
               <div className="mt-1 text-[12px] text-neutral-600">

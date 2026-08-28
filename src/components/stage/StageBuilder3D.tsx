@@ -27,6 +27,7 @@ import TechnicalView from "./TechnicalView";
 import { PlacementDevPanel } from "./PlacementDevPanel";
 import PowersoftGuide from "./PowersoftGuide";
 import { StartLauncher } from "./StartLauncher";
+import { Walkthrough } from "./Walkthrough";
 import SpeakerBuilder from "./SpeakerBuilder";
 import SpeakerWiringSchema, { type WireNode, type WireLink } from "./SpeakerWiringSchema";
 import PrintReport, { type BomRow, type ChecklistRow } from "./PrintReport";
@@ -238,7 +239,7 @@ interface Placed {
 }
 
 
-type PresetKind = "namel_wall" | "club_stack" | "festival_ground" | "mlk_wall";
+type PresetKind = "namel_wall" | "club_stack" | "festival_ground" | "mlk_wall" | "demo_tutorial";
 
 type CableType = "signal" | "speaker" | "power" | "dmx";
 
@@ -3808,13 +3809,24 @@ function SceneContent({
         const anyFocus = hoveredCableId !== null || selectedCableId !== null;
         const isFocus = isHovered || isSelected;
         const dimmed = anyFocus && !isFocus;
-        const baseOpacity = isReconnecting ? 0.4 : dimmed ? 0.18 : 0.95;
-        const width = isFocus ? meta.width + 3 : dimmed ? Math.max(1, meta.width - 0.5) : meta.width;
+        // Cables should always be visible, but subtle — not hidden behind gear.
+        const baseOpacity = isReconnecting ? 0.5 : dimmed ? 0.18 : isFocus ? 0.95 : 0.30;
+        const width = isFocus ? meta.width + 3 : dimmed ? Math.max(1, meta.width - 0.5) : meta.width + 0.8;
         const drawColor = overload ? "#ff2020" : meta.color;
 
 
         return (
           <group key={c.id} renderOrder={isFocus ? 20 : dimmed ? 0 : 10}>
+            {/* Subtle outer halo so cables are never fully hidden behind cabinets */}
+            <Line
+              points={pts as unknown as [number, number, number][]}
+              color={drawColor}
+              lineWidth={width + 5}
+              transparent
+              opacity={isFocus ? 0.18 : 0.06}
+              depthTest={false}
+              depthWrite={false}
+            />
             {/* Soft glow halo behind the focused cable OR overloaded cable */}
             {(isFocus || overload) && (
               <Line
@@ -3824,6 +3836,7 @@ function SceneContent({
                 transparent
                 opacity={overload ? 0.35 : 0.22}
                 depthTest={false}
+                depthWrite={false}
               />
             )}
             <Line
@@ -3832,7 +3845,8 @@ function SceneContent({
               lineWidth={width}
               transparent
               opacity={baseOpacity}
-              depthTest={!isFocus}
+              depthTest={false}
+              depthWrite={false}
               dashed={overload}
               dashSize={0.22}
               gapSize={0.12}
@@ -4359,6 +4373,16 @@ function loadPreset(kind: PresetKind): Placed[] {
     arr.push(mk("generator", -9.0, 0, 3.2, "Aggregát"));
     arr.push(mk("mixer",      0.0, 1.0, 5.5, "FOH"));
     arr.push(mk("dj",         0.0, 0.0, 3.4, "DJ"));
+  } else if (kind === "demo_tutorial") {
+    // Malý demo rig pro průvodce: 2 sub + 2 top, amp, distro, generátor, mix
+    arr.push(mk("picus_scoop_lo", -0.60, 0.00, SPK_Z, "Sub L"));
+    arr.push(mk("picus_scoop_lo",  0.60, 0.00, SPK_Z, "Sub R"));
+    arr.push(mk("picus_top_3way", -0.60, 1.00, SPK_Z, "Top L"));
+    arr.push(mk("picus_top_3way",  0.60, 1.00, SPK_Z, "Top R"));
+    arr.push(mk("powersoft", -2.4, 0, 0.8, "Zesilovač"));
+    arr.push(mk("distro",    -2.4, 0, 1.8, "Rozvaděč"));
+    arr.push(mk("generator", -3.8, 0, 3.2, "Aggregát"));
+    arr.push(mk("mixer",      0.0, 1.0, 3.0, "Mixpult"));
   } else {
     // festival_ground — three sub clusters + mid columns + wing horns
     for (let c = -1; c <= 1; c++) {
@@ -4743,6 +4767,98 @@ export function StageBuilder3D() {
     localStorage.setItem("stage.launcher.v1", "done");
     setLauncherOpen(false);
   }, []);
+
+  // Walkthrough / onboarding overlay.
+  const WALK_KEY = "stage.walkthrough.v1";
+  const [walkOpen, setWalkOpen] = useState(false);
+  const startWalkthrough = useCallback(() => {
+    setWorkMode("build");
+    setViewMode("3d");
+    setPaletteOpen(false);
+    setWalkOpen(true);
+    try { localStorage.setItem(WALK_KEY, "started"); } catch {}
+  }, []);
+  const finishWalkthrough = useCallback(() => {
+    setWalkOpen(false);
+    try { localStorage.setItem(WALK_KEY, "done"); } catch {}
+  }, []);
+
+  // Czech walkthrough steps.
+  const walkSteps = useMemo(
+    () => [
+      {
+        target: "work-mode",
+        position: "bottom" as const,
+        title: "Vítej ve Stage Rig",
+        text: "Toto je hlavní panel režimů: Stavět, Zapojit, Kontrola a Export. Každý režim zobrazí jiné nástroje podle toho, co zrovna řešíš — rozložení beden, kabeláž, kontrolu nebo tisk.",
+        prepare: () => { setWorkMode("build"); setViewMode("3d"); setPaletteOpen(false); },
+      },
+      {
+        target: "scene-views",
+        position: "bottom" as const,
+        title: "Přepínej pohledy",
+        text: "Mezi 3D scénou, půdorysem, schématem zapojení a dalšími náhledy přeskakuješ tady. Na mobilu se automaticky nabízí zjednodušený prohlížecí režim.",
+        prepare: () => { setWorkMode("build"); setViewMode("3d"); },
+      },
+      {
+        target: "palette-btn",
+        position: "right" as const,
+        title: "Paleta komponent",
+        text: "Levým tlačítkem otevřeš paletu reprobeden, zesilovačů, rozvaděčů, generátorů a další techniky. Kliknutím přidáš komponentu na scénu — pak ji můžeš přesouvat.",
+        prepare: () => { setPaletteOpen(false); },
+      },
+      {
+        target: "stage-canvas",
+        position: "left" as const,
+        title: "3D plátno",
+        text: "Levý táhni = otáčení, pravý táhni = posun, kolečko = přiblížení. Klikni na bednu pro výběr, táhni gizmem pro posun a pouštěj na zeleném cíli pro snapování do řady nebo na jinou bednu.",
+        prepare: () => { setWorkMode("build"); setViewMode("3d"); setPaletteOpen(false); },
+      },
+      {
+        target: "magnet-toggle",
+        position: "bottom" as const,
+        title: "Magnetické snapování",
+        text: "Zapni 🧲 Magnety, aby se bedny samy zarovnávaly k hranám sousedů a držely společnou hloubku řady. Při přesunu se zobrazí vodítka a zelené cílové plochy.",
+        prepare: () => { setWorkMode("build"); },
+      },
+      {
+        target: "work-mode",
+        position: "bottom" as const,
+        title: "Režim Zapojit",
+        text: "V režimu Zapojit najdeš automatické propojení kabely, editor tras a export kabelového listu. Kliknutím na kabel zvýrazníš cestu od zdroje k cíli.",
+        prepare: () => { setWorkMode("wire"); },
+      },
+      {
+        target: "wire-autowire",
+        position: "bottom" as const,
+        title: "Auto kabeláž",
+        text: "Tlačítkem Zapojit vše aplikace sama vytvoří napájecí, signálové a repro kabely podle typů komponent. U reproduktorů se ti pak zobrazí schéma zapojení.",
+        prepare: () => { setWorkMode("wire"); },
+      },
+      {
+        target: "work-mode",
+        position: "bottom" as const,
+        title: "Režim Kontrola",
+        text: "Tady najdeš zarovnání, rozmístění, kóty a varování — například přetížení konektorů nebo kolize mezi bednami.",
+        prepare: () => { setWorkMode("inspect"); },
+      },
+      {
+        target: "work-mode",
+        position: "bottom" as const,
+        title: "Režim Export",
+        text: "Vygeneruj tisknutelný report s BOM, checklistem zapojení a bezpečnostními poznámkami pro crew.",
+        prepare: () => { setWorkMode("export"); },
+      },
+      {
+        target: "help-btn",
+        position: "left" as const,
+        title: "To je vše",
+        text: "Návod můžeš kdykoli zopakovat tlačítkem ? v pravém horním rohu. Teď zkus označit bednu, pohnout s ní nebo přepnout do schématu.",
+        prepare: () => { setWorkMode("build"); setViewMode("3d"); },
+      },
+    ],
+    [setWorkMode, setViewMode, setPaletteOpen]
+  );
 
   const [marquee, setMarquee] = useState<null | { x1: number; y1: number; x2: number; y2: number; additive: boolean }>(null);
   const cameraRef = useRef<THREE.Camera | null>(null);
@@ -5481,6 +5597,7 @@ export function StageBuilder3D() {
           onBlank={() => { setItems([]); setCables([]); setSelection([]); closeLauncher(); announce("Nový prázdný rig — přidej první bednu z palety vlevo."); }}
           onPreset={(id) => { applyPreset(id as PresetKind); closeLauncher(); }}
           onOpenSaved={() => { closeLauncher(); announce("Načten uložený projekt."); }}
+          onDemo={() => { applyPreset("demo_tutorial"); closeLauncher(); startWalkthrough(); }}
           onClose={closeLauncher}
         />
       )}
@@ -5488,6 +5605,7 @@ export function StageBuilder3D() {
       {/* ── Header: identita projektu, stav, globální akce ─────────── */}
       <header className="glass-strong z-30 flex flex-nowrap items-center gap-2 overflow-x-auto px-2 py-1.5 no-scrollbar sm:px-3">
         <button
+          data-walkthrough="palette-btn"
           onClick={() => setPaletteOpen((v) => !v)}
           className="glass-chip inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full md:hidden"
           aria-label={paletteOpen ? "Zavřít paletu komponent" : "Otevřít paletu komponent"}
@@ -5498,7 +5616,7 @@ export function StageBuilder3D() {
           <Boxes size={18} /> <span className="hidden text-[13px] sm:inline">STAGE RIG</span>
         </div>
 
-        <nav aria-label="Režim práce" className="ml-1 flex shrink-0 items-center gap-0.5 rounded-xl bg-neutral-200 p-0.5">
+        <nav data-walkthrough="work-mode" aria-label="Režim práce" className="ml-1 flex shrink-0 items-center gap-0.5 rounded-xl bg-neutral-200 p-0.5">
           {MODES.map((m) => (
             <button
               key={m.id}
@@ -5535,10 +5653,11 @@ export function StageBuilder3D() {
           </button>
 
           <button
-            onClick={() => setShortcutsOpen(true)}
+            data-walkthrough="help-btn"
+            onClick={() => { setWalkOpen(true); }}
             className={`${btnCls} bg-neutral-100 hover:bg-neutral-200`}
-            title="Klávesové zkratky (?)"
-            aria-label="Klávesové zkratky"
+            title="Spustit návod (?)"
+            aria-label="Spustit návod"
           >
             ?
           </button>
@@ -5599,14 +5718,35 @@ export function StageBuilder3D() {
             <p className="mt-3 text-[11px] text-neutral-500">
               V režimu Zapojit: klik na první bednu → klik na druhou. Klik na kabel otevře inspektor.
             </p>
+            <div className="mt-4 flex flex-wrap gap-2 border-t border-neutral-200/70 pt-3">
+              <button
+                onClick={() => { setShortcutsOpen(false); setWalkOpen(true); }}
+                className="rounded-lg bg-sky-500 px-3 py-1.5 text-[12px] font-semibold text-white hover:bg-sky-600"
+              >
+                Spustit návod
+              </button>
+              <button
+                onClick={() => { try { localStorage.removeItem("stage.launcher.v1"); localStorage.removeItem("stage.walkthrough.v1"); } catch {} setShortcutsOpen(false); setLauncherOpen(true); }}
+                className="rounded-lg border border-neutral-300 px-3 py-1.5 text-[12px] font-semibold text-neutral-700 hover:bg-neutral-100"
+              >
+                Znovu uvítací obrazovka
+              </button>
+            </div>
           </div>
         </div>
       )}
 
+      <Walkthrough
+        open={walkOpen}
+        steps={walkSteps}
+        onClose={finishWalkthrough}
+        onFinish={() => announce("Průvodce dokončen — nyní můžeš začít stavět vlastní rig.")}
+      />
+
       {/* ── Sekundární lišta: pohled + nástroje aktivního režimu ───── */}
       {!mobileViewer && (
       <div className="glass z-20 flex flex-nowrap items-center gap-1.5 overflow-x-auto px-2 py-1.5 no-scrollbar sm:px-3 md:flex-wrap md:overflow-visible">
-        <div className="flex shrink-0 items-center gap-0.5 rounded-xl bg-neutral-200 p-0.5" role="group" aria-label="Pohled na scénu">
+        <div data-walkthrough="scene-views" className="flex shrink-0 items-center gap-0.5 rounded-xl bg-neutral-200 p-0.5" role="group" aria-label="Pohled na scénu">
           {PRIMARY_VIEWS.map((v) => (
             <button
               key={v.id}
@@ -5650,6 +5790,7 @@ export function StageBuilder3D() {
             <button onClick={() => { setMode("select"); setPendingFrom(null); setMarqueeMode(false); }} className={`${btnCls} ${mode === "select" && !marqueeMode ? "bg-lime-500 text-neutral-950" : "bg-neutral-100 hover:bg-neutral-200"}`}><MousePointer2 size={13} /> Výběr</button>
             <button onClick={() => { setMode("select"); setPendingFrom(null); setMarqueeMode((v) => !v); }} className={`${btnCls} ${marqueeMode ? "bg-lime-500 text-neutral-950" : "bg-neutral-100 hover:bg-neutral-200"}`} title="Táhni myší přes bedny (Shift = přidat k výběru)"><BoxSelect size={13} /> Rámeček</button>
             <button
+              data-walkthrough="magnet-toggle"
               onClick={() => { setMagnet((v) => { announce(v ? "Magnety vypnuty — bedny se už nezarovnávají." : "Magnety zapnuty — bedny cvakají k hranám a do řady."); return !v; }); }}
               aria-pressed={magnet}
               title="Magnetické snapování: bedna cvakne hranou k sousedovi nebo se zarovná do řady (tolerance 35 cm)."
@@ -5712,6 +5853,7 @@ export function StageBuilder3D() {
               </div>
             )}
             <button
+              data-walkthrough="wire-autowire"
               onClick={() => {
                 const cs = autoWireCables(items);
                 setCables(cs);
@@ -5850,6 +5992,7 @@ export function StageBuilder3D() {
         {/* Left rail (visible when palette collapsed) */}
         {!paletteOpen && !mobileViewer && (
           <button
+            data-walkthrough="palette-btn"
             onClick={() => setPaletteOpen(true)}
             title="Otevřít paletu komponent ( [ )"
             className="glass-chip absolute left-2 top-2 z-20 hidden h-10 w-10 items-center justify-center rounded-full text-neutral-600 shadow-md hover:text-lime-600 md:flex"
