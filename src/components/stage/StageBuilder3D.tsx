@@ -3571,10 +3571,11 @@ function SceneContent({
               const target = items.find((x) => x.id === itemId);
               if (!cable || !target) return;
               const other = reconnect.end === "from" ? cable.to : cable.from;
-              if (other === itemId) { setReconnectError("Nelze zapojit oba konce do stejné bedny."); return; }
-              if (conn.type !== cable.type) { setReconnectError(`Konektor je ${CABLE_META[conn.type].short}, kabel je ${CABLE_META[cable.type].short}.`); return; }
+              if (other === itemId) { setReconnectError("Nelze zapojit oba konce do stejné bedny."); sfxCancel(); return; }
+              if (conn.type !== cable.type) { setReconnectError(`Konektor je ${CABLE_META[conn.type].short}, kabel je ${CABLE_META[cable.type].short}.`); sfxCancel(); return; }
               setCables((cs) => cs.map((c) => c.id === cable.id ? { ...c, [reconnect.end]: itemId } : c));
               setReconnect(null); setReconnectError(null);
+              sfxPortConnect(); sfxCableComplete();
               return;
             }
             if (!pendingFrom) {
@@ -3585,15 +3586,17 @@ function SceneContent({
               if (conn.type !== cableType) setCableType(conn.type);
               const src = items.find((x) => x.id === itemId);
               if (src) setCursorWorld(localToWorld(src, conn.offset));
+              sfxCableStart();
               return;
             }
             if (pendingFrom === itemId) return; // ignore same-item second click
             // Complete: type must match the pending cable type.
-            if (conn.type !== cableType) return;
+            if (conn.type !== cableType) { sfxCancel(); return; }
             setCables((cs) => [...cs, { id: uid(), from: pendingFrom!, to: itemId, type: cableType }]);
             setPendingFrom(null);
             setPendingSourceConnector(null);
             setCursorWorld(null);
+            sfxPortConnect(); sfxCableComplete();
           }}
 
           onSelect={(id, additive) => {
