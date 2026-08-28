@@ -2548,7 +2548,9 @@ const ItemObject = ({
               <meshStandardMaterial
                 color={meta.color}
                 emissive={meta.color}
-                emissiveIntensity={highlight ? 1.4 : isTypeActive ? 0.9 : 0.35}
+                emissiveIntensity={highlight ? 1.4 : dimmed ? 0.06 : isTypeActive ? 0.9 : 0.35}
+                transparent={dimmed}
+                opacity={dimmed ? 0.15 : 1}
                 metalness={0.5}
                 roughness={0.35}
               />
