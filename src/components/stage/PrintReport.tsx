@@ -66,7 +66,12 @@ export default function PrintReport({
         @media print {
           body * { visibility: hidden !important; }
           #print-report, #print-report * { visibility: visible !important; }
-          #print-report { position: absolute; inset: 0; box-shadow: none !important; margin: 0 !important; }
+          /* Zrušit fixní/viewportové ohraničení celé aplikace, aby se report
+             mohl stránkovat přes více stran (jinak se vytiskne jen 1. strana). */
+          html, body { position: static !important; height: auto !important; overflow: visible !important; }
+          .fixed, .inset-0 { position: static !important; inset: auto !important; }
+          .overflow-auto, .overflow-hidden { overflow: visible !important; }
+          #print-report { position: static !important; box-shadow: none !important; margin: 0 !important; width: 100% !important; max-width: none !important; }
           .no-print { display: none !important; }
           .page-break { break-before: page; }
           tr, .avoid-break { break-inside: avoid; }
