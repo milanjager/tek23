@@ -67,7 +67,15 @@ export function Walkthrough({
 
   function updateRect() {
     if (!current) return;
-    const el = document.querySelector(`[data-walkthrough="${current.target}"]`) as HTMLElement | null;
+    const els = Array.from(
+      document.querySelectorAll<HTMLElement>(`[data-walkthrough="${current.target}"]`),
+    );
+    // Prefer a visible element (some targets exist twice, e.g. mobile-only buttons
+    // with display:none — their rect is all zeros and the spotlight lands at 0,0).
+    const el =
+      els.find((e) => e.offsetWidth > 0 && e.offsetHeight > 0) ??
+      els[0] ??
+      null;
     if (el) {
       setRect(el.getBoundingClientRect());
     } else {
