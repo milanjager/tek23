@@ -6157,7 +6157,7 @@ export function StageBuilder3D() {
         </aside>
 
         {/* 3D Canvas / Schematic view */}
-        <div className="relative flex-1" ref={canvasWrapRef} id="stage-canvas" role="main" aria-label="Plátno stage">
+        <div className="relative flex-1" ref={canvasWrapRef} id="stage-canvas" data-walkthrough="stage-canvas" role="main" aria-label="Plátno stage">
           {viewMode === "elev" ? (
             <ElevationView
               items={items}
