@@ -4898,15 +4898,19 @@ export function StageBuilder3D() {
   const [styleOpen, setStyleOpen] = useState(false);
   const [cabStyle, setCabStyle] = useState<CabinetStyle>(() => loadCabinetStyle());
   const [styleVersion, setStyleVersion] = useState(0);
-  // Aplikuj uložený styl beden na sdílené barvy + textury (po mountu i při změně).
+  const styleApplied = useRef(false);
+  // Aplikuj uložený styl beden na sdílené barvy + textury.
+  // První běh po mountu scénu neremountuje (jen nastaví barvy před prvním renderem beden).
   useEffect(() => {
     applyCabinetStyle(cabStyle);
+    if (!styleApplied.current) { styleApplied.current = true; return; }
     setStyleVersion((v) => v + 1);
   }, [cabStyle]);
   const changeCabStyle = useCallback((s: CabinetStyle) => {
     saveCabinetStyle(s);
     setCabStyle(s);
   }, []);
+
   const [clipboard, setClipboard] = useState<Placed[]>([]);
   // Panels start closed to match SSR; hydrate from localStorage / viewport after mount.
   const [paletteOpen, setPaletteOpen] = useState<boolean>(false);
