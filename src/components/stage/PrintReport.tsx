@@ -25,6 +25,10 @@ export interface ChecklistRow {
   group: string;      // "Napájení" / "DMX" / ...
   color: string;
   cableId: string;
+  /** Název kabelu (vlastní nebo automatický, např. PWR-01). */
+  name?: string;
+  /** Role kabelu: Kabelová linka / Patch / Napájení. */
+  role?: string;
   from: string;
   fromPort: string;
   to: string;
@@ -178,6 +182,7 @@ export default function PrintReport({
               <tr className="bg-neutral-100 text-left text-[10px] uppercase tracking-wide text-neutral-600">
                 <th className="border border-neutral-300 px-1.5 py-1 w-8">✓</th>
                 <th className="border border-neutral-300 px-1.5 py-1 w-8">#</th>
+                <th className="border border-neutral-300 px-1.5 py-1">Kabel</th>
                 <th className="border border-neutral-300 px-1.5 py-1">Typ</th>
                 <th className="border border-neutral-300 px-1.5 py-1">Z (OUT)</th>
                 <th className="border border-neutral-300 px-1.5 py-1">Do (IN)</th>
@@ -189,6 +194,10 @@ export default function PrintReport({
                 <tr key={r.cableId} className={r.warn ? "bg-red-50" : undefined}>
                   <td className="border border-neutral-300 px-1.5 py-1 text-center text-neutral-400">☐</td>
                   <td className="border border-neutral-300 px-1.5 py-1 text-right font-mono">{r.index}</td>
+                  <td className="border border-neutral-300 px-1.5 py-1">
+                    <b className="font-mono">{r.name ?? r.cableId}</b>
+                    <div className="text-[9px] text-neutral-500">{r.role ?? "—"}</div>
+                  </td>
                   <td className="border border-neutral-300 px-1.5 py-1">
                     <span className="inline-block h-2 w-2 rounded-sm align-middle" style={{ background: r.color }} />{" "}
                     {r.group}
@@ -208,7 +217,40 @@ export default function PrintReport({
                 </tr>
               ))}
               {checklist.length === 0 && (
-                <tr><td colSpan={6} className="border border-neutral-300 px-1.5 py-2 text-center text-neutral-500">Žádné kabely — spusť automatické zapojení.</td></tr>
+                <tr><td colSpan={7} className="border border-neutral-300 px-1.5 py-2 text-center text-neutral-500">Žádné kabely — spusť automatické zapojení.</td></tr>
+              )}
+            </tbody>
+          </table>
+        </section>
+
+        {/* Soupis kabelů */}
+        <section className="mb-5">
+          <h2 className="mb-1.5 text-sm font-bold uppercase tracking-wide">3 · Soupis kabelů</h2>
+          <table className="w-full border-collapse">
+            <thead>
+              <tr className="bg-neutral-100 text-left text-[10px] uppercase tracking-wide text-neutral-600">
+                <th className="border border-neutral-300 px-1.5 py-1 w-8">✓</th>
+                <th className="border border-neutral-300 px-1.5 py-1">Název</th>
+                <th className="border border-neutral-300 px-1.5 py-1">Typ kabelu</th>
+                <th className="border border-neutral-300 px-1.5 py-1">Signálová skupina</th>
+                <th className="border border-neutral-300 px-1.5 py-1">Trasa</th>
+              </tr>
+            </thead>
+            <tbody>
+              {checklist.map((r) => (
+                <tr key={`cl-${r.cableId}`}>
+                  <td className="border border-neutral-300 px-1.5 py-1 text-center text-neutral-400">☐</td>
+                  <td className="border border-neutral-300 px-1.5 py-1 font-mono font-bold">{r.name ?? r.cableId}</td>
+                  <td className="border border-neutral-300 px-1.5 py-1">{r.role ?? "—"}</td>
+                  <td className="border border-neutral-300 px-1.5 py-1">
+                    <span className="inline-block h-2 w-2 rounded-sm align-middle" style={{ background: r.color }} />{" "}
+                    {r.group}
+                  </td>
+                  <td className="border border-neutral-300 px-1.5 py-1">{r.from} → {r.to}</td>
+                </tr>
+              ))}
+              {checklist.length === 0 && (
+                <tr><td colSpan={5} className="border border-neutral-300 px-1.5 py-2 text-center text-neutral-500">Zatím žádné kabely.</td></tr>
               )}
             </tbody>
           </table>
@@ -216,7 +258,7 @@ export default function PrintReport({
 
         {/* Doporučené nastavení */}
         <section className="avoid-break mb-5">
-          <h2 className="mb-1.5 text-sm font-bold uppercase tracking-wide">3 · Doporučené nastavení</h2>
+          <h2 className="mb-1.5 text-sm font-bold uppercase tracking-wide">4 · Doporučené nastavení</h2>
           <table className="w-full border-collapse">
             <tbody>
               {settings.map((s) => (
@@ -232,7 +274,7 @@ export default function PrintReport({
         {/* Poznámky ke komponentám */}
         {notes.length > 0 && (
           <section className="avoid-break mb-4">
-            <h2 className="mb-1.5 text-sm font-bold uppercase tracking-wide">4 · Poznámky ke komponentám</h2>
+            <h2 className="mb-1.5 text-sm font-bold uppercase tracking-wide">5 · Poznámky ke komponentám</h2>
             <ul className="space-y-0.5">
               {notes.map((n, i) => (
                 <li key={i} className="border-l-2 border-neutral-300 pl-2">
@@ -246,7 +288,7 @@ export default function PrintReport({
         {/* Technické listy vlastních beden */}
         {sheets && sheets.length > 0 && (
           <section className="avoid-break mb-4">
-            <h2 className="mb-1.5 text-sm font-bold uppercase tracking-wide">5 · Technické listy vlastních beden</h2>
+            <h2 className="mb-1.5 text-sm font-bold uppercase tracking-wide">6 · Technické listy vlastních beden</h2>
             <div className="space-y-2">
               {sheets.map((s) => (
                 <div key={s.id} className="avoid-break border border-neutral-300 p-2">

@@ -249,12 +249,77 @@ type PresetKind = "namel_wall" | "club_stack" | "festival_ground" | "mlk_wall" |
 
 type CableType = "signal" | "speaker" | "power" | "dmx";
 
+/** Provozní role kabelu — jak se s ním zachází v riggu a v tiskovém listu. */
+type CableRole = "line" | "patch" | "power";
+
 interface Cable {
   id: string;
   from: string; // item id
   to: string;   // item id
   type: CableType;
+  /** Vlastní název kabelu; když chybí, generuje se automaticky (PWR-01…). */
+  name?: string;
+  /** Kabelová linka / patch / napájení. Když chybí, odvodí se z typu. */
+  role?: CableRole;
 }
+
+const CABLE_ROLE_META: Record<CableRole, { label: string; short: string }> = {
+  line:  { label: "Kabelová linka", short: "LINKA" },
+  patch: { label: "Patch",          short: "PATCH" },
+  power: { label: "Napájení",       short: "POWER" },
+};
+
+function defaultCableRole(type: CableType): CableRole {
+  if (type === "power") return "power";
+  if (type === "speaker") return "line";
+  return "patch";
+}
+const cableRole = (c: Cable): CableRole => c.role ?? defaultCableRole(c.type);
+
+/** Klíč logického spoje — dvě stejná zapojení nemají v riggu smysl. */
+const cableKey = (c: Pick<Cable, "type" | "from" | "to">) => `${c.type}|${c.from}|${c.to}`;
+
+/** Přepis endpointu: staré duplicitní vedení stejného spoje zaniká. */
+function setCableEnd(cs: Cable[], id: string, end: "from" | "to", newId: string): Cable[] {
+  const target = cs.find((c) => c.id === id);
+  if (!target) return cs;
+  const updated = { ...target, [end]: newId } as Cable;
+  if (updated.from === updated.to) return cs;
+  const key = cableKey(updated);
+  return cs
+    .filter((c) => c.id === id || cableKey(c) !== key)
+    .map((c) => (c.id === id ? updated : c));
+}
+
+/** Přidání kabelu, které přepíše existující spoj mezi stejnými porty. */
+function addCable(cs: Cable[], from: string, to: string, type: CableType): Cable[] {
+  if (from === to) return cs;
+  const next: Cable = { id: uid(), from, to, type, role: defaultCableRole(type) };
+  const key = cableKey(next);
+  const prev = cs.find((c) => cableKey(c) === key);
+  return [...cs.filter((c) => cableKey(c) !== key), prev ? { ...next, id: prev.id, name: prev.name, role: prev.role ?? next.role } : next];
+}
+
+/** Kabely, jejichž oba konce ve scéně opravdu existují (BOM = aktuální stav). */
+function liveCablesOf(items: { id: string }[], cs: Cable[]): Cable[] {
+  const ids = new Set(items.map((i) => i.id));
+  const seen = new Set<string>();
+  const out: Cable[] = [];
+  for (const c of cs) {
+    if (!ids.has(c.from) || !ids.has(c.to) || c.from === c.to) continue;
+    const k = cableKey(c);
+    if (seen.has(k)) continue;
+    seen.add(k);
+    out.push(c);
+  }
+  return out;
+}
+
+/** Zobrazovaný název kabelu — vlastní, nebo automatický podle typu a pořadí. */
+function cableDisplayName(c: Cable, index: number): string {
+  return c.name?.trim() || `${CABLE_META[c.type].short}-${String(index + 1).padStart(2, "0")}`;
+}
+
 
 type GroupGap = { x: number; y: number };
 type GroupSpacingState = Record<string, GroupGap | number>;
@@ -3783,7 +3848,7 @@ function SceneContent({
               const other = reconnect.end === "from" ? cable.to : cable.from;
               if (other === itemId) { setReconnectError("Nelze zapojit oba konce do stejné bedny."); sfxCancel(); return; }
               if (conn.type !== cable.type) { setReconnectError(`Konektor je ${CABLE_META[conn.type].short}, kabel je ${CABLE_META[cable.type].short}.`); sfxCancel(); return; }
-              setCables((cs) => cs.map((c) => c.id === cable.id ? { ...c, [reconnect.end]: itemId } : c));
+              setCables((cs) => setCableEnd(cs, cable.id, reconnect.end, itemId));
               setReconnect(null); setReconnectError(null);
               sfxPortConnect(); sfxCableComplete();
               return;
@@ -3802,7 +3867,7 @@ function SceneContent({
             if (pendingFrom === itemId) return; // ignore same-item second click
             // Complete: type must match the pending cable type.
             if (conn.type !== cableType) { sfxCancel(); return; }
-            setCables((cs) => [...cs, { id: uid(), from: pendingFrom!, to: itemId, type: cableType }]);
+            setCables((cs) => addCable(cs, pendingFrom!, itemId, cableType));
             setPendingFrom(null);
             setPendingSourceConnector(null);
             setCursorWorld(null);
@@ -3825,7 +3890,7 @@ function SceneContent({
                 setReconnectError(reason);
                 return;
               }
-              setCables((cs) => cs.map((c) => c.id === cable.id ? { ...c, [reconnect.end]: id } : c));
+              setCables((cs) => setCableEnd(cs, cable.id, reconnect.end, id));
               setReconnect(null);
               setReconnectError(null);
               return;
@@ -3847,7 +3912,7 @@ function SceneContent({
                   sfxCableStart();
                   return;
                 }
-                setCables((cs) => [...cs, { id: uid(), from: pendingFrom!, to: id, type: cableType }]);
+                setCables((cs) => addCable(cs, pendingFrom!, id, cableType));
                 setPendingFrom(null);
                 sfxPortConnect(); sfxCableComplete();
               }
@@ -3998,7 +4063,7 @@ function SceneContent({
       <CableAnimDriver />
 
 
-      {cables.map((c) => {
+      {cables.map((c, cableIdx) => {
         const a = items.find((i) => i.id === c.from);
         const b = items.find((i) => i.id === c.to);
         if (!a || !b) return null;
@@ -4150,7 +4215,7 @@ function SceneContent({
                 if (!target) return;
                 const reason = connectorIncompatibility(target, c.type, end);
                 if (reason) { setReconnectError(reason); return; }
-                setCables((cs) => cs.map((x) => x.id === c.id ? { ...x, [end]: newId } : x));
+                setCables((cs) => setCableEnd(cs, c.id, end, newId));
                 setReconnect(null);
                 setReconnectError(null);
               };
@@ -4201,6 +4266,39 @@ function SceneContent({
                       >
                         ✕
                       </button>
+                    </div>
+
+                    {/* Název + role kabelu */}
+                    <div className="mb-1 grid grid-cols-2 gap-1 rounded bg-white/60 p-1.5">
+                      <label className="col-span-1 block">
+                        <span className="text-[8px] uppercase tracking-wider text-neutral-600">Název kabelu</span>
+                        <input
+                          value={c.name ?? ""}
+                          placeholder={cableDisplayName(c, cableIdx)}
+                          onPointerDown={(ev) => ev.stopPropagation()}
+                          onChange={(e) => {
+                            const v = e.target.value;
+                            setCables((cs) => cs.map((x) => x.id === c.id ? { ...x, name: v } : x));
+                          }}
+                          className="mt-0.5 w-full rounded border border-neutral-300 bg-white/80 px-1 py-0.5 font-mono text-[10px] font-bold text-neutral-900 outline-none focus:border-neutral-500"
+                        />
+                      </label>
+                      <label className="col-span-1 block">
+                        <span className="text-[8px] uppercase tracking-wider text-neutral-600">Typ kabelu</span>
+                        <select
+                          value={cableRole(c)}
+                          onPointerDown={(ev) => ev.stopPropagation()}
+                          onChange={(e) => {
+                            const v = e.target.value as CableRole;
+                            setCables((cs) => cs.map((x) => x.id === c.id ? { ...x, role: v } : x));
+                          }}
+                          className="mt-0.5 w-full rounded border border-neutral-300 bg-white/80 px-1 py-0.5 font-mono text-[10px] font-bold text-neutral-900 outline-none focus:border-neutral-500"
+                        >
+                          {(Object.keys(CABLE_ROLE_META) as CableRole[]).map((r) => (
+                            <option key={r} value={r}>{CABLE_ROLE_META[r].label}</option>
+                          ))}
+                        </select>
+                      </label>
                     </div>
 
                     {/* Source dropdown */}
@@ -4402,10 +4500,9 @@ function SceneContent({
                         onChange={(e) => {
                           const otherId = e.target.value;
                           if (!otherId) return;
-                          const newCable: Cable = port.role === "out"
-                            ? { id: uid(), from: it.id, to: otherId, type: port.type }
-                            : { id: uid(), from: otherId, to: it.id, type: port.type };
-                          setCables((cs) => [...cs, newCable]);
+                          const src = port.role === "out" ? it.id : otherId;
+                          const dst = port.role === "out" ? otherId : it.id;
+                          setCables((cs) => addCable(cs, src, dst, port.type));
                           e.target.value = "";
                         }}
                         onPointerDown={(ev) => ev.stopPropagation()}
@@ -5707,11 +5804,17 @@ export function StageBuilder3D() {
 
 
   const exportCablesCsv = useCallback(() => {
-    const steps = generateWiringSteps(items, cables);
-    const rows = [["Krok","ID","Typ","Barva","Zdroj","OUT konektor","Cíl","IN konektor","Zátěž W","Přetíženo"]];
+    const live = liveCablesOf(items, cables);
+    const idx = new Map(live.map((c, i) => [c.id, { cable: c, i }] as const));
+    const steps = generateWiringSteps(items, live);
+    const rows = [["Krok","Název","Typ kabelu","ID","Signál","Barva","Zdroj","OUT konektor","Cíl","IN konektor","Zátěž W","Přetíženo"]];
     for (const s of steps) {
+      const e = idx.get(s.cableId);
       rows.push([
-        String(s.index), s.cableId, CABLE_META[s.type].label, CABLE_META[s.type].color,
+        String(s.index),
+        e ? cableDisplayName(e.cable, e.i) : s.cableId,
+        e ? CABLE_ROLE_META[cableRole(e.cable)].label : "",
+        s.cableId, CABLE_META[s.type].label, CABLE_META[s.type].color,
         s.fromLabel, s.fromPort, s.toLabel, s.toPort,
         s.loadW !== undefined ? String(Math.round(s.loadW)) : "",
         s.overload ? "ANO" : "",
@@ -5759,9 +5862,9 @@ export function StageBuilder3D() {
 
   /* ---- Tisknutelný report: BOM + checklist zapojení + doporučení ---------- */
   const printReport = useMemo(() => {
-    // Osiřelé kabely (odkaz na smazanou bednu) do reportu nepatří.
-    const ids = new Set(items.map((it) => it.id));
-    const liveCables = cables.filter((c) => ids.has(c.from) && ids.has(c.to));
+    // Osiřelé i duplicitní kabely do reportu nepatří — BOM zrcadlí aktuální stav.
+    const liveCables = liveCablesOf(items, cables);
+    const cableById = new Map(liveCables.map((c, i) => [c.id, { cable: c, index: i }] as const));
     const steps = generateWiringSteps(items, liveCables);
 
     // BOM — agregace podle typu bedny.
@@ -5802,6 +5905,8 @@ export function StageBuilder3D() {
       group: CABLE_META[s.type].label,
       color: CABLE_META[s.type].color,
       cableId: s.cableId,
+      name: (() => { const e = cableById.get(s.cableId); return e ? cableDisplayName(e.cable, e.index) : s.cableId; })(),
+      role: CABLE_ROLE_META[cableRole(cableById.get(s.cableId)?.cable ?? { id: s.cableId, from: s.fromId, to: s.toId, type: s.type })].label,
       from: nameOf(s.fromId),
       fromPort: s.fromPort,
       to: nameOf(s.toId),
@@ -6542,7 +6647,7 @@ export function StageBuilder3D() {
               }}
               onAddDevice={(k) => addItem(k as Kind)}
               onConnect={(from, to, type) => {
-                setCables((cs) => [...cs, { id: uid(), from, to, type }]);
+                setCables((cs) => addCable(cs, from, to, type));
               }}
               onRemoveCable={(id) => setCables((cs) => cs.filter((c) => c.id !== id))}
               kindOptions={(Object.entries(SPECS) as [Kind, Spec][]).map(([k, s]) => ({
