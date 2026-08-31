@@ -909,14 +909,18 @@ function CableConnectAnim({
    3D Models — parametric low-poly per kind
    ============================================================ */
 
-const WOOD = "#222733";        // graphite-blue touring cabinet
-const WOOD_DARK = "#191d26";
-const GRILLE = "#0b0d12";
-const METAL = "#1a1a1a";
-const CHROME = "#9aa1a8";
-const TEAL = "#333a48";        // dark frame around grille
-const YELLOW = "#f59e0b";      // orange accent (handles / rails)
-const ORANGE = "#f59e0b";
+/* Vizuální styl podle referenční fotky sound systemu:
+   antracitové skříně, hexagonální mřížky, oranžové rails a madla,
+   červený phase-plug kříž v hornech, chromové drivery. */
+const WOOD = "#1a1d23";        // antracitová touring skříň
+const WOOD_DARK = "#131519";
+const GRILLE = "#0a0b0f";
+const METAL = "#191919";
+const CHROME = "#a8afb6";
+const TEAL = "#2d323b";        // tmavý rám kolem mřížky
+const YELLOW = "#f2a01d";      // oranžový akcent (madla / rails)
+const ORANGE = "#f2a01d";
+const ORANGE_DARK = "#8a5a08";
 const RED_CROSS = "#e11d1d";
 const PALLET_WOOD = "#7a5a30";
 
@@ -1235,6 +1239,11 @@ function MidModel({ size }: { size: [number, number, number] }) {
             <cylinderGeometry args={[r, r * 0.8, 0.06, 24]} />
             <meshStandardMaterial color="#0a0a0a" roughness={0.7} />
           </mesh>
+          {/* Oranžový kroužek kolem driveru */}
+          <mesh position={[0, h * 0.12, 0.045]}>
+            <ringGeometry args={[r * 1.05, r * 1.24, 40]} />
+            <meshStandardMaterial color={ORANGE} metalness={0.35} roughness={0.45} side={THREE.DoubleSide} />
+          </mesh>
           <mesh position={[0, -h * 0.2, 0.005]}>
             <planeGeometry args={[w * 0.5, 0.06]} />
             <meshStandardMaterial color={CHROME} metalness={0.9} roughness={0.3} />
@@ -1319,6 +1328,18 @@ function SubModel({ size }: { size: [number, number, number] }) {
           <mesh position={[0, 0, 0.005]}>
             <boxGeometry args={[w * 0.14, h * 0.55, 0.02]} />
             <meshStandardMaterial color="#050505" roughness={0.95} />
+          </mesh>
+          {/* Světlé výztuhy v ústí portu (jako na referenci) */}
+          {[-1, 1].map((s2) => (
+            <mesh key={`br${s2}`} position={[s2 * w * 0.035, 0, 0.014]}>
+              <boxGeometry args={[0.012, h * 0.5, 0.01]} />
+              <meshStandardMaterial color="#d6dae0" metalness={0.5} roughness={0.4} />
+            </mesh>
+          ))}
+          {/* Oranžová lišta pod drivery */}
+          <mesh position={[0, -h * 0.36, 0.014]}>
+            <boxGeometry args={[w * 0.82, 0.026, 0.014]} />
+            <meshStandardMaterial color={ORANGE} metalness={0.35} roughness={0.45} />
           </mesh>
           {/* Recessed side handles */}
           {[-1, 1].map((s) => (
@@ -1444,13 +1465,30 @@ function AmpRack({ size, brand = "generic" }: { size: [number, number, number]; 
   const [w, h, d] = size;
   const isPS = brand === "powersoft";
   const ledColor = isPS ? "#05d9e8" : "#f43f5e";
-  const rackColor = isPS ? "#141a22" : "#1e1e1e";
+  const rackColor = isPS ? "#141a22" : "#1b1e24";
   return (
     <group>
       <mesh castShadow receiveShadow position={[0, h / 2, 0]}>
         <boxGeometry args={[w, h, d]} />
-        <meshStandardMaterial color={isPS ? "#0a0f14" : "#111"} roughness={0.5} metalness={0.55} />
+        <meshStandardMaterial color={isPS ? "#0a0f14" : WOOD} roughness={0.5} metalness={0.55} />
       </mesh>
+      {/* Spodní hexagonální ventilační panel (styl reference) */}
+      <mesh position={[0, h * 0.22, d / 2 + 0.002]}>
+        <planeGeometry args={[w * 0.9, h * 0.34]} />
+        <meshStandardMaterial
+          color="#1d2128"
+          map={getGrilleClone(Math.max(4, Math.round(w * 10)), Math.max(4, Math.round(h * 5)))}
+          roughness={0.85}
+          metalness={0.3}
+        />
+      </mesh>
+      {/* Dvojitý oranžový pruh nad ventilací */}
+      {!isPS && [0.44, 0.48].map((f) => (
+        <mesh key={f} position={[0, h * f, d / 2 + 0.004]}>
+          <boxGeometry args={[w * 0.88, h * 0.022, 0.008]} />
+          <meshStandardMaterial color={ORANGE} emissive={ORANGE_DARK} emissiveIntensity={0.25} metalness={0.35} roughness={0.45} />
+        </mesh>
+      ))}
       {/* Rack units */}
       {[0, 1, 2, 3].map((i) => (
         <group key={i} position={[0, 0.15 + i * (h - 0.3) / 4 + (h - 0.3) / 8, d / 2 + 0.001]}>
@@ -2077,10 +2115,10 @@ function PicusBinModel({
   hasTopVent?: boolean;
 }) {
   const [w, h, d] = size;
-  const YELLOW = "#5c6470"; // muted graphite — was screaming yellow #f4c11a
-  const YELLOW_DARK = "#3f4650";
-  const BLACK = "#0a0a0a";
-  const CONE = "#141414";
+  const YELLOW = ORANGE;          // oranžové rails jako na referenci
+  const YELLOW_DARK = ORANGE_DARK;
+  const BLACK = WOOD;
+  const CONE = "#121212";
   const DUSTCAP = "#1c1c1c";
   const METAL = "#2a2a2a";
   const BAR = 0.032;
@@ -2221,7 +2259,17 @@ function PicusBinModel({
       {/* Front baffle slightly inset for depth */}
       <mesh position={[0, h / 2, d / 2 - 0.005]}>
         <boxGeometry args={[w * 0.99, h * 0.99, 0.01]} />
-        <meshStandardMaterial color="#080808" roughness={0.98} />
+        <meshStandardMaterial color="#08090c" roughness={0.98} />
+      </mesh>
+      {/* Hexagonální mřížka na čele (styl reference) */}
+      <mesh position={[0, h / 2, d / 2 + 0.0006]}>
+        <planeGeometry args={[w * 0.985, h * 0.985]} />
+        <meshStandardMaterial
+          color="#20242b"
+          map={getGrilleClone(Math.max(4, Math.round(w * 9)), Math.max(4, Math.round(h * 9)))}
+          roughness={0.85}
+          metalness={0.3}
+        />
       </mesh>
 
       {/* Top vent (bass port) */}
@@ -2284,9 +2332,9 @@ function PicusBinModel({
 
 function PicusTopGrillModel({ size }: { size: [number, number, number] }) {
   const [w, h, d] = size;
-  const BLACK = "#0a0a0a";
-  const STEEL = "#7a7a7a";
-  const STEEL_DARK = "#4a4a4a";
+  const BLACK = WOOD;
+  const STEEL = "#3b414b";
+  const STEEL_DARK = "#22262d";
 
   // Hex grid instanced circles across the grill face
   const cellsX = 26;
@@ -2339,7 +2387,7 @@ function PicusTopGrillModel({ size }: { size: [number, number, number] }) {
       </mesh>
       <mesh position={[0, h * 0.5, d / 2 + 0.015]}>
         <planeGeometry args={[w * 0.18, h * 0.03]} />
-        <meshStandardMaterial color="#4b5563" roughness={0.6} metalness={0.3} />
+        <meshStandardMaterial color={ORANGE} roughness={0.5} metalness={0.3} />
       </mesh>
 
       {/* Corner plates */}
