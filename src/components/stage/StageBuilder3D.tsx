@@ -971,15 +971,15 @@ function getGrilleTexture(): THREE.CanvasTexture {
   const c = document.createElement("canvas");
   c.width = c.height = S;
   const ctx = c.getContext("2d")!;
-  ctx.fillStyle = "#0d0f14";
+  ctx.fillStyle = GRILLE_BG;
   ctx.fillRect(0, 0, S, S);
   // hex honeycomb cells
   const R = 9;                       // hex radius
   const hStep = R * 1.5;
   const vStep = Math.sqrt(3) * R;
   ctx.lineWidth = 1.4;
-  ctx.strokeStyle = "#2b303a";
-  ctx.fillStyle = "#171b22";
+  ctx.strokeStyle = GRILLE_MESH;
+  ctx.fillStyle = shadeHex(GRILLE_BG, 0.06);
   for (let col = -1; col * hStep < S + R; col++) {
     const cx = col * hStep;
     const yOff = col % 2 === 0 ? 0 : vStep / 2;
