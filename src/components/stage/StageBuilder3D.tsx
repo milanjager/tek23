@@ -42,7 +42,11 @@ import {
   compatBadge,
   getPreferredAmp,
   customNotes,
+  customSheet,
 } from "./customSpeakers";
+import SpeakerBank from "./SpeakerBank";
+import CabinetStylePanel from "./CabinetStylePanel";
+import { type CabinetStyle, loadCabinetStyle, saveCabinetStyle } from "./cabinetStyle";
 import distroAsset from "@/assets/distro.png.asset.json";
 
 // Lovable's preview annotates JSX with data-tsd-source. R3F treats dashed
@@ -4890,6 +4894,19 @@ export function StageBuilder3D() {
   const [customDefs, setCustomDefs] = useState<CustomSpeaker[]>(() => loadCustomSpeakers());
   const [builderOpen, setBuilderOpen] = useState(false);
   const [builderEditId, setBuilderEditId] = useState<string | null>(null);
+  const [bankOpen, setBankOpen] = useState(false);
+  const [styleOpen, setStyleOpen] = useState(false);
+  const [cabStyle, setCabStyle] = useState<CabinetStyle>(() => loadCabinetStyle());
+  const [styleVersion, setStyleVersion] = useState(0);
+  // Aplikuj uložený styl beden na sdílené barvy + textury (po mountu i při změně).
+  useEffect(() => {
+    applyCabinetStyle(cabStyle);
+    setStyleVersion((v) => v + 1);
+  }, [cabStyle]);
+  const changeCabStyle = useCallback((s: CabinetStyle) => {
+    saveCabinetStyle(s);
+    setCabStyle(s);
+  }, []);
   const [clipboard, setClipboard] = useState<Placed[]>([]);
   // Panels start closed to match SSR; hydrate from localStorage / viewport after mount.
   const [paletteOpen, setPaletteOpen] = useState<boolean>(false);
@@ -6334,6 +6351,24 @@ export function StageBuilder3D() {
                 🔧 Builder repro — vlastní bedna
               </button>
             )}
+            {(category === "sound" || !!paletteQuery) && (
+              <div className="mb-2 grid grid-cols-2 gap-1.5">
+                <button
+                  onClick={() => setBankOpen(true)}
+                  className="rounded-lg border border-black/10 bg-white/70 py-1.5 text-[11px] font-bold text-neutral-700 hover:border-lime-500 dark:border-white/10 dark:bg-white/5 dark:text-neutral-200"
+                  title="Uložené vlastní bedny — vkládej opakovaně bez nového nahrávání"
+                >
+                  🎛️ Banka beden ({customDefs.length})
+                </button>
+                <button
+                  onClick={() => setStyleOpen(true)}
+                  className="rounded-lg border border-black/10 bg-white/70 py-1.5 text-[11px] font-bold text-neutral-700 hover:border-lime-500 dark:border-white/10 dark:bg-white/5 dark:text-neutral-200"
+                  title="Barva skříně, mřížky a rails pro celou scénu"
+                >
+                  🎨 Styl beden
+                </button>
+              </div>
+            )}
             {!palette.length && (
               <p className="px-1 py-4 text-[11px] text-neutral-500">Nic nenalezeno — zkus jiný výraz nebo jinou kategorii.</p>
             )}
@@ -7278,6 +7313,22 @@ export function StageBuilder3D() {
         onEdit={(id) => setBuilderEditId(id)}
         onPlace={(id) => { addItem(id as Kind); pushRecent(id as Kind); }}
       />
+      <SpeakerBank
+        open={bankOpen}
+        defs={customDefs}
+        onClose={() => setBankOpen(false)}
+        onPlace={(id) => { addItem(id as Kind); pushRecent(id as Kind); }}
+        onEdit={(id) => { setBankOpen(false); setBuilderEditId(id); setBuilderOpen(true); }}
+        onDelete={deleteCustomDef}
+        onSave={saveCustomDef}
+        onNew={() => { setBankOpen(false); setBuilderEditId(null); setBuilderOpen(true); }}
+      />
+      <CabinetStylePanel
+        open={styleOpen}
+        style={cabStyle}
+        onChange={changeCabStyle}
+        onClose={() => setStyleOpen(false)}
+      />
       {wiringSchemaOpen && (
         <SpeakerWiringSchema
           {...buildWiringSchemaData(items, cables, selection)}
@@ -7293,6 +7344,7 @@ export function StageBuilder3D() {
           checklist={printReport.checklist}
           settings={printReport.settings}
           notes={printReport.notes}
+          sheets={customSheets}
           onClose={() => setShowPrintReport(false)}
         />
       )}

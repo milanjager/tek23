@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { createPortal } from "react-dom";
 import { X, Printer } from "lucide-react";
+import type { CustomSheet } from "./customSpeakers";
 
 /* ============================================================
    Tisknutelný report: BOM + wiring checklist + doporučené nastavení.
@@ -40,6 +41,8 @@ export interface PrintReportProps {
   checklist: ChecklistRow[];
   settings: { label: string; value: string }[];
   notes: { label: string; text: string }[];
+  /** Technické listy vlastních beden použitých v návrhu. */
+  sheets?: CustomSheet[];
   onClose: () => void;
 }
 
@@ -50,7 +53,7 @@ const CAT_CS: Record<string, string> = {
 };
 
 export default function PrintReport({
-  title, items, stats, bom, checklist, settings, notes, onClose,
+  title, items, stats, bom, checklist, settings, notes, sheets, onClose,
 }: PrintReportProps) {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
