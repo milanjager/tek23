@@ -909,18 +909,19 @@ function CableConnectAnim({
    3D Models — parametric low-poly per kind
    ============================================================ */
 
-const WOOD = "#1a1a1a";        // freetekno cabinets are black
-const WOOD_DARK = "#0a0a0a";
-const GRILLE = "#050505";
+const WOOD = "#222733";        // graphite-blue touring cabinet
+const WOOD_DARK = "#191d26";
+const GRILLE = "#0b0d12";
 const METAL = "#1a1a1a";
-const CHROME = "#8a8f95";
-const TEAL = "#3a4046";        // subtle graphite grille frame (mírnější než dřív)
-const YELLOW = "#6b7280";      // tlumený šedý crosshair
+const CHROME = "#9aa1a8";
+const TEAL = "#333a48";        // dark frame around grille
+const YELLOW = "#f59e0b";      // orange accent (handles / rails)
+const ORANGE = "#f59e0b";
+const RED_CROSS = "#e11d1d";
 const PALLET_WOOD = "#7a5a30";
 
 /* Shared textures — created once, reused across every cabinet.
-   Perforated grille (round holes on dark cloth) is the single biggest
-   readability uplift for PA speakers at close range. */
+   Honeycomb (hex) mesh grille — matches pro touring cabinet fronts. */
 let _grilleTex: THREE.CanvasTexture | null = null;
 function getGrilleTexture(): THREE.CanvasTexture {
   if (_grilleTex) return _grilleTex;
@@ -928,25 +929,36 @@ function getGrilleTexture(): THREE.CanvasTexture {
   const c = document.createElement("canvas");
   c.width = c.height = S;
   const ctx = c.getContext("2d")!;
-  ctx.fillStyle = "#141414";
+  ctx.fillStyle = "#0d0f14";
   ctx.fillRect(0, 0, S, S);
-  // hex-packed holes — jemnější, méně kontrastní
-  const step = 10;
-  const r = 1.6;
-  ctx.fillStyle = "#242424";
-  for (let y = 0; y < S + step; y += step) {
-    const row = Math.round(y / step);
-    const xOff = row % 2 === 0 ? 0 : step / 2;
-    for (let x = -step; x < S + step; x += step) {
+  // hex honeycomb cells
+  const R = 9;                       // hex radius
+  const hStep = R * 1.5;
+  const vStep = Math.sqrt(3) * R;
+  ctx.lineWidth = 1.4;
+  ctx.strokeStyle = "#2b303a";
+  ctx.fillStyle = "#171b22";
+  for (let col = -1; col * hStep < S + R; col++) {
+    const cx = col * hStep;
+    const yOff = col % 2 === 0 ? 0 : vStep / 2;
+    for (let row = -1; row * vStep < S + vStep; row++) {
+      const cy = row * vStep + yOff;
       ctx.beginPath();
-      ctx.arc(x + xOff, y, r, 0, Math.PI * 2);
+      for (let i = 0; i < 6; i++) {
+        const a = (Math.PI / 3) * i;
+        const px = cx + R * 0.86 * Math.cos(a);
+        const py = cy + R * 0.86 * Math.sin(a);
+        i === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py);
+      }
+      ctx.closePath();
       ctx.fill();
+      ctx.stroke();
     }
   }
-  // subtle horizontal cloth streaks
-  ctx.globalAlpha = 0.08;
+  // subtle sheen
+  ctx.globalAlpha = 0.05;
   ctx.fillStyle = "#ffffff";
-  for (let y = 0; y < S; y += 3) ctx.fillRect(0, y, S, 1);
+  for (let y = 0; y < S; y += 4) ctx.fillRect(0, y, S, 1);
   ctx.globalAlpha = 1;
   const tex = new THREE.CanvasTexture(c);
   tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
@@ -954,6 +966,7 @@ function getGrilleTexture(): THREE.CanvasTexture {
   _grilleTex = tex;
   return tex;
 }
+
 
 // Grille clones shared per repeat-size — one GPU texture per cabinet size,
 // not one per cabinet instance.
