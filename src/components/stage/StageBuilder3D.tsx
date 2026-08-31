@@ -5856,9 +5856,9 @@ export function StageBuilder3D() {
 
   /* ---- Tisknutelný report: BOM + checklist zapojení + doporučení ---------- */
   const printReport = useMemo(() => {
-    // Osiřelé kabely (odkaz na smazanou bednu) do reportu nepatří.
-    const ids = new Set(items.map((it) => it.id));
-    const liveCables = cables.filter((c) => ids.has(c.from) && ids.has(c.to));
+    // Osiřelé i duplicitní kabely do reportu nepatří — BOM zrcadlí aktuální stav.
+    const liveCables = liveCablesOf(items, cables);
+    const cableById = new Map(liveCables.map((c, i) => [c.id, { cable: c, index: i }] as const));
     const steps = generateWiringSteps(items, liveCables);
 
     // BOM — agregace podle typu bedny.
@@ -5899,6 +5899,8 @@ export function StageBuilder3D() {
       group: CABLE_META[s.type].label,
       color: CABLE_META[s.type].color,
       cableId: s.cableId,
+      name: (() => { const e = cableById.get(s.cableId); return e ? cableDisplayName(e.cable, e.index) : s.cableId; })(),
+      role: CABLE_ROLE_META[cableRole(cableById.get(s.cableId)?.cable ?? { id: s.cableId, from: s.fromId, to: s.toId, type: s.type })].label,
       from: nameOf(s.fromId),
       fromPort: s.fromPort,
       to: nameOf(s.toId),
