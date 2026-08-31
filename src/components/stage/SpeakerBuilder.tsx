@@ -1,9 +1,12 @@
 import { useEffect, useState } from "react";
-import { X, Trash2, Plus, Pencil } from "lucide-react";
+import { X, Trash2, Plus, Pencil, ImagePlus } from "lucide-react";
 import {
   type CustomSpeaker,
   type CustomShape,
   type CustomConnection,
+  type TextureFace,
+  TEXTURE_FACE_LABELS,
+  fileToTextureDataUrl,
   CONNECTION_LABELS,
   SHAPE_LABELS,
   newCustomSpeaker,
@@ -18,6 +21,7 @@ import {
   getPreferredAmp,
   setPreferredAmp,
 } from "./customSpeakers";
+
 
 /* ============================================================
    Speaker Builder — create / edit custom PA cabinets
