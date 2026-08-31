@@ -66,6 +66,25 @@ export default function SpeakerBuilder({
 }) {
   const [draft, setDraft] = useState<CustomSpeaker>(() => newCustomSpeaker());
   const [ampId, setAmpId] = useState(() => getPreferredAmp().id);
+  const [imgError, setImgError] = useState<string | null>(null);
+
+  const setTexture = async (face: TextureFace, file: File) => {
+    try {
+      const url = await fileToTextureDataUrl(file);
+      setImgError(null);
+      setDraft((d) => ({ ...d, textures: { ...d.textures, [face]: url } }));
+    } catch (err) {
+      setImgError(err instanceof Error ? err.message : "Obrázek se nepodařilo načíst.");
+    }
+  };
+
+  const clearTexture = (face: TextureFace) =>
+    setDraft((d) => {
+      const textures = { ...d.textures };
+      delete textures[face];
+      return { ...d, textures: Object.keys(textures).length ? textures : undefined };
+    });
+
 
   useEffect(() => {
     if (!open) return;
