@@ -909,18 +909,19 @@ function CableConnectAnim({
    3D Models — parametric low-poly per kind
    ============================================================ */
 
-const WOOD = "#1a1a1a";        // freetekno cabinets are black
-const WOOD_DARK = "#0a0a0a";
-const GRILLE = "#050505";
+const WOOD = "#222733";        // graphite-blue touring cabinet
+const WOOD_DARK = "#191d26";
+const GRILLE = "#0b0d12";
 const METAL = "#1a1a1a";
-const CHROME = "#8a8f95";
-const TEAL = "#3a4046";        // subtle graphite grille frame (mírnější než dřív)
-const YELLOW = "#6b7280";      // tlumený šedý crosshair
+const CHROME = "#9aa1a8";
+const TEAL = "#333a48";        // dark frame around grille
+const YELLOW = "#f59e0b";      // orange accent (handles / rails)
+const ORANGE = "#f59e0b";
+const RED_CROSS = "#e11d1d";
 const PALLET_WOOD = "#7a5a30";
 
 /* Shared textures — created once, reused across every cabinet.
-   Perforated grille (round holes on dark cloth) is the single biggest
-   readability uplift for PA speakers at close range. */
+   Honeycomb (hex) mesh grille — matches pro touring cabinet fronts. */
 let _grilleTex: THREE.CanvasTexture | null = null;
 function getGrilleTexture(): THREE.CanvasTexture {
   if (_grilleTex) return _grilleTex;
@@ -928,25 +929,36 @@ function getGrilleTexture(): THREE.CanvasTexture {
   const c = document.createElement("canvas");
   c.width = c.height = S;
   const ctx = c.getContext("2d")!;
-  ctx.fillStyle = "#141414";
+  ctx.fillStyle = "#0d0f14";
   ctx.fillRect(0, 0, S, S);
-  // hex-packed holes — jemnější, méně kontrastní
-  const step = 10;
-  const r = 1.6;
-  ctx.fillStyle = "#242424";
-  for (let y = 0; y < S + step; y += step) {
-    const row = Math.round(y / step);
-    const xOff = row % 2 === 0 ? 0 : step / 2;
-    for (let x = -step; x < S + step; x += step) {
+  // hex honeycomb cells
+  const R = 9;                       // hex radius
+  const hStep = R * 1.5;
+  const vStep = Math.sqrt(3) * R;
+  ctx.lineWidth = 1.4;
+  ctx.strokeStyle = "#2b303a";
+  ctx.fillStyle = "#171b22";
+  for (let col = -1; col * hStep < S + R; col++) {
+    const cx = col * hStep;
+    const yOff = col % 2 === 0 ? 0 : vStep / 2;
+    for (let row = -1; row * vStep < S + vStep; row++) {
+      const cy = row * vStep + yOff;
       ctx.beginPath();
-      ctx.arc(x + xOff, y, r, 0, Math.PI * 2);
+      for (let i = 0; i < 6; i++) {
+        const a = (Math.PI / 3) * i;
+        const px = cx + R * 0.86 * Math.cos(a);
+        const py = cy + R * 0.86 * Math.sin(a);
+        i === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py);
+      }
+      ctx.closePath();
       ctx.fill();
+      ctx.stroke();
     }
   }
-  // subtle horizontal cloth streaks
-  ctx.globalAlpha = 0.08;
+  // subtle sheen
+  ctx.globalAlpha = 0.05;
   ctx.fillStyle = "#ffffff";
-  for (let y = 0; y < S; y += 3) ctx.fillRect(0, y, S, 1);
+  for (let y = 0; y < S; y += 4) ctx.fillRect(0, y, S, 1);
   ctx.globalAlpha = 1;
   const tex = new THREE.CanvasTexture(c);
   tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
@@ -954,6 +966,7 @@ function getGrilleTexture(): THREE.CanvasTexture {
   _grilleTex = tex;
   return tex;
 }
+
 
 // Grille clones shared per repeat-size — one GPU texture per cabinet size,
 // not one per cabinet instance.
@@ -1027,6 +1040,7 @@ function Pallet({ w, d }: { w: number; d: number }) {
 function Cabinet({
   size, color = WOOD, grilleColor = GRILLE, cornerColor = TEAL,
   frontDetail, tealFrame = false, yellowCross = false, onPallet = false,
+  accentBars = false,
 }: {
   size: [number, number, number];
   color?: string;
@@ -1034,6 +1048,7 @@ function Cabinet({
   cornerColor?: string;
   frontDetail?: React.ReactNode;
   tealFrame?: boolean;
+  accentBars?: boolean;
   yellowCross?: boolean;
   onPallet?: boolean;
 }) {
@@ -1080,6 +1095,23 @@ function Cabinet({
           <mesh position={[0, -h * 0.44, 0]}><boxGeometry args={[w * 0.95, 0.03, 0.015]} /><meshStandardMaterial color={TEAL} roughness={0.5} metalness={0.45} /></mesh>
           <mesh position={[w * 0.46, 0, 0]}><boxGeometry args={[0.03, h * 0.92, 0.015]} /><meshStandardMaterial color={TEAL} roughness={0.5} metalness={0.45} /></mesh>
           <mesh position={[-w * 0.46, 0, 0]}><boxGeometry args={[0.03, h * 0.92, 0.015]} /><meshStandardMaterial color={TEAL} roughness={0.5} metalness={0.45} /></mesh>
+        </group>
+      )}
+      {/* Orange accent rails / grab bars on the baffle */}
+      {accentBars && (
+        <group position={[0, h / 2, d / 2 + 0.012]}>
+          {[0.26, -0.26].map((f) => (
+            <mesh key={f} position={[0, h * f, 0]} castShadow>
+              <boxGeometry args={[w * 0.78, Math.min(0.035, h * 0.06), 0.022]} />
+              <meshStandardMaterial color={ORANGE} roughness={0.45} metalness={0.3} />
+            </mesh>
+          ))}
+          {[-1, 1].map((s) => (
+            <mesh key={s} position={[s * w * 0.39, 0, 0]}>
+              <boxGeometry args={[0.022, h * 0.52, 0.022]} />
+              <meshStandardMaterial color={ORANGE} roughness={0.45} metalness={0.3} />
+            </mesh>
+          ))}
         </group>
       )}
       {/* Yellow crosshair (spray-paint) */}
@@ -1138,21 +1170,48 @@ function HornFlare({ size }: { size: number }) {
 
 function HornModel({ size }: { size: [number, number, number] }) {
   const [w, h] = size;
+  const mw = w * 0.8;
+  const mh = h * 0.72;
   return (
     <Cabinet
       size={size}
       color={WOOD}
+      grilleColor="#0a0c10"
       tealFrame={false}
       yellowCross={false}
       frontDetail={
         <group>
-          <mesh position={[0, 0, 0.02]} rotation={[0, 0, 0]}>
-            <cylinderGeometry args={[Math.min(w, h) * 0.35, Math.min(w, h) * 0.15, 0.05, 16]} />
-            <meshStandardMaterial color="#1a1a1a" metalness={0.6} roughness={0.4} />
+          {/* Rectangular horn mouth — recessed dark flare */}
+          <mesh position={[0, 0, -0.004]}>
+            <planeGeometry args={[mw, mh]} />
+            <meshStandardMaterial color="#0a0c10" roughness={0.95} />
           </mesh>
-          <mesh position={[0, 0, 0.06]}>
-            <sphereGeometry args={[Math.min(w, h) * 0.12, 16, 12]} />
-            <meshStandardMaterial color={CHROME} metalness={0.9} roughness={0.2} />
+          {/* Mouth frame */}
+          {[[0, mh / 2], [0, -mh / 2]].map(([x, y], i) => (
+            <mesh key={`fh${i}`} position={[x, y, 0.004]}>
+              <boxGeometry args={[mw, 0.02, 0.014]} />
+              <meshStandardMaterial color="#3a4150" metalness={0.6} roughness={0.4} />
+            </mesh>
+          ))}
+          {[-1, 1].map((s) => (
+            <mesh key={`fv${s}`} position={[s * mw / 2, 0, 0.004]}>
+              <boxGeometry args={[0.02, mh, 0.014]} />
+              <meshStandardMaterial color="#3a4150" metalness={0.6} roughness={0.4} />
+            </mesh>
+          ))}
+          {/* Red phase-plug cross inside the mouth */}
+          <mesh position={[0, 0, 0.012]}>
+            <boxGeometry args={[mw * 0.62, 0.028, 0.012]} />
+            <meshStandardMaterial color={RED_CROSS} emissive={RED_CROSS} emissiveIntensity={0.35} roughness={0.5} />
+          </mesh>
+          <mesh position={[0, 0, 0.012]}>
+            <boxGeometry args={[0.028, mh * 0.7, 0.012]} />
+            <meshStandardMaterial color={RED_CROSS} emissive={RED_CROSS} emissiveIntensity={0.35} roughness={0.5} />
+          </mesh>
+          {/* Compression driver hub */}
+          <mesh position={[0, 0, 0.02]}>
+            <sphereGeometry args={[Math.min(w, h) * 0.07, 16, 12]} />
+            <meshStandardMaterial color={CHROME} metalness={0.9} roughness={0.25} />
           </mesh>
         </group>
       }
@@ -1168,6 +1227,7 @@ function MidModel({ size }: { size: [number, number, number] }) {
     <Cabinet
       size={size}
       tealFrame={true}
+      accentBars={true}
       yellowCross={false}
       frontDetail={
         <group>
@@ -1186,6 +1246,7 @@ function MidModel({ size }: { size: [number, number, number] }) {
 }
 
 
+
 function BassModel({ size }: { size: [number, number, number] }) {
   const [w, h] = size;
   const r = Math.min(w * 0.35, h * 0.42);
@@ -1193,6 +1254,7 @@ function BassModel({ size }: { size: [number, number, number] }) {
     <Cabinet
       size={size}
       tealFrame={true}
+      accentBars={true}
       yellowCross={false}
       frontDetail={
         <group>
