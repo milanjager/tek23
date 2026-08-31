@@ -913,17 +913,54 @@ function CableConnectAnim({
 /* Vizuální styl podle referenční fotky sound systemu:
    antracitové skříně, hexagonální mřížky, oranžové rails a madla,
    červený phase-plug kříž v hornech, chromové drivery. */
-const WOOD = "#1a1d23";        // antracitová touring skříň
-const WOOD_DARK = "#131519";
-const GRILLE = "#0a0b0f";
-const METAL = "#191919";
-const CHROME = "#a8afb6";
-const TEAL = "#2d323b";        // tmavý rám kolem mřížky
-const YELLOW = "#f2a01d";      // oranžový akcent (madla / rails)
-const ORANGE = "#f2a01d";
-const ORANGE_DARK = "#8a5a08";
-const RED_CROSS = "#e11d1d";
+let WOOD = "#1a1d23";        // antracitová touring skříň
+let WOOD_DARK = "#131519";
+let GRILLE = "#0a0b0f";
+let METAL = "#191919";
+let CHROME = "#a8afb6";
+let TEAL = "#2d323b";        // tmavý rám kolem mřížky
+let YELLOW = "#f2a01d";      // oranžový akcent (madla / rails)
+let ORANGE = "#f2a01d";
+let ORANGE_DARK = "#8a5a08";
+let RED_CROSS = "#e11d1d";
 const PALLET_WOOD = "#7a5a30";
+
+/* Barvy kresby mřížky — mění se globálním stylem beden. */
+let GRILLE_BG = "#0d0f14";
+let GRILLE_MESH = "#2b303a";
+
+/** Aplikuje globální styl beden na všechny sdílené barvy + textury. */
+function applyCabinetStyle(s: CabinetStyle) {
+  WOOD = s.cabinet;
+  WOOD_DARK = s.cabinetDark;
+  GRILLE = s.grille;
+  METAL = s.metal;
+  CHROME = s.chrome;
+  TEAL = s.frame;
+  YELLOW = s.rails;
+  ORANGE = s.rails;
+  ORANGE_DARK = shadeHex(s.rails, -0.45);
+  GRILLE_BG = s.grille;
+  GRILLE_MESH = s.grilleMesh;
+  // zahoď cache textur, ať se mřížka překreslí v nových barvách
+  _grilleTex?.dispose?.();
+  _grilleTex = null;
+  _grilleClones.forEach((t) => t.dispose?.());
+  _grilleClones.clear();
+}
+
+/** Ztmaví / zesvětlí hex barvu o daný poměr (-1..1). */
+function shadeHex(hex: string, amount: number): string {
+  const m = /^#?([0-9a-f]{6})$/i.exec(hex.trim());
+  if (!m) return hex;
+  const n = parseInt(m[1], 16);
+  const ch = [(n >> 16) & 255, (n >> 8) & 255, n & 255].map((v) => {
+    const t = amount < 0 ? 0 : 255;
+    return Math.round(v + (t - v) * Math.abs(amount));
+  });
+  return `#${ch.map((v) => v.toString(16).padStart(2, "0")).join("")}`;
+}
+
 
 /* Shared textures — created once, reused across every cabinet.
    Honeycomb (hex) mesh grille — matches pro touring cabinet fronts. */
