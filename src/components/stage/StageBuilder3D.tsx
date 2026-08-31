@@ -42,7 +42,11 @@ import {
   compatBadge,
   getPreferredAmp,
   customNotes,
+  customSheet,
 } from "./customSpeakers";
+import SpeakerBank from "./SpeakerBank";
+import CabinetStylePanel from "./CabinetStylePanel";
+import { type CabinetStyle, loadCabinetStyle, saveCabinetStyle } from "./cabinetStyle";
 import distroAsset from "@/assets/distro.png.asset.json";
 
 // Lovable's preview annotates JSX with data-tsd-source. R3F treats dashed
@@ -913,17 +917,54 @@ function CableConnectAnim({
 /* Vizuální styl podle referenční fotky sound systemu:
    antracitové skříně, hexagonální mřížky, oranžové rails a madla,
    červený phase-plug kříž v hornech, chromové drivery. */
-const WOOD = "#1a1d23";        // antracitová touring skříň
-const WOOD_DARK = "#131519";
-const GRILLE = "#0a0b0f";
-const METAL = "#191919";
-const CHROME = "#a8afb6";
-const TEAL = "#2d323b";        // tmavý rám kolem mřížky
-const YELLOW = "#f2a01d";      // oranžový akcent (madla / rails)
-const ORANGE = "#f2a01d";
-const ORANGE_DARK = "#8a5a08";
-const RED_CROSS = "#e11d1d";
+let WOOD = "#1a1d23";        // antracitová touring skříň
+let WOOD_DARK = "#131519";
+let GRILLE = "#0a0b0f";
+let METAL = "#191919";
+let CHROME = "#a8afb6";
+let TEAL = "#2d323b";        // tmavý rám kolem mřížky
+let YELLOW = "#f2a01d";      // oranžový akcent (madla / rails)
+let ORANGE = "#f2a01d";
+let ORANGE_DARK = "#8a5a08";
+let RED_CROSS = "#e11d1d";
 const PALLET_WOOD = "#7a5a30";
+
+/* Barvy kresby mřížky — mění se globálním stylem beden. */
+let GRILLE_BG = "#0d0f14";
+let GRILLE_MESH = "#2b303a";
+
+/** Aplikuje globální styl beden na všechny sdílené barvy + textury. */
+function applyCabinetStyle(s: CabinetStyle) {
+  WOOD = s.cabinet;
+  WOOD_DARK = s.cabinetDark;
+  GRILLE = s.grille;
+  METAL = s.metal;
+  CHROME = s.chrome;
+  TEAL = s.frame;
+  YELLOW = s.rails;
+  ORANGE = s.rails;
+  ORANGE_DARK = shadeHex(s.rails, -0.45);
+  GRILLE_BG = s.grille;
+  GRILLE_MESH = s.grilleMesh;
+  // zahoď cache textur, ať se mřížka překreslí v nových barvách
+  _grilleTex?.dispose?.();
+  _grilleTex = null;
+  _grilleClones.forEach((t) => t.dispose?.());
+  _grilleClones.clear();
+}
+
+/** Ztmaví / zesvětlí hex barvu o daný poměr (-1..1). */
+function shadeHex(hex: string, amount: number): string {
+  const m = /^#?([0-9a-f]{6})$/i.exec(hex.trim());
+  if (!m) return hex;
+  const n = parseInt(m[1], 16);
+  const ch = [(n >> 16) & 255, (n >> 8) & 255, n & 255].map((v) => {
+    const t = amount < 0 ? 0 : 255;
+    return Math.round(v + (t - v) * Math.abs(amount));
+  });
+  return `#${ch.map((v) => v.toString(16).padStart(2, "0")).join("")}`;
+}
+
 
 /* Shared textures — created once, reused across every cabinet.
    Honeycomb (hex) mesh grille — matches pro touring cabinet fronts. */
@@ -934,15 +975,15 @@ function getGrilleTexture(): THREE.CanvasTexture {
   const c = document.createElement("canvas");
   c.width = c.height = S;
   const ctx = c.getContext("2d")!;
-  ctx.fillStyle = "#0d0f14";
+  ctx.fillStyle = GRILLE_BG;
   ctx.fillRect(0, 0, S, S);
   // hex honeycomb cells
   const R = 9;                       // hex radius
   const hStep = R * 1.5;
   const vStep = Math.sqrt(3) * R;
   ctx.lineWidth = 1.4;
-  ctx.strokeStyle = "#2b303a";
-  ctx.fillStyle = "#171b22";
+  ctx.strokeStyle = GRILLE_MESH;
+  ctx.fillStyle = shadeHex(GRILLE_BG, 0.06);
   for (let col = -1; col * hStep < S + R; col++) {
     const cx = col * hStep;
     const yOff = col % 2 === 0 ? 0 : vStep / 2;
@@ -4853,6 +4894,27 @@ export function StageBuilder3D() {
   const [customDefs, setCustomDefs] = useState<CustomSpeaker[]>(() => loadCustomSpeakers());
   const [builderOpen, setBuilderOpen] = useState(false);
   const [builderEditId, setBuilderEditId] = useState<string | null>(null);
+  const [bankOpen, setBankOpen] = useState(false);
+  const [styleOpen, setStyleOpen] = useState(false);
+  const [cabStyle, setCabStyle] = useState<CabinetStyle>(() => {
+    const s = loadCabinetStyle();
+    applyCabinetStyle(s);   // barvy musí platit už při prvním renderu scény
+    return s;
+  });
+  const [styleVersion, setStyleVersion] = useState(0);
+  const styleApplied = useRef(false);
+  // Aplikuj uložený styl beden na sdílené barvy + textury.
+  // První běh po mountu scénu neremountuje (jen nastaví barvy před prvním renderem beden).
+  useEffect(() => {
+    applyCabinetStyle(cabStyle);
+    if (!styleApplied.current) { styleApplied.current = true; return; }
+    setStyleVersion((v) => v + 1);
+  }, [cabStyle]);
+  const changeCabStyle = useCallback((s: CabinetStyle) => {
+    saveCabinetStyle(s);
+    setCabStyle(s);
+  }, []);
+
   const [clipboard, setClipboard] = useState<Placed[]>([]);
   // Panels start closed to match SSR; hydrate from localStorage / viewport after mount.
   const [paletteOpen, setPaletteOpen] = useState<boolean>(false);
@@ -5689,6 +5751,12 @@ export function StageBuilder3D() {
     announce(`Postup pro technika vyexportován — ${steps.length} kroků.`);
   }, [items, cables, announce]);
 
+  /* ---- Technické listy vlastních beden použitých ve scéně ---------------- */
+  const customSheets = useMemo(() => {
+    const used = new Set(items.map((it) => String(it.kind)));
+    return customDefs.filter((d) => used.has(d.id)).map(customSheet);
+  }, [items, customDefs]);
+
   /* ---- Tisknutelný report: BOM + checklist zapojení + doporučení ---------- */
   const printReport = useMemo(() => {
     // Osiřelé kabely (odkaz na smazanou bednu) do reportu nepatří.
@@ -6297,6 +6365,24 @@ export function StageBuilder3D() {
                 🔧 Builder repro — vlastní bedna
               </button>
             )}
+            {(category === "sound" || !!paletteQuery) && (
+              <div className="mb-2 grid grid-cols-2 gap-1.5">
+                <button
+                  onClick={() => setBankOpen(true)}
+                  className="rounded-lg border border-black/10 bg-white/70 py-1.5 text-[11px] font-bold text-neutral-700 hover:border-lime-500 dark:border-white/10 dark:bg-white/5 dark:text-neutral-200"
+                  title="Uložené vlastní bedny — vkládej opakovaně bez nového nahrávání"
+                >
+                  🎛️ Banka beden ({customDefs.length})
+                </button>
+                <button
+                  onClick={() => setStyleOpen(true)}
+                  className="rounded-lg border border-black/10 bg-white/70 py-1.5 text-[11px] font-bold text-neutral-700 hover:border-lime-500 dark:border-white/10 dark:bg-white/5 dark:text-neutral-200"
+                  title="Barva skříně, mřížky a rails pro celou scénu"
+                >
+                  🎨 Styl beden
+                </button>
+              </div>
+            )}
             {!palette.length && (
               <p className="px-1 py-4 text-[11px] text-neutral-500">Nic nenalezeno — zkus jiný výraz nebo jinou kategorii.</p>
             )}
@@ -6519,6 +6605,7 @@ export function StageBuilder3D() {
 
 
           <Canvas
+            key={`scene-style-${styleVersion}`}
             shadows
             dpr={[1, 2]}
             camera={{ position: [6, 5, 8], fov: 45, near: 0.1, far: 200 }}
@@ -7241,6 +7328,22 @@ export function StageBuilder3D() {
         onEdit={(id) => setBuilderEditId(id)}
         onPlace={(id) => { addItem(id as Kind); pushRecent(id as Kind); }}
       />
+      <SpeakerBank
+        open={bankOpen}
+        defs={customDefs}
+        onClose={() => setBankOpen(false)}
+        onPlace={(id) => { addItem(id as Kind); pushRecent(id as Kind); }}
+        onEdit={(id) => { setBankOpen(false); setBuilderEditId(id); setBuilderOpen(true); }}
+        onDelete={deleteCustomDef}
+        onSave={saveCustomDef}
+        onNew={() => { setBankOpen(false); setBuilderEditId(null); setBuilderOpen(true); }}
+      />
+      <CabinetStylePanel
+        open={styleOpen}
+        style={cabStyle}
+        onChange={changeCabStyle}
+        onClose={() => setStyleOpen(false)}
+      />
       {wiringSchemaOpen && (
         <SpeakerWiringSchema
           {...buildWiringSchemaData(items, cables, selection)}
@@ -7256,6 +7359,7 @@ export function StageBuilder3D() {
           checklist={printReport.checklist}
           settings={printReport.settings}
           notes={printReport.notes}
+          sheets={customSheets}
           onClose={() => setShowPrintReport(false)}
         />
       )}

@@ -56,6 +56,14 @@ export interface CustomSpeaker {
   spl?: number;
   weightKg?: number;
   notes?: string;
+  /** Výrobce / značka (např. Void, Funktion-One, vlastní stavba). */
+  manufacturer?: string;
+  /** Rok výroby / pořízení. */
+  year?: number;
+  /** Typové označení / model (např. Incubus 3, S2-18). */
+  model?: string;
+  /** Inventární / sériové číslo. */
+  serial?: string;
   /** Uživatelem nahrané fotky skříně použité jako textury v 3D. */
   textures?: CustomTextures;
 }
@@ -141,6 +149,10 @@ export function newCustomSpeaker(): CustomSpeaker {
     spl: undefined,
     weightKg: undefined,
     notes: "",
+    manufacturer: "",
+    year: undefined,
+    model: "",
+    serial: "",
   };
 }
 
@@ -158,6 +170,8 @@ export function customNotes(d: CustomSpeaker): string {
   if (d.connection === "nl4_link") lines.push("LINK OUT je paralelní — kontroluj celkovou impedanci řetězu vůči minimu zesilovače.");
   if (d.connection === "active") lines.push("Aktivní bedna — napájení 230V z rozdělovače, signál XLR z mixu/procesoru (bez zesilovače).");
   if (d.weightKg) lines.push(`Hmotnost: ${d.weightKg} kg`);
+  const meta = [d.manufacturer, d.model, d.year ? String(d.year) : "", d.serial ? `s/n ${d.serial}` : ""].filter(Boolean);
+  if (meta.length) lines.push(`Evidence: ${meta.join(" · ")}`);
   if (d.notes?.trim()) lines.push(d.notes.trim());
   return lines.join("\n");
 }
@@ -520,4 +534,39 @@ export function connectionBadge(d: CustomSpeaker, amp: AmpProfile = getPreferred
     default:
       return badgeFor("ok", `${CONNECTION_LABELS[d.connection]} sedí na ${amp.outs}.`);
   }
+}
+
+/** Řádek technického listu vlastní bedny pro tiskový report / BOM. */
+export interface CustomSheet {
+  id: string;
+  name: string;
+  manufacturer: string;
+  model: string;
+  year: string;
+  serial: string;
+  drivers: string;
+  power: string;
+  ohm: string;
+  connection: string;
+  size: string;
+  weight: string;
+  notes: string;
+}
+
+export function customSheet(d: CustomSpeaker): CustomSheet {
+  return {
+    id: d.id,
+    name: d.name,
+    manufacturer: d.manufacturer?.trim() || "—",
+    model: d.model?.trim() || "—",
+    year: d.year ? String(d.year) : "—",
+    serial: d.serial?.trim() || "—",
+    drivers: d.drivers || SHAPE_LABELS[d.shape],
+    power: `${d.powerW} W RMS`,
+    ohm: `${d.ohm} Ω`,
+    connection: CONNECTION_LABELS[d.connection],
+    size: d.size.map((v) => `${v.toFixed(2)} m`).join(" × "),
+    weight: d.weightKg ? `${d.weightKg} kg` : "—",
+    notes: d.notes?.trim() || "",
+  };
 }
