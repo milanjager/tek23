@@ -249,12 +249,77 @@ type PresetKind = "namel_wall" | "club_stack" | "festival_ground" | "mlk_wall" |
 
 type CableType = "signal" | "speaker" | "power" | "dmx";
 
+/** Provozní role kabelu — jak se s ním zachází v riggu a v tiskovém listu. */
+type CableRole = "line" | "patch" | "power";
+
 interface Cable {
   id: string;
   from: string; // item id
   to: string;   // item id
   type: CableType;
+  /** Vlastní název kabelu; když chybí, generuje se automaticky (PWR-01…). */
+  name?: string;
+  /** Kabelová linka / patch / napájení. Když chybí, odvodí se z typu. */
+  role?: CableRole;
 }
+
+const CABLE_ROLE_META: Record<CableRole, { label: string; short: string }> = {
+  line:  { label: "Kabelová linka", short: "LINKA" },
+  patch: { label: "Patch",          short: "PATCH" },
+  power: { label: "Napájení",       short: "POWER" },
+};
+
+function defaultCableRole(type: CableType): CableRole {
+  if (type === "power") return "power";
+  if (type === "speaker") return "line";
+  return "patch";
+}
+const cableRole = (c: Cable): CableRole => c.role ?? defaultCableRole(c.type);
+
+/** Klíč logického spoje — dvě stejná zapojení nemají v riggu smysl. */
+const cableKey = (c: Pick<Cable, "type" | "from" | "to">) => `${c.type}|${c.from}|${c.to}`;
+
+/** Přepis endpointu: staré duplicitní vedení stejného spoje zaniká. */
+function setCableEnd(cs: Cable[], id: string, end: "from" | "to", newId: string): Cable[] {
+  const target = cs.find((c) => c.id === id);
+  if (!target) return cs;
+  const updated = { ...target, [end]: newId } as Cable;
+  if (updated.from === updated.to) return cs;
+  const key = cableKey(updated);
+  return cs
+    .filter((c) => c.id === id || cableKey(c) !== key)
+    .map((c) => (c.id === id ? updated : c));
+}
+
+/** Přidání kabelu, které přepíše existující spoj mezi stejnými porty. */
+function addCable(cs: Cable[], from: string, to: string, type: CableType): Cable[] {
+  if (from === to) return cs;
+  const next: Cable = { id: uid(), from, to, type, role: defaultCableRole(type) };
+  const key = cableKey(next);
+  const prev = cs.find((c) => cableKey(c) === key);
+  return [...cs.filter((c) => cableKey(c) !== key), prev ? { ...next, id: prev.id, name: prev.name, role: prev.role ?? next.role } : next];
+}
+
+/** Kabely, jejichž oba konce ve scéně opravdu existují (BOM = aktuální stav). */
+function liveCablesOf(items: { id: string }[], cs: Cable[]): Cable[] {
+  const ids = new Set(items.map((i) => i.id));
+  const seen = new Set<string>();
+  const out: Cable[] = [];
+  for (const c of cs) {
+    if (!ids.has(c.from) || !ids.has(c.to) || c.from === c.to) continue;
+    const k = cableKey(c);
+    if (seen.has(k)) continue;
+    seen.add(k);
+    out.push(c);
+  }
+  return out;
+}
+
+/** Zobrazovaný název kabelu — vlastní, nebo automatický podle typu a pořadí. */
+function cableDisplayName(c: Cable, index: number): string {
+  return c.name?.trim() || `${CABLE_META[c.type].short}-${String(index + 1).padStart(2, "0")}`;
+}
+
 
 type GroupGap = { x: number; y: number };
 type GroupSpacingState = Record<string, GroupGap | number>;
