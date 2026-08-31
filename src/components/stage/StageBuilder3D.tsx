@@ -1170,21 +1170,48 @@ function HornFlare({ size }: { size: number }) {
 
 function HornModel({ size }: { size: [number, number, number] }) {
   const [w, h] = size;
+  const mw = w * 0.8;
+  const mh = h * 0.72;
   return (
     <Cabinet
       size={size}
       color={WOOD}
+      grilleColor="#0a0c10"
       tealFrame={false}
       yellowCross={false}
       frontDetail={
         <group>
-          <mesh position={[0, 0, 0.02]} rotation={[0, 0, 0]}>
-            <cylinderGeometry args={[Math.min(w, h) * 0.35, Math.min(w, h) * 0.15, 0.05, 16]} />
-            <meshStandardMaterial color="#1a1a1a" metalness={0.6} roughness={0.4} />
+          {/* Rectangular horn mouth — recessed dark flare */}
+          <mesh position={[0, 0, -0.004]}>
+            <planeGeometry args={[mw, mh]} />
+            <meshStandardMaterial color="#0a0c10" roughness={0.95} />
           </mesh>
-          <mesh position={[0, 0, 0.06]}>
-            <sphereGeometry args={[Math.min(w, h) * 0.12, 16, 12]} />
-            <meshStandardMaterial color={CHROME} metalness={0.9} roughness={0.2} />
+          {/* Mouth frame */}
+          {[[0, mh / 2], [0, -mh / 2]].map(([x, y], i) => (
+            <mesh key={`fh${i}`} position={[x, y, 0.004]}>
+              <boxGeometry args={[mw, 0.02, 0.014]} />
+              <meshStandardMaterial color="#3a4150" metalness={0.6} roughness={0.4} />
+            </mesh>
+          ))}
+          {[-1, 1].map((s) => (
+            <mesh key={`fv${s}`} position={[s * mw / 2, 0, 0.004]}>
+              <boxGeometry args={[0.02, mh, 0.014]} />
+              <meshStandardMaterial color="#3a4150" metalness={0.6} roughness={0.4} />
+            </mesh>
+          ))}
+          {/* Red phase-plug cross inside the mouth */}
+          <mesh position={[0, 0, 0.012]}>
+            <boxGeometry args={[mw * 0.62, 0.028, 0.012]} />
+            <meshStandardMaterial color={RED_CROSS} emissive={RED_CROSS} emissiveIntensity={0.35} roughness={0.5} />
+          </mesh>
+          <mesh position={[0, 0, 0.012]}>
+            <boxGeometry args={[0.028, mh * 0.7, 0.012]} />
+            <meshStandardMaterial color={RED_CROSS} emissive={RED_CROSS} emissiveIntensity={0.35} roughness={0.5} />
+          </mesh>
+          {/* Compression driver hub */}
+          <mesh position={[0, 0, 0.02]}>
+            <sphereGeometry args={[Math.min(w, h) * 0.07, 16, 12]} />
+            <meshStandardMaterial color={CHROME} metalness={0.9} roughness={0.25} />
           </mesh>
         </group>
       }
@@ -1200,6 +1227,7 @@ function MidModel({ size }: { size: [number, number, number] }) {
     <Cabinet
       size={size}
       tealFrame={true}
+      accentBars={true}
       yellowCross={false}
       frontDetail={
         <group>
@@ -1216,6 +1244,7 @@ function MidModel({ size }: { size: [number, number, number] }) {
     />
   );
 }
+
 
 
 function BassModel({ size }: { size: [number, number, number] }) {
