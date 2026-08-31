@@ -4896,7 +4896,11 @@ export function StageBuilder3D() {
   const [builderEditId, setBuilderEditId] = useState<string | null>(null);
   const [bankOpen, setBankOpen] = useState(false);
   const [styleOpen, setStyleOpen] = useState(false);
-  const [cabStyle, setCabStyle] = useState<CabinetStyle>(() => loadCabinetStyle());
+  const [cabStyle, setCabStyle] = useState<CabinetStyle>(() => {
+    const s = loadCabinetStyle();
+    applyCabinetStyle(s);   // barvy musí platit už při prvním renderu scény
+    return s;
+  });
   const [styleVersion, setStyleVersion] = useState(0);
   const styleApplied = useRef(false);
   // Aplikuj uložený styl beden na sdílené barvy + textury.
