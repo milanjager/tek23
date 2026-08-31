@@ -17,6 +17,27 @@ export type CustomConnection =
   | "jack"       // 6,3 mm jack IN
   | "active";    // Self-powered: 230V IN + XLR signal IN (+ link out)
 
+/** Nahrané obrázky (data URL) mapované na plochy skříně. */
+export interface CustomTextures {
+  /** Přední panel (mřížka, horn, ústí). */
+  front?: string;
+  /** Boky skříně / rails. */
+  side?: string;
+  /** Vrch skříně. */
+  top?: string;
+  /** Zadní panel (konektorový plech). */
+  back?: string;
+}
+
+export type TextureFace = keyof CustomTextures;
+
+export const TEXTURE_FACE_LABELS: Record<TextureFace, string> = {
+  front: "Přední panel (mřížka / horn)",
+  side: "Boky + rails",
+  top: "Vrch skříně",
+  back: "Zadní panel (konektory)",
+};
+
 export interface CustomSpeaker {
   /** Catalog id — always prefixed with "custom_". */
   id: string;
@@ -35,7 +56,36 @@ export interface CustomSpeaker {
   spl?: number;
   weightKg?: number;
   notes?: string;
+  /** Uživatelem nahrané fotky skříně použité jako textury v 3D. */
+  textures?: CustomTextures;
 }
+
+/** Načte soubor, zmenší ho a vrátí jako data URL (aby se vešel do localStorage). */
+export function fileToTextureDataUrl(file: File, max = 640): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error("Soubor se nepodařilo načíst."));
+    reader.onload = () => {
+      const img = new Image();
+      img.onerror = () => reject(new Error("Neplatný obrázek."));
+      img.onload = () => {
+        const scale = Math.min(1, max / Math.max(img.width, img.height));
+        const w = Math.max(1, Math.round(img.width * scale));
+        const h = Math.max(1, Math.round(img.height * scale));
+        const canvas = document.createElement("canvas");
+        canvas.width = w;
+        canvas.height = h;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) return reject(new Error("Canvas není dostupný."));
+        ctx.drawImage(img, 0, 0, w, h);
+        resolve(canvas.toDataURL("image/jpeg", 0.78));
+      };
+      img.src = String(reader.result);
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
 
 export const CONNECTION_LABELS: Record<CustomConnection, string> = {
   nl4: "Speakon NL4 IN (pasivní)",

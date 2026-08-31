@@ -35,6 +35,7 @@ import { sfxCableStart, sfxPortConnect, sfxCableComplete, sfxCancel } from "./sf
 
 import {
   type CustomSpeaker,
+  type CustomTextures,
   loadCustomSpeakers,
   saveCustomSpeakers,
   customHint,
@@ -2407,9 +2408,66 @@ function PicusTopGrillModel({ size }: { size: [number, number, number] }) {
 }
 
 
+/* ---- Photo-textured custom cabinet --------------------------------------
+   Uživatel nahraje fotky v builderu; použijeme je jako textury na plochy
+   skříně (BoxGeometry material index: +X, -X, +Y, -Y, +Z, -Z). */
+
+const PHOTO_TEX_CACHE = new Map<string, THREE.Texture>();
+
+function photoTexture(url: string): THREE.Texture {
+  let tex = PHOTO_TEX_CACHE.get(url);
+  if (!tex) {
+    tex = new THREE.TextureLoader().load(url);
+    tex.colorSpace = THREE.SRGBColorSpace;
+    tex.anisotropy = 4;
+    PHOTO_TEX_CACHE.set(url, tex);
+  }
+  return tex;
+}
+
+function PhotoCabinetModel({ size, textures }: { size: [number, number, number]; textures: CustomTextures }) {
+  const [w, h, d] = size;
+  const materials = useMemo(() => {
+    const shell = "#2a2f36";
+    const mk = (url?: string) =>
+      new THREE.MeshStandardMaterial(
+        url
+          ? { map: photoTexture(url), roughness: 0.7, metalness: 0.1 }
+          : { color: shell, roughness: 0.62, metalness: 0.25 },
+      );
+    // order: right, left, top, bottom, front(+Z), back(-Z)
+    return [
+      mk(textures.side),
+      mk(textures.side),
+      mk(textures.top),
+      mk(textures.top),
+      mk(textures.front),
+      mk(textures.back ?? textures.front),
+    ];
+  }, [textures.side, textures.top, textures.front, textures.back]);
+
+  useEffect(() => () => materials.forEach((m) => m.dispose()), [materials]);
+
+  return (
+    <group position={[0, h / 2, 0]}>
+      <mesh castShadow receiveShadow material={materials}>
+        <boxGeometry args={[w, h, d]} />
+      </mesh>
+      <mesh>
+        <boxGeometry args={[w * 1.002, h * 1.002, d * 1.002]} />
+        <meshStandardMaterial color="#12151a" wireframe transparent opacity={0.12} />
+      </mesh>
+    </group>
+  );
+}
+
 function ModelFor({ kind, size, variant }: { kind: Kind; size: [number, number, number]; variant?: "red" | "blue" }) {
   const custom = CUSTOM_SPEAKERS.get(kind);
   if (custom) {
+    const tx = custom.textures;
+    if (tx && (tx.front || tx.side || tx.top || tx.back)) {
+      return <PhotoCabinetModel size={size} textures={tx} />;
+    }
     switch (custom.shape) {
       case "sub":  return <PicusBinModel size={size} cols={1} rows={1} hasTopVent />;
       case "bass": return <BassModel size={size} />;
@@ -2418,6 +2476,7 @@ function ModelFor({ kind, size, variant }: { kind: Kind; size: [number, number, 
       case "horn": return <HornModel size={size} />;
     }
   }
+
   switch (kind) {
     case "horn": return <HornModel size={size} />;
     case "mid": return <MidModel size={size} />;

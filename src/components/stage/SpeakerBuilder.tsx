@@ -1,9 +1,12 @@
 import { useEffect, useState } from "react";
-import { X, Trash2, Plus, Pencil } from "lucide-react";
+import { X, Trash2, Plus, Pencil, ImagePlus } from "lucide-react";
 import {
   type CustomSpeaker,
   type CustomShape,
   type CustomConnection,
+  type TextureFace,
+  TEXTURE_FACE_LABELS,
+  fileToTextureDataUrl,
   CONNECTION_LABELS,
   SHAPE_LABELS,
   newCustomSpeaker,
@@ -18,6 +21,7 @@ import {
   getPreferredAmp,
   setPreferredAmp,
 } from "./customSpeakers";
+
 
 /* ============================================================
    Speaker Builder — create / edit custom PA cabinets
@@ -62,6 +66,25 @@ export default function SpeakerBuilder({
 }) {
   const [draft, setDraft] = useState<CustomSpeaker>(() => newCustomSpeaker());
   const [ampId, setAmpId] = useState(() => getPreferredAmp().id);
+  const [imgError, setImgError] = useState<string | null>(null);
+
+  const setTexture = async (face: TextureFace, file: File) => {
+    try {
+      const url = await fileToTextureDataUrl(file);
+      setImgError(null);
+      setDraft((d) => ({ ...d, textures: { ...d.textures, [face]: url } }));
+    } catch (err) {
+      setImgError(err instanceof Error ? err.message : "Obrázek se nepodařilo načíst.");
+    }
+  };
+
+  const clearTexture = (face: TextureFace) =>
+    setDraft((d) => {
+      const textures = { ...d.textures };
+      delete textures[face];
+      return { ...d, textures: Object.keys(textures).length ? textures : undefined };
+    });
+
 
   useEffect(() => {
     if (!open) return;
@@ -203,6 +226,60 @@ export default function SpeakerBuilder({
                 <input className={inputCls} value={draft.notes ?? ""} onChange={(e) => set("notes", e.target.value)} />
               </Field>
             </div>
+
+            {/* --- Vlastní grafika (fotky skříně) --- */}
+            <div className="rounded-lg border border-neutral-300/70 bg-white/70 p-2">
+              <div className="mb-1.5 flex items-center justify-between gap-2">
+                <b className="text-[11px] text-neutral-900">🖼️ Grafika bedny — nahraj fotky</b>
+                <span className="text-[10px] text-neutral-500">JPG/PNG, zmenší se na 640 px</span>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                {(Object.keys(TEXTURE_FACE_LABELS) as TextureFace[]).map((face) => {
+                  const src = draft.textures?.[face];
+                  return (
+                    <div key={face} className="rounded-md border border-neutral-200 bg-white p-1.5">
+                      <div className="mb-1 text-[10px] font-bold text-neutral-700">{TEXTURE_FACE_LABELS[face]}</div>
+                      <div className="flex items-center gap-2">
+                        <div className="grid h-12 w-12 shrink-0 place-items-center overflow-hidden rounded border border-neutral-200 bg-neutral-100">
+                          {src
+                            ? <img src={src} alt={TEXTURE_FACE_LABELS[face]} className="h-full w-full object-cover" />
+                            : <ImagePlus size={14} className="text-neutral-400" />}
+                        </div>
+                        <div className="flex flex-col gap-1">
+                          <label className="cursor-pointer rounded border border-neutral-300 px-2 py-1 text-[10px] font-semibold text-neutral-700 hover:border-lime-500">
+                            {src ? "Změnit" : "Nahrát"}
+                            <input
+                              type="file"
+                              accept="image/*"
+                              className="hidden"
+                              onChange={(e) => {
+                                const f = e.target.files?.[0];
+                                e.target.value = "";
+                                if (f) void setTexture(face, f);
+                              }}
+                            />
+                          </label>
+                          {src && (
+                            <button
+                              onClick={() => clearTexture(face)}
+                              className="rounded border border-rose-300 px-2 py-1 text-[10px] font-semibold text-rose-600 hover:bg-rose-50"
+                            >
+                              Odebrat
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+              {imgError && <div className="mt-1 text-[10px] font-semibold text-rose-600">{imgError}</div>}
+              <p className="mt-1 text-[10px] text-neutral-500">
+                Nahrané fotky se použijí jako textury 3D modelu (přední mřížka, boky/rails, vrch, zadní panel).
+              </p>
+            </div>
+
+
 
             <div className="rounded-lg border border-lime-500/40 bg-lime-500/10 p-2 text-[11px] leading-relaxed text-neutral-700">
               <b>Zatížení zesilovače:</b> 1× = {draft.ohm} Ω · 2× paralelně = {parallel2} Ω · 4× paralelně = {parallel4} Ω.
