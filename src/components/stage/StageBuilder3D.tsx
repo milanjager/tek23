@@ -1040,6 +1040,7 @@ function Pallet({ w, d }: { w: number; d: number }) {
 function Cabinet({
   size, color = WOOD, grilleColor = GRILLE, cornerColor = TEAL,
   frontDetail, tealFrame = false, yellowCross = false, onPallet = false,
+  accentBars = false,
 }: {
   size: [number, number, number];
   color?: string;
@@ -1047,6 +1048,7 @@ function Cabinet({
   cornerColor?: string;
   frontDetail?: React.ReactNode;
   tealFrame?: boolean;
+  accentBars?: boolean;
   yellowCross?: boolean;
   onPallet?: boolean;
 }) {
