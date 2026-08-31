@@ -4063,7 +4063,7 @@ function SceneContent({
       <CableAnimDriver />
 
 
-      {cables.map((c) => {
+      {cables.map((c, cableIdx) => {
         const a = items.find((i) => i.id === c.from);
         const b = items.find((i) => i.id === c.to);
         if (!a || !b) return null;
