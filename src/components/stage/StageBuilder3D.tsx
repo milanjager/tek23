@@ -3848,7 +3848,7 @@ function SceneContent({
               const other = reconnect.end === "from" ? cable.to : cable.from;
               if (other === itemId) { setReconnectError("Nelze zapojit oba konce do stejné bedny."); sfxCancel(); return; }
               if (conn.type !== cable.type) { setReconnectError(`Konektor je ${CABLE_META[conn.type].short}, kabel je ${CABLE_META[cable.type].short}.`); sfxCancel(); return; }
-              setCables((cs) => cs.map((c) => c.id === cable.id ? { ...c, [reconnect.end]: itemId } : c));
+              setCables((cs) => setCableEnd(cs, cable.id, reconnect.end, itemId));
               setReconnect(null); setReconnectError(null);
               sfxPortConnect(); sfxCableComplete();
               return;
@@ -3867,7 +3867,7 @@ function SceneContent({
             if (pendingFrom === itemId) return; // ignore same-item second click
             // Complete: type must match the pending cable type.
             if (conn.type !== cableType) { sfxCancel(); return; }
-            setCables((cs) => [...cs, { id: uid(), from: pendingFrom!, to: itemId, type: cableType }]);
+            setCables((cs) => addCable(cs, pendingFrom!, itemId, cableType));
             setPendingFrom(null);
             setPendingSourceConnector(null);
             setCursorWorld(null);
@@ -3890,7 +3890,7 @@ function SceneContent({
                 setReconnectError(reason);
                 return;
               }
-              setCables((cs) => cs.map((c) => c.id === cable.id ? { ...c, [reconnect.end]: id } : c));
+              setCables((cs) => setCableEnd(cs, cable.id, reconnect.end, id));
               setReconnect(null);
               setReconnectError(null);
               return;
@@ -3912,7 +3912,7 @@ function SceneContent({
                   sfxCableStart();
                   return;
                 }
-                setCables((cs) => [...cs, { id: uid(), from: pendingFrom!, to: id, type: cableType }]);
+                setCables((cs) => addCable(cs, pendingFrom!, id, cableType));
                 setPendingFrom(null);
                 sfxPortConnect(); sfxCableComplete();
               }
@@ -4215,7 +4215,7 @@ function SceneContent({
                 if (!target) return;
                 const reason = connectorIncompatibility(target, c.type, end);
                 if (reason) { setReconnectError(reason); return; }
-                setCables((cs) => cs.map((x) => x.id === c.id ? { ...x, [end]: newId } : x));
+                setCables((cs) => setCableEnd(cs, c.id, end, newId));
                 setReconnect(null);
                 setReconnectError(null);
               };
@@ -6607,7 +6607,7 @@ export function StageBuilder3D() {
               }}
               onAddDevice={(k) => addItem(k as Kind)}
               onConnect={(from, to, type) => {
-                setCables((cs) => [...cs, { id: uid(), from, to, type }]);
+                setCables((cs) => addCable(cs, from, to, type));
               }}
               onRemoveCable={(id) => setCables((cs) => cs.filter((c) => c.id !== id))}
               kindOptions={(Object.entries(SPECS) as [Kind, Spec][]).map(([k, s]) => ({
