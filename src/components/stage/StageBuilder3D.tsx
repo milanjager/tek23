@@ -4268,6 +4268,39 @@ function SceneContent({
                       </button>
                     </div>
 
+                    {/* Název + role kabelu */}
+                    <div className="mb-1 grid grid-cols-2 gap-1 rounded bg-white/60 p-1.5">
+                      <label className="col-span-1 block">
+                        <span className="text-[8px] uppercase tracking-wider text-neutral-600">Název kabelu</span>
+                        <input
+                          value={c.name ?? ""}
+                          placeholder={cableDisplayName(c, cableIdx)}
+                          onPointerDown={(ev) => ev.stopPropagation()}
+                          onChange={(e) => {
+                            const v = e.target.value;
+                            setCables((cs) => cs.map((x) => x.id === c.id ? { ...x, name: v } : x));
+                          }}
+                          className="mt-0.5 w-full rounded border border-neutral-300 bg-white/80 px-1 py-0.5 font-mono text-[10px] font-bold text-neutral-900 outline-none focus:border-neutral-500"
+                        />
+                      </label>
+                      <label className="col-span-1 block">
+                        <span className="text-[8px] uppercase tracking-wider text-neutral-600">Typ kabelu</span>
+                        <select
+                          value={cableRole(c)}
+                          onPointerDown={(ev) => ev.stopPropagation()}
+                          onChange={(e) => {
+                            const v = e.target.value as CableRole;
+                            setCables((cs) => cs.map((x) => x.id === c.id ? { ...x, role: v } : x));
+                          }}
+                          className="mt-0.5 w-full rounded border border-neutral-300 bg-white/80 px-1 py-0.5 font-mono text-[10px] font-bold text-neutral-900 outline-none focus:border-neutral-500"
+                        >
+                          {(Object.keys(CABLE_ROLE_META) as CableRole[]).map((r) => (
+                            <option key={r} value={r}>{CABLE_ROLE_META[r].label}</option>
+                          ))}
+                        </select>
+                      </label>
+                    </div>
+
                     {/* Source dropdown */}
                     <div className="mb-1 rounded bg-white/60 p-1.5">
                       <div className="text-[8px] uppercase tracking-wider text-neutral-600">Zdroj (OUT · {meta.short}▶)</div>
