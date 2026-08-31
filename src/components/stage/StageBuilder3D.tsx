@@ -4467,10 +4467,9 @@ function SceneContent({
                         onChange={(e) => {
                           const otherId = e.target.value;
                           if (!otherId) return;
-                          const newCable: Cable = port.role === "out"
-                            ? { id: uid(), from: it.id, to: otherId, type: port.type }
-                            : { id: uid(), from: otherId, to: it.id, type: port.type };
-                          setCables((cs) => [...cs, newCable]);
+                          const src = port.role === "out" ? it.id : otherId;
+                          const dst = port.role === "out" ? otherId : it.id;
+                          setCables((cs) => addCable(cs, src, dst, port.type));
                           e.target.value = "";
                         }}
                         onPointerDown={(ev) => ev.stopPropagation()}
