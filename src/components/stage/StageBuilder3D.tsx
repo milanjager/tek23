@@ -1254,6 +1254,7 @@ function BassModel({ size }: { size: [number, number, number] }) {
     <Cabinet
       size={size}
       tealFrame={true}
+      accentBars={true}
       yellowCross={false}
       frontDetail={
         <group>
