@@ -151,7 +151,7 @@ export function Walkthrough({
   }
 
   return (
-    <div ref={containerRef} className="fixed inset-0 z-[100]" aria-hidden={false}>
+    <div ref={containerRef} className="fixed inset-0 z-[400]" aria-hidden={false}>
       {/* Backdrop with spotlight cutout via box-shadow */}
       <div
         className="fixed rounded-xl transition-all duration-300 ease-out"

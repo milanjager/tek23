@@ -102,6 +102,7 @@ export default function PrintReport({
 
       <div
         id="print-report"
+        data-walkthrough="print-report"
         className="mx-auto my-6 max-w-[210mm] bg-white p-8 text-[11px] leading-snug text-neutral-900 shadow-2xl print:my-0 print:p-0 print:shadow-none"
       >
         {/* Hlavička */}
