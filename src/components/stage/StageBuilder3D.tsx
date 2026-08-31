@@ -35,6 +35,7 @@ import { sfxCableStart, sfxPortConnect, sfxCableComplete, sfxCancel } from "./sf
 
 import {
   type CustomSpeaker,
+  type CustomTextures,
   loadCustomSpeakers,
   saveCustomSpeakers,
   customHint,
