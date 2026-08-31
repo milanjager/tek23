@@ -5804,11 +5804,17 @@ export function StageBuilder3D() {
 
 
   const exportCablesCsv = useCallback(() => {
-    const steps = generateWiringSteps(items, cables);
-    const rows = [["Krok","ID","Typ","Barva","Zdroj","OUT konektor","Cíl","IN konektor","Zátěž W","Přetíženo"]];
+    const live = liveCablesOf(items, cables);
+    const idx = new Map(live.map((c, i) => [c.id, { cable: c, i }] as const));
+    const steps = generateWiringSteps(items, live);
+    const rows = [["Krok","Název","Typ kabelu","ID","Signál","Barva","Zdroj","OUT konektor","Cíl","IN konektor","Zátěž W","Přetíženo"]];
     for (const s of steps) {
+      const e = idx.get(s.cableId);
       rows.push([
-        String(s.index), s.cableId, CABLE_META[s.type].label, CABLE_META[s.type].color,
+        String(s.index),
+        e ? cableDisplayName(e.cable, e.i) : s.cableId,
+        e ? CABLE_ROLE_META[cableRole(e.cable)].label : "",
+        s.cableId, CABLE_META[s.type].label, CABLE_META[s.type].color,
         s.fromLabel, s.fromPort, s.toLabel, s.toPort,
         s.loadW !== undefined ? String(Math.round(s.loadW)) : "",
         s.overload ? "ANO" : "",
