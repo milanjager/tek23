@@ -4853,17 +4853,43 @@ export function StageBuilder3D() {
     setWorkMode("build");
     setViewMode("3d");
     setPaletteOpen(false);
+    // Návod vždy běží nad ukázkovou stage — když je scéna prázdná, načti demo.
+    setItems((prev) => {
+      if (prev.length) return prev;
+      const it = normalizeScene(loadPreset("demo_tutorial"));
+      setCables(autoWireCables(it));
+      setSelection([]);
+      return it;
+    });
     setWalkOpen(true);
     try { localStorage.setItem(WALK_KEY, "started"); } catch {}
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   const finishWalkthrough = useCallback(() => {
     setWalkOpen(false);
+    setShowPrintReport(false);
     try { localStorage.setItem(WALK_KEY, "done"); } catch {}
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Czech walkthrough steps.
   const walkSteps = useMemo(
     () => [
+      {
+        target: "stage-canvas",
+        position: "center" as const,
+        title: "Ukázková stage je načtená",
+        text: "Do scény jsme pro tebe nahráli demo sestavu — subwoofery, mid bedny, topy, zesilovače, rozvaděč a generátor. Na téhle sestavě si projdeme celý postup až po vytištěný checklist a BOM.",
+        prepare: () => {
+          setWorkMode("build"); setViewMode("3d"); setPaletteOpen(false);
+          setItems((prev) => {
+            if (prev.length) return prev;
+            const it = normalizeScene(loadPreset("demo_tutorial"));
+            setCables(autoWireCables(it));
+            return it;
+          });
+        },
+      },
       {
         target: "work-mode",
         position: "bottom" as const,
@@ -4910,8 +4936,11 @@ export function StageBuilder3D() {
         target: "wire-autowire",
         position: "bottom" as const,
         title: "Auto kabeláž",
-        text: "Tlačítkem Zapojit vše aplikace sama vytvoří napájecí, signálové a repro kabely podle typů komponent. U reproduktorů se ti pak zobrazí schéma zapojení.",
-        prepare: () => { setWorkMode("wire"); },
+        text: "Tlačítkem Zapojit vše aplikace sama vytvoří napájecí, signálové a repro kabely podle typů komponent. Právě jsme ho za tebe spustili — v scéně přibyly kabely PWR, SIG, SPK i DMX.",
+        prepare: () => {
+          setWorkMode("wire");
+          setItems((prev) => { setCables(autoWireCables(prev)); return prev; });
+        },
       },
       {
         target: "work-mode",
@@ -4925,14 +4954,28 @@ export function StageBuilder3D() {
         position: "bottom" as const,
         title: "Režim Export",
         text: "Vygeneruj tisknutelný report s BOM, checklistem zapojení a bezpečnostními poznámkami pro crew.",
-        prepare: () => { setWorkMode("export"); },
+        prepare: () => { setWorkMode("export"); setShowPrintReport(false); },
+      },
+      {
+        target: "export-report",
+        position: "bottom" as const,
+        title: "Checklist + BOM",
+        text: "Tímhle tlačítkem vznikne kompletní tiskový výstup. Otevřeme ho rovnou, ať vidíš, co crew dostane do ruky.",
+        prepare: () => { setWorkMode("export"); setShowPrintReport(false); },
+      },
+      {
+        target: "print-report",
+        position: "center" as const,
+        title: "Hotový výstup",
+        text: "Nahoře je souhrn (hmotnost, příkon, počet beden a kabelů), pak BOM se všemi komponentami a číslovaný checklist zapojení IN → OUT včetně varování o přetížení. Tlačítkem Tisk / uložit PDF ho uložíš nebo vytiskneš.",
+        prepare: () => { setWorkMode("export"); setShowPrintReport(true); },
       },
       {
         target: "help-btn",
         position: "left" as const,
         title: "To je vše",
-        text: "Návod můžeš kdykoli zopakovat tlačítkem ? v pravém horním rohu. Teď zkus označit bednu, pohnout s ní nebo přepnout do schématu.",
-        prepare: () => { setWorkMode("build"); setViewMode("3d"); },
+        text: "Prošli jsme celý postup: demo stage → rozmístění → kabeláž → kontrola → checklist a BOM. Návod můžeš kdykoli zopakovat tlačítkem ? v pravém horním rohu.",
+        prepare: () => { setShowPrintReport(false); setWorkMode("build"); setViewMode("3d"); },
       },
     ],
     [setWorkMode, setViewMode, setPaletteOpen]
@@ -6034,7 +6077,7 @@ export function StageBuilder3D() {
           <>
             <button onClick={exportCablesCsv} disabled={!cables.length} className={`${btnCls} bg-neutral-100 hover:bg-neutral-200 disabled:opacity-40`} title="Kabelový list (CSV) — pořadí PWR → DMX → SIG → SPK">⤓ Seznam kabelů (CSV)</button>
             <button onClick={exportGuideTxt} disabled={!cables.length} className={`${btnCls} bg-neutral-100 hover:bg-neutral-200 disabled:opacity-40`} title="Textový krokový návod pro technika (.txt)">⤓ Postup pro technika</button>
-            <button onClick={() => setShowPrintReport(true)} disabled={!items.length} className={`${btnCls} bg-lime-500 text-neutral-900 hover:bg-lime-400 disabled:opacity-40`} title="Vygeneruje tisknutelný checklist zapojení + BOM (uložitelné jako PDF)">🧾 Checklist + BOM (PDF)</button>
+            <button data-walkthrough="export-report" onClick={() => setShowPrintReport(true)} disabled={!items.length} className={`${btnCls} bg-lime-500 text-neutral-900 hover:bg-lime-400 disabled:opacity-40`} title="Vygeneruje tisknutelný checklist zapojení + BOM (uložitelné jako PDF)">🧾 Checklist + BOM (PDF)</button>
             <button onClick={() => { setViewMode("tech"); window.print(); }} disabled={!items.length} className={`${btnCls} bg-neutral-100 hover:bg-neutral-200 disabled:opacity-40`} title="Vytisknout technický výkres / uložit jako PDF">⎙ Tisk výkresu</button>
 
             <span className="text-[11px] text-neutral-500">
