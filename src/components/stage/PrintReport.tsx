@@ -1,4 +1,5 @@
 import { useEffect } from "react";
+import { createPortal } from "react-dom";
 import { X, Printer } from "lucide-react";
 
 /* ============================================================
@@ -59,19 +60,19 @@ export default function PrintReport({
 
   const today = new Date().toLocaleString("cs-CZ");
 
-  return (
-    <div className="fixed inset-0 z-[300] overflow-auto bg-neutral-800/70 animate-in fade-in duration-150 print:static print:overflow-visible print:bg-white">
+  if (typeof document === "undefined") return null;
+
+  return createPortal(
+    <div id="print-report-root" className="fixed inset-0 z-[300] overflow-auto bg-neutral-800/70 animate-in fade-in duration-150 print:static print:overflow-visible print:bg-white">
       <style>{`
         @page { size: A4 portrait; margin: 14mm 12mm; }
         @media print {
-          body * { visibility: hidden !important; }
-          #print-report, #print-report * { visibility: visible !important; }
-          /* Zrušit fixní/viewportové ohraničení celé aplikace, aby se report
-             mohl stránkovat přes více stran (jinak se vytiskne jen 1. strana). */
+          /* Celou aplikaci z tisku úplně odstranit (display:none, ne jen
+             visibility) — jinak její layout boxy vytvoří prázdné úvodní strany. */
+          body > *:not(#print-report-root) { display: none !important; }
           html, body { position: static !important; height: auto !important; overflow: visible !important; }
-          .fixed, .inset-0 { position: static !important; inset: auto !important; }
-          .overflow-auto, .overflow-hidden { overflow: visible !important; }
-          #print-report { position: static !important; box-shadow: none !important; margin: 0 !important; width: 100% !important; max-width: none !important; }
+          #print-report-root { position: static !important; inset: auto !important; overflow: visible !important; background: #fff !important; }
+          #print-report { position: static !important; box-shadow: none !important; margin: 0 !important; width: 100% !important; max-width: none !important; overflow: visible !important; }
           .no-print { display: none !important; }
           .page-break { break-before: page; }
           tr, .avoid-break { break-inside: avoid; }
@@ -242,6 +243,7 @@ export default function PrintReport({
           Vygenerováno ze Stage Rig návrhu · zkontroluj proudové jištění a impedanci před zapnutím zesilovačů.
         </footer>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
