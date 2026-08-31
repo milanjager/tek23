@@ -227,6 +227,33 @@ export default function SpeakerBuilder({
               </Field>
             </div>
 
+            {/* --- Evidence bedny (jde do BOMu a tiskového listu) --- */}
+            <div className="rounded-lg border border-neutral-300/70 bg-white/70 p-2">
+              <div className="mb-1.5 flex items-center justify-between gap-2">
+                <b className="text-[11px] text-neutral-900">🗂️ Detail bedny</b>
+                <span className="text-[10px] text-neutral-500">Vloží se do BOMu jako technický list</span>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <Field label="Výrobce">
+                  <input className={inputCls} value={draft.manufacturer ?? ""} placeholder="např. Void / vlastní stavba"
+                    onChange={(e) => set("manufacturer", e.target.value)} />
+                </Field>
+                <Field label="Typ / model">
+                  <input className={inputCls} value={draft.model ?? ""} placeholder="např. Incubus 3"
+                    onChange={(e) => set("model", e.target.value)} />
+                </Field>
+                <Field label="Rok">
+                  <input className={inputCls} type="number" step="1" value={draft.year ?? ""}
+                    onChange={(e) => set("year", e.target.value === "" ? undefined : num(e.target.value, 0))} />
+                </Field>
+                <Field label="Sériové / inv. číslo">
+                  <input className={inputCls} value={draft.serial ?? ""} onChange={(e) => set("serial", e.target.value)} />
+                </Field>
+              </div>
+            </div>
+
+
+
             {/* --- Vlastní grafika (fotky skříně) --- */}
             <div className="rounded-lg border border-neutral-300/70 bg-white/70 p-2">
               <div className="mb-1.5 flex items-center justify-between gap-2">
