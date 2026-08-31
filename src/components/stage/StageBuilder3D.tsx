@@ -1097,6 +1097,23 @@ function Cabinet({
           <mesh position={[-w * 0.46, 0, 0]}><boxGeometry args={[0.03, h * 0.92, 0.015]} /><meshStandardMaterial color={TEAL} roughness={0.5} metalness={0.45} /></mesh>
         </group>
       )}
+      {/* Orange accent rails / grab bars on the baffle */}
+      {accentBars && (
+        <group position={[0, h / 2, d / 2 + 0.012]}>
+          {[0.26, -0.26].map((f) => (
+            <mesh key={f} position={[0, h * f, 0]} castShadow>
+              <boxGeometry args={[w * 0.78, Math.min(0.035, h * 0.06), 0.022]} />
+              <meshStandardMaterial color={ORANGE} roughness={0.45} metalness={0.3} />
+            </mesh>
+          ))}
+          {[-1, 1].map((s) => (
+            <mesh key={s} position={[s * w * 0.39, 0, 0]}>
+              <boxGeometry args={[0.022, h * 0.52, 0.022]} />
+              <meshStandardMaterial color={ORANGE} roughness={0.45} metalness={0.3} />
+            </mesh>
+          ))}
+        </group>
+      )}
       {/* Yellow crosshair (spray-paint) */}
       {yellowCross && (
         <group position={[0, h / 2, d / 2 + 0.005]}>
