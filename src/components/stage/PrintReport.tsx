@@ -240,6 +240,39 @@ export default function PrintReport({
           </section>
         )}
 
+        {/* Technické listy vlastních beden */}
+        {sheets && sheets.length > 0 && (
+          <section className="avoid-break mb-4">
+            <h2 className="mb-1.5 text-sm font-bold uppercase tracking-wide">5 · Technické listy vlastních beden</h2>
+            <div className="space-y-2">
+              {sheets.map((s) => (
+                <div key={s.id} className="avoid-break border border-neutral-300 p-2">
+                  <div className="mb-1 font-bold">{s.name}</div>
+                  <table className="w-full">
+                    <tbody>
+                      {[
+                        ["Výrobce", s.manufacturer], ["Typ / model", s.model],
+                        ["Rok", s.year], ["Sériové číslo", s.serial],
+                        ["Osazení", s.drivers], ["Výkon", s.power],
+                        ["Impedance", s.ohm], ["Zapojení", s.connection],
+                        ["Rozměry (š×v×h)", s.size], ["Hmotnost", s.weight],
+                      ].map(([k, v]) => (
+                        <tr key={k} className="border-b border-neutral-200 last:border-0">
+                          <td className="w-40 py-0.5 pr-2 text-neutral-500">{k}</td>
+                          <td className="py-0.5">{v}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                  {s.notes && <div className="mt-1 text-[9px] text-neutral-600">Poznámka: {s.notes}</div>}
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
+
+
+
         <footer className="mt-6 border-t border-neutral-300 pt-2 text-[9px] text-neutral-500">
           Vygenerováno ze Stage Rig návrhu · zkontroluj proudové jištění a impedanci před zapnutím zesilovačů.
         </footer>
