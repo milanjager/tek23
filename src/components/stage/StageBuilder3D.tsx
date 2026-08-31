@@ -5743,6 +5743,12 @@ export function StageBuilder3D() {
     announce(`Postup pro technika vyexportován — ${steps.length} kroků.`);
   }, [items, cables, announce]);
 
+  /* ---- Technické listy vlastních beden použitých ve scéně ---------------- */
+  const customSheets = useMemo(() => {
+    const used = new Set(items.map((it) => String(it.kind)));
+    return customDefs.filter((d) => used.has(d.id)).map(customSheet);
+  }, [items, customDefs]);
+
   /* ---- Tisknutelný report: BOM + checklist zapojení + doporučení ---------- */
   const printReport = useMemo(() => {
     // Osiřelé kabely (odkaz na smazanou bednu) do reportu nepatří.
@@ -6591,6 +6597,7 @@ export function StageBuilder3D() {
 
 
           <Canvas
+            key={`scene-style-${styleVersion}`}
             shadows
             dpr={[1, 2]}
             camera={{ position: [6, 5, 8], fov: 45, near: 0.1, far: 200 }}
