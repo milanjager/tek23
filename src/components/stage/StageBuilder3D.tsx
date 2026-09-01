@@ -4976,7 +4976,7 @@ function PaletteThumb({ kind }: { kind: Kind }) {
     return () => io.disconnect();
   }, []);
   return (
-    <div ref={hostRef} className="pointer-events-none h-16 w-full overflow-hidden rounded bg-gradient-to-b from-neutral-100 to-white">
+    <div ref={hostRef} className="pointer-events-none h-32 w-full overflow-hidden rounded-lg bg-gradient-to-b from-neutral-100 to-white">
       {visible && (
         <Canvas
           dpr={[1, 1.5]}
