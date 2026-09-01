@@ -28,6 +28,7 @@ import { PlacementDevPanel } from "./PlacementDevPanel";
 import PowersoftGuide from "./PowersoftGuide";
 import { StartLauncher } from "./StartLauncher";
 import { Walkthrough } from "./Walkthrough";
+import { JourneyPanel } from "./JourneyPanel";
 import SpeakerBuilder from "./SpeakerBuilder";
 import SpeakerWiringSchema, { type WireNode, type WireLink } from "./SpeakerWiringSchema";
 import PrintReport, { type BomRow, type ChecklistRow } from "./PrintReport";
@@ -5266,6 +5267,8 @@ export function StageBuilder3D() {
   const [autoRoute, setAutoRoute] = useState<boolean>(true);
   const [cableRouteY, setCableRouteY] = useState<number>(0.02);
   const [showPrintReport, setShowPrintReport] = useState(false);
+  const [reportSeen, setReportSeen] = useState(false);
+  useEffect(() => { if (showPrintReport) setReportSeen(true); }, [showPrintReport]);
 
 
   const isSpeakerKind = useCallback((k: Kind) => {
@@ -7466,6 +7469,24 @@ export function StageBuilder3D() {
           notes={printReport.notes}
           sheets={customSheets}
           onClose={() => setShowPrintReport(false)}
+        />
+      )}
+      {!launcherOpen && !showPrintReport && (
+        <JourneyPanel
+          signals={{
+            items: items.length,
+            stacks: 0,
+            hasPower: items.some((i) => i.kind === "generator" || i.kind === "distro"),
+            hasAmp: items.some((i) => i.kind === "amp" || i.kind === "powersoft"),
+            cables: cables.length,
+            reportOpened: reportSeen,
+          }}
+          onQuestAction={(id) => {
+            if (id === "first_box" || id === "stack") { setWorkMode("build"); setPaletteOpen(true); }
+            else if (id === "power" || id === "amp") { setWorkMode("build"); setPaletteOpen(true); }
+            else if (id === "wire") { setWorkMode("wire"); setCables(autoWireCables(items)); }
+            else if (id === "checklist") { setWorkMode("export"); setShowPrintReport(true); }
+          }}
         />
       )}
       {!import.meta.env.PROD && <PlacementDevPanel />}
