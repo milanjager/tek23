@@ -106,7 +106,7 @@ const SPECS: Record<Kind, Spec> = {
   horn:         { label: "Horn",             category: "sound",  size: [0.60, 0.40, 0.40], stackable: true,  hint: "Výškový horn" },
   mid:          { label: "Mid",              category: "sound",  size: [0.60, 0.60, 0.50], stackable: true,  hint: "Střední pásmo" },
   bass:         { label: "Bass bin",         category: "sound",  size: [0.80, 0.60, 0.70], stackable: true,  hint: "Basová bedna" },
-  sub:          { label: "Sub 2×18",         category: "sound",  size: [1.20, 0.80, 0.90], stackable: true,  hint: "Sub-bass" },
+  sub:          { label: "Sub 1×18\" RCF LF18G401", category: "sound",  size: [0.60, 0.75, 0.85], stackable: true,  hint: "1× RCF LF18G401 · 1200 W AES · 8 Ω · 98 dB", defaultLabel: "Sub RCF LF18G401", weightKg: 62, defaultNotes: "Driver: RCF LF18G401 (18\", 4\" cívka, 1200 W AES / 2400 W peak, 8 Ω, 98 dB, Xmax ±9 mm).\nIN: Speakon NL4 (1+/1−) · LINK OUT paralelní — max. 2 bedny na kanál (4 Ω).\nDoporučení: HPF 30 Hz, LPF 100 Hz, limiter na 1200 W RMS." },
   linearray:    { label: "Line array",       category: "sound",  size: [0.90, 0.28, 0.55], stackable: true,  hint: "Line array element" },
   monitor:      { label: "Stage monitor",    category: "sound",  size: [0.60, 0.40, 0.45], stackable: true,  hint: "Wedge odposlech" },
   badtekk_sub:  { label: "Badtekk Sub",      category: "sound",  size: [1.20, 0.80, 0.90], stackable: true,  hint: "Badtekk 2×18\" sub", defaultLabel: "Badtekk Sub" },
