@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState } from "react";
+import { ChevronLeft, Rocket, Sparkles } from "lucide-react";
 
 export type PresetChoice = { id: string; title: string; desc: string };
 
 /**
- * Thin project-start launcher shown on first arrival. Answers three questions
- * for a new visitor: what the tool does, how to begin, what the outcome is.
+ * Startovní obrazovka jako začátek herní cesty:
+ * jedna hlavní akce, jasná odměna, ostatní volby schované o úroveň níž.
  */
 export function StartLauncher({
   presets,
@@ -23,7 +24,7 @@ export function StartLauncher({
   onDemo?: () => void;
   onClose: () => void;
 }) {
-  const [showPresets, setShowPresets] = useState(false);
+  const [screen, setScreen] = useState<"home" | "presets">("home");
   const firstRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
@@ -37,90 +38,98 @@ export function StartLauncher({
 
   return (
     <div
-      className="fixed inset-0 flex items-center justify-center bg-black/55 p-3 backdrop-blur-sm"
+      className="fixed inset-0 flex items-end justify-center bg-black/60 p-0 backdrop-blur-sm sm:items-center sm:p-4"
       style={{ zIndex: 2000000000 }}
       role="dialog"
       aria-modal="true"
       aria-labelledby="launcher-title"
-
     >
-      <div className="glass-strong max-h-[92dvh] w-full max-w-2xl overflow-y-auto rounded-2xl p-5 sm:p-7">
-        <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-lime-600">Stage Rig</p>
-        <h1 id="launcher-title" className="mt-1 text-2xl font-bold leading-tight text-neutral-900 sm:text-3xl">
-          Navrhni stage, zapoj systém, vyexportuj plán.
-        </h1>
-        <p className="mt-2 max-w-xl text-sm text-neutral-600">
-          Začni s prázdnou scénou nebo uprav ověřený preset. Stage Rig ti pomůže rozložit aparát,
-          navrhnout kabeláž a připravit podklady pro crew.
-        </p>
+      <div className="glass-strong max-h-[94dvh] w-full max-w-lg overflow-y-auto rounded-t-3xl p-5 shadow-2xl animate-fade-in sm:rounded-3xl sm:p-7">
+        {screen === "home" ? (
+          <>
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-lime-400 px-2.5 py-1 font-mono text-[10px] font-black uppercase tracking-[0.16em] text-neutral-950">
+              <Sparkles size={12} /> Level 1 · Nováček
+            </span>
+            <h1 id="launcher-title" className="mt-3 text-[26px] font-extrabold leading-tight text-neutral-900 sm:text-3xl">
+              Postav si vlastní zvukovou stěnu.
+            </h1>
+            <p className="mt-2 text-sm text-neutral-600">
+              Šest úkolů. Od první bedny až po hotový plán pro crew. Postup vidíš pořád dole na obrazovce.
+            </p>
 
-        {!showPresets ? (
-          <div className="mt-5 grid gap-3 sm:grid-cols-2">
+            {/* Jediné hlavní CTA */}
             <button
               ref={firstRef}
-              onClick={onBlank}
-              className="min-h-20 rounded-xl border-2 border-lime-500 bg-lime-100 p-4 text-left transition hover:bg-lime-200"
-            >
-              <div className="text-sm font-bold text-neutral-900">Začít nový rig</div>
-              <div className="mt-1 text-[12px] text-neutral-600">Prázdná stage se základními vodítky</div>
-            </button>
-            <button
-              onClick={() => setShowPresets(true)}
-              className="min-h-20 rounded-xl border border-neutral-300 bg-white p-4 text-left transition hover:border-lime-500"
-            >
-              <div className="text-sm font-bold text-neutral-900">Vybrat preset</div>
-              <div className="mt-1 text-[12px] text-neutral-600">Rychlý start podle typu akce a systému</div>
-            </button>
-            <button
               onClick={onDemo}
-              className="min-h-20 rounded-xl border border-sky-300 bg-sky-50 p-4 text-left transition hover:border-sky-500 hover:bg-sky-100"
+              className="mt-5 flex w-full items-center gap-3 rounded-2xl bg-lime-500 p-4 text-left shadow-lg transition hover:scale-[1.01] hover:bg-lime-400"
             >
-              <div className="text-sm font-bold text-sky-900">🎓 Demo návod</div>
-              <div className="mt-1 text-[12px] text-sky-800">Ukázkový rig a krátký průvodce ovládáním</div>
+              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-neutral-950 text-lime-400">
+                <Rocket size={20} />
+              </span>
+              <span className="min-w-0">
+                <span className="block text-[15px] font-black text-neutral-950">Začít cestu</span>
+                <span className="block text-[12px] font-semibold text-neutral-800">
+                  Provedu tě krok za krokem · +50 XP za první krok
+                </span>
+              </span>
             </button>
-            <button
-              onClick={onOpenSaved}
-              disabled={!hasSaved}
-              className="min-h-20 rounded-xl border border-neutral-300 bg-white p-4 text-left transition hover:border-lime-500 disabled:opacity-45"
-            >
-              <div className="text-sm font-bold text-neutral-900">Otevřít uložený rig</div>
-              <div className="mt-1 text-[12px] text-neutral-600">
-                {hasSaved ? "Pokračuj v rozpracovaném projektu" : "Zatím nemáš uložený projekt"}
-              </div>
-            </button>
-          </div>
-        ) : (
-          <div className="mt-5 space-y-2">
-            {presets.map((p) => (
-              <button
-                key={p.id}
-                onClick={() => onPreset(p.id)}
-                className="block min-h-16 w-full rounded-xl border border-neutral-300 bg-white p-3 text-left transition hover:border-lime-500"
-              >
-                <div className="text-sm font-bold text-neutral-900">{p.title}</div>
-                <div className="mt-0.5 text-[12px] text-neutral-600">{p.desc}</div>
-              </button>
-            ))}
-            <button
-              onClick={() => setShowPresets(false)}
-              className="min-h-10 rounded-lg px-3 text-[12px] font-semibold text-neutral-600 hover:text-neutral-900"
-            >
-              ← Zpět na výběr startu
-            </button>
-          </div>
-        )}
 
-        <div className="mt-5 flex flex-wrap items-center justify-between gap-2 border-t border-neutral-200/70 pt-3">
-          <p className="text-[11px] text-neutral-500">
-            Postup: <b>Stavět</b> → <b>Zapojit</b> → <b>Kontrola</b> → <b>Export</b>
-          </p>
-          <button
-            onClick={onClose}
-            className="min-h-10 rounded-lg px-3 text-[12px] font-semibold text-neutral-600 hover:text-neutral-900"
-          >
-            Přeskočit a otevřít workspace
-          </button>
-        </div>
+            <div className="mt-4 grid gap-2">
+              <button
+                onClick={onBlank}
+                className="min-h-14 rounded-2xl border border-neutral-300 bg-white/80 px-4 text-left text-[13px] font-bold text-neutral-800 transition hover:border-lime-500"
+              >
+                Stavět od nuly
+                <span className="block text-[11px] font-medium text-neutral-500">Prázdná scéna, plná volnost</span>
+              </button>
+              <button
+                onClick={() => setScreen("presets")}
+                className="min-h-14 rounded-2xl border border-neutral-300 bg-white/80 px-4 text-left text-[13px] font-bold text-neutral-800 transition hover:border-lime-500"
+              >
+                Načíst hotovou stage
+                <span className="block text-[11px] font-medium text-neutral-500">Ověřené sestavy pro rychlý start</span>
+              </button>
+              {hasSaved && (
+                <button
+                  onClick={onOpenSaved}
+                  className="min-h-14 rounded-2xl border border-neutral-300 bg-white/80 px-4 text-left text-[13px] font-bold text-neutral-800 transition hover:border-lime-500"
+                >
+                  Pokračovat v projektu
+                  <span className="block text-[11px] font-medium text-neutral-500">Máš rozpracovaný rig</span>
+                </button>
+              )}
+            </div>
+
+            <button
+              onClick={onClose}
+              className="mt-4 min-h-11 w-full rounded-xl text-[12px] font-semibold text-neutral-500 hover:text-neutral-900"
+            >
+              Přeskočit
+            </button>
+          </>
+        ) : (
+          <>
+            <button
+              onClick={() => setScreen("home")}
+              className="inline-flex min-h-9 items-center gap-1 text-[12px] font-bold text-neutral-600 hover:text-neutral-900"
+            >
+              <ChevronLeft size={14} /> Zpět
+            </button>
+            <h2 className="mt-2 text-xl font-extrabold text-neutral-900">Vyber sestavu</h2>
+            <div className="mt-3 space-y-2">
+              {presets.map((p) => (
+                <button
+                  key={p.id}
+                  onClick={() => onPreset(p.id)}
+                  className="block min-h-16 w-full rounded-2xl border border-neutral-300 bg-white/85 p-3 text-left transition hover:border-lime-500 hover:shadow-md"
+                >
+                  <div className="text-[13px] font-bold text-neutral-900">{p.title}</div>
+                  <div className="mt-0.5 text-[11px] text-neutral-600">{p.desc}</div>
+                </button>
+              ))}
+            </div>
+          </>
+        )}
       </div>
     </div>
   );
