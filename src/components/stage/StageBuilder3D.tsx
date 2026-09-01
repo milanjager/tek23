@@ -1096,6 +1096,80 @@ function getGrilleClone(rx: number, ry: number): THREE.CanvasTexture {
   return t;
 }
 
+/* Jemná struktura lakované překližky (warnex / texturovaný nástřik).
+   Jedna sdílená textura, klonovaná podle velikosti skříně. */
+let _paintTex: THREE.CanvasTexture | null = null;
+function getPaintTexture(): THREE.CanvasTexture {
+  if (_paintTex) return _paintTex;
+  const S = 256;
+  const c = document.createElement("canvas");
+  c.width = c.height = S;
+  const ctx = c.getContext("2d")!;
+  ctx.fillStyle = "#8a8a8a";
+  ctx.fillRect(0, 0, S, S);
+  // hrubý zrnitý nástřik
+  for (let i = 0; i < 9000; i++) {
+    const x = Math.random() * S;
+    const y = Math.random() * S;
+    const v = 120 + Math.random() * 110;
+    ctx.fillStyle = `rgba(${v},${v},${v},0.5)`;
+    ctx.fillRect(x, y, Math.random() < 0.15 ? 2 : 1, 1);
+  }
+  const tex = new THREE.CanvasTexture(c);
+  tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+  tex.anisotropy = 4;
+  _paintTex = tex;
+  return tex;
+}
+
+const _paintClones = new Map<string, THREE.CanvasTexture>();
+function getPaintClone(rx: number, ry: number): THREE.CanvasTexture {
+  const key = `${rx}x${ry}`;
+  let t = _paintClones.get(key);
+  if (!t) {
+    t = getPaintTexture().clone();
+    t.needsUpdate = true;
+    t.repeat.set(rx, ry);
+    t.wrapS = t.wrapT = THREE.RepeatWrapping;
+    _paintClones.set(key, t);
+  }
+  return t;
+}
+
+/** Jeden realistický LF driver (koš, sikaně, prachovka, šrouby). */
+function LFDriver({ r, chrome = false }: { r: number; chrome?: boolean }) {
+  return (
+    <group>
+      <mesh rotation={[Math.PI / 2, 0, 0]}>
+        <cylinderGeometry args={[r * 1.05, r * 1.05, 0.02, 40]} />
+        <meshStandardMaterial color="#1a1a1a" roughness={0.6} metalness={0.5} />
+      </mesh>
+      {/* Sikaně (surround) */}
+      <mesh position={[0, 0, 0.014]}>
+        <ringGeometry args={[r * 0.82, r * 1.0, 40]} />
+        <meshStandardMaterial color="#15171a" roughness={0.85} side={THREE.DoubleSide} />
+      </mesh>
+      <mesh position={[0, 0, 0.02]} rotation={[Math.PI / 2, 0, 0]}>
+        <coneGeometry args={[r * 0.86, 0.05, 40, 1, true]} />
+        <meshStandardMaterial color="#0b0b0b" roughness={0.92} side={THREE.DoubleSide} />
+      </mesh>
+      <mesh position={[0, 0, 0.052]}>
+        <sphereGeometry args={[r * 0.34, 20, 14]} />
+        <meshStandardMaterial color={chrome ? CHROME : "#141414"} roughness={chrome ? 0.3 : 0.55} metalness={chrome ? 0.85 : 0.3} />
+      </mesh>
+      {Array.from({ length: 8 }).map((_, i) => {
+        const a = (i / 8) * Math.PI * 2;
+        return (
+          <mesh key={i} position={[Math.cos(a) * r * 1.02, Math.sin(a) * r * 1.02, 0.014]}>
+            <cylinderGeometry args={[0.006, 0.006, 0.008, 6]} />
+            <meshStandardMaterial color={CHROME} metalness={0.9} roughness={0.25} />
+          </mesh>
+        );
+      })}
+    </group>
+  );
+}
+
 // L-shaped steel corner protectors — all 8 corners merged into ONE geometry
 // (24 plates in a single draw call instead of 24 meshes per cabinet).
 function CornerBrackets({ w, h, d, color }: { w: number; h: number; d: number; color: string }) {
