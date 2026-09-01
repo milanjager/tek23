@@ -4694,7 +4694,27 @@ function loadPreset(kind: PresetKind): Placed[] {
     arr.push(mk("generator", -9.0, 0, 3.2, "Aggregát"));
     arr.push(mk("mixer",      0.0, 1.0, 5.5, "FOH"));
     arr.push(mk("dj",         0.0, 0.0, 3.4, "DJ"));
+  } else if (kind === "twin_towers") {
+    // Twin Towers — dvě symetrické věže L/R: 2× scoop sub, mid, top + hex horn
+    for (const side of [-1, 1]) {
+      const s = side < 0 ? "L" : "R";
+      const x0 = side * 1.75;
+      for (let col = 0; col < 2; col++) {
+        const x = x0 + side * col * 1.10;
+        arr.push(mk("picus_scoop_lo", x, 0.00, SPK_Z, `${s} Sub ${col + 1}`));
+        arr.push(mk("picus_scoop_hi", x, 1.00, SPK_Z, `${s} Sub ${col + 3}`));
+        arr.push(mk("picus_mid_grill", x, 2.00, SPK_Z, `${s} Mid ${col + 1}`));
+      }
+      arr.push(mk("picus_top_3way", x0, 2.85, SPK_Z, `Top ${s}`));
+      arr.push(mk("picus_hex_horn", x0 + side * 1.10, 2.85, SPK_Z, `Hex ${s}`));
+      arr.push(mk("powersoft", side * 4.6, 0, 0.9, `Amp ${s}`));
+    }
+    arr.push(mk("distro",    -4.6, 0, 1.9, "Distro"));
+    arr.push(mk("generator", -6.0, 0, 3.2, "Aggregát"));
+    arr.push(mk("mixer",      0.0, 1.0, 4.0, "FOH"));
+    arr.push(mk("dj",         0.0, 0.0, 3.4, "DJ"));
   } else if (kind === "demo_tutorial") {
+
     // Malý demo rig pro průvodce: 2 sub + 2 top, amp, distro, generátor, mix
     arr.push(mk("picus_scoop_lo", -0.60, 0.00, SPK_Z, "Sub L"));
     arr.push(mk("picus_scoop_lo",  0.60, 0.00, SPK_Z, "Sub R"));
