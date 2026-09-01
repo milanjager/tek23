@@ -1096,6 +1096,80 @@ function getGrilleClone(rx: number, ry: number): THREE.CanvasTexture {
   return t;
 }
 
+/* Jemná struktura lakované překližky (warnex / texturovaný nástřik).
+   Jedna sdílená textura, klonovaná podle velikosti skříně. */
+let _paintTex: THREE.CanvasTexture | null = null;
+function getPaintTexture(): THREE.CanvasTexture {
+  if (_paintTex) return _paintTex;
+  const S = 256;
+  const c = document.createElement("canvas");
+  c.width = c.height = S;
+  const ctx = c.getContext("2d")!;
+  ctx.fillStyle = "#8a8a8a";
+  ctx.fillRect(0, 0, S, S);
+  // hrubý zrnitý nástřik
+  for (let i = 0; i < 9000; i++) {
+    const x = Math.random() * S;
+    const y = Math.random() * S;
+    const v = 120 + Math.random() * 110;
+    ctx.fillStyle = `rgba(${v},${v},${v},0.5)`;
+    ctx.fillRect(x, y, Math.random() < 0.15 ? 2 : 1, 1);
+  }
+  const tex = new THREE.CanvasTexture(c);
+  tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+  tex.anisotropy = 4;
+  _paintTex = tex;
+  return tex;
+}
+
+const _paintClones = new Map<string, THREE.CanvasTexture>();
+function getPaintClone(rx: number, ry: number): THREE.CanvasTexture {
+  const key = `${rx}x${ry}`;
+  let t = _paintClones.get(key);
+  if (!t) {
+    t = getPaintTexture().clone();
+    t.needsUpdate = true;
+    t.repeat.set(rx, ry);
+    t.wrapS = t.wrapT = THREE.RepeatWrapping;
+    _paintClones.set(key, t);
+  }
+  return t;
+}
+
+/** Jeden realistický LF driver (koš, sikaně, prachovka, šrouby). */
+function LFDriver({ r, chrome = false }: { r: number; chrome?: boolean }) {
+  return (
+    <group>
+      <mesh rotation={[Math.PI / 2, 0, 0]}>
+        <cylinderGeometry args={[r * 1.05, r * 1.05, 0.02, 40]} />
+        <meshStandardMaterial color="#1a1a1a" roughness={0.6} metalness={0.5} />
+      </mesh>
+      {/* Sikaně (surround) */}
+      <mesh position={[0, 0, 0.014]}>
+        <ringGeometry args={[r * 0.82, r * 1.0, 40]} />
+        <meshStandardMaterial color="#15171a" roughness={0.85} side={THREE.DoubleSide} />
+      </mesh>
+      <mesh position={[0, 0, 0.02]} rotation={[Math.PI / 2, 0, 0]}>
+        <coneGeometry args={[r * 0.86, 0.05, 40, 1, true]} />
+        <meshStandardMaterial color="#0b0b0b" roughness={0.92} side={THREE.DoubleSide} />
+      </mesh>
+      <mesh position={[0, 0, 0.052]}>
+        <sphereGeometry args={[r * 0.34, 20, 14]} />
+        <meshStandardMaterial color={chrome ? CHROME : "#141414"} roughness={chrome ? 0.3 : 0.55} metalness={chrome ? 0.85 : 0.3} />
+      </mesh>
+      {Array.from({ length: 8 }).map((_, i) => {
+        const a = (i / 8) * Math.PI * 2;
+        return (
+          <mesh key={i} position={[Math.cos(a) * r * 1.02, Math.sin(a) * r * 1.02, 0.014]}>
+            <cylinderGeometry args={[0.006, 0.006, 0.008, 6]} />
+            <meshStandardMaterial color={CHROME} metalness={0.9} roughness={0.25} />
+          </mesh>
+        );
+      })}
+    </group>
+  );
+}
+
 // L-shaped steel corner protectors — all 8 corners merged into ONE geometry
 // (24 plates in a single draw call instead of 24 meshes per cabinet).
 function CornerBrackets({ w, h, d, color }: { w: number; h: number; d: number; color: string }) {
@@ -1168,6 +1242,7 @@ function Cabinet({
   const [w, h, d] = size;
   const palletH = onPallet ? 0.14 : 0;
   const grilleTex = useMemo(() => getGrilleClone(Math.max(4, Math.round(w * 8)), Math.max(4, Math.round(h * 8))), [w, h]);
+  const paintTex = useMemo(() => getPaintClone(Math.max(1, Math.round(w * 2)), Math.max(1, Math.round(h * 2))), [w, h]);
 
   return (
     <group position={[0, palletH, 0]}>
@@ -1177,13 +1252,17 @@ function Cabinet({
         <boxGeometry args={[w, h, d]} />
         <meshPhysicalMaterial
           color={color}
-          roughness={0.62}
-          metalness={0.08}
-          clearcoat={0.35}
-          clearcoatRoughness={0.55}
-          reflectivity={0.35}
+          roughness={0.68}
+          roughnessMap={paintTex}
+          bumpMap={paintTex}
+          bumpScale={0.012}
+          metalness={0.06}
+          clearcoat={0.22}
+          clearcoatRoughness={0.7}
+          reflectivity={0.25}
         />
         <Edges threshold={15} color="#0a0a0a" scale={1.001} />
+
       </mesh>
       {/* Recessed grille well — darker inset behind the perforated cloth */}
       <mesh position={[0, h / 2, d / 2 + 0.0008]}>
@@ -1339,25 +1418,25 @@ function MidModel({ size }: { size: [number, number, number] }) {
     <Cabinet
       size={size}
       tealFrame={true}
-      accentBars={true}
+      accentBars={false}
       yellowCross={false}
       frontDetail={
         <group>
-          <mesh position={[0, h * 0.12, 0.01]} rotation={[Math.PI / 2, 0, 0]}>
-            <cylinderGeometry args={[r, r * 0.8, 0.06, 24]} />
-            <meshStandardMaterial color="#0a0a0a" roughness={0.7} />
+          <group position={[0, h * 0.12, 0.01]}>
+            <LFDriver r={r} />
+          </group>
+          {/* HF driver / waveguide pod midem */}
+          <mesh position={[0, -h * 0.22, 0.008]}>
+            <boxGeometry args={[w * 0.52, h * 0.16, 0.016]} />
+            <meshStandardMaterial color="#0a0c10" roughness={0.85} />
           </mesh>
-          {/* Oranžový kroužek kolem driveru */}
-          <mesh position={[0, h * 0.12, 0.045]}>
-            <ringGeometry args={[r * 1.05, r * 1.24, 40]} />
-            <meshStandardMaterial color={ORANGE} metalness={0.35} roughness={0.45} side={THREE.DoubleSide} />
-          </mesh>
-          <mesh position={[0, -h * 0.2, 0.005]}>
-            <planeGeometry args={[w * 0.5, 0.06]} />
-            <meshStandardMaterial color={CHROME} metalness={0.9} roughness={0.3} />
+          <mesh position={[0, -h * 0.22, 0.02]}>
+            <sphereGeometry args={[Math.min(w, h) * 0.05, 16, 12]} />
+            <meshStandardMaterial color={CHROME} metalness={0.88} roughness={0.28} />
           </mesh>
         </group>
       }
+
     />
   );
 }
@@ -1366,34 +1445,40 @@ function MidModel({ size }: { size: [number, number, number] }) {
 
 function BassModel({ size }: { size: [number, number, number] }) {
   const [w, h] = size;
-  const r = Math.min(w * 0.35, h * 0.42);
+  const r = Math.min(w * 0.24, h * 0.34);
   return (
     <Cabinet
       size={size}
       tealFrame={true}
-      accentBars={true}
+      accentBars={false}
       yellowCross={false}
       frontDetail={
         <group>
-          <mesh position={[-w * 0.2, 0, 0.01]} rotation={[Math.PI / 2, 0, 0]}>
-            <cylinderGeometry args={[r, r * 0.7, 0.08, 24]} />
-            <meshStandardMaterial color="#0a0a0a" roughness={0.6} />
-          </mesh>
-          <mesh position={[w * 0.2, 0, 0.01]} rotation={[Math.PI / 2, 0, 0]}>
-            <cylinderGeometry args={[r, r * 0.7, 0.08, 24]} />
-            <meshStandardMaterial color="#0a0a0a" roughness={0.6} />
+          {[-1, 1].map((s) => (
+            <group key={s} position={[s * w * 0.24, 0, 0.012]}>
+              <LFDriver r={r} />
+            </group>
+          ))}
+          {/* Reflexní port uprostřed */}
+          <mesh position={[0, -h * 0.3, 0.005]}>
+            <boxGeometry args={[w * 0.16, h * 0.14, 0.02]} />
+            <meshStandardMaterial color="#050505" roughness={0.95} />
           </mesh>
         </group>
       }
+
     />
   );
 }
 
 
 function SubModel({ size }: { size: [number, number, number] }) {
-  // KS28-inspired: dual 18" front drivers with a vented port between them.
+  // Počet 18" driverů odpovídá šířce skříně: úzká = 1×18" (RCF LF18G401),
+  // široká = 2×18" s reflexním portem uprostřed.
   const [w, h] = size;
-  const r = Math.min(w * 0.22, h * 0.34);
+  const dual = w >= 0.9;
+  const r = dual ? Math.min(w * 0.22, h * 0.34) : Math.min(w * 0.34, h * 0.3);
+  const positions = dual ? [-w * 0.26, w * 0.26] : [0];
   return (
     <Cabinet
       size={size}
@@ -1403,51 +1488,37 @@ function SubModel({ size }: { size: [number, number, number] }) {
       onPallet={true}
       frontDetail={
         <group>
-          {[-1, 1].map((s) => (
-            <group key={s} position={[s * w * 0.26, 0, 0.012]}>
-              {/* Basket */}
-              <mesh rotation={[Math.PI / 2, 0, 0]}>
-                <cylinderGeometry args={[r * 1.05, r * 1.05, 0.02, 40]} />
-                <meshStandardMaterial color="#1a1a1a" roughness={0.6} metalness={0.5} />
-              </mesh>
-              {/* Cone */}
-              <mesh position={[0, 0, 0.02]} rotation={[Math.PI / 2, 0, 0]}>
-                <coneGeometry args={[r * 0.92, 0.045, 40, 1, true]} />
-                <meshStandardMaterial color="#0b0b0b" roughness={0.9} side={THREE.DoubleSide} />
-              </mesh>
-              {/* Dust cap */}
-              <mesh position={[0, 0, 0.05]}>
-                <sphereGeometry args={[r * 0.38, 20, 14]} />
-                <meshStandardMaterial color="#141414" roughness={0.5} metalness={0.35} />
-              </mesh>
-              {/* Bolt ring */}
-              {Array.from({ length: 8 }).map((_, i) => {
-                const a = (i / 8) * Math.PI * 2;
-                return (
-                  <mesh key={i} position={[Math.cos(a) * r * 1.02, Math.sin(a) * r * 1.02, 0.014]}>
-                    <cylinderGeometry args={[0.006, 0.006, 0.008, 6]} />
-                    <meshStandardMaterial color={CHROME} metalness={0.9} roughness={0.25} />
-                  </mesh>
-                );
-              })}
+          {positions.map((px, i) => (
+            <group key={i} position={[px, dual ? 0 : h * 0.06, 0.012]}>
+              <LFDriver r={r} />
             </group>
           ))}
-          {/* Center bass-reflex port slot */}
-          <mesh position={[0, 0, 0.005]}>
-            <boxGeometry args={[w * 0.14, h * 0.55, 0.02]} />
-            <meshStandardMaterial color="#050505" roughness={0.95} />
-          </mesh>
-          {/* Světlé výztuhy v ústí portu (jako na referenci) */}
-          {[-1, 1].map((s2) => (
-            <mesh key={`br${s2}`} position={[s2 * w * 0.035, 0, 0.014]}>
-              <boxGeometry args={[0.012, h * 0.5, 0.01]} />
-              <meshStandardMaterial color="#d6dae0" metalness={0.5} roughness={0.4} />
-            </mesh>
-          ))}
-          {/* Oranžová lišta pod drivery */}
-          <mesh position={[0, -h * 0.36, 0.014]}>
-            <boxGeometry args={[w * 0.82, 0.026, 0.014]} />
-            <meshStandardMaterial color={ORANGE} metalness={0.35} roughness={0.45} />
+          {/* Reflexní port(y) */}
+          {dual ? (
+            <>
+              <mesh position={[0, 0, 0.005]}>
+                <boxGeometry args={[w * 0.14, h * 0.55, 0.02]} />
+                <meshStandardMaterial color="#050505" roughness={0.95} />
+              </mesh>
+              {[-1, 1].map((s2) => (
+                <mesh key={`br${s2}`} position={[s2 * w * 0.035, 0, 0.014]}>
+                  <boxGeometry args={[0.012, h * 0.5, 0.01]} />
+                  <meshStandardMaterial color="#d6dae0" metalness={0.5} roughness={0.4} />
+                </mesh>
+              ))}
+            </>
+          ) : (
+            [-1, 1].map((s2) => (
+              <mesh key={`p${s2}`} position={[s2 * w * 0.32, -h * 0.28, 0.005]}>
+                <boxGeometry args={[w * 0.2, h * 0.12, 0.02]} />
+                <meshStandardMaterial color="#050505" roughness={0.95} />
+              </mesh>
+            ))
+          )}
+          {/* Decentní lišta pod drivery */}
+          <mesh position={[0, -h * 0.42, 0.012]}>
+            <boxGeometry args={[w * 0.78, 0.02, 0.012]} />
+            <meshStandardMaterial color={ORANGE} metalness={0.3} roughness={0.55} />
           </mesh>
           {/* Recessed side handles */}
           {[-1, 1].map((s) => (
@@ -1459,6 +1530,7 @@ function SubModel({ size }: { size: [number, number, number] }) {
         </group>
       }
     />
+
   );
 }
 
