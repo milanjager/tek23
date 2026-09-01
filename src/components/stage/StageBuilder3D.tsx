@@ -4960,23 +4960,40 @@ function PaletteThumb({ kind }: { kind: Kind }) {
   const [w, h, d] = spec.size;
   const maxDim = Math.max(w, h, d);
   const camDist = maxDim * 2.2 + 0.4;
+  // Prohlížeče drží jen omezený počet WebGL kontextů (~16). Paleta jich měla
+  // desítky najednou → nejstarší (= první bedny v seznamu) se přestaly kreslit.
+  // Canvas proto mountujeme jen když je náhled opravdu vidět.
+  const hostRef = useRef<HTMLDivElement | null>(null);
+  const [visible, setVisible] = useState(false);
+  useEffect(() => {
+    const el = hostRef.current;
+    if (!el || typeof IntersectionObserver === "undefined") { setVisible(true); return; }
+    const io = new IntersectionObserver(
+      (entries) => { for (const e of entries) setVisible(e.isIntersecting); },
+      { rootMargin: "120px 0px" },
+    );
+    io.observe(el);
+    return () => io.disconnect();
+  }, []);
   return (
-    <div className="pointer-events-none h-16 w-full overflow-hidden rounded bg-gradient-to-b from-neutral-100 to-white">
-      <Canvas
-        dpr={[1, 1.5]}
-        camera={{ position: [camDist * 0.9, camDist * 0.75, camDist], fov: 32 }}
-        gl={{ antialias: true, alpha: true, powerPreference: "low-power" }}
-        shadows={false}
-        frameloop="demand"
-      >
-        <ThumbLookAt />
-        <ambientLight intensity={0.7} />
-        <hemisphereLight args={["#a3ff12", "#221100", 0.4]} />
-        <directionalLight position={[3, 4, 3]} intensity={1.1} />
-        <group position={[0, -h / 2, 0]}>
-          <ModelFor kind={kind} size={spec.size} />
-        </group>
-      </Canvas>
+    <div ref={hostRef} className="pointer-events-none h-16 w-full overflow-hidden rounded bg-gradient-to-b from-neutral-100 to-white">
+      {visible && (
+        <Canvas
+          dpr={[1, 1.5]}
+          camera={{ position: [camDist * 0.9, camDist * 0.75, camDist], fov: 32 }}
+          gl={{ antialias: true, alpha: true, powerPreference: "low-power" }}
+          shadows={false}
+          frameloop="demand"
+        >
+          <ThumbLookAt />
+          <ambientLight intensity={0.7} />
+          <hemisphereLight args={["#a3ff12", "#221100", 0.4]} />
+          <directionalLight position={[3, 4, 3]} intensity={1.1} />
+          <group position={[0, -h / 2, 0]}>
+            <ModelFor kind={kind} size={spec.size} />
+          </group>
+        </Canvas>
+      )}
     </div>
   );
 }
