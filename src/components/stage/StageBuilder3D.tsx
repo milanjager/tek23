@@ -246,7 +246,7 @@ interface Placed {
 }
 
 
-type PresetKind = "namel_wall" | "club_stack" | "festival_ground" | "mlk_wall" | "demo_tutorial";
+type PresetKind = "namel_wall" | "club_stack" | "festival_ground" | "mlk_wall" | "twin_towers" | "demo_tutorial";
 
 type CableType = "signal" | "speaker" | "power" | "dmx";
 
@@ -6015,6 +6015,7 @@ export function StageBuilder3D() {
           presets={[
             { id: "namel_wall", title: "Namel Wall", desc: "Velká 4×18\" stěna dle reference — subs, mids, horny." },
             { id: "mlk_wall", title: "MLK Wall", desc: "Mega stěna 14,5 m — boční sub stěny, scoop věže, mid kostky, tops." },
+            { id: "twin_towers", title: "Twin Towers", desc: "Dvě symetrické věže L/R — subs, mids, tops a hex horny." },
             { id: "club_stack", title: "Club Stack", desc: "Kompaktní 2×2 sub + top L/R pro klub." },
             { id: "festival_ground", title: "Festival Ground", desc: "3 sub clustery + wing horny na open-air." },
           ]}
@@ -6208,6 +6209,7 @@ export function StageBuilder3D() {
               <option value="">⚡ Načíst preset…</option>
               <option value="namel_wall">Namel Wall — velká 4×18&quot; stěna</option>
               <option value="mlk_wall">MLK Wall — mega stěna 14,5 m</option>
+              <option value="twin_towers">Twin Towers — 2 věže L/R</option>
               <option value="club_stack">Club Stack — 2×2 sub + top L/R</option>
               <option value="festival_ground">Festival Ground — 3 clustery</option>
             </select>
