@@ -1242,6 +1242,7 @@ function Cabinet({
   const [w, h, d] = size;
   const palletH = onPallet ? 0.14 : 0;
   const grilleTex = useMemo(() => getGrilleClone(Math.max(4, Math.round(w * 8)), Math.max(4, Math.round(h * 8))), [w, h]);
+  const paintTex = useMemo(() => getPaintClone(Math.max(1, Math.round(w * 2)), Math.max(1, Math.round(h * 2))), [w, h]);
 
   return (
     <group position={[0, palletH, 0]}>
@@ -1251,13 +1252,17 @@ function Cabinet({
         <boxGeometry args={[w, h, d]} />
         <meshPhysicalMaterial
           color={color}
-          roughness={0.62}
-          metalness={0.08}
-          clearcoat={0.35}
-          clearcoatRoughness={0.55}
-          reflectivity={0.35}
+          roughness={0.68}
+          roughnessMap={paintTex}
+          bumpMap={paintTex}
+          bumpScale={0.012}
+          metalness={0.06}
+          clearcoat={0.22}
+          clearcoatRoughness={0.7}
+          reflectivity={0.25}
         />
         <Edges threshold={15} color="#0a0a0a" scale={1.001} />
+
       </mesh>
       {/* Recessed grille well — darker inset behind the perforated cloth */}
       <mesh position={[0, h / 2, d / 2 + 0.0008]}>
