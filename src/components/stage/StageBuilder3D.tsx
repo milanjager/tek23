@@ -4976,7 +4976,7 @@ function PaletteThumb({ kind }: { kind: Kind }) {
     return () => io.disconnect();
   }, []);
   return (
-    <div ref={hostRef} className="pointer-events-none h-16 w-full overflow-hidden rounded bg-gradient-to-b from-neutral-100 to-white">
+    <div ref={hostRef} className="pointer-events-none h-32 w-full overflow-hidden rounded-lg bg-gradient-to-b from-neutral-100 to-white">
       {visible && (
         <Canvas
           dpr={[1, 1.5]}
@@ -6446,7 +6446,7 @@ export function StageBuilder3D() {
         {/* Palette */}
         <aside
           aria-label="Knihovna komponent"
-          className={`${paletteOpen && !mobileViewer ? "absolute inset-y-0 left-0 z-30 flex w-[86vw] max-w-xs shadow-2xl animate-in slide-in-from-left-4 fade-in duration-200 md:static md:z-auto md:w-56 md:shadow-none" : "hidden"} glass flex-col border-r border-neutral-200/60`}
+          className={`${paletteOpen && !mobileViewer ? "absolute inset-y-0 left-0 z-30 flex w-[90vw] max-w-sm shadow-2xl animate-in slide-in-from-left-4 fade-in duration-200 md:static md:z-auto md:w-72 md:shadow-none" : "hidden"} glass flex-col border-r border-neutral-200/60`}
         >
           {/* Desktop collapse header */}
           <div className="hidden items-center justify-between border-b border-neutral-200/60 px-2 py-1 md:flex">
