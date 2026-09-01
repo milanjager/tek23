@@ -1470,9 +1470,12 @@ function BassModel({ size }: { size: [number, number, number] }) {
 
 
 function SubModel({ size }: { size: [number, number, number] }) {
-  // KS28-inspired: dual 18" front drivers with a vented port between them.
+  // Počet 18" driverů odpovídá šířce skříně: úzká = 1×18" (RCF LF18G401),
+  // široká = 2×18" s reflexním portem uprostřed.
   const [w, h] = size;
-  const r = Math.min(w * 0.22, h * 0.34);
+  const dual = w >= 0.9;
+  const r = dual ? Math.min(w * 0.22, h * 0.34) : Math.min(w * 0.34, h * 0.3);
+  const positions = dual ? [-w * 0.26, w * 0.26] : [0];
   return (
     <Cabinet
       size={size}
@@ -1482,51 +1485,37 @@ function SubModel({ size }: { size: [number, number, number] }) {
       onPallet={true}
       frontDetail={
         <group>
-          {[-1, 1].map((s) => (
-            <group key={s} position={[s * w * 0.26, 0, 0.012]}>
-              {/* Basket */}
-              <mesh rotation={[Math.PI / 2, 0, 0]}>
-                <cylinderGeometry args={[r * 1.05, r * 1.05, 0.02, 40]} />
-                <meshStandardMaterial color="#1a1a1a" roughness={0.6} metalness={0.5} />
-              </mesh>
-              {/* Cone */}
-              <mesh position={[0, 0, 0.02]} rotation={[Math.PI / 2, 0, 0]}>
-                <coneGeometry args={[r * 0.92, 0.045, 40, 1, true]} />
-                <meshStandardMaterial color="#0b0b0b" roughness={0.9} side={THREE.DoubleSide} />
-              </mesh>
-              {/* Dust cap */}
-              <mesh position={[0, 0, 0.05]}>
-                <sphereGeometry args={[r * 0.38, 20, 14]} />
-                <meshStandardMaterial color="#141414" roughness={0.5} metalness={0.35} />
-              </mesh>
-              {/* Bolt ring */}
-              {Array.from({ length: 8 }).map((_, i) => {
-                const a = (i / 8) * Math.PI * 2;
-                return (
-                  <mesh key={i} position={[Math.cos(a) * r * 1.02, Math.sin(a) * r * 1.02, 0.014]}>
-                    <cylinderGeometry args={[0.006, 0.006, 0.008, 6]} />
-                    <meshStandardMaterial color={CHROME} metalness={0.9} roughness={0.25} />
-                  </mesh>
-                );
-              })}
+          {positions.map((px, i) => (
+            <group key={i} position={[px, dual ? 0 : h * 0.06, 0.012]}>
+              <LFDriver r={r} />
             </group>
           ))}
-          {/* Center bass-reflex port slot */}
-          <mesh position={[0, 0, 0.005]}>
-            <boxGeometry args={[w * 0.14, h * 0.55, 0.02]} />
-            <meshStandardMaterial color="#050505" roughness={0.95} />
-          </mesh>
-          {/* Světlé výztuhy v ústí portu (jako na referenci) */}
-          {[-1, 1].map((s2) => (
-            <mesh key={`br${s2}`} position={[s2 * w * 0.035, 0, 0.014]}>
-              <boxGeometry args={[0.012, h * 0.5, 0.01]} />
-              <meshStandardMaterial color="#d6dae0" metalness={0.5} roughness={0.4} />
-            </mesh>
-          ))}
-          {/* Oranžová lišta pod drivery */}
-          <mesh position={[0, -h * 0.36, 0.014]}>
-            <boxGeometry args={[w * 0.82, 0.026, 0.014]} />
-            <meshStandardMaterial color={ORANGE} metalness={0.35} roughness={0.45} />
+          {/* Reflexní port(y) */}
+          {dual ? (
+            <>
+              <mesh position={[0, 0, 0.005]}>
+                <boxGeometry args={[w * 0.14, h * 0.55, 0.02]} />
+                <meshStandardMaterial color="#050505" roughness={0.95} />
+              </mesh>
+              {[-1, 1].map((s2) => (
+                <mesh key={`br${s2}`} position={[s2 * w * 0.035, 0, 0.014]}>
+                  <boxGeometry args={[0.012, h * 0.5, 0.01]} />
+                  <meshStandardMaterial color="#d6dae0" metalness={0.5} roughness={0.4} />
+                </mesh>
+              ))}
+            </>
+          ) : (
+            [-1, 1].map((s2) => (
+              <mesh key={`p${s2}`} position={[s2 * w * 0.32, -h * 0.28, 0.005]}>
+                <boxGeometry args={[w * 0.2, h * 0.12, 0.02]} />
+                <meshStandardMaterial color="#050505" roughness={0.95} />
+              </mesh>
+            ))
+          )}
+          {/* Decentní lišta pod drivery */}
+          <mesh position={[0, -h * 0.42, 0.012]}>
+            <boxGeometry args={[w * 0.78, 0.02, 0.012]} />
+            <meshStandardMaterial color={ORANGE} metalness={0.3} roughness={0.55} />
           </mesh>
           {/* Recessed side handles */}
           {[-1, 1].map((s) => (
@@ -1538,6 +1527,7 @@ function SubModel({ size }: { size: [number, number, number] }) {
         </group>
       }
     />
+
   );
 }
 
