@@ -1418,25 +1418,25 @@ function MidModel({ size }: { size: [number, number, number] }) {
     <Cabinet
       size={size}
       tealFrame={true}
-      accentBars={true}
+      accentBars={false}
       yellowCross={false}
       frontDetail={
         <group>
-          <mesh position={[0, h * 0.12, 0.01]} rotation={[Math.PI / 2, 0, 0]}>
-            <cylinderGeometry args={[r, r * 0.8, 0.06, 24]} />
-            <meshStandardMaterial color="#0a0a0a" roughness={0.7} />
+          <group position={[0, h * 0.12, 0.01]}>
+            <LFDriver r={r} />
+          </group>
+          {/* HF driver / waveguide pod midem */}
+          <mesh position={[0, -h * 0.22, 0.008]}>
+            <boxGeometry args={[w * 0.52, h * 0.16, 0.016]} />
+            <meshStandardMaterial color="#0a0c10" roughness={0.85} />
           </mesh>
-          {/* Oranžový kroužek kolem driveru */}
-          <mesh position={[0, h * 0.12, 0.045]}>
-            <ringGeometry args={[r * 1.05, r * 1.24, 40]} />
-            <meshStandardMaterial color={ORANGE} metalness={0.35} roughness={0.45} side={THREE.DoubleSide} />
-          </mesh>
-          <mesh position={[0, -h * 0.2, 0.005]}>
-            <planeGeometry args={[w * 0.5, 0.06]} />
-            <meshStandardMaterial color={CHROME} metalness={0.9} roughness={0.3} />
+          <mesh position={[0, -h * 0.22, 0.02]}>
+            <sphereGeometry args={[Math.min(w, h) * 0.05, 16, 12]} />
+            <meshStandardMaterial color={CHROME} metalness={0.88} roughness={0.28} />
           </mesh>
         </group>
       }
+
     />
   );
 }
