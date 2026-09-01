@@ -106,7 +106,7 @@ const SPECS: Record<Kind, Spec> = {
   horn:         { label: "Horn",             category: "sound",  size: [0.60, 0.40, 0.40], stackable: true,  hint: "Výškový horn" },
   mid:          { label: "Mid",              category: "sound",  size: [0.60, 0.60, 0.50], stackable: true,  hint: "Střední pásmo" },
   bass:         { label: "Bass bin",         category: "sound",  size: [0.80, 0.60, 0.70], stackable: true,  hint: "Basová bedna" },
-  sub:          { label: "Sub 2×18",         category: "sound",  size: [1.20, 0.80, 0.90], stackable: true,  hint: "Sub-bass" },
+  sub:          { label: "Sub 1×18\" RCF LF18G401", category: "sound",  size: [0.60, 0.75, 0.85], stackable: true,  hint: "1× RCF LF18G401 · 1200 W AES · 8 Ω · 98 dB", defaultLabel: "Sub RCF LF18G401", weightKg: 62, defaultNotes: "Driver: RCF LF18G401 (18\", 4\" cívka, 1200 W AES / 2400 W peak, 8 Ω, 98 dB, Xmax ±9 mm).\nIN: Speakon NL4 (1+/1−) · LINK OUT paralelní — max. 2 bedny na kanál (4 Ω).\nDoporučení: HPF 30 Hz, LPF 100 Hz, limiter na 1200 W RMS." },
   linearray:    { label: "Line array",       category: "sound",  size: [0.90, 0.28, 0.55], stackable: true,  hint: "Line array element" },
   monitor:      { label: "Stage monitor",    category: "sound",  size: [0.60, 0.40, 0.45], stackable: true,  hint: "Wedge odposlech" },
   badtekk_sub:  { label: "Badtekk Sub",      category: "sound",  size: [1.20, 0.80, 0.90], stackable: true,  hint: "Badtekk 2×18\" sub", defaultLabel: "Badtekk Sub" },
@@ -4960,23 +4960,40 @@ function PaletteThumb({ kind }: { kind: Kind }) {
   const [w, h, d] = spec.size;
   const maxDim = Math.max(w, h, d);
   const camDist = maxDim * 2.2 + 0.4;
+  // Prohlížeče drží jen omezený počet WebGL kontextů (~16). Paleta jich měla
+  // desítky najednou → nejstarší (= první bedny v seznamu) se přestaly kreslit.
+  // Canvas proto mountujeme jen když je náhled opravdu vidět.
+  const hostRef = useRef<HTMLDivElement | null>(null);
+  const [visible, setVisible] = useState(false);
+  useEffect(() => {
+    const el = hostRef.current;
+    if (!el || typeof IntersectionObserver === "undefined") { setVisible(true); return; }
+    const io = new IntersectionObserver(
+      (entries) => { for (const e of entries) setVisible(e.isIntersecting); },
+      { rootMargin: "120px 0px" },
+    );
+    io.observe(el);
+    return () => io.disconnect();
+  }, []);
   return (
-    <div className="pointer-events-none h-16 w-full overflow-hidden rounded bg-gradient-to-b from-neutral-100 to-white">
-      <Canvas
-        dpr={[1, 1.5]}
-        camera={{ position: [camDist * 0.9, camDist * 0.75, camDist], fov: 32 }}
-        gl={{ antialias: true, alpha: true, powerPreference: "low-power" }}
-        shadows={false}
-        frameloop="demand"
-      >
-        <ThumbLookAt />
-        <ambientLight intensity={0.7} />
-        <hemisphereLight args={["#a3ff12", "#221100", 0.4]} />
-        <directionalLight position={[3, 4, 3]} intensity={1.1} />
-        <group position={[0, -h / 2, 0]}>
-          <ModelFor kind={kind} size={spec.size} />
-        </group>
-      </Canvas>
+    <div ref={hostRef} className="pointer-events-none h-16 w-full overflow-hidden rounded bg-gradient-to-b from-neutral-100 to-white">
+      {visible && (
+        <Canvas
+          dpr={[1, 1.5]}
+          camera={{ position: [camDist * 0.9, camDist * 0.75, camDist], fov: 32 }}
+          gl={{ antialias: true, alpha: true, powerPreference: "low-power" }}
+          shadows={false}
+          frameloop="demand"
+        >
+          <ThumbLookAt />
+          <ambientLight intensity={0.7} />
+          <hemisphereLight args={["#a3ff12", "#221100", 0.4]} />
+          <directionalLight position={[3, 4, 3]} intensity={1.1} />
+          <group position={[0, -h / 2, 0]}>
+            <ModelFor kind={kind} size={spec.size} />
+          </group>
+        </Canvas>
+      )}
     </div>
   );
 }
