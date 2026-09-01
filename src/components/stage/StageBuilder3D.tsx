@@ -1445,25 +1445,28 @@ function MidModel({ size }: { size: [number, number, number] }) {
 
 function BassModel({ size }: { size: [number, number, number] }) {
   const [w, h] = size;
-  const r = Math.min(w * 0.35, h * 0.42);
+  const r = Math.min(w * 0.24, h * 0.34);
   return (
     <Cabinet
       size={size}
       tealFrame={true}
-      accentBars={true}
+      accentBars={false}
       yellowCross={false}
       frontDetail={
         <group>
-          <mesh position={[-w * 0.2, 0, 0.01]} rotation={[Math.PI / 2, 0, 0]}>
-            <cylinderGeometry args={[r, r * 0.7, 0.08, 24]} />
-            <meshStandardMaterial color="#0a0a0a" roughness={0.6} />
-          </mesh>
-          <mesh position={[w * 0.2, 0, 0.01]} rotation={[Math.PI / 2, 0, 0]}>
-            <cylinderGeometry args={[r, r * 0.7, 0.08, 24]} />
-            <meshStandardMaterial color="#0a0a0a" roughness={0.6} />
+          {[-1, 1].map((s) => (
+            <group key={s} position={[s * w * 0.24, 0, 0.012]}>
+              <LFDriver r={r} />
+            </group>
+          ))}
+          {/* Reflexní port uprostřed */}
+          <mesh position={[0, -h * 0.3, 0.005]}>
+            <boxGeometry args={[w * 0.16, h * 0.14, 0.02]} />
+            <meshStandardMaterial color="#050505" roughness={0.95} />
           </mesh>
         </group>
       }
+
     />
   );
 }
