@@ -246,7 +246,7 @@ interface Placed {
 }
 
 
-type PresetKind = "namel_wall" | "club_stack" | "festival_ground" | "mlk_wall" | "twin_towers" | "demo_tutorial";
+type PresetKind = "namel_wall" | "namel_hostivar" | "club_stack" | "festival_ground" | "mlk_wall" | "twin_towers" | "demo_tutorial";
 
 type CableType = "signal" | "speaker" | "power" | "dmx";
 
