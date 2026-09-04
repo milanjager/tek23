@@ -4710,23 +4710,23 @@ function loadPreset(kind: PresetKind): Placed[] {
     arr.push(mk("mixer",      0.0, 1.0, 3.2, "FOH mix"));
     arr.push(mk("dj",         0.0, 0.0, 3.6, "DJ"));
   } else if (kind === "namel_hostivar") {
-    // Namel Hostivař — dle fotky: spodní řada scoopů (2 L + 2 C + 2 R),
-    // centrální mid věž, nad boky široké mid-high skříně, nahoře zadní bass řada.
-    // --- Spodní scoopy L / C / R ---
-    const scoopX = [-2.30, -1.20, -0.55, 0.55, 1.20, 2.30];
-    scoopX.forEach((x, i) => arr.push(mk("picus_scoop_lo", x, 0, SPK_Z, `Scoop ${i + 1}`)));
-    // --- Centrální mid věž (3 patra nad středovými scoopy) ---
-    arr.push(mk("picus_mid_grill", 0.00, 1.00, SPK_Z, "Mid C1"));
-    arr.push(mk("picus_mid_grill", 0.00, 1.85, SPK_Z, "Mid C2"));
-    arr.push(mk("picus_mid_grill", 0.00, 2.70, SPK_Z, "Mid C3"));
-    // --- Boční široké mid-high skříně na scoopech ---
-    arr.push(mk("picus_bass_row", -1.75, 1.00, SPK_Z, "Mid-High L"));
-    arr.push(mk("picus_bass_row",  1.75, 1.00, SPK_Z, "Mid-High R"));
-    // --- Horní zadní řada + hex horny (světelný rám vlevo) ---
-    arr.push(mk("picus_top_3way", -1.75, 1.85, SPK_Z, "Top L"));
-    arr.push(mk("picus_top_3way",  1.75, 1.85, SPK_Z, "Top R"));
-    arr.push(mk("picus_hex_horn", -2.85, 1.85, SPK_Z, "Hex L"));
-    arr.push(mk("picus_hex_horn",  2.85, 1.85, SPK_Z, "Hex R"));
+    // Namel Hostivař — dle fotky: dole tři basy (L / C / R),
+    // nad krajními dvě velké středové skříně, nad nimi hřiby (hex horny),
+    // uprostřed sloupec o celkem třech bednách.
+    // --- Spodní bass řada ---
+    arr.push(mk("picus_scoop_lo", -1.80, 0, SPK_Z, "Bass L"));
+    arr.push(mk("picus_scoop_lo",  0.00, 0, SPK_Z, "Bass C"));
+    arr.push(mk("picus_scoop_lo",  1.80, 0, SPK_Z, "Bass R"));
+    // --- Velké středy nad krajními basy ---
+    arr.push(mk("picus_bass_row", -1.80, 1.00, SPK_Z, "Střed L"));
+    arr.push(mk("picus_bass_row",  1.80, 1.00, SPK_Z, "Střed R"));
+    // --- Hřiby (hex horny) nad středy ---
+    arr.push(mk("picus_hex_horn", -1.80, 1.90, SPK_Z, "Hřib L"));
+    arr.push(mk("picus_hex_horn",  1.80, 1.90, SPK_Z, "Hřib R"));
+    // --- Střední sloupec: celkem 3 bedny (bass + 2 mid) ---
+    arr.push(mk("picus_mid_grill", 0.00, 1.00, SPK_Z, "Střed C1"));
+    arr.push(mk("picus_mid_grill", 0.00, 1.85, SPK_Z, "Střed C2"));
+
     // --- Infra ---
     arr.push(mk("powersoft", -4.2, 0, 0.9, "Amp L"));
     arr.push(mk("powersoft",  4.2, 0, 0.9, "Amp R"));
