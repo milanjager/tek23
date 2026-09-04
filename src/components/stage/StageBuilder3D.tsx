@@ -6128,6 +6128,7 @@ export function StageBuilder3D() {
           hasSaved={hasSaved}
           presets={[
             { id: "namel_wall", title: "Namel Wall", desc: "Velká 4×18\" stěna dle reference — subs, mids, horny." },
+            { id: "namel_hostivar", title: "Namel Hostivař", desc: "Stěna dle fotky — 6 scoopů, centrální mid věž, boční mid-high." },
             { id: "mlk_wall", title: "MLK Wall", desc: "Mega stěna 14,5 m — boční sub stěny, scoop věže, mid kostky, tops." },
             { id: "twin_towers", title: "Twin Towers", desc: "Dvě symetrické věže L/R — subs, mids, tops a hex horny." },
             { id: "club_stack", title: "Club Stack", desc: "Kompaktní 2×2 sub + top L/R pro klub." },
@@ -6322,6 +6323,7 @@ export function StageBuilder3D() {
             >
               <option value="">⚡ Načíst preset…</option>
               <option value="namel_wall">Namel Wall — velká 4×18&quot; stěna</option>
+              <option value="namel_hostivar">Namel Hostivař — 6 scoopů + mid věž</option>
               <option value="mlk_wall">MLK Wall — mega stěna 14,5 m</option>
               <option value="twin_towers">Twin Towers — 2 věže L/R</option>
               <option value="club_stack">Club Stack — 2×2 sub + top L/R</option>
