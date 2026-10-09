@@ -101,29 +101,57 @@ struct HomeView: View {
 
 struct ConnectionBanner: View {
     @EnvironmentObject var vm: OBDViewModel
+    @State private var showConnect = false
 
     var body: some View {
         HStack(spacing: 10) {
-            Image(systemName: vm.isConnected ? "cable.connector" : "cable.connector.slash")
-                .foregroundColor(vm.isConnected ? .green : .red)
+            ZStack {
+                Circle()
+                    .fill(stateColor.opacity(0.15))
+                    .frame(width: 36, height: 36)
+                if isSpinning {
+                    ProgressView()
+                        .tint(stateColor)
+                        .scaleEffect(0.75)
+                } else {
+                    Image(systemName: vm.connectionState.sfSymbol)
+                        .foregroundColor(stateColor)
+                        .font(.system(size: 15, weight: .semibold))
+                }
+            }
             VStack(alignment: .leading, spacing: 2) {
-                Text(vm.isConnected ? "Connected" : "Disconnected")
+                Text(bannerTitle)
                     .font(.subheadline.bold())
-                    .foregroundColor(vm.isConnected ? .green : .red)
-                Text(vm.isConnected
-                     ? "\(vm.adapterType.rawValue) · Demo Mode"
-                     : "No OBD adapter detected")
+                    .foregroundColor(stateColor)
+                Text(bannerSubtitle)
                     .font(.caption2)
                     .foregroundColor(.appSubtext)
             }
             Spacer()
-            if vm.isConnected {
+            if vm.isDemoMode {
+                Text("Demo")
+                    .font(.caption2.bold())
+                    .padding(.horizontal, 8).padding(.vertical, 4)
+                    .background(Color.appAccent.opacity(0.18))
+                    .foregroundColor(.appAccent)
+                    .cornerRadius(6)
+            } else if !vm.connectionState.isReady {
+                Button {
+                    showConnect = true
+                } label: {
+                    Label("Connect", systemImage: "cable.connector")
+                        .font(.caption.bold())
+                        .foregroundColor(.appAccent)
+                        .padding(.horizontal, 10).padding(.vertical, 5)
+                        .background(Color.appAccent.opacity(0.12))
+                        .cornerRadius(8)
+                }
+            } else {
                 Text("VW T5")
                     .font(.caption2.bold())
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 4)
-                    .background(Color.appAccent.opacity(0.2))
-                    .foregroundColor(.appAccent)
+                    .padding(.horizontal, 8).padding(.vertical, 4)
+                    .background(Color.green.opacity(0.18))
+                    .foregroundColor(.green)
                     .cornerRadius(6)
             }
         }
@@ -131,8 +159,38 @@ struct ConnectionBanner: View {
         .background(Color.appCard)
         .cornerRadius(14)
         .overlay(RoundedRectangle(cornerRadius: 14)
-            .stroke(vm.isConnected ? Color.green.opacity(0.4) : Color.red.opacity(0.4), lineWidth: 1))
+            .stroke(stateColor.opacity(0.35), lineWidth: 1))
         .padding(.horizontal, 16)
+        .sheet(isPresented: $showConnect) {
+            ConnectView().environmentObject(vm)
+        }
+    }
+
+    private var stateColor: Color {
+        vm.isDemoMode ? Color.appAccent : vm.connectionState.color
+    }
+
+    private var isSpinning: Bool {
+        guard !vm.isDemoMode else { return false }
+        switch vm.connectionState {
+        case .scanning, .connecting, .initializing: return true
+        default: return false
+        }
+    }
+
+    private var bannerTitle: String {
+        if vm.isDemoMode { return "Demo Mode" }
+        return vm.connectionState.label
+    }
+
+    private var bannerSubtitle: String {
+        if vm.isDemoMode { return "Simulated data · tap Settings to connect a real adapter" }
+        switch vm.connectionState {
+        case .ready:         return "\(vm.adapterType.rawValue) · ELM327"
+        case .disconnected:  return "Tap Connect to pair an OBD adapter"
+        case .error(let m):  return m
+        default:             return "Please wait…"
+        }
     }
 }
 

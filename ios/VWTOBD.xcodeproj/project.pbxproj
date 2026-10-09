@@ -25,6 +25,11 @@
 		BF000016000000000000001B /* SparklineView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FR000016000000000000001A /* SparklineView.swift */; };
 		BF000017000000000000001B /* VWT5CarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FR000017000000000000001A /* VWT5CarView.swift */; };
 		BF000018000000000000001B /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = FR000018000000000000001A /* Assets.xcassets */; };
+		BF000021000000000000001B /* OBDConnectionProtocol.swift in Sources */ = {isa = PBXBuildFile; fileRef = FR000021000000000000001A /* OBDConnectionProtocol.swift */; };
+		BF000022000000000000001B /* ELM327Parser.swift in Sources */ = {isa = PBXBuildFile; fileRef = FR000022000000000000001A /* ELM327Parser.swift */; };
+		BF000023000000000000001B /* BLEOBDConnection.swift in Sources */ = {isa = PBXBuildFile; fileRef = FR000023000000000000001A /* BLEOBDConnection.swift */; };
+		BF000024000000000000001B /* WiFiOBDConnection.swift in Sources */ = {isa = PBXBuildFile; fileRef = FR000024000000000000001A /* WiFiOBDConnection.swift */; };
+		BF000025000000000000001B /* ConnectView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FR000025000000000000001A /* ConnectView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -48,6 +53,11 @@
 		FR000018000000000000001A /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		FR000019000000000000001A /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		FR000020000000000000001A /* VWTOBD.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = VWTOBD.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		FR000021000000000000001A /* OBDConnectionProtocol.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OBDConnectionProtocol.swift; sourceTree = "<group>"; };
+		FR000022000000000000001A /* ELM327Parser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ELM327Parser.swift; sourceTree = "<group>"; };
+		FR000023000000000000001A /* BLEOBDConnection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BLEOBDConnection.swift; sourceTree = "<group>"; };
+		FR000024000000000000001A /* WiFiOBDConnection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WiFiOBDConnection.swift; sourceTree = "<group>"; };
+		FR000025000000000000001A /* ConnectView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConnectView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -88,9 +98,21 @@
 				GRP000005000000000000001C /* Models */,
 				GRP000006000000000000001C /* ViewModels */,
 				GRP000007000000000000001C /* Data */,
+				GRP000010000000000000001C /* Connection */,
 				GRP000008000000000000001C /* Views */,
 			);
 			path = VWTOBD;
+			sourceTree = "<group>";
+		};
+		GRP000010000000000000001C /* Connection */ = {
+			isa = PBXGroup;
+			children = (
+				FR000021000000000000001A /* OBDConnectionProtocol.swift */,
+				FR000022000000000000001A /* ELM327Parser.swift */,
+				FR000023000000000000001A /* BLEOBDConnection.swift */,
+				FR000024000000000000001A /* WiFiOBDConnection.swift */,
+			);
+			path = Connection;
 			sourceTree = "<group>";
 		};
 		GRP000004000000000000001C /* Extensions */ = {
@@ -136,6 +158,7 @@
 				FR000012000000000000001A /* LiveDataView.swift */,
 				FR000013000000000000001A /* TemplatesView.swift */,
 				FR000014000000000000001A /* SettingsView.swift */,
+				FR000025000000000000001A /* ConnectView.swift */,
 				GRP000009000000000000001C /* Components */,
 			);
 			path = Views;
@@ -237,6 +260,11 @@
 				BF000015000000000000001B /* GaugeCard.swift in Sources */,
 				BF000016000000000000001B /* SparklineView.swift in Sources */,
 				BF000017000000000000001B /* VWT5CarView.swift in Sources */,
+				BF000021000000000000001B /* OBDConnectionProtocol.swift in Sources */,
+				BF000022000000000000001B /* ELM327Parser.swift in Sources */,
+				BF000023000000000000001B /* BLEOBDConnection.swift in Sources */,
+				BF000024000000000000001B /* WiFiOBDConnection.swift in Sources */,
+				BF000025000000000000001B /* ConnectView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
