@@ -61,11 +61,9 @@ struct DiscoveredDevice: Identifiable, Equatable {
     let rssi: Int       // negative dBm
 
     var signalBars: Int {
-        switch rssi {
-        case -60...:        return 3
-        case -75..<(-60):   return 2
-        default:            return 1
-        }
+        if rssi >= -60 { return 3 }
+        if rssi >= -75 { return 2 }
+        return 1
     }
 }
 
