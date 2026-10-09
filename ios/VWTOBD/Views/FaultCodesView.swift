@@ -88,7 +88,7 @@ struct FaultCodesView: View {
             Image(systemName: "magnifyingglass.circle")
                 .font(.system(size: 52))
                 .foregroundColor(.appAccent)
-                .symbolEffect(.pulse)
+                .opacity(vm.isScanning ? 1 : 0.4)
             Text("Scanning ECU modules…")
                 .foregroundColor(.appSubtext)
             Text(String(format: "%.0f%%", vm.scanProgress * 100))
