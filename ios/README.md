@@ -2,6 +2,39 @@
 
 A native iOS app for diagnosing VW T5 Transporter vehicles (2000+) via OBD II.
 
+## Quick Install (Mac + iPhone)
+
+```bash
+cd ios
+chmod +x install.sh
+./install.sh
+```
+
+The script will:
+1. Check Xcode 15+ is installed
+2. Detect your connected iPhone automatically
+3. Ask for your Apple Team ID (free Apple ID works — no paid membership needed)
+4. Build and install directly to your phone
+
+**Simulator instead:**
+```bash
+./install.sh --simulator
+# or
+make sim
+```
+
+**With Team ID pre-set (skip the prompt):**
+```bash
+export DEVELOPMENT_TEAM=XXXXXXXXXX   # your 10-char Team ID
+./install.sh
+# or
+make device
+```
+
+Find your Team ID at [developer.apple.com/account](https://developer.apple.com/account) → Membership → Team ID.
+
+---
+
 ## Features
 
 - **Live Gauges** — RPM, Speed, Coolant Temp, Engine Load with real-time sparklines
@@ -17,23 +50,18 @@ A native iOS app for diagnosing VW T5 Transporter vehicles (2000+) via OBD II.
 - iPhone (iPad not supported)
 - ELM327-compatible OBD II adapter (Bluetooth or Wi-Fi) for live vehicle data
 
-## Opening in Xcode
+## Manual Xcode Setup
 
 ```
 open ios/VWTOBD.xcodeproj
 ```
 
-Or in Finder: navigate to `ios/` and double-click `VWTOBD.xcodeproj`.
+1. Select the `VWTOBD` target → **Signing & Capabilities**
+2. Set your **Team** (free Apple ID works)
+3. Plug in your iPhone, select it as the run destination
+4. Press **⌘R**
 
-## Building to a Device
-
-1. Open the project in Xcode
-2. Select the `VWTOBD` target → **Signing & Capabilities**
-3. Set your **Team** (Apple Developer account)
-4. Plug in your iPhone, select it as the run destination
-5. Press **⌘R** to build and run
-
-No third-party dependencies — no CocoaPods, no Swift Package Manager packages required.
+No third-party dependencies — no CocoaPods, no SPM packages.
 
 ## Connecting an OBD Adapter
 
