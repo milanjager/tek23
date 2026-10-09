@@ -1,0 +1,430 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 56;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		BF000001000000000000001B /* VWTOBDApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = FR000001000000000000001A /* VWTOBDApp.swift */; };
+		BF000002000000000000001B /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FR000002000000000000001A /* ContentView.swift */; };
+		BF000003000000000000001B /* Color+Hex.swift in Sources */ = {isa = PBXBuildFile; fileRef = FR000003000000000000001A /* Color+Hex.swift */; };
+		BF000004000000000000001B /* FaultCode.swift in Sources */ = {isa = PBXBuildFile; fileRef = FR000004000000000000001A /* FaultCode.swift */; };
+		BF000005000000000000001B /* LiveDataPID.swift in Sources */ = {isa = PBXBuildFile; fileRef = FR000005000000000000001A /* LiveDataPID.swift */; };
+		BF000006000000000000001B /* DiagnosticTemplate.swift in Sources */ = {isa = PBXBuildFile; fileRef = FR000006000000000000001A /* DiagnosticTemplate.swift */; };
+		BF000007000000000000001B /* OBDViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = FR000007000000000000001A /* OBDViewModel.swift */; };
+		BF000008000000000000001B /* VWT5FaultCodes.swift in Sources */ = {isa = PBXBuildFile; fileRef = FR000008000000000000001A /* VWT5FaultCodes.swift */; };
+		BF000009000000000000001B /* DiagnosticTemplates.swift in Sources */ = {isa = PBXBuildFile; fileRef = FR000009000000000000001A /* DiagnosticTemplates.swift */; };
+		BF000010000000000000001B /* HomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FR000010000000000000001A /* HomeView.swift */; };
+		BF000011000000000000001B /* FaultCodesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FR000011000000000000001A /* FaultCodesView.swift */; };
+		BF000012000000000000001B /* LiveDataView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FR000012000000000000001A /* LiveDataView.swift */; };
+		BF000013000000000000001B /* TemplatesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FR000013000000000000001A /* TemplatesView.swift */; };
+		BF000014000000000000001B /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FR000014000000000000001A /* SettingsView.swift */; };
+		BF000015000000000000001B /* GaugeCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = FR000015000000000000001A /* GaugeCard.swift */; };
+		BF000016000000000000001B /* SparklineView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FR000016000000000000001A /* SparklineView.swift */; };
+		BF000017000000000000001B /* VWT5CarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FR000017000000000000001A /* VWT5CarView.swift */; };
+		BF000018000000000000001B /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = FR000018000000000000001A /* Assets.xcassets */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		FR000001000000000000001A /* VWTOBDApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VWTOBDApp.swift; sourceTree = "<group>"; };
+		FR000002000000000000001A /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
+		FR000003000000000000001A /* Color+Hex.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Color+Hex.swift"; sourceTree = "<group>"; };
+		FR000004000000000000001A /* FaultCode.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FaultCode.swift; sourceTree = "<group>"; };
+		FR000005000000000000001A /* LiveDataPID.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveDataPID.swift; sourceTree = "<group>"; };
+		FR000006000000000000001A /* DiagnosticTemplate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiagnosticTemplate.swift; sourceTree = "<group>"; };
+		FR000007000000000000001A /* OBDViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OBDViewModel.swift; sourceTree = "<group>"; };
+		FR000008000000000000001A /* VWT5FaultCodes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VWT5FaultCodes.swift; sourceTree = "<group>"; };
+		FR000009000000000000001A /* DiagnosticTemplates.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiagnosticTemplates.swift; sourceTree = "<group>"; };
+		FR000010000000000000001A /* HomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeView.swift; sourceTree = "<group>"; };
+		FR000011000000000000001A /* FaultCodesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FaultCodesView.swift; sourceTree = "<group>"; };
+		FR000012000000000000001A /* LiveDataView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveDataView.swift; sourceTree = "<group>"; };
+		FR000013000000000000001A /* TemplatesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TemplatesView.swift; sourceTree = "<group>"; };
+		FR000014000000000000001A /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
+		FR000015000000000000001A /* GaugeCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GaugeCard.swift; sourceTree = "<group>"; };
+		FR000016000000000000001A /* SparklineView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SparklineView.swift; sourceTree = "<group>"; };
+		FR000017000000000000001A /* VWT5CarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VWT5CarView.swift; sourceTree = "<group>"; };
+		FR000018000000000000001A /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		FR000019000000000000001A /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		FR000020000000000000001A /* VWTOBD.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = VWTOBD.app; sourceTree = BUILT_PRODUCTS_DIR; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		PH000003000000000000001D /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		GRP000001000000000000001C /* / */ = {
+			isa = PBXGroup;
+			children = (
+				GRP000003000000000000001C /* VWTOBD */,
+				GRP000002000000000000001C /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		GRP000002000000000000001C /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				FR000020000000000000001A /* VWTOBD.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		GRP000003000000000000001C /* VWTOBD */ = {
+			isa = PBXGroup;
+			children = (
+				FR000001000000000000001A /* VWTOBDApp.swift */,
+				FR000002000000000000001A /* ContentView.swift */,
+				FR000019000000000000001A /* Info.plist */,
+				FR000018000000000000001A /* Assets.xcassets */,
+				GRP000004000000000000001C /* Extensions */,
+				GRP000005000000000000001C /* Models */,
+				GRP000006000000000000001C /* ViewModels */,
+				GRP000007000000000000001C /* Data */,
+				GRP000008000000000000001C /* Views */,
+			);
+			path = VWTOBD;
+			sourceTree = "<group>";
+		};
+		GRP000004000000000000001C /* Extensions */ = {
+			isa = PBXGroup;
+			children = (
+				FR000003000000000000001A /* Color+Hex.swift */,
+			);
+			path = Extensions;
+			sourceTree = "<group>";
+		};
+		GRP000005000000000000001C /* Models */ = {
+			isa = PBXGroup;
+			children = (
+				FR000004000000000000001A /* FaultCode.swift */,
+				FR000005000000000000001A /* LiveDataPID.swift */,
+				FR000006000000000000001A /* DiagnosticTemplate.swift */,
+			);
+			path = Models;
+			sourceTree = "<group>";
+		};
+		GRP000006000000000000001C /* ViewModels */ = {
+			isa = PBXGroup;
+			children = (
+				FR000007000000000000001A /* OBDViewModel.swift */,
+			);
+			path = ViewModels;
+			sourceTree = "<group>";
+		};
+		GRP000007000000000000001C /* Data */ = {
+			isa = PBXGroup;
+			children = (
+				FR000008000000000000001A /* VWT5FaultCodes.swift */,
+				FR000009000000000000001A /* DiagnosticTemplates.swift */,
+			);
+			path = Data;
+			sourceTree = "<group>";
+		};
+		GRP000008000000000000001C /* Views */ = {
+			isa = PBXGroup;
+			children = (
+				FR000010000000000000001A /* HomeView.swift */,
+				FR000011000000000000001A /* FaultCodesView.swift */,
+				FR000012000000000000001A /* LiveDataView.swift */,
+				FR000013000000000000001A /* TemplatesView.swift */,
+				FR000014000000000000001A /* SettingsView.swift */,
+				GRP000009000000000000001C /* Components */,
+			);
+			path = Views;
+			sourceTree = "<group>";
+		};
+		GRP000009000000000000001C /* Components */ = {
+			isa = PBXGroup;
+			children = (
+				FR000015000000000000001A /* GaugeCard.swift */,
+				FR000016000000000000001A /* SparklineView.swift */,
+				FR000017000000000000001A /* VWT5CarView.swift */,
+			);
+			path = Components;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		TGT000001000000000000001E /* VWTOBD */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = CL000002000000000000001F /* Build configuration list for PBXNativeTarget "VWTOBD" */;
+			buildPhases = (
+				PH000001000000000000001D /* Sources */,
+				PH000002000000000000001D /* Resources */,
+				PH000003000000000000001D /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = VWTOBD;
+			productName = VWTOBD;
+			productReference = FR000020000000000000001A /* VWTOBD.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		PRJ000001000000000000001F /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastSwiftUpdateCheck = 1500;
+				LastUpgradeCheck = 1500;
+				TargetAttributes = {
+					TGT000001000000000000001E = {
+						CreatedOnToolsVersion = 15.0;
+					};
+				};
+			};
+			buildConfigurationList = CL000001000000000000001F /* Build configuration list for PBXProject "VWTOBD" */;
+			compatibilityVersion = "Xcode 14.0";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = GRP000001000000000000001C;
+			productRefGroup = GRP000002000000000000001C /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				TGT000001000000000000001E /* VWTOBD */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		PH000002000000000000001D /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				BF000018000000000000001B /* Assets.xcassets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		PH000001000000000000001D /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				BF000001000000000000001B /* VWTOBDApp.swift in Sources */,
+				BF000002000000000000001B /* ContentView.swift in Sources */,
+				BF000003000000000000001B /* Color+Hex.swift in Sources */,
+				BF000004000000000000001B /* FaultCode.swift in Sources */,
+				BF000005000000000000001B /* LiveDataPID.swift in Sources */,
+				BF000006000000000000001B /* DiagnosticTemplate.swift in Sources */,
+				BF000007000000000000001B /* OBDViewModel.swift in Sources */,
+				BF000008000000000000001B /* VWT5FaultCodes.swift in Sources */,
+				BF000009000000000000001B /* DiagnosticTemplates.swift in Sources */,
+				BF000010000000000000001B /* HomeView.swift in Sources */,
+				BF000011000000000000001B /* FaultCodesView.swift in Sources */,
+				BF000012000000000000001B /* LiveDataView.swift in Sources */,
+				BF000013000000000000001B /* TemplatesView.swift in Sources */,
+				BF000014000000000000001B /* SettingsView.swift in Sources */,
+				BF000015000000000000001B /* GaugeCard.swift in Sources */,
+				BF000016000000000000001B /* SparklineView.swift in Sources */,
+				BF000017000000000000001B /* VWT5CarView.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		XC000001000000000000001E /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_CYCLE = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = iphoneos;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+			};
+			name = Debug;
+		};
+		XC000002000000000000001E /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_CYCLE = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				SDKROOT = iphoneos;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
+		XC000003000000000000001E /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = "";
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = VWTOBD/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.vwt5obd.VWTOBD;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Debug;
+		};
+		XC000004000000000000001E /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = "";
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = VWTOBD/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.vwt5obd.VWTOBD;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		CL000001000000000000001F /* Build configuration list for PBXProject "VWTOBD" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				XC000001000000000000001E /* Debug */,
+				XC000002000000000000001E /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		CL000002000000000000001F /* Build configuration list for PBXNativeTarget "VWTOBD" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				XC000003000000000000001E /* Debug */,
+				XC000004000000000000001E /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = PRJ000001000000000000001F /* Project object */;
+}
