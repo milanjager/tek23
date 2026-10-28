@@ -1,7 +1,7 @@
 # Architecture
-- One route file per bottom-nav tab (index, codes, live, templates, settings); shared shell rendered in __root around Outlet — keeps tabs SSR-indexable.
-- All OBD state (settings, simulated live values, active DTCs) lives in ObdProvider (src/lib/obd/store.tsx) — single source for every tab; settings persist in localStorage.
-- DTC database and diagnostic templates are static data modules in src/lib/obd — edit data, not components, to add codes/templates.
+- The app is a stage/sound-rig builder: `src/routes/index.tsx` renders `StageBuilder3D` (3D scene + toolbar + panels); every other view (Schematic, GridPlanner, Elevation, Isometric, Technical) is a sibling component under `src/components/stage`, not a separate route — views share one live state, so splitting them into routes would fork that state.
+- Placement/stacking/collision rules live in `src/components/stage/placement.ts` (pure, tested by `placement.test.ts`); view components call it instead of re-implementing geometry, so 3D, elevation and isometric stay in agreement.
+- All project state persists to `localStorage` (`stage.*` keys) and is read inside `useEffect` after mount, never during render — SSR HTML and the first client render must match or hydration throws.
 <!-- LOVABLE:BEGIN -->
 > [!IMPORTANT]
 > This project is connected to [Lovable](https://lovable.dev). Avoid rewriting
