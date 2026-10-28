@@ -28,37 +28,61 @@
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
-  --color-success: var(--success);
-  --color-success-foreground: var(--success-foreground);
-  --color-warning: var(--warning);
+  --color-acid: var(--acid);
+  --color-magenta: var(--magenta);
+  --color-cyan: var(--cyan);
+  --color-amber: var(--amber);
   --font-display: "Space Grotesk", system-ui, sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, monospace;
 }
 
-:root, .dark {
-  --radius: 0.75rem;
-  --background: #0f0f13;
-  --foreground: #e8e8f0;
-  --card: #1a1a24;
-  --card-foreground: #e8e8f0;
-  --popover: #1a1a24;
-  --popover-foreground: #e8e8f0;
-  --primary: #1e6fd9;
-  --primary-foreground: #ffffff;
-  --secondary: #252532;
-  --secondary-foreground: #e8e8f0;
-  --muted: #252532;
-  --muted-foreground: #9a9ab0;
-  --accent: #252532;
-  --accent-foreground: #e8e8f0;
-  --destructive: #ef4444;
-  --destructive-foreground: #ffffff;
-  --success: #22c55e;
-  --success-foreground: #0f0f13;
-  --warning: #eab308;
-  --border: #2a2a38;
-  --input: #2a2a38;
-  --ring: #1e6fd9;
+:root {
+  --radius: 0.5rem;
+  --background: oklch(0.98 0.005 280);
+  --foreground: oklch(0.2 0.02 280);
+  --card: oklch(0.96 0.005 280);
+  --card-foreground: oklch(0.2 0.02 280);
+  --popover: oklch(0.98 0.005 280);
+  --popover-foreground: oklch(0.2 0.02 280);
+  --primary: oklch(0.55 0.2 135);
+  --primary-foreground: oklch(0.98 0.005 280);
+  --secondary: oklch(0.94 0.01 280);
+  --secondary-foreground: oklch(0.2 0.02 280);
+  --muted: oklch(0.94 0.01 280);
+  --muted-foreground: oklch(0.5 0.02 280);
+  --accent: oklch(0.7 0.28 340);
+  --accent-foreground: oklch(0.2 0.02 280);
+  --destructive: oklch(0.65 0.24 25);
+  --destructive-foreground: oklch(0.98 0.005 280);
+  --border: oklch(0.85 0.02 280);
+  --input: oklch(0.9 0.02 280);
+  --ring: oklch(0.55 0.2 135);
+  --acid: oklch(0.55 0.2 135);
+  --magenta: oklch(0.65 0.24 340);
+  --cyan: oklch(0.6 0.16 210);
+  --amber: oklch(0.72 0.18 75);
+}
+
+.dark {
+  --background: oklch(0.14 0.02 280);
+  --foreground: oklch(0.96 0.01 90);
+  --card: oklch(0.18 0.02 280);
+  --card-foreground: oklch(0.96 0.01 90);
+  --popover: oklch(0.16 0.02 280);
+  --popover-foreground: oklch(0.96 0.01 90);
+  --primary: oklch(0.75 0.22 135);
+  --primary-foreground: oklch(0.14 0.02 280);
+  --secondary: oklch(0.24 0.02 280);
+  --secondary-foreground: oklch(0.96 0.01 90);
+  --muted: oklch(0.22 0.02 280);
+  --muted-foreground: oklch(0.72 0.02 280);
+  --accent: oklch(0.7 0.28 340);
+  --accent-foreground: oklch(0.14 0.02 280);
+  --destructive: oklch(0.65 0.24 25);
+  --destructive-foreground: oklch(0.96 0.01 90);
+  --border: oklch(0.28 0.02 280);
+  --input: oklch(0.24 0.02 280);
+  --ring: oklch(0.75 0.22 135);
 }
 
 @layer base {
@@ -73,5 +97,118 @@
   }
 }
 
-@keyframes scan { 0% { transform: translateX(-100%); } 100% { transform: translateX(300%); } }
-body { overscroll-behavior: none; -webkit-tap-highlight-color: transparent; }
+@utility bg-grid {
+  background-image:
+    linear-gradient(to right, oklch(0.28 0.03 285 / 0.4) 1px, transparent 1px),
+    linear-gradient(to bottom, oklch(0.28 0.03 285 / 0.4) 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+
+@utility glow-acid {
+  box-shadow: 0 0 20px oklch(0.86 0.24 135 / 0.4), 0 0 40px oklch(0.86 0.24 135 / 0.15);
+}
+@utility glow-magenta {
+  box-shadow: 0 0 20px oklch(0.7 0.28 340 / 0.4), 0 0 40px oklch(0.7 0.28 340 / 0.15);
+}
+@utility text-glow-acid {
+  text-shadow: 0 0 12px oklch(0.86 0.24 135 / 0.7);
+}
+
+/* Morph glass surfaces used by the Stage Builder shell */
+@utility glass {
+  background: color-mix(in oklab, var(--background) 55%, transparent);
+  backdrop-filter: blur(18px) saturate(150%);
+  border: 1px solid color-mix(in oklab, var(--foreground) 12%, transparent);
+  box-shadow:
+    0 1px 0 color-mix(in oklab, white 35%, transparent) inset,
+    0 8px 32px -12px color-mix(in oklab, black 40%, transparent);
+}
+.dark .glass {
+  background: color-mix(in oklab, oklch(0.20 0.02 260) 65%, transparent);
+  border-color: color-mix(in oklab, white 10%, transparent);
+  box-shadow:
+    0 1px 0 color-mix(in oklab, white 8%, transparent) inset,
+    0 10px 40px -12px color-mix(in oklab, black 70%, transparent);
+}
+@utility glass-strong {
+  background: color-mix(in oklab, var(--background) 82%, transparent);
+  backdrop-filter: blur(24px) saturate(160%);
+  border: 1px solid color-mix(in oklab, var(--foreground) 14%, transparent);
+  box-shadow: 0 20px 60px -20px color-mix(in oklab, black 55%, transparent);
+}
+.dark .glass-strong {
+  background: color-mix(in oklab, oklch(0.18 0.02 260) 88%, transparent);
+  border-color: color-mix(in oklab, white 12%, transparent);
+}
+@utility glass-chip {
+  background: color-mix(in oklab, var(--background) 65%, transparent);
+  backdrop-filter: blur(10px) saturate(140%);
+  border: 1px solid color-mix(in oklab, var(--foreground) 10%, transparent);
+}
+.dark .glass-chip {
+  background: color-mix(in oklab, oklch(0.26 0.02 260) 75%, transparent);
+  border-color: color-mix(in oklab, white 8%, transparent);
+}
+
+@utility no-scrollbar {
+  scrollbar-width: none;
+}
+.no-scrollbar::-webkit-scrollbar { display: none; }
+
+/* Stage builder dark mode: remap legacy neutral utility classes to a readable
+   slate workshop palette while preserving bright action buttons. */
+.dark .bg-white { background-color: oklch(0.22 0.018 255) !important; }
+.dark .bg-white\/95 { background-color: oklch(0.22 0.018 255 / 0.95) !important; }
+.dark .bg-white\/90 { background-color: oklch(0.22 0.018 255 / 0.9) !important; }
+.dark .bg-white\/80 { background-color: oklch(0.22 0.018 255 / 0.82) !important; }
+.dark .bg-white\/60 { background-color: oklch(0.22 0.018 255 / 0.68) !important; }
+.dark .bg-neutral-50 { background-color: oklch(0.18 0.018 255) !important; }
+.dark .bg-neutral-50\/95 { background-color: oklch(0.18 0.018 255 / 0.96) !important; }
+.dark .bg-neutral-50\/80 { background-color: oklch(0.18 0.018 255 / 0.86) !important; }
+.dark .bg-neutral-100 { background-color: oklch(0.25 0.018 255) !important; }
+.dark .bg-neutral-200 { background-color: oklch(0.31 0.018 255) !important; }
+.dark .bg-neutral-300 { background-color: oklch(0.39 0.018 255) !important; }
+.dark .bg-neutral-700 { background-color: oklch(0.46 0.018 255) !important; }
+.dark .bg-neutral-900 { background-color: oklch(0.16 0.018 255) !important; }
+.dark .hover\:bg-white:hover { background-color: oklch(0.29 0.018 255) !important; }
+.dark .hover\:bg-neutral-100:hover { background-color: oklch(0.30 0.018 255) !important; }
+.dark .hover\:bg-neutral-200:hover { background-color: oklch(0.36 0.018 255) !important; }
+.dark .hover\:bg-neutral-300:hover { background-color: oklch(0.42 0.018 255) !important; }
+.dark .text-neutral-100 { color: oklch(0.96 0.006 255) !important; }
+.dark .text-neutral-900 { color: oklch(0.96 0.006 255) !important; }
+.dark .text-neutral-800 { color: oklch(0.92 0.008 255) !important; }
+.dark .text-neutral-700 { color: oklch(0.86 0.01 255) !important; }
+.dark .text-neutral-600 { color: oklch(0.78 0.012 255) !important; }
+.dark .text-neutral-500 { color: oklch(0.69 0.012 255) !important; }
+.dark .text-neutral-400 { color: oklch(0.61 0.012 255) !important; }
+.dark .text-lime-600 { color: oklch(0.82 0.2 135) !important; }
+.dark .text-lime-700 { color: oklch(0.86 0.19 135) !important; }
+.dark .text-lime-800 { color: oklch(0.88 0.17 135) !important; }
+.dark .bg-lime-50 { background-color: oklch(0.26 0.045 135) !important; }
+.dark .bg-lime-100 { background-color: oklch(0.30 0.055 135) !important; }
+.dark .hover\:bg-lime-50:hover { background-color: oklch(0.31 0.06 135) !important; }
+.dark .hover\:bg-lime-200:hover { background-color: oklch(0.38 0.08 135) !important; }
+.dark .bg-red-100 { background-color: oklch(0.28 0.06 25) !important; }
+.dark .hover\:bg-red-200:hover { background-color: oklch(0.34 0.08 25) !important; }
+.dark .text-red-700 { color: oklch(0.78 0.18 25) !important; }
+.dark .border-neutral-200 { border-color: oklch(0.36 0.018 255) !important; }
+.dark .border-neutral-300 { border-color: oklch(0.43 0.018 255) !important; }
+.dark .border-neutral-400 { border-color: oklch(0.52 0.018 255) !important; }
+.dark .divide-neutral-200 > :not([hidden]) ~ :not([hidden]) { border-color: oklch(0.36 0.018 255) !important; }
+.dark input,
+.dark select,
+.dark textarea {
+  color: oklch(0.96 0.006 255);
+  background-color: oklch(0.19 0.018 255);
+  border-color: oklch(0.43 0.018 255);
+  color-scheme: dark;
+}
+.dark option {
+  color: oklch(0.96 0.006 255);
+  background-color: oklch(0.19 0.018 255);
+}
+
+@keyframes confetti {
+  0% { transform: translateY(-10px) rotate(0deg); opacity: 1; }
+  100% { transform: translateY(120px) rotate(320deg); opacity: 0; }
+}

@@ -11,8 +11,6 @@ import { useEffect, type ReactNode } from "react";
 
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
-import { ObdProvider } from "@/lib/obd/store";
-import { AppShell } from "@/components/obd/ui";
 
 function NotFoundComponent() {
   return (
@@ -78,19 +76,26 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
   head: () => ({
     meta: [
       { charSet: "utf-8" },
-      { name: "viewport", content: "width=device-width, initial-scale=1, viewport-fit=cover" },
-      { name: "theme-color", content: "#0f0f13" },
-      { name: "apple-mobile-web-app-capable", content: "yes" },
-      { name: "apple-mobile-web-app-status-bar-style", content: "black-translucent" },
-      { name: "apple-mobile-web-app-title", content: "T5 OBD" },
-      { title: "VW T5 OBD Diagnostics" },
-      { name: "description", content: "OBD II diagnostics for the VW T5 Transporter." },
+      { name: "viewport", content: "width=device-width, initial-scale=1" },
+      { title: "Stage Rig — Tekno Sound System Builder" },
+      {
+        name: "description",
+        content:
+          "Drag-and-drop plánovač tekno stage: reproduktory, světla, kabely a rozložení party.",
+      },
+      { property: "og:title", content: "Stage Rig — Tekno Sound System Builder" },
+      { name: "twitter:title", content: "Stage Rig — Tekno Sound System Builder" },
+      { name: "description", content: "Build and visualize techno stage sound systems with drag-and-drop components." },
+      { property: "og:description", content: "Build and visualize techno stage sound systems with drag-and-drop components." },
+      { name: "twitter:description", content: "Build and visualize techno stage sound systems with drag-and-drop components." },
+      { property: "og:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/d45593a7-7015-4676-94e0-5434fbb58ea5/id-preview-7cd063e8--2bd5ae47-8fa2-47fb-a1f9-781dab3f9998.lovable.app-1782981129357.png" },
+      { name: "twitter:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/d45593a7-7015-4676-94e0-5434fbb58ea5/id-preview-7cd063e8--2bd5ae47-8fa2-47fb-a1f9-781dab3f9998.lovable.app-1782981129357.png" },
+      { name: "twitter:card", content: "summary_large_image" },
+      { property: "og:type", content: "website" },
     ],
     links: [
       { rel: "stylesheet", href: appCss },
-      { rel: "icon", type: "image/png", href: "/favicon.png" },
-      { rel: "apple-touch-icon", href: "/apple-touch-icon.png" },
-      { rel: "manifest", href: "/manifest.webmanifest" },
+      { rel: "icon", href: "/favicon.ico", type: "image/x-icon" },
       { rel: "preconnect", href: "https://fonts.googleapis.com" },
       { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
       {
@@ -107,7 +112,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
 
 function RootShell({ children }: { children: ReactNode }) {
   return (
-    <html lang="en" className="dark">
+    <html lang="cs">
       <head>
         <HeadContent />
       </head>
@@ -125,11 +130,7 @@ function RootComponent() {
   return (
     <QueryClientProvider client={queryClient}>
       {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
-      <ObdProvider>
-        <AppShell>
-          <Outlet />
-        </AppShell>
-      </ObdProvider>
+      <Outlet />
     </QueryClientProvider>
   );
 }
