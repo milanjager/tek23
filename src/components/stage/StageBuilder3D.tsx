@@ -5229,12 +5229,16 @@ export function StageBuilder3D() {
     if (statusTimer.current) clearTimeout(statusTimer.current);
     statusTimer.current = setTimeout(() => setStatus(""), 6000);
   }, []);
-  // First-run project launcher. Use lazy initial state so the modal can render
-  // on the very first client paint instead of waiting for a post-mount effect.
-  const [launcherOpen, setLauncherOpen] = useState(() => {
-    if (typeof window === "undefined") return false;
-    return localStorage.getItem("stage.launcher.v1") !== "done";
-  });
+  // First-run project launcher. Starts closed so the server HTML and the first
+  // client render agree (no hydration mismatch), then opens from localStorage.
+  const [launcherOpen, setLauncherOpen] = useState(false);
+  useEffect(() => {
+    try {
+      setLauncherOpen(localStorage.getItem("stage.launcher.v1") !== "done");
+    } catch {
+      setLauncherOpen(true);
+    }
+  }, []);
   const [hasSaved, setHasSaved] = useState(false);
   useEffect(() => {
     try {
