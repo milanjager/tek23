@@ -5889,6 +5889,55 @@ export function StageBuilder3D() {
     setSelection([]);
   }, [speakerLineZ]);
 
+  /** Srovnat řadu: bedny ve stejném patře a řadě se sesunou hranou k hraně
+   *  (bez mezer, se zachovaným středem) a stacky nad nimi jedou s nimi. */
+  const alignRow = useCallback(() => {
+    let moved = 0;
+    setItems((cur) => {
+      const seed = cur.find((x) => x.id === selection[0]);
+      if (!seed) return cur;
+      const sameTier = (x: Placed) => Math.abs(x.pos[1] - seed.pos[1]) < 0.05;
+      const row = cur
+        .filter((x) => sameTier(x) && (selection.length > 1 ? selection.includes(x.id) : Math.abs(x.pos[2] - seed.pos[2]) < 0.35))
+        .sort((a, b) => a.pos[0] - b.pos[0]);
+      if (!row.length) return cur;
+      const w = (x: Placed) => SPECS[x.kind].size[0];
+      const left = Math.min(...row.map((x) => x.pos[0] - w(x) / 2));
+      const right = Math.max(...row.map((x) => x.pos[0] + w(x) / 2));
+      const total = row.reduce((sum, x) => sum + w(x), 0);
+      let cursor = (left + right) / 2 - total / 2;
+      const shift = new Map<string, [number, number]>(); // id → [newX, newZ]
+      for (const r of row) {
+        const nx = cursor + w(r) / 2;
+        cursor += w(r);
+        const dx = nx - r.pos[0];
+        for (const x of cur) {
+          const above = x.id === r.id || (Math.abs(x.pos[0] - r.pos[0]) < w(r) / 2 && Math.abs(x.pos[2] - r.pos[2]) < 0.35 && x.pos[1] > r.pos[1] + 0.01);
+          if (above && !shift.has(x.id)) shift.set(x.id, [x.pos[0] + dx, seed.pos[2]]);
+        }
+      }
+      moved = row.length;
+      return normalizeScene(cur.map((x) => {
+        const n = shift.get(x.id);
+        return n ? { ...x, pos: [n[0], x.pos[1], n[1]] as [number, number, number] } : x;
+      }));
+    });
+    setTimeout(() => announce(moved ? `Řada srovnána — ${moved} beden hranou k hraně.` : "Nejdřív vyber bednu v řadě."), 0);
+  }, [selection]);
+
+  /** Zkopíruje celou řadu (stejné patro + hloubka) jako nové patro nahoru. */
+  const duplicateRow = useCallback((seedId: string) => {
+    setItems((cur) => {
+      const seed = cur.find((x) => x.id === seedId);
+      if (!seed) return cur;
+      const row = cur.filter((x) => Math.abs(x.pos[1] - seed.pos[1]) < 0.05 && Math.abs(x.pos[2] - seed.pos[2]) < 0.35);
+      const lift = Math.max(...row.map((x) => SPECS[x.kind].size[1]));
+      const copies = row.map((x) => ({ ...x, id: uid(), groupId: x.groupId, pos: [x.pos[0], x.pos[1] + lift, x.pos[2]] as [number, number, number] }));
+      setTimeout(() => { setSelection(copies.map((c) => c.id)); announce(`Řada zduplikována — ${copies.length} beden jako nové patro.`); }, 0);
+      return normalizeScene([...cur, ...copies]);
+    });
+  }, []);
+
   // Keyboard shortcuts
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -5907,6 +5956,9 @@ export function StageBuilder3D() {
       else if (meta && !e.shiftKey && e.key.toLowerCase() === "z") { undo(); e.preventDefault(); }
       else if (meta && (e.key.toLowerCase() === "y" || (e.shiftKey && e.key.toLowerCase() === "z"))) { redo(); e.preventDefault(); }
       else if (e.key === "[") { setPaletteOpen((v) => !v); }
+      else if (!meta && (e.key === "1" || e.key === "2" || e.key === "3")) { setWorkMode(e.key === "1" ? "build" : e.key === "2" ? "wire" : "spec"); }
+      else if (!meta && e.key.toLowerCase() === "r") { alignRow(); }
+      else if (!meta && e.key.toLowerCase() === "m") { setMagnet((v) => !v); }
       else if (e.key === "]") { setRightOpen((v) => !v); }
       // Arrow-key nudge: 0.1m, Shift = 1m. Alt = Y axis (up/down).
       else if (selection.length && (e.key === "ArrowLeft" || e.key === "ArrowRight" || e.key === "ArrowUp" || e.key === "ArrowDown")) {
@@ -5926,7 +5978,7 @@ export function StageBuilder3D() {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [deleteSelection, copySelection, pasteSelection, duplicateSelection, groupSelection, ungroupSelection, undo, redo, nudgeSelection, selection.length]);
+  }, [deleteSelection, copySelection, pasteSelection, duplicateSelection, groupSelection, ungroupSelection, undo, redo, nudgeSelection, selection.length, alignRow]);
 
   // Recently used palette kinds (persisted) + shortcuts overlay.
   const [recentKinds, setRecentKinds] = useState<Kind[]>([]);
@@ -7074,260 +7126,124 @@ export function StageBuilder3D() {
             </button>
           </div>
 
-          {/* ── Detail výběru ─────────────────────────────────────────── */}
+          {/* ── Detail vybraného prvku ─────────────────────────────────── */}
           {(() => {
             const primary = items.find((x) => x.id === selection[0]);
             if (!primary) {
               return (
-                <div className="border-b border-neutral-200 bg-white/60 px-3 py-3 text-[11px] text-neutral-500">
-                  <div className="mb-1 text-[10px] font-bold uppercase tracking-wider text-neutral-500">Detail výběru</div>
-                  Vyber komponentu ve scéně, nárysu, plánu nebo schématu.
+                <div className="border-b border-neutral-200 px-3 py-4 text-[12px] text-neutral-500">
+                  Klikni na bednu na plátně — tady uvidíš jen ji.
                 </div>
               );
             }
             const pspec = SPECS[primary.kind];
-            const pconns = connectorsFor(primary.kind);
-            // "Patra" — stack of items sharing (x, z) sorted by y bottom-up
-            const stack = items
-              .filter((x) => Math.abs(x.pos[0] - primary.pos[0]) < 0.05 && Math.abs(x.pos[2] - primary.pos[2]) < 0.05)
-              .sort((a, b) => a.pos[1] - b.pos[1]);
-            const stackIdx = stack.findIndex((x) => x.id === primary.id);
-            const linkedCables = cables.filter((c) => c.from === primary.id || c.to === primary.id);
-            const deg = Math.round((primary.rotY * 180) / Math.PI);
-            const patchPrimary = (patch: Partial<Placed>) => {
-              setItems((cur) => normalizeScene(cur.map((x) => x.id === primary.id ? { ...x, ...patch, rotY: 0 } as Placed : x)));
+            const deg = Math.abs(Math.abs(primary.rotY) - Math.PI) < 0.01 ? 180 : 0;
+            const patch = (p: Partial<Placed>) => setItems((cur) => normalizeScene(cur.map((x) => x.id === primary.id ? { ...x, ...p } : x)));
+            const setPos = (i: 0 | 1 | 2, v: number) => {
+              const pos = [...primary.pos] as [number, number, number];
+              pos[i] = i === 1 ? Math.max(0, v) : v;
+              patch({ pos });
             };
+            const steps = generateWiringSteps(items, cables);
+            // Který zesilovač a kanál: projdi SPK linku proti proudu až k zesilovači.
+            const ampFeed = (() => {
+              let cur = primary.id; let hops = 0;
+              const seen = new Set<string>();
+              while (!seen.has(cur)) {
+                seen.add(cur);
+                const c = cables.find((x) => x.type === "speaker" && x.to === cur);
+                if (!c) return null;
+                const src = items.find((i) => i.id === c.from);
+                if (!src) return null;
+                if (SPECS[src.kind].category !== "sound") {
+                  const st = steps.find((x) => x.cableId === c.id);
+                  return { name: src.label || SPECS[src.kind].label, port: st?.fromPort ?? "", hops };
+                }
+                cur = src.id; hops++;
+              }
+              return null;
+            })();
+            const incoming = steps.filter((x) => x.toId === primary.id && x.type !== "speaker");
+            const outgoing = steps.filter((x) => x.fromId === primary.id);
+            const fieldCls = "w-full rounded-lg border border-neutral-300 bg-white px-2 py-1.5 font-mono text-[12px] text-neutral-900 focus:border-lime-500 focus:outline-none";
             return (
-              <div className="border-b-2 border-lime-300 bg-white/80 px-3 py-2 text-[11px]">
-                <div className="mb-1 flex items-center justify-between">
-                  <button
-                    onClick={() => toggleSec("detail")}
-                    className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-lime-700 hover:text-lime-800"
-                    title="Sbalit / rozbalit detail"
-                  >
-                    <span className="inline-block w-3 text-center">{(secOpen.detail ?? true) ? "▾" : "▸"}</span>
-                    Detail výběru
-                  </button>
-                  <span className="font-mono text-[9px] text-neutral-500">#{primary.id.slice(0, 4)}</span>
-                </div>
-                {(secOpen.detail ?? true) && (<>
-                <div className="mb-2">
-                  <div className="truncate text-[13px] font-bold text-neutral-900">{primary.label || pspec.label}</div>
-                  <div className="text-[10px] text-neutral-500">{pspec.label} · {pspec.hint}</div>
-                  {(() => {
-                    const def = customDefs.find((d) => d.id === primary.kind);
-                    if (!def) return null;
-                    const b = compatBadge(def);
-                    return (
-                      <span
-                        title={b.title}
-                        className={`mt-1 inline-block rounded-full border px-1.5 py-0.5 text-[9px] font-bold ${b.chip}`}
-                      >
-                        {b.icon} {def.ohm} Ω · {b.short} · {getPreferredAmp().name}
-                      </span>
-                    );
-                  })()}
-                </div>
+              <div className="border-b border-neutral-200 bg-white/70 px-3 py-3 text-[12px] dark:bg-white/5">
+                <input
+                  value={primary.label ?? ""}
+                  placeholder={pspec.defaultLabel ?? pspec.label}
+                  onChange={(e) => { const v = e.target.value; setItems((cur) => cur.map((x) => x.id === primary.id ? { ...x, label: v || undefined } : x)); }}
+                  aria-label="Název prvku"
+                  className="w-full rounded-md bg-transparent px-0 text-[15px] font-bold text-neutral-900 placeholder:text-neutral-900 focus:bg-white focus:px-1 focus:outline-none"
+                />
+                <div className="text-[11px] text-neutral-500">{pspec.label}</div>
+                <div className="mt-1 text-[11px] text-neutral-500">{fmtDims(pspec)} · {estimateWeightKg(pspec)} kg</div>
+                {selection.length > 1 && <div className="mt-1 text-[11px] font-semibold text-lime-700">+ {selection.length - 1} dalších ve výběru</div>}
 
-                {/* Rozměry */}
-                <div className="mb-2 rounded bg-neutral-100 px-2 py-1 font-mono text-[10px] text-neutral-700">
-                  Š×V×H&nbsp; {pspec.size[0].toFixed(2)} × {pspec.size[1].toFixed(2)} × {pspec.size[2].toFixed(2)} m
-                </div>
-
-                {/* Napájení */}
-                {(() => {
-                  const own = pspec.powerW ?? 0;
-                  // Sum of downstream draws (this item as PWR source).
-                  const loads = computeCableLoads(items, cables);
-                  const outgoing = cables.filter((c) => c.type === "power" && c.from === primary.id);
-                  const incoming = cables.filter((c) => c.type === "power" && c.to === primary.id);
-                  const feeds = outgoing.reduce((s, c) => s + (loads[c.id] ?? 0), 0);
-                  const overloadedBranch = outgoing.some((c) => (loads[c.id] ?? 0) > PWR_BRANCH_MAX_W);
-                  if (own === 0 && outgoing.length === 0 && incoming.length === 0) return null;
-                  return (
-                    <div className={`mb-2 rounded px-2 py-1 text-[10px] ${overloadedBranch ? "border border-red-400 bg-red-50 text-red-900" : "bg-amber-50 text-amber-900"}`}>
-                      <div className="mb-0.5 font-bold uppercase tracking-wider">Napájení</div>
-                      {own > 0 && <div>Vlastní odběr: <b>{own} W</b></div>}
-                      {outgoing.length > 0 && (
-                        <div>
-                          Napájí ({outgoing.length} větv{outgoing.length === 1 ? "e" : "í"}): <b>{Math.round(feeds)} W</b>
-                          <span className="ml-1 text-[9px] text-neutral-500">/ max {PWR_BRANCH_MAX_W} W na CEE 16A</span>
-                          {overloadedBranch && <div className="mt-0.5 font-bold">⚠ PŘETÍŽENO — rozděl na víc větví!</div>}
-                        </div>
-                      )}
-                      {incoming.length > 0 && <div>Napájeno z {incoming.length} zdroje/-ů</div>}
+                {pspec.category === "sound" && (
+                  <div className="mt-3">
+                    <div className="mb-1 text-[10px] font-bold uppercase tracking-wider text-neutral-500">Povrch</div>
+                    <div className="flex flex-wrap gap-1.5">
+                      {FINISHES.map((f) => (
+                        <button
+                          key={f.id}
+                          onClick={() => patch({ finish: primary.finish === f.id ? undefined : f.id })}
+                          aria-pressed={primary.finish === f.id}
+                          title={`${f.label}${primary.finish === f.id ? " — klikni znovu pro výchozí styl" : ""}`}
+                          aria-label={f.label}
+                          className={`h-11 w-11 rounded-lg border-2 ${primary.finish === f.id ? "border-lime-500 ring-2 ring-lime-400/50" : "border-neutral-300"}`}
+                          style={{ backgroundColor: f.color }}
+                        />
+                      ))}
                     </div>
-                  );
-                })()}
-
-                {/* Poznámky pro techniku */}
-                <div className="mb-2">
-                  <div className="mb-0.5 text-[9px] uppercase tracking-wider text-neutral-500">Poznámky (zapojení, IN/OUT)</div>
-                  <textarea
-                    value={primary.notes ?? ""}
-                    onChange={(e) => setItems((cur) => cur.map((x) => x.id === primary.id ? { ...x, notes: e.target.value } : x))}
-                    placeholder="např. IN: XLR z FOH · OUT: SpeakON A→sub 1, B→sub 2"
-                    className="w-full rounded border border-neutral-300 bg-white px-1.5 py-1 font-mono text-[10px] text-neutral-800"
-                    rows={2}
-                  />
-                </div>
-
-                {/* Powersoft — detailní zapojení + software setup */}
-                {(primary.kind === "powersoft" || primary.kind === "amp") && (
-                  <PowersoftGuide label={primary.label || pspec.label} />
+                    <label className="mt-2 flex min-h-9 items-center justify-between rounded-lg bg-neutral-100 px-2">
+                      <span className="text-[12px] font-semibold text-neutral-700">Přední mřížka</span>
+                      <input type="checkbox" checked={primary.grille !== false} onChange={(e) => patch({ grille: e.target.checked ? undefined : false })} className="h-4 w-4 accent-lime-500" />
+                    </label>
+                  </div>
                 )}
 
-                {/* Krokový návod zapojení pro tuto komponentu */}
-                {(() => {
-                  const allSteps = generateWiringSteps(items, cables);
-                  const mine = allSteps.filter((s) => s.fromId === primary.id || s.toId === primary.id);
-                  if (!mine.length) return null;
-                  return (
-                    <div className="mb-2 rounded border border-lime-300 bg-lime-50/60 px-2 py-1.5">
-                      <div className="mb-1 flex items-center justify-between">
-                        <span className="text-[9px] font-bold uppercase tracking-wider text-lime-800">
-                          Postup zapojení ({mine.length})
-                        </span>
-                        <span className="text-[9px] text-neutral-500">z celkem {allSteps.length}</span>
-                      </div>
-                      <ol className="flex flex-col gap-0.5">
-                        {mine.map((s) => {
-                          const meta = CABLE_META[s.type];
-                          const isSource = s.fromId === primary.id;
-                          return (
-                            <li
-                              key={s.cableId}
-                              className={`rounded px-1.5 py-1 text-[10px] ${s.overload ? "border border-red-400 bg-red-50" : "bg-white"}`}
-                            >
-                              <div className="flex items-center gap-1">
-                                <span className="inline-flex h-4 min-w-[18px] items-center justify-center rounded bg-neutral-800 px-1 font-mono text-[9px] font-bold text-white">
-                                  {s.index}
-                                </span>
-                                <span
-                                  className="rounded px-1 font-mono text-[9px] font-bold text-neutral-900"
-                                  style={{ backgroundColor: meta.color }}
-                                >
-                                  {meta.short}
-                                </span>
-                                {s.loadW !== undefined && (
-                                  <span className={`ml-auto font-mono text-[9px] ${s.overload ? "font-bold text-red-700" : "text-neutral-500"}`}>
-                                    {Math.round(s.loadW)} W{s.overload ? " ⚠" : ""}
-                                  </span>
-                                )}
-                              </div>
-                              <div className="mt-0.5 font-mono text-[9.5px] leading-tight text-neutral-800">
-                                <span className={isSource ? "font-bold text-lime-800" : ""}>{s.fromLabel}</span>
-                                <span className="text-neutral-400"> ({s.fromPort})</span>
-                                <span className="mx-1 text-neutral-500">→</span>
-                                <span className={!isSource ? "font-bold text-lime-800" : ""}>{s.toLabel}</span>
-                                <span className="text-neutral-400"> ({s.toPort})</span>
-                              </div>
-                            </li>
-                          );
-                        })}
-                      </ol>
-                    </div>
-                  );
-                })()}
-
-
-
-
-
-
-                {/* Patra */}
-                <div className="mb-2">
-                  <div className="mb-0.5 text-[9px] uppercase tracking-wider text-neutral-500">Patra ve stacku ({stackIdx + 1}/{stack.length})</div>
-                  <div className="flex flex-col gap-0.5">
-                    {stack.slice().reverse().map((s, i) => {
-                      const sp = SPECS[s.kind];
-                      const isMe = s.id === primary.id;
-                      const level = stack.length - i;
-                      return (
-                        <button
-                          key={s.id}
-                          onClick={() => setSelection([s.id])}
-                          className={`flex items-center justify-between rounded px-1.5 py-0.5 text-left text-[10px] ${isMe ? "bg-lime-200 font-bold text-neutral-900" : "bg-neutral-100 hover:bg-neutral-200 text-neutral-700"}`}
-                        >
-                          <span className="truncate">{level}. {s.label || sp.label}</span>
-                          <span className="ml-2 font-mono text-[9px] text-neutral-500">y {s.pos[1].toFixed(2)}m</span>
-                        </button>
-                      );
-                    })}
-                  </div>
+                <div className="mt-3 grid grid-cols-2 gap-2">
+                  <label><span className="mb-0.5 block text-[10px] text-neutral-500">X (m)</span>
+                    <input type="number" step={0.1} value={Number(primary.pos[0].toFixed(2))} onChange={(e) => setPos(0, Number(e.target.value) || 0)} className={fieldCls} /></label>
+                  <label><span className="mb-0.5 block text-[10px] text-neutral-500">Y — výška (m)</span>
+                    <input type="number" step={0.05} min={0} value={Number(primary.pos[1].toFixed(2))} onChange={(e) => setPos(1, Number(e.target.value) || 0)} className={fieldCls} /></label>
+                  <label><span className="mb-0.5 block text-[10px] text-neutral-500">Řada — hloubka (m)</span>
+                    <input type="number" step={0.1} value={Number(primary.pos[2].toFixed(2))} onChange={(e) => setPos(2, Number(e.target.value) || 0)} className={fieldCls} /></label>
+                  <label><span className="mb-0.5 block text-[10px] text-neutral-500">Natočení</span>
+                    <select value={deg} onChange={(e) => patch({ rotY: Number(e.target.value) === 180 ? Math.PI : 0 })} className={fieldCls}>
+                      <option value={0}>0° — čelem k publiku</option>
+                      <option value={180}>180° — čelem na stage</option>
+                    </select></label>
                 </div>
 
-                {/* Orientace odstraněna – bedny mají fixní směr (▼ = přední strana) */}
-
-                {/* Výška (Y) */}
-                <div className="mb-2">
-                  <div className="mb-0.5 flex items-center justify-between">
-                    <span className="text-[9px] uppercase tracking-wider text-neutral-500">Výška (spodek bedny)</span>
-                    <span className="font-mono text-[10px] text-neutral-700">{primary.pos[1].toFixed(2)} m</span>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <button
-                      onClick={() => patchPrimary({ pos: [primary.pos[0], Math.max(0, primary.pos[1] - 0.1), primary.pos[2]] })}
-                      className="rounded bg-neutral-100 px-2 py-1 text-[11px] hover:bg-neutral-200"
-                    >−0.1</button>
-                    <input
-                      type="number" step={0.05} min={0}
-                      value={Number(primary.pos[1].toFixed(2))}
-                      onChange={(e) => {
-                        const v = Math.max(0, Number(e.target.value) || 0);
-                        patchPrimary({ pos: [primary.pos[0], v, primary.pos[2]] });
-                      }}
-                      className="flex-1 rounded border border-neutral-300 bg-white px-1.5 py-1 font-mono text-[11px] focus:border-lime-500 focus:outline-none"
-                    />
-                    <button
-                      onClick={() => patchPrimary({ pos: [primary.pos[0], primary.pos[1] + 0.1, primary.pos[2]] })}
-                      className="rounded bg-neutral-100 px-2 py-1 text-[11px] hover:bg-neutral-200"
-                    >+0.1</button>
-                  </div>
-                  <div className="mt-1 flex gap-1">
-                    <button
-                      onClick={() => patchPrimary({ pos: [primary.pos[0], 0, primary.pos[2]] })}
-                      className="flex-1 rounded bg-neutral-100 px-1 py-0.5 text-[10px] hover:bg-neutral-200"
-                    >Na zem</button>
-                    <button
-                      onClick={() => {
-                        const y = stackY(primary, items.filter((i) => i.id !== primary.id));
-                        patchPrimary({ pos: [primary.pos[0], y, primary.pos[2]] });
-                      }}
-                      className="flex-1 rounded bg-neutral-100 px-1 py-0.5 text-[10px] hover:bg-neutral-200"
-                    >Auto-stack</button>
-                  </div>
-                </div>
-
-                {/* Konektory */}
-                <div className="mb-1">
-                  <div className="mb-0.5 text-[9px] uppercase tracking-wider text-neutral-500">Konektory ({pconns.length})</div>
-                  {pconns.length === 0 ? (
-                    <div className="rounded bg-neutral-100 px-2 py-1 text-[10px] italic text-neutral-500">Žádné (pasivní prvek)</div>
-                  ) : (
-                    <div className="flex flex-col gap-0.5">
-                      {pconns.map((c, i) => {
-                        const meta = CABLE_META[c.type];
-                        const used = linkedCables.find((cab) => cab.type === c.type && ((c.role === "out" && cab.from === primary.id) || (c.role === "in" && cab.to === primary.id)));
-                        const otherId = used ? (used.from === primary.id ? used.to : used.from) : null;
-                        const other = otherId ? items.find((x) => x.id === otherId) : null;
-                        return (
-                          <div key={i} className="flex items-center justify-between rounded bg-neutral-100 px-1.5 py-0.5 text-[10px]">
-                            <span className="flex items-center gap-1">
-                              <span className="inline-block h-2 w-2 rounded-full" style={{ backgroundColor: meta.color }} />
-                              <span className="font-mono font-bold">{meta.short}</span>
-                              <span className="text-neutral-500">{c.role === "in" ? "◀ IN" : "OUT ▶"}</span>
-                            </span>
-                            <span className="truncate text-[9px] text-neutral-600">
-                              {other ? (other.label || SPECS[other.kind].label) : <span className="italic text-neutral-400">volný</span>}
-                            </span>
-                          </div>
-                        );
-                      })}
-                    </div>
+                <div className="mt-3 rounded-lg bg-neutral-100 px-2 py-1.5">
+                  <div className="mb-0.5 text-[10px] font-bold uppercase tracking-wider text-neutral-500">Zapojení</div>
+                  {pspec.category === "sound" && (
+                    ampFeed
+                      ? <div className="text-[12px] text-neutral-800">Zesilovač <b>{ampFeed.name}</b>{ampFeed.port && <> · kanál <b>{ampFeed.port}</b></>}{ampFeed.hops > 0 && <span className="text-neutral-500"> (přes {ampFeed.hops} {ampFeed.hops === 1 ? "bednu" : "bedny"})</span>}</div>
+                      : <div className="text-[12px] text-amber-700">Zatím nezapojeno k zesilovači — krok 2 Zapoj.</div>
                   )}
+                  {incoming.map((x) => (
+                    <div key={x.cableId} className="text-[11px] text-neutral-700"><span className="font-mono font-bold" style={{ color: CABLE_META[x.type].color }}>{CABLE_META[x.type].short}</span> z {x.fromLabel} <span className="text-neutral-500">({x.fromPort})</span></div>
+                  ))}
+                  {outgoing.map((x) => (
+                    <div key={x.cableId} className="text-[11px] text-neutral-700"><span className="font-mono font-bold" style={{ color: CABLE_META[x.type].color }}>{CABLE_META[x.type].short}</span> → {x.toLabel} <span className="text-neutral-500">({x.fromPort})</span>{x.overload && <b className="text-red-700"> ⚠</b>}</div>
+                  ))}
+                  {pspec.category !== "sound" && !incoming.length && !outgoing.length && <div className="text-[11px] text-neutral-500">Bez kabelů.</div>}
                 </div>
-                </>)}
+
+                {(primary.kind === "powersoft" || primary.kind === "amp") && (
+                  <div className="mt-2"><PowersoftGuide label={primary.label || pspec.label} /></div>
+                )}
+
+                <div className="mt-3 grid grid-cols-2 gap-2">
+                  <button onClick={() => duplicateRow(primary.id)} title="Zkopíruje celou řadu jako nové patro nahoru" className="min-h-10 rounded-lg bg-neutral-900 px-2 text-[12px] font-bold text-white hover:bg-neutral-700">
+                    <Copy size={12} className="mr-1 inline" />Duplikovat celou řadu
+                  </button>
+                  <button onClick={deleteSelection} title="Smazat (Del)" className="min-h-10 rounded-lg bg-red-100 px-2 text-[12px] font-bold text-red-700 hover:bg-red-200">
+                    <Trash2 size={12} className="mr-1 inline" />Smazat
+                  </button>
+                </div>
               </div>
             );
           })()}
@@ -7338,7 +7254,7 @@ export function StageBuilder3D() {
               className="flex items-center gap-1 text-xs font-bold uppercase tracking-wider text-neutral-500 hover:text-neutral-800"
               title="Sbalit / rozbalit vrstvy"
             >
-              <span className="inline-block w-3 text-center">{(secOpen.layers ?? true) ? "▾" : "▸"}</span>
+              <span className="inline-block w-3 text-center">{(secOpen.layers ?? false) ? "▾" : "▸"}</span>
               Vrstvy ({items.length})
             </button>
             <div className="flex items-center gap-1">
@@ -7356,7 +7272,7 @@ export function StageBuilder3D() {
               ><Ungroup size={10} className="inline" /> Rozpustit</button>
             </div>
           </div>
-          {(secOpen.layers ?? true) && (
+          {(secOpen.layers ?? false) && (
           <div className="flex-1 overflow-y-auto p-2">
             {items.length === 0 && (
               <div className="p-4 text-center text-[11px] text-neutral-500">Zatím žádné komponenty. Přidej z levého panelu nebo načti preset.</div>
@@ -7384,7 +7300,7 @@ export function StageBuilder3D() {
                       if (el) layerRowRefs.current.set(it.id, el);
                       else layerRowRefs.current.delete(it.id);
                     }}
-                    className={`mb-1.5 rounded border p-2 text-[11px] transition ${isSel ? "border-lime-500 bg-neutral-100" : "border-neutral-200 bg-neutral-50 hover:border-neutral-300"}`}
+                    className={`mb-1 rounded border px-2 py-1.5 text-[11px] transition ${isSel ? "border-lime-500 bg-neutral-100" : "border-neutral-200 bg-neutral-50 hover:border-neutral-300"}`}
                   >
                     <button
                       onClick={(e) => {
@@ -7395,7 +7311,7 @@ export function StageBuilder3D() {
                           setSelection([it.id]);
                         }
                       }}
-                      className="mb-1.5 flex w-full items-start gap-2 text-left"
+                      className="flex w-full items-start gap-2 text-left"
                     >
                       <span
                         className="mt-1 inline-block h-2 w-2 shrink-0 rounded-full"
@@ -7411,66 +7327,6 @@ export function StageBuilder3D() {
                       </span>
 
                     </button>
-                    <label className="mb-1 block">
-                      <span className="mb-0.5 block text-[9px] uppercase tracking-wider text-neutral-500">Model / typ bedny</span>
-                      <select
-                        value={it.kind}
-                        onChange={(e) => {
-                          const newKind = e.target.value as Kind;
-                          setItems((cur) => normalizeScene(cur.map((x) => x.id === it.id ? {
-                            ...x, kind: newKind,
-                            variant: SPECS[newKind].defaultVariant ?? x.variant,
-                            rotY: 0,
-                          } : x)));
-                        }}
-                        className="w-full rounded border border-neutral-300 bg-white px-1.5 py-1 text-[11px] text-neutral-900 focus:border-lime-500 focus:outline-none"
-                      >
-                        {CATEGORIES.map((cat) => (
-                          <optgroup key={cat.id} label={cat.label}>
-                            {(Object.entries(SPECS) as [Kind, Spec][])
-                              .filter(([, s]) => s.category === cat.id)
-                              .map(([k, s]) => (<option key={k} value={k}>{s.label}</option>))}
-                          </optgroup>
-                        ))}
-                      </select>
-                    </label>
-                    <label className="mb-1 block">
-                      <span className="mb-0.5 block text-[9px] uppercase tracking-wider text-neutral-500">Vlastní štítek</span>
-                      <input
-                        type="text" value={it.label ?? ""} placeholder={spec.defaultLabel ?? spec.label}
-                        onChange={(e) => {
-                          const v = e.target.value;
-                          setItems((cur) => cur.map((x) => x.id === it.id ? { ...x, label: v || undefined } : x));
-                        }}
-                        className="w-full rounded border border-neutral-300 bg-white px-1.5 py-1 font-mono text-[11px] text-lime-600 focus:border-lime-500 focus:outline-none"
-                      />
-                    </label>
-                    {isKorg && (
-                      <div className="mb-1 flex items-center gap-1">
-                        <span className="text-[9px] uppercase tracking-wider text-neutral-500">Barva:</span>
-                        {(["red", "blue"] as const).map((v) => (
-                          <button
-                            key={v}
-                            onClick={() => setItems((cur) => cur.map((x) => x.id === it.id ? { ...x, variant: v } : x))}
-                            className={`h-5 w-5 rounded border-2 ${it.variant === v ? "border-lime-400" : "border-neutral-300"}`}
-                            style={{ backgroundColor: v === "red" ? "#c81e2a" : "#1e5ec8" }}
-                            title={v === "red" ? "Červený" : "Modrý"}
-                          />
-                        ))}
-                      </div>
-                    )}
-                    <div className="mt-1 flex items-center justify-between">
-                      <span className="font-mono text-[9px] text-neutral-600">
-                        {spec.size[0].toFixed(2)}×{spec.size[1].toFixed(2)}×{spec.size[2].toFixed(2)} m
-                      </span>
-                      <button
-                        onClick={() => {
-                          setItems((cur) => cur.filter((x) => x.id !== it.id));
-                          setCables((cs) => cs.filter((c) => c.from !== it.id && c.to !== it.id));
-                        }}
-                        className="rounded bg-red-100 px-1.5 py-0.5 text-[10px] text-red-700 hover:bg-red-200"
-                      ><Trash2 size={10} className="inline" /></button>
-                    </div>
                   </div>
                 );
               };
