@@ -30,6 +30,10 @@ import { JourneyPanel } from "./JourneyPanel";
 import SpeakerBuilder from "./SpeakerBuilder";
 import SpeakerWiringSchema, { type WireNode, type WireLink } from "./SpeakerWiringSchema";
 import PrintReport, { type BomRow, type ChecklistRow } from "./PrintReport";
+import { checkRig, powerBudget, ampChannels as rigAmpChannels, GENERATOR_CAPACITY_W, type KindInfo, type RigIssue } from "./rigChecks";
+import { type DrawItem } from "./rigDrawings";
+import SpecStudio from "./SpecStudio";
+import { packRig, encodeRig } from "./shareLink";
 import { sfxCableStart, sfxPortConnect, sfxCableComplete, sfxCancel } from "./sfx";
 
 import {
@@ -774,6 +778,34 @@ function generateWiringSteps(items: Placed[], cables: Cable[]): WiringStep[] {
   });
 }
 
+
+
+/* ---- Kontrola rigu + data pro výkresy (sdílené s krokem Spec a read-only odkazem) ---- */
+function kindInfo(k: string): KindInfo {
+  const spec = SPECS[k as Kind];
+  const conns = connectorsFor(k as Kind);
+  return {
+    name: spec?.defaultLabel ?? spec?.label ?? k,
+    category: spec?.category ?? "sound",
+    peakW: SPEC_RATINGS[k as Kind]?.peakW ?? spec?.peakW ?? spec?.powerW ?? 0,
+    needsPower: conns.some((c) => c.type === "power" && c.role === "in"),
+    passiveSpeaker: conns.some((c) => c.type === "speaker" && c.role === "in"),
+    ampChannels: conns.filter((c) => c.type === "speaker" && c.role === "out").length,
+    ohm: CUSTOM_SPEAKERS.get(k)?.ohm ?? 8,
+    capacityW: k === "generator" ? GENERATOR_CAPACITY_W : 0,
+    isDistro: k === "distro",
+  };
+}
+export function toDrawItems(items: { id: string; kind: string; pos: [number, number, number]; label?: string }[]): DrawItem[] {
+  return items.filter((it) => SPECS[it.kind as Kind]).map((it) => {
+    const s = SPECS[it.kind as Kind];
+    return {
+      id: it.id, kind: it.kind, name: it.label || s.defaultLabel || s.label, category: s.category,
+      x: it.pos[0], y: it.pos[1], z: it.pos[2], w: s.size[0], h: s.size[1], d: s.size[2],
+      weightKg: estimateWeightKg(s), peakW: kindInfo(it.kind).peakW,
+    };
+  });
+}
 
 
 

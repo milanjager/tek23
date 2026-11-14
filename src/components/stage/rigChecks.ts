@@ -92,7 +92,7 @@ export function checkRig(items: CheckItem[], cables: CheckCable[], info: (k: str
       const light = k.category === "lights";
       out.push({ id: `unwired-pwr-${it.id}`, kind: "unwired", severity: "error", itemId: it.id,
         title: `${name(it)} nemá napájení`, detail: light ? "Světlo není zapojené do 230 V." : "Prvek není zapojený do 230 V.",
-        ...(hasDistro ? { fix: { kind: "wire-to-distro" as const, label: "Zapojit do rozdělovače" } } : {}) });
+        ...(hasDistro && !k.isDistro ? { fix: { kind: "wire-to-distro" as const, label: "Zapojit do rozdělovače" } } : {}) });
     }
   }
 
