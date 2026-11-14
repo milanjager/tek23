@@ -7739,3 +7739,39 @@ export function StageBuilder3D() {
 }
 
 export default StageBuilder3D;
+
+/* ---- Read-only 3D pro sdílený odkaz: jen modely + kabely, žádné úpravy. ---- */
+export function SharedScene3D({ items, cables }: {
+  items: { id: string; kind: string; pos: [number, number, number]; label?: string }[];
+  cables: { from: string; to: string; type: CableType }[];
+}) {
+  const known = items.filter((it) => SPECS[it.kind as Kind]);
+  const byId = new Map(known.map((it) => [it.id, it]));
+  const span = known.reduce((m, it) => Math.max(m, Math.abs(it.pos[0]) + 2, Math.abs(it.pos[2]) + 2), 6);
+  return (
+    <Canvas shadows dpr={[1, 2]} camera={{ position: [span * 0.8, span * 0.6, span * 1.1], fov: 45, near: 0.1, far: 300 }} gl={{ antialias: true }}>
+      <color attach="background" args={["#e7e5e4"]} />
+      <ambientLight intensity={0.7} />
+      <directionalLight position={[6, 10, 8]} intensity={1.2} castShadow />
+      <Grid args={[60, 60]} cellSize={0.5} sectionSize={1} infiniteGrid fadeDistance={50} position={[0, 0.001, 0]} />
+      <Suspense fallback={null}>
+        {known.map((it) => {
+          const s = SPECS[it.kind as Kind];
+          return (
+            <group key={it.id} position={it.pos}>
+              <ModelFor kind={it.kind as Kind} size={s.size} variant={s.defaultVariant} />
+            </group>
+          );
+        })}
+      </Suspense>
+      {cables.map((c, i) => {
+        const a = byId.get(c.from), b = byId.get(c.to);
+        if (!a || !b) return null;
+        const y = 0.03 + i * 0.002;
+        const mz = (a.pos[2] + b.pos[2]) / 2;
+        return <Line key={i} points={[[a.pos[0], y, a.pos[2]], [a.pos[0], y, mz], [b.pos[0], y, mz], [b.pos[0], y, b.pos[2]]]} color={CABLE_META[c.type].color} lineWidth={2} />;
+      })}
+      <OrbitControls makeDefault target={[0, 1, 0]} maxPolarAngle={Math.PI / 2.05} />
+    </Canvas>
+  );
+}
