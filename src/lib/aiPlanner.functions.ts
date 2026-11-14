@@ -61,7 +61,7 @@ export type AiPlannerResult =
   | { ok: false; error: string };
 
 export const generateAiLayout = createServerFn({ method: "POST" })
-  .inputValidator(aiPlannerInputSchema)
+  .validator(aiPlannerInputSchema)
   .handler(async ({ data }): Promise<AiPlannerResult> => {
     const instructions = `Jsi zkušený zvukař a světelný technik pro tekno soundsystémy. Navrhni praktické, bezpečné a přehledné rozmístění pouze z dodaných dostupných komponent. Odpovídej česky. Souřadnice jsou v metrech: x je šířka (střed prostoru 0), z je hloubka (stage vzadu při záporném z, publikum směrem kladnému z), y je spodní hrana komponenty nad podlahou. Hlavní PA postav symetricky v jedné přední linii; subwoofery soustřeď pro co nejmenší výpadky, středy a výšky dej nad ně nebo těsně vedle. Nevytvářej zpožďovací řady, pokud k nim chybí vhodná technika. Světla rozlož symetricky a bezpečně; nevěš nic nad limit výšky prostoru. Zesilovače a rozvaděč drž v servisní zóně u PA. Agregát do vnitřního prostoru neumisťuj. Nenechávej komponenty v únikových cestách ani uprostřed taneční plochy. Nepoužívej více kusů, než je dostupné. rotationDeg je 0 pro směr k publiku a 180 pro odposlechy k stage. Do warnings napiš skutečná rizika nebo nedostatky, ne obecné fráze. V recommendations uveď konkrétní další nastavení a ověření na místě. Vrať pouze JSON podle schématu.`;
 
