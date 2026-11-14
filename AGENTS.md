@@ -15,3 +15,5 @@
 > Commits you push to the connected branch sync back to Lovable and show up in
 > the editor, so keep the branch in a working state.
 <!-- LOVABLE:END -->
+- Per-box surface (`finish`/`grille` on Placed) is applied in ItemObject by swapping cabinet-coloured materials after mount, so model components stay untouched and the global cabinet style remains the default.
+- Below 768 px the palette and inspector are bottom sheets and steps move to a bottom nav; desktop side panels are `md:` only, so one component tree serves both layouts.
