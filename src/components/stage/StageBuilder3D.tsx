@@ -4852,11 +4852,11 @@ function loadPreset(kind: PresetKind): Placed[] {
     arr.push(mk("picus_bass_row", -1.80, 1.00, SPK_Z, "Střed L"));
     arr.push(mk("picus_bass_row",  1.80, 1.00, SPK_Z, "Střed R"));
     // --- Hřiby (hex horny) nad středy ---
-    arr.push(mk("picus_hex_horn", -1.80, 1.90, SPK_Z, "Hřib L"));
-    arr.push(mk("picus_hex_horn",  1.80, 1.90, SPK_Z, "Hřib R"));
+    arr.push(mk("picus_hex_horn", -1.80, 1.55, SPK_Z, "Hřib L"));
+    arr.push(mk("picus_hex_horn",  1.80, 1.55, SPK_Z, "Hřib R"));
     // --- Střední sloupec: celkem 3 bedny (bass + 2 mid) ---
     arr.push(mk("picus_mid_grill", 0.00, 1.00, SPK_Z, "Střed C1"));
-    arr.push(mk("picus_mid_grill", 0.00, 1.85, SPK_Z, "Střed C2"));
+    arr.push(mk("picus_mid_grill", 0.00, 2.80, SPK_Z, "Střed C2"));
 
     // --- Infra ---
     arr.push(mk("powersoft", -4.2, 0, 0.9, "Amp L"));
@@ -5290,7 +5290,9 @@ export function StageBuilder3D() {
   useEffect(() => {
     applyCabinetStyle(cabStyle);
     if (!styleApplied.current) { styleApplied.current = true; return; }
-    setStyleVersion((v) => v + 1);
+    // Debounce: color picker emits continuously; remount scene once after the user stops.
+    const t = setTimeout(() => setStyleVersion((v) => v + 1), 450);
+    return () => clearTimeout(t);
   }, [cabStyle]);
   const changeCabStyle = useCallback((s: CabinetStyle) => {
     saveCabinetStyle(s);

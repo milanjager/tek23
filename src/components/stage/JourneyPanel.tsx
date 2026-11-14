@@ -71,10 +71,13 @@ export function JourneyPanel({
       seenRef.current = [...seenRef.current, fresh.id];
       saveSeenQuests(seenRef.current);
       setReward({ title: fresh.title, xp: fresh.reward });
-      const t = setTimeout(() => setReward(null), 2600);
-      return () => clearTimeout(t);
     }
   }, [state.doneIds]);
+  useEffect(() => {
+    if (!reward) return;
+    const t = setTimeout(() => setReward(null), 2600);
+    return () => clearTimeout(t);
+  }, [reward]);
 
   return (
     <>
