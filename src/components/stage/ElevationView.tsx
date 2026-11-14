@@ -481,9 +481,9 @@ function DraggableDevice({
           maxWidth: Math.max(wPx + 40, 120),
         }}
       >
-        <span className="mr-1">{label}</span>
-        <span className="font-mono text-[8px] opacity-60">
-          {spec.size[0].toFixed(1)}×{spec.size[1].toFixed(1)}m
+        <span className="block truncate font-bold">{label}</span>
+        <span className="block font-mono text-[8px] font-normal text-neutral-500">
+          X {it.pos[0].toFixed(1)} · Y {it.pos[1].toFixed(1)} m
         </span>
         {stack && stack.total > 1 && (
           <span className="ml-1 rounded bg-neutral-900 px-1 text-[8px] text-white">

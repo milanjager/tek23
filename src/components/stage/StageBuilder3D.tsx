@@ -5289,14 +5289,13 @@ export function StageBuilder3D() {
   const [mobileViewer, setMobileViewer] = useState(false);
   const [sheet, setSheet] = useState<null | "inspect" | "views">(null);
   useEffect(() => {
-    const saved = localStorage.getItem("stage.mobileViewer");
-    const narrow = window.matchMedia("(max-width: 767px)").matches;
-    const on = saved !== null ? saved === "1" : narrow;
+    const saved = localStorage.getItem("stage.mobileViewer.v2");
+    const on = saved === "1";
     setMobileViewer(on);
     if (on) { setViewMode("grid"); setWorkMode("build"); }
   }, []);
   useEffect(() => {
-    if (panelsHydrated) localStorage.setItem("stage.mobileViewer", mobileViewer ? "1" : "0");
+    if (panelsHydrated) localStorage.setItem("stage.mobileViewer.v2", mobileViewer ? "1" : "0");
   }, [mobileViewer, panelsHydrated]);
   const enterViewer = useCallback(() => {
     setMobileViewer(true);
@@ -6384,26 +6383,19 @@ export function StageBuilder3D() {
       {/* ── Header: identita projektu, stav, globální akce ─────────── */}
       <header className="glass-strong z-30 px-2 pt-1.5 pb-1 sm:px-3">
         <div className="flex flex-nowrap items-center gap-2 overflow-x-auto no-scrollbar">
-          <button
-            data-walkthrough="palette-btn"
-            onClick={() => setPaletteOpen((v) => !v)}
-            className="glass-chip inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full md:hidden"
-            aria-label={paletteOpen ? "Zavřít paletu komponent" : "Otevřít paletu komponent"}
-          >
-            {paletteOpen ? <X size={16} /> : <Menu size={16} />}
-          </button>
+
           <div className="inline-flex shrink-0 items-center gap-1.5 font-bold text-lime-600">
             <Boxes size={18} /> <span className="hidden text-[13px] lg:inline">STAGE RIG</span>
           </div>
 
-          <nav data-walkthrough="work-mode" aria-label="Kroky" className="mx-auto flex shrink-0 items-center gap-1">
+          <nav data-walkthrough="work-mode" aria-label="Kroky" className="mx-auto hidden shrink-0 items-center gap-1 md:flex">
             {MODES.map((m, i) => (
               <div key={m.id} className="flex items-center gap-1">
                 {i > 0 && <span className="h-px w-3 bg-neutral-300 sm:w-5" aria-hidden />}
                 <button
                   onClick={() => setWorkMode(m.id)}
                   aria-current={workMode === m.id ? "step" : undefined}
-                  title={m.hint}
+                  title={`${m.hint} (${m.n})`}
                   className={`inline-flex min-h-10 items-center gap-1.5 rounded-full px-2.5 text-[13px] font-bold sm:px-3 ${workMode === m.id ? "bg-neutral-900 text-white" : "text-neutral-600 hover:bg-neutral-200"}`}
                 >
                   <span className={`inline-flex h-5 w-5 items-center justify-center rounded-full text-[11px] ${workMode === m.id ? "bg-lime-400 text-neutral-950" : "bg-neutral-200 text-neutral-700"}`}>{m.n}</span>
@@ -6413,7 +6405,7 @@ export function StageBuilder3D() {
             ))}
           </nav>
 
-          <div className="flex shrink-0 items-center gap-1.5">
+          <div className="ml-auto flex shrink-0 items-center gap-1.5 md:ml-0">
             <button
               data-walkthrough="issues-badge"
               onClick={() => { setWorkMode("wire"); setIssuesOpen(true); }}
@@ -6434,6 +6426,7 @@ export function StageBuilder3D() {
                 aria-haspopup="menu"
                 aria-expanded={moreOpen}
                 aria-label="Další volby"
+                title="Další volby (? = zkratky)"
                 className={`${btnCls} bg-neutral-100 font-bold hover:bg-neutral-200`}
               >
                 ⋯
@@ -6507,7 +6500,10 @@ export function StageBuilder3D() {
               <li><b>Ctrl+G / Ctrl+Shift+G</b> — seskupit / rozdělit</li>
               <li><b>Ctrl+Z / Ctrl+Shift+Z</b> — zpět / vpřed</li>
               <li><b>Šipky</b> — posun po mřížce (Shift = větší krok)</li>
-              <li><b>[</b> — paleta · <b>?</b> — tato nápověda</li>
+              <li><b>1 / 2 / 3</b> — kroky Postav / Zapoj / Spec</li>
+              <li><b>R</b> — srovnat řadu · <b>M</b> — magnety zap/vyp · <b>Esc</b> — zrušit výběr</li>
+              <li><b>Alt+šipky</b> — výška nahoru/dolů</li>
+              <li><b>[</b> — paleta · <b>]</b> — inspektor · <b>?</b> — tato nápověda</li>
             </ul>
             <p className="mt-3 text-[11px] text-neutral-500">
               V kroku Zapoj: klik na první bednu → klik na druhou. Klik na kabel otevře inspektor.
@@ -6557,25 +6553,26 @@ export function StageBuilder3D() {
               <option value="club_stack">Club Stack — 2×2 sub + top L/R</option>
               <option value="festival_ground">Festival Ground — 3 clustery</option>
             </select>
-            <button onClick={() => { setMode("select"); setPendingFrom(null); setMarqueeMode(false); }} className={`${btnCls} ${mode === "select" && !marqueeMode ? "bg-lime-500 text-neutral-950" : "bg-neutral-100 hover:bg-neutral-200"}`}><MousePointer2 size={13} /> Výběr</button>
+            <button onClick={() => { setMode("select"); setPendingFrom(null); setMarqueeMode(false); }} title="Výběr (Esc zruší výběr)" className={`${btnCls} ${mode === "select" && !marqueeMode ? "bg-lime-500 text-neutral-950" : "bg-neutral-100 hover:bg-neutral-200"}`}><MousePointer2 size={13} /> Výběr</button>
             <button onClick={() => { setMode("select"); setPendingFrom(null); setMarqueeMode((v) => !v); }} className={`${btnCls} ${marqueeMode ? "bg-lime-500 text-neutral-950" : "bg-neutral-100 hover:bg-neutral-200"}`} title="Táhni myší přes bedny (Shift = přidat k výběru)"><BoxSelect size={13} /> Rámeček</button>
             <button
               data-walkthrough="magnet-toggle"
               onClick={() => { setMagnet((v) => { announce(v ? "Magnety vypnuty — bedny se už nezarovnávají." : "Magnety zapnuty — bedny cvakají k hranám a do řady."); return !v; }); }}
               aria-pressed={magnet}
-              title="Magnetické snapování: bedna cvakne hranou k sousedovi nebo se zarovná do řady (tolerance 35 cm)."
+              title="Magnety (M): bedna při tažení cvakne hranou k sousedovi a zarovná se do řady (tolerance 35 cm)."
               className={`${btnCls} ${magnet ? "bg-cyan-500 text-neutral-950" : "bg-neutral-100 hover:bg-neutral-200"}`}
             >
               🧲 Magnety {magnet ? "· zap" : "· vyp"}
             </button>
+            <button onClick={alignRow} disabled={!selection.length} title="Srovnat řadu (R): bedny v řadě se sesunou hranou k hraně, stacky jedou s nimi" className={`${btnCls} bg-neutral-100 hover:bg-neutral-200 disabled:opacity-40`}>⇿ Srovnat řadu</button>
 
             <button onClick={() => setTool("translate")} disabled={mode !== "select"} className={`${btnCls} ${tool === "translate" && mode === "select" ? "bg-lime-500 text-neutral-950" : "bg-neutral-100 hover:bg-neutral-200"} disabled:opacity-40`}><MoveIcon size={13} /> Posun (T)</button>
-            <button onClick={duplicateSelection} disabled={!selection.length} className={`${btnCls} bg-neutral-100 hover:bg-neutral-200 disabled:opacity-40`}><Copy size={13} /> Duplikovat</button>
-            <button onClick={copySelection} disabled={!selection.length} className={`${btnCls} bg-neutral-100 hover:bg-neutral-200 disabled:opacity-40`}>Kopírovat</button>
-            <button onClick={pasteSelection} disabled={!clipboard.length} className={`${btnCls} bg-neutral-100 hover:bg-neutral-200 disabled:opacity-40`}><ClipboardPaste size={13} /> Vložit</button>
-            <button onClick={groupSelection} disabled={selection.length < 2} className={`${btnCls} bg-neutral-100 hover:bg-neutral-200 disabled:opacity-40`}><GroupIcon size={13} /> Seskupit</button>
-            <button onClick={ungroupSelection} disabled={!selection.length} className={`${btnCls} bg-neutral-100 hover:bg-neutral-200 disabled:opacity-40`}><Ungroup size={13} /> Rozdělit</button>
-            <button onClick={deleteSelection} disabled={!selection.length} className={`${btnCls} bg-red-100 text-red-700 hover:bg-red-200 disabled:opacity-40`}><Trash2 size={13} /> Smazat</button>
+            <button onClick={duplicateSelection} disabled={!selection.length} title="Duplikovat (Ctrl+D)" className={`${btnCls} bg-neutral-100 hover:bg-neutral-200 disabled:opacity-40`}><Copy size={13} /> Duplikovat</button>
+            <button onClick={copySelection} disabled={!selection.length} title="Kopírovat (Ctrl+C)" className={`${btnCls} bg-neutral-100 hover:bg-neutral-200 disabled:opacity-40`}>Kopírovat</button>
+            <button onClick={pasteSelection} disabled={!clipboard.length} title="Vložit (Ctrl+V)" className={`${btnCls} bg-neutral-100 hover:bg-neutral-200 disabled:opacity-40`}><ClipboardPaste size={13} /> Vložit</button>
+            <button onClick={groupSelection} disabled={selection.length < 2} title="Seskupit (Ctrl+G)" className={`${btnCls} bg-neutral-100 hover:bg-neutral-200 disabled:opacity-40`}><GroupIcon size={13} /> Seskupit</button>
+            <button onClick={ungroupSelection} disabled={!selection.length} title="Rozdělit skupinu (Ctrl+Shift+G)" className={`${btnCls} bg-neutral-100 hover:bg-neutral-200 disabled:opacity-40`}><Ungroup size={13} /> Rozdělit</button>
+            <button onClick={deleteSelection} disabled={!selection.length} title="Smazat (Del)" className={`${btnCls} bg-red-100 text-red-700 hover:bg-red-200 disabled:opacity-40`}><Trash2 size={13} /> Smazat</button>
             <div className={`inline-flex shrink-0 items-center gap-1 rounded-lg bg-neutral-100 px-2 ${compact ? "min-h-7" : "min-h-11"}`} title="Společná hloubka řady reproduktorů">
               <span className="text-[10px] text-neutral-500">Hloubka řady</span>
               <input
@@ -6592,7 +6589,7 @@ export function StageBuilder3D() {
 
         {workMode === "wire" && !mobileViewer && (
           <>
-            <button onClick={() => { setMode("cable"); setSelection([]); }} className={`${btnCls} ${mode === "cable" ? "bg-lime-500 text-neutral-950" : "bg-neutral-100 hover:bg-neutral-200"}`}><CableIcon size={13} /> Kabely (C)</button>
+            <button onClick={() => { setMode("cable"); setSelection([]); }} title="Režim kabelů (C)" className={`${btnCls} ${mode === "cable" ? "bg-lime-500 text-neutral-950" : "bg-neutral-100 hover:bg-neutral-200"}`}><CableIcon size={13} /> Kabely (C)</button>
             {mode === "cable" && (
               <div className="inline-flex shrink-0 items-center gap-1 rounded-lg bg-neutral-100 p-0.5">
                 {(Object.keys(CABLE_META) as CableType[]).map((t) => (
@@ -6820,7 +6817,7 @@ export function StageBuilder3D() {
         {/* 3D Canvas / Schematic view */}
         <div className="relative flex-1" ref={canvasWrapRef} id="stage-canvas" data-walkthrough="stage-canvas" role="main" aria-label="Plátno stage">
           {!mobileViewer && (
-            <div data-walkthrough="scene-views" role="group" aria-label="Pohled na scénu" className="glass-strong absolute bottom-3 left-1/2 z-40 flex -translate-x-1/2 items-center gap-0.5 rounded-full p-1 shadow-lg">
+            <div data-walkthrough="scene-views" role="group" aria-label="Pohled na scénu" className="glass-strong absolute left-1/2 top-2 z-40 flex -translate-x-1/2 items-center gap-0.5 rounded-full p-1 shadow-lg md:bottom-3 md:top-auto">
               {PRIMARY_VIEWS.map((v) => (
                 <button
                   key={v.id}
@@ -6835,7 +6832,7 @@ export function StageBuilder3D() {
             </div>
           )}
           {issuesOpen && (
-            <div role="region" aria-label="Upozornění" className="glass-strong absolute right-3 top-3 z-40 w-[min(20rem,calc(100%-1.5rem))] rounded-2xl p-3 shadow-xl">
+            <div role="region" aria-label="Upozornění" className="glass-strong absolute right-3 top-14 z-40 w-[min(20rem,calc(100%-1.5rem))] rounded-2xl p-3 shadow-xl">
               <div className="flex items-center justify-between">
                 <b className="text-[13px] text-neutral-900">{issues.length ? `Upozornění (${issues.length})` : "Vše OK"}</b>
                 <button onClick={() => setIssuesOpen(false)} aria-label="Zavřít upozornění" className="rounded-full p-1.5 text-neutral-500 hover:bg-neutral-200"><X size={14} /></button>
@@ -7091,34 +7088,26 @@ export function StageBuilder3D() {
           <button
             onClick={() => setRightOpen(true)}
             title="Otevřít inspektor ( ] )"
-            className="glass-chip absolute right-2 top-2 z-20 flex h-10 w-10 items-center justify-center rounded-full text-neutral-600 shadow-md hover:text-lime-600"
+            className="glass-chip absolute right-2 top-2 z-20 hidden h-10 md:flex w-10 items-center justify-center rounded-full text-neutral-600 shadow-md hover:text-lime-600"
           >
             <PanelRight size={14} />
           </button>
         )}
-        {/* Mobile inspector backdrop */}
-        {rightOpen && !mobileViewer && (
-          <div
-            className="absolute inset-0 z-20 bg-black/40 backdrop-blur-sm md:hidden"
-            onClick={() => setRightOpen(false)}
-          />
-        )}
+
         {/* Right inspector — overlay drawer on mobile, static on md+ */}
         <aside
           aria-label="Inspektor a vrstvy"
-          style={mobileViewer && sheet === "inspect" ? { zIndex: 1000000001 } : undefined}
+          style={mobileViewer ? (sheet === "inspect" ? { zIndex: 1000000001 } : undefined) : { zIndex: 1000000001 }}
           className={`${mobileViewer
             ? (sheet === "inspect"
                 ? "absolute inset-x-0 bottom-0 flex max-h-[68dvh] w-full overflow-y-auto rounded-t-2xl border-t border-neutral-200/60 pb-14 shadow-2xl animate-in slide-in-from-bottom-8 fade-in duration-300"
                 : "hidden")
-            : rightOpen
-            ? "absolute inset-y-0 right-0 z-30 flex w-[86vw] max-w-sm shadow-2xl animate-in slide-in-from-right-4 fade-in duration-200 md:static md:z-auto md:w-72 md:shadow-none border-l border-neutral-200/60"
-            : "hidden"} glass flex-col`}
+            : `${selection.length ? "absolute inset-x-0 bottom-14 flex max-h-[60dvh] overflow-y-auto rounded-t-2xl border-t border-neutral-200/60 shadow-2xl animate-in slide-in-from-bottom-8 fade-in duration-200" : "hidden"} ${rightOpen ? "md:static md:flex md:max-h-none md:w-72 md:overflow-visible md:rounded-none md:border-t-0 md:border-l md:shadow-none" : "md:hidden"}`} glass flex-col`}
         >
           <div className="flex items-center justify-between border-b border-neutral-200/60 px-2 py-1">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-neutral-500">Inspektor ( ] )</span>
+            <span className="text-[10px] font-bold uppercase tracking-wider text-neutral-500"><span className="mx-auto mb-1 block h-1 w-10 rounded-full bg-neutral-300 md:hidden" />Inspektor ( ] )</span>
             <button
-              onClick={() => setRightOpen(false)}
+              onClick={() => { if (window.matchMedia("(max-width: 767px)").matches) setSelection([]); else setRightOpen(false); }}
               title="Sbalit inspektor"
               className="rounded-full p-1 text-neutral-400 hover:bg-neutral-200/40 hover:text-neutral-700"
             >
@@ -7435,6 +7424,53 @@ export function StageBuilder3D() {
           </div>
           )}
         </aside>
+
+        {/* ── Mobil (< 768 px): paleta jako spodní sheet + kroky dole ── */}
+        {!mobileViewer && !launcherOpen && workMode === "build" && !selection.length && (
+          <div className="glass-strong absolute inset-x-0 bottom-14 rounded-t-2xl border-t border-neutral-200/60 shadow-2xl md:hidden" style={{ zIndex: 1000000001 }}>
+            <button
+              data-walkthrough="palette-sheet"
+              onClick={() => setMobilePaletteOpen((v) => !v)}
+              aria-expanded={mobilePaletteOpen}
+              aria-label={mobilePaletteOpen ? "Sbalit paletu" : "Rozbalit paletu"}
+              className="flex w-full flex-col items-center pt-1.5 pb-1"
+            >
+              <span className="h-1 w-10 rounded-full bg-neutral-300" />
+              <span className="mt-1 text-[10px] font-bold uppercase tracking-wider text-neutral-500">Paleta</span>
+            </button>
+            <div className="flex gap-1 px-2 pb-1.5">
+              {paletteTabs.map((c) => {
+                const active = (category === "fun" ? "sound" : category) === c.id;
+                return (
+                  <button key={c.id} onClick={() => { setCategory(c.id); setMobilePaletteOpen(true); }} aria-pressed={active}
+                    className={`min-h-9 flex-1 rounded-full text-[12px] font-bold ${active ? "bg-neutral-900 text-white" : "bg-neutral-100 text-neutral-600"}`}>{c.label}</button>
+                );
+              })}
+            </div>
+            {mobilePaletteOpen && (
+              <div className="pb-2">
+                <div className="px-2 pb-1.5">
+                  <input type="search" value={paletteQuery} onChange={(e) => setPaletteQuery(e.target.value)} placeholder="Hledat komponentu…" aria-label="Hledat v knihovně komponent"
+                    className="min-h-10 w-full rounded-lg border border-neutral-300 bg-white px-2.5 text-[13px] text-neutral-800 focus:border-lime-500 focus:outline-none" />
+                </div>
+                <div className="flex snap-x gap-2 overflow-x-auto px-2 no-scrollbar">
+                  {[...palette.filter(([, s]) => paletteQuery || s.category !== "fun"), ...(paletteQuery ? [] : funPalette)].map(([k, s]) => renderPaletteCard(k, s, "row"))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+        {!mobileViewer && !launcherOpen && (
+          <nav aria-label="Kroky" className="glass-strong absolute inset-x-0 bottom-0 flex h-14 items-stretch gap-1 border-t border-neutral-200/60 px-2 py-1.5 md:hidden" style={{ zIndex: 1000000002 }}>
+            {MODES.map((m) => (
+              <button key={m.id} onClick={() => setWorkMode(m.id)} aria-current={workMode === m.id ? "step" : undefined}
+                className={`flex flex-1 items-center justify-center gap-1.5 rounded-xl text-[13px] font-bold ${workMode === m.id ? "bg-neutral-900 text-white" : "text-neutral-600"}`}>
+                <span className={`inline-flex h-5 w-5 items-center justify-center rounded-full text-[11px] ${workMode === m.id ? "bg-lime-400 text-neutral-950" : "bg-neutral-200 text-neutral-700"}`}>{m.n}</span>
+                {m.label}
+              </button>
+            ))}
+          </nav>
+        )}
 
         {/* ── Mobilní režim prohlížení: spodní sheet místo bočních panelů ── */}
         {mobileViewer && sheet && !launcherOpen && (
