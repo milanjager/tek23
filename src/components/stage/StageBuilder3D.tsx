@@ -6246,7 +6246,7 @@ export function StageBuilder3D() {
               className={`inline-flex min-h-9 items-center gap-1 rounded-full px-3 text-[12px] font-bold ${issues.length ? "bg-amber-100 text-amber-800 hover:bg-amber-200" : "bg-emerald-100 text-emerald-800 hover:bg-emerald-200"}`}
               title="Kontrola rigu — klikni pro seznam"
             >
-              {issues.length ? `⚠ ${issues.length} ${issues.length === 1 ? "upozornění" : issues.length < 5 ? "upozornění" : "upozornění"}` : "✓ Vše OK"}
+              {issues.length ? `⚠ ${issues.length} upozornění` : "✓ Vše OK"}
             </button>
             {savedAt && (
               <span className="hidden whitespace-nowrap text-[11px] text-neutral-500 sm:inline" role="status">Uloženo {savedAt}</span>

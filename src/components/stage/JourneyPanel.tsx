@@ -99,7 +99,7 @@ export function JourneyPanel({
       {!open && (
         <button
           onClick={() => setOpen(true)}
-          className="glass-strong fixed bottom-3 left-1/2 z-[1100] flex w-[min(26rem,94vw)] -translate-x-1/2 items-center gap-3 rounded-2xl px-3 py-2.5 text-left shadow-xl transition hover:scale-[1.01]"
+          className="glass-strong fixed bottom-16 left-1/2 z-[1100] flex w-[min(26rem,94vw)] -translate-x-1/2 items-center gap-3 rounded-2xl px-3 py-2.5 text-left shadow-xl transition hover:scale-[1.01]"
           aria-label="Otevřít Cestu stavitele"
         >
           <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-lime-400 text-neutral-950">
