@@ -7,4 +7,4 @@
 - [x] Gamifikovaná vrstva: startovní obrazovka s jedním CTA, Cesta stavitele (questy, XP, levely, odměny)
 - [ ] Gamifikace fáze 2: zjednodušení toolbaru a panelů (méně voleb na obrazovku), akční jazyk místo technického
 - [ ] Vrátit změny ze 4. září
-- [ ] Refaktor UI: 3 kroky, odznak kontroly, úvodní obrazovka, 4 pohledy, souhrn, autosave, menu ⋯, čeština, bez dev tlačítka a badge
+- [x] Refaktor UI: 3 kroky, odznak kontroly, úvodní obrazovka, 4 pohledy, souhrn, autosave, menu ⋯, čeština, bez dev tlačítka a badge
