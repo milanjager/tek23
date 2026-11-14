@@ -51,6 +51,21 @@ export const FrontDrawing = forwardRef<SVGSVGElement, SvgProps>(function FrontDr
 });
 
 /** Půdorys: pohled shora, X × Z (dole = publikum). */
+/** Popisky půdorysu: písmo se vejde do šířky bedny, překrývající se popisky se vynechají. */
+function planLabels(items: DrawItem[]) {
+  const out: { id: string; x: number; z: number; fs: number; text: string; w: number }[] = [];
+  for (const it of [...items].sort((a, b) => b.w - a.w)) {
+    if (it.w < 0.3) continue;
+    const text = it.name.slice(0, 12);
+    const fs = Math.min(0.13, (it.w * 0.9) / (text.length * 0.55), it.d * 0.6);
+    if (fs < 0.05) continue;
+    const w = text.length * fs * 0.55;
+    if (out.some((o) => Math.abs(o.x - it.x) < (o.w + w) / 2 && Math.abs(o.z - it.z) < (o.fs + fs) / 2 + 0.02)) continue;
+    out.push({ id: it.id, x: it.x, z: it.z, fs, text, w });
+  }
+  return out;
+}
+
 export const PlanDrawing = forwardRef<SVGSVGElement, SvgProps & { cables?: DrawCable[] }>(function PlanDrawing({ items, className, labels = true, cables = [] }, ref) {
   const b = bounds(items, "plan");
   const W = b.maxX - b.minX, H = b.maxV - b.minV;
@@ -71,8 +86,8 @@ export const PlanDrawing = forwardRef<SVGSVGElement, SvgProps & { cables?: DrawC
       {items.map((it) => (
         <rect key={it.id} x={it.x - it.w / 2} y={it.z - it.d / 2} width={it.w} height={it.d} fill={CAT_FILL[it.category] ?? "#eee"} fillOpacity={0.85} stroke="#111" strokeWidth={0.015} />
       ))}
-      {labels && [...top.values()].map((it) => it.w > 0.3 && (
-        <text key={`t${it.id}`} x={it.x} y={it.z} fontSize={Math.min(0.13, it.w / 6)} textAnchor="middle" dominantBaseline="middle" fill="#111" fontFamily="sans-serif">{it.name.slice(0, 12)}</text>
+      {labels && planLabels([...top.values()]).map((l) => (
+        <text key={`t${l.id}`} x={l.x} y={l.z} fontSize={l.fs} textAnchor="middle" dominantBaseline="middle" fill="#111" fontFamily="sans-serif">{l.text}</text>
       ))}
       <text x={(b.minX + b.maxX) / 2} y={b.maxV + 0.25} fontSize={0.18} textAnchor="middle" fill="#111" fontWeight={700} fontFamily="sans-serif">▼ PUBLIKUM ▼</text>
     </svg>
