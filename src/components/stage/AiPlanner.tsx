@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import {
   AlertTriangle,
@@ -84,6 +84,7 @@ export default function AiPlanner({
   onApply: (plan: AiPlan) => void;
 }) {
   const requestLayout = useServerFn(generateAiLayout);
+  const resultRef = useRef<HTMLElement>(null);
   const [room, setRoom] = useState<Room>({ width: 16, depth: 24, height: 6, attendees: 250, venue: "indoor" });
   const [inventory, setInventory] = useState<Record<string, number>>({});
   const [addKind, setAddKind] = useState("");
@@ -114,6 +115,13 @@ export default function AiPlanner({
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [open, loading, onClose]);
+
+  useEffect(() => {
+    if (!open || (!loading && !plan)) return;
+    if (window.matchMedia("(max-width: 1023px)").matches) {
+      resultRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  }, [open, loading, plan]);
 
   const selected = useMemo(
     () => catalog.filter((item) => (inventory[item.kind] ?? 0) > 0),
@@ -223,7 +231,7 @@ export default function AiPlanner({
             </div>
           </section>
 
-          <section className="flex min-h-[28rem] flex-col border-t border-border bg-secondary/20 p-4 sm:p-6 lg:overflow-y-auto lg:border-l lg:border-t-0" aria-label="Výsledek AI návrhu">
+          <section ref={resultRef} className="flex min-h-[28rem] scroll-mt-2 flex-col border-t border-border bg-secondary/20 p-4 sm:p-6 lg:overflow-y-auto lg:border-l lg:border-t-0" aria-label="Výsledek AI návrhu">
             {!plan && !loading && (
               <div className="flex flex-1 flex-col items-center justify-center py-8 text-center">
                 <span className="flex h-16 w-16 items-center justify-center rounded-3xl border border-dashed border-border bg-background/60 text-muted-foreground"><WandSparkles size={27} /></span>

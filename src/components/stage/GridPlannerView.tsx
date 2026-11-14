@@ -60,6 +60,7 @@ export default function GridPlannerView({
   selectedIds, onSelectItem,
 }: Props) {
   const canvasRef = useRef<HTMLDivElement>(null);
+  const scrollerRef = useRef<HTMLDivElement>(null);
   const controlled = selectedIds !== undefined;
   const [localSelectedId, setLocalSelectedId] = useState<string | null>(null);
   const selectedId = controlled ? (selectedIds?.[0] ?? null) : localSelectedId;
@@ -75,6 +76,37 @@ export default function GridPlannerView({
   const canvasH = STAGE_D_M * px + 200;
   const originX = canvasW / 2; // world x = 0 → canvas center
   const originZ = canvasH / 2;
+
+  // Při otevření pohledu (např. po vložení AI návrhu) ukaž celou sestavu,
+  // ne levý horní roh plátna. Při běžném tažení už do pohledu nijak nezasahujeme.
+  useEffect(() => {
+    const scroller = scrollerRef.current;
+    if (!scroller) return;
+    const xs = items.map((item) => item.pos[0]);
+    const zs = items.map((item) => item.pos[2]);
+    const minX = xs.length ? Math.min(...xs) : -STAGE_W_M / 2;
+    const maxX = xs.length ? Math.max(...xs) : STAGE_W_M / 2;
+    const minZ = zs.length ? Math.min(...zs) : -STAGE_D_M / 2;
+    const maxZ = zs.length ? Math.max(...zs) : STAGE_D_M / 2;
+    const spanX = Math.max(6, maxX - minX + 4);
+    const spanZ = Math.max(6, maxZ - minZ + 4);
+    const nextZoom = Math.max(0.4, Math.min(1,
+      (scroller.clientWidth - 32) / (spanX * PX_PER_M),
+      (scroller.clientHeight - 80) / (spanZ * PX_PER_M),
+    ));
+    setZoom(nextZoom);
+    const nextPx = PX_PER_M * nextZoom;
+    const nextOriginX = (STAGE_W_M * nextPx + 200) / 2;
+    const nextOriginZ = (STAGE_D_M * nextPx + 200) / 2;
+    const centerX = nextOriginX + ((minX + maxX) / 2) * nextPx;
+    const centerZ = nextOriginZ + ((minZ + maxZ) / 2) * nextPx;
+    requestAnimationFrame(() => {
+      scroller.scrollLeft = Math.max(0, centerX - scroller.clientWidth / 2);
+      scroller.scrollTop = Math.max(0, centerZ - scroller.clientHeight / 2);
+    });
+    // Záměrně jen při mountu tohoto pohledu.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const selected = useMemo(
     () => items.find((i) => i.id === selectedId) ?? null,
@@ -232,7 +264,7 @@ export default function GridPlannerView({
       </div>
 
       {/* Scrollable canvas */}
-      <div className="absolute inset-0 overflow-auto">
+      <div ref={scrollerRef} className="absolute inset-0 overflow-auto">
         <div
           ref={canvasRef}
           onClick={onCanvasClick}
