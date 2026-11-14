@@ -5558,7 +5558,7 @@ export function StageBuilder3D() {
   // Init once — idempotent under StrictMode double-mount (no write effect,
   // which would clobber storage with the default before the read lands).
   useEffect(() => {
-    const wants = localStorage.getItem("stage.theme") === "dark";
+    const wants = localStorage.getItem("stage.theme") !== "light";
     setDarkState(wants);
     document.documentElement.classList.toggle("dark", wants);
   }, []);
