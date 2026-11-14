@@ -61,8 +61,15 @@ export default function SpecStudio({ rigName, items, cables, power, makeShareUrl
   const slug = (name.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/gi, "-").toLowerCase() || "rig").slice(0, 40);
 
   const printPdf = () => {
+    // Kopie listu přímo do <body>, aby tisk nebyl ořezaný rodičovskými kontejnery.
+    const sheet = document.getElementById("techrider-sheet");
+    if (!sheet) return;
+    const clone = document.createElement("div");
+    clone.id = "techrider-print-clone";
+    clone.innerHTML = sheet.outerHTML.replace('id="techrider-sheet"', "");
+    document.body.appendChild(clone);
     document.body.classList.add("print-techrider");
-    const done = () => { document.body.classList.remove("print-techrider"); window.removeEventListener("afterprint", done); };
+    const done = () => { document.body.classList.remove("print-techrider"); clone.remove(); window.removeEventListener("afterprint", done); };
     window.addEventListener("afterprint", done);
     window.print();
   };

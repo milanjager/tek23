@@ -213,13 +213,12 @@
   100% { transform: translateY(120px) rotate(320deg); opacity: 0; }
 }
 
+#techrider-print-clone { display: none; }
 @media print {
   @page { size: A4; margin: 10mm; }
-  body.print-techrider * { visibility: hidden !important; }
-  body.print-techrider #techrider-sheet,
-  body.print-techrider #techrider-sheet * { visibility: visible !important; }
-  body.print-techrider #techrider-sheet {
-    position: fixed !important; left: 0 !important; top: 0 !important;
+  body.print-techrider > *:not(#techrider-print-clone) { display: none !important; }
+  body.print-techrider #techrider-print-clone { display: block !important; background: #fff; }
+  body.print-techrider #techrider-print-clone > article {
     width: 100% !important; max-width: none !important; box-shadow: none !important;
     padding: 0 !important; aspect-ratio: auto !important;
     -webkit-print-color-adjust: exact; print-color-adjust: exact;
