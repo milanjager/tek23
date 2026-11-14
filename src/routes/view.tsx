@@ -1,8 +1,5 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
-import { lazy, Suspense, useEffect, useMemo, useState } from "react";
-import { ClientOnly } from "@tanstack/react-router";
-import { decodeRig, type SharedRig } from "@/components/stage/shareLink";
-import { PlanDrawing, SchemaDrawing, FrontDrawing, CABLE_COLORS, CABLE_SHORT } from "@/components/stage/rigDrawings";
+import { createFileRoute, ClientOnly } from "@tanstack/react-router";
+import { lazy, Suspense } from "react";
 
 const ViewerBody = lazy(() => import("@/components/stage/SharedViewer"));
 
@@ -30,5 +27,3 @@ function ViewPage() {
   );
 }
 
-export { PlanDrawing, SchemaDrawing, FrontDrawing, CABLE_COLORS, CABLE_SHORT, Link, useEffect, useMemo, useState, decodeRig };
-export type { SharedRig };
