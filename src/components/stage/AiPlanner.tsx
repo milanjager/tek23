@@ -269,6 +269,7 @@ export default function AiPlanner({
 
         <footer className="border-t border-border bg-background/80 p-3 sm:px-6">
           {error && <p role="alert" className="mb-2 rounded-xl bg-destructive/10 px-3 py-2 text-[12px] font-semibold text-destructive">{error}</p>}
+          {plan && sceneItems.length > 0 && <p className="mb-2 text-[11px] text-muted-foreground">Vložení nahradí současnou scénu. Původní stav vrátíš přes Ctrl+Z.</p>}
           <div className="flex items-center gap-3">
             <p className="hidden flex-1 text-[11px] leading-relaxed text-muted-foreground sm:block">AI návrh je výchozí bod. Před realizací ověř zatížení, rigging, krytí a bezpečnost na místě.</p>
             {!plan ? (
@@ -279,7 +280,7 @@ export default function AiPlanner({
               <>
                 <button onClick={() => setPlan(null)} className="min-h-12 rounded-xl px-4 text-[13px] font-semibold text-muted-foreground hover:bg-secondary">Upravit zadání</button>
                 <button onClick={() => onApply(plan)} className="flex min-h-12 flex-1 items-center justify-center gap-2 rounded-xl bg-primary px-5 text-[14px] font-bold text-primary-foreground shadow-sm hover:brightness-105 sm:flex-none">
-                  Vložit {plan.placements.length} prvků do scény <ArrowRight size={18} />
+                  {sceneItems.length ? "Použít návrh místo scény" : `Vložit ${plan.placements.length} prvků do scény`} <ArrowRight size={18} />
                 </button>
               </>
             )}

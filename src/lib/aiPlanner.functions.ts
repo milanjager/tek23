@@ -50,7 +50,7 @@ function outputText(output: Awaited<ReturnType<typeof generateResponse>>["output
 }
 
 function gatewayMessage(error: GatewayError): string {
-  if (error.code === "rate_limit") return "AI je teď vytížená. Počkej chvíli a zkus návrh znovu.";
+  if (error.code === "rate_limited") return "AI je teď vytížená. Počkej chvíli a zkus návrh znovu.";
   if (error.code === "payment_required") return "AI návrh je teď pozastavený, protože chybí dostupné kredity.";
   if (error.code === "permission_denied") return "AI návrh není pro tento projekt momentálně povolený.";
   return "Návrh se nepodařilo vytvořit. Zkus to prosím znovu.";
