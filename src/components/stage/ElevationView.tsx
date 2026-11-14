@@ -475,7 +475,7 @@ function DraggableDevice({
       <div
         className="pointer-events-none absolute left-1/2 -translate-x-1/2 whitespace-nowrap rounded border bg-white/95 px-1.5 py-0.5 text-[9px] font-semibold leading-tight shadow-sm"
         style={{
-          bottom: -18,
+          bottom: -28,
           borderColor: color.border,
           color: color.text,
           maxWidth: Math.max(wPx + 40, 120),
