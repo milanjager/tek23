@@ -2858,7 +2858,8 @@ const ItemObject = ({
       const hex = mat.color.getHexString();
       const isGrille = (mat.map && grilleTex.has(mat.map)) || hex === grilleHex;
       if (isGrille && item.grille === false) { m.visible = false; return; }
-      if (fin && (hex === wood || hex === woodDark)) {
+      const near = (h: string) => [0, 2, 4].every((k) => Math.abs(parseInt(hex.slice(k, k + 2), 16) - parseInt(h.slice(k, k + 2), 16)) <= 12);
+      if (fin && (near(wood) || hex === woodDark)) {
         const c = mat.clone();
         c.color.set(hex === woodDark ? shadeHex(fin.color, -0.25) : fin.color);
         if ("roughness" in c) c.roughness = fin.rough;
@@ -2866,7 +2867,6 @@ const ItemObject = ({
         m.material = c;
       }
     });
-    if (item.finish) { const hs = new Set<string>(); g.traverse((o) => { const mm = (o as THREE.Mesh).material as THREE.MeshStandardMaterial; if (mm?.color) hs.add(mm.color.getHexString()); }); console.log("FINDBG", wood, woodDark, created.length, [...hs].join(",")); }
     return () => created.forEach((c) => c.dispose());
   }, [item.finish, item.grille, item.kind]);
 
