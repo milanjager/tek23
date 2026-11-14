@@ -18,6 +18,7 @@ import {
   Move as MoveIcon, Boxes, Zap, Sparkles, Radio, Volume2,
   Cable as CableIcon, MousePointer2, Menu, X, BoxSelect, PanelLeft, PanelRight,
   Workflow, Box as BoxIcon, LayoutGrid, GalleryVerticalEnd, Folder, ChevronDown, ChevronRight,
+  WandSparkles,
 } from "lucide-react";
 import SchematicView from "./SchematicView";
 import GridPlannerView from "./GridPlannerView";
@@ -35,6 +36,8 @@ import { type DrawItem } from "./rigDrawings";
 import SpecStudio from "./SpecStudio";
 import { packRig, encodeRig } from "./shareLink";
 import { sfxCableStart, sfxPortConnect, sfxCableComplete, sfxCancel } from "./sfx";
+import AiPlanner from "./AiPlanner";
+import type { AiCatalogEntry, AiPlan } from "@/lib/aiPlanner";
 
 import {
   type CustomSpeaker,
@@ -6328,6 +6331,7 @@ export function StageBuilder3D() {
   }, [announce]);
 
   const [moreOpen, setMoreOpen] = useState(false);
+  const [aiPlannerOpen, setAiPlannerOpen] = useState(false);
   const [clearOpen, setClearOpen] = useState(false);
   const [issuesOpen, setIssuesOpen] = useState(false);
   const startRig = useCallback((name: string) => {
