@@ -212,3 +212,16 @@
   0% { transform: translateY(-10px) rotate(0deg); opacity: 1; }
   100% { transform: translateY(120px) rotate(320deg); opacity: 0; }
 }
+
+#techrider-print-clone { display: none; }
+@media print {
+  @page { size: A4; margin: 10mm; }
+  body.print-techrider > *:not(#techrider-print-clone) { display: none !important; }
+  body.print-techrider #techrider-print-clone { display: block !important; background: #fff; }
+  body.print-techrider #techrider-print-clone > article {
+    width: 100% !important; max-width: none !important; box-shadow: none !important;
+    padding: 0 !important; aspect-ratio: auto !important;
+    -webkit-print-color-adjust: exact; print-color-adjust: exact;
+  }
+  body.print-techrider .break-inside-avoid { break-inside: avoid; }
+}

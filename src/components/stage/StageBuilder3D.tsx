@@ -30,6 +30,10 @@ import { JourneyPanel } from "./JourneyPanel";
 import SpeakerBuilder from "./SpeakerBuilder";
 import SpeakerWiringSchema, { type WireNode, type WireLink } from "./SpeakerWiringSchema";
 import PrintReport, { type BomRow, type ChecklistRow } from "./PrintReport";
+import { checkRig, powerBudget, ampChannels as rigAmpChannels, GENERATOR_CAPACITY_W, type KindInfo, type RigIssue } from "./rigChecks";
+import { type DrawItem } from "./rigDrawings";
+import SpecStudio from "./SpecStudio";
+import { packRig, encodeRig } from "./shareLink";
 import { sfxCableStart, sfxPortConnect, sfxCableComplete, sfxCancel } from "./sfx";
 
 import {
@@ -774,6 +778,34 @@ function generateWiringSteps(items: Placed[], cables: Cable[]): WiringStep[] {
   });
 }
 
+
+
+/* ---- Kontrola rigu + data pro výkresy (sdílené s krokem Spec a read-only odkazem) ---- */
+function kindInfo(k: string): KindInfo {
+  const spec = SPECS[k as Kind];
+  const conns = connectorsFor(k as Kind);
+  return {
+    name: spec?.defaultLabel ?? spec?.label ?? k,
+    category: spec?.category ?? "sound",
+    peakW: SPEC_RATINGS[k as Kind]?.peakW ?? spec?.peakW ?? spec?.powerW ?? 0,
+    needsPower: conns.some((c) => c.type === "power" && c.role === "in"),
+    passiveSpeaker: conns.some((c) => c.type === "speaker" && c.role === "in"),
+    ampChannels: conns.filter((c) => c.type === "speaker" && c.role === "out").length,
+    ohm: CUSTOM_SPEAKERS.get(k)?.ohm ?? 8,
+    capacityW: k === "generator" ? GENERATOR_CAPACITY_W : 0,
+    isDistro: k === "distro",
+  };
+}
+export function toDrawItems(items: { id: string; kind: string; pos: [number, number, number]; label?: string }[]): DrawItem[] {
+  return items.filter((it) => SPECS[it.kind as Kind]).map((it) => {
+    const s = SPECS[it.kind as Kind];
+    return {
+      id: it.id, kind: it.kind, name: it.label || s.defaultLabel || s.label, category: s.category,
+      x: it.pos[0], y: it.pos[1], z: it.pos[2], w: s.size[0], h: s.size[1], d: s.size[2],
+      weightKg: estimateWeightKg(s), peakW: kindInfo(it.kind).peakW,
+    };
+  });
+}
 
 
 
@@ -2817,9 +2849,10 @@ function SelectionBounds({ items, selection }: { items: Placed[]; selection: str
 
 const ItemObject = ({
   item, selected, pending, showConnectors, showConnectorLabels, activeCableType, pendingItemId, showLabel,
-  onSelect, onRegister, onConnectorPick,
+  onSelect, onRegister, onConnectorPick, issue,
 }: {
   item: Placed;
+  issue?: { severity: "error" | "warn"; count: number };
   selected: boolean;
   pending?: boolean;
   showConnectors?: boolean;
@@ -2997,6 +3030,13 @@ const ItemObject = ({
           </group>
         );
       })}
+      {issue && (
+        <Html position={[spec.size[0] / 2, spec.size[1], spec.size[2] / 2]} center distanceFactor={8} occlude={false} zIndexRange={[40, 0]}>
+          <div title={`${issue.count} ${issue.count === 1 ? "problém" : "problémy"}`} className={`pointer-events-none flex h-5 min-w-5 items-center justify-center rounded-full px-1 text-[10px] font-black shadow-lg ring-2 ring-white ${issue.severity === "error" ? "bg-red-600 text-white" : "bg-amber-400 text-neutral-950"}`}>
+            {issue.severity === "error" ? "!" : "⚠"}{issue.count > 1 ? issue.count : ""}
+          </div>
+        </Html>
+      )}
       {/* Custom label above the box */}
       {item.label && (selected || showLabel) && (
         <Html position={[0, spec.size[1] + 0.25, 0]} center distanceFactor={8} occlude={false}>
@@ -3598,7 +3638,7 @@ function SceneContent({
   items, setItems, selection, setSelection, tool,
   cables, setCables, mode, cableType, setCableType, pendingFrom, setPendingFrom,
   showConnectorLabels, showCableLabels, showItemLabels, realistic, autoSanitize, frontView, topView, speakerLineZ,
-  cableRouteY, magnet, readOnly = false,
+  cableRouteY, magnet, readOnly = false, issueMap, focusRequest,
 
 }: {
   items: Placed[];
@@ -3626,6 +3666,10 @@ function SceneContent({
   magnet: boolean;
   /** Viewer mode: selection + camera only, no gizmo / no geometry edits. */
   readOnly?: boolean;
+  /** Výsledky kontroly — badge nad prvkem. */
+  issueMap?: Map<string, { severity: "error" | "warn"; count: number }>;
+  /** Posun kamery na prvek (n = pořadí požadavku). */
+  focusRequest?: { id: string; n: number } | null;
 }) {
 
 
@@ -3698,6 +3742,21 @@ function SceneContent({
       orbitRef.current.update();
     }
   }, [camera, frontView, topView, items]);
+
+  // Kontrola → „Ukázat na scéně": kamera najede na prvek.
+  useEffect(() => {
+    if (!focusRequest) return;
+    const it = items.find((x) => x.id === focusRequest.id);
+    if (!it) return;
+    const s = SPECS[it.kind].size;
+    const t = new THREE.Vector3(it.pos[0], it.pos[1] + s[1] / 2, it.pos[2]);
+    const dist = Math.max(4, Math.max(...s) * 4);
+    camera.position.set(t.x + dist * 0.5, t.y + dist * 0.45, t.z + dist * 0.9);
+    camera.lookAt(t);
+    camera.updateProjectionMatrix();
+    if (orbitRef.current) { orbitRef.current.target.copy(t); orbitRef.current.update(); }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [focusRequest?.n]);
 
   const registerObject = useCallback((id: string, obj: THREE.Object3D | null) => {
     if (obj) objectsRef.current.set(id, obj);
@@ -3982,6 +4041,7 @@ function SceneContent({
           showConnectorLabels={showConnectorLabels}
           activeCableType={cableType}
           showLabel={showItemLabels}
+          issue={issueMap?.get(it.id)}
           pendingItemId={pendingFrom}
           onConnectorPick={(itemId, conn) => {
             // Reconnect flow — pick the specific plug to reroute to.
@@ -6295,24 +6355,47 @@ export function StageBuilder3D() {
       .map((it) => { const [w, h] = SPECS[it.kind].size; return { x: it.pos[0] - w / 2, y: it.pos[1], w, h }; }),
   })), []);
 
-  // Kontrola: přetížené větve + nezapojené bedny (jen čtení, logika kabeláže beze změn).
-  const issues = useMemo(() => {
-    const out: { id: string; text: string; itemId?: string }[] = [];
-    if (!items.length) return out;
-    const sound = items.filter((it) => SPECS[it.kind].category === "sound");
-    if (!cables.length) {
-      if (sound.length) out.push({ id: "no-cables", text: "Rig ještě není zapojený — použij „Zapojit vše“." });
-      return out;
-    }
+  // Kontrola: pravidla z rigChecks + přetížené větve — průběžně, jen čtení.
+  const rigIssues = useMemo<RigIssue[]>(() => {
+    const out = checkRig(items, cables, kindInfo);
     for (const st of generateWiringSteps(items, cables)) {
-      if (st.overload) out.push({ id: `ovl-${st.cableId}`, text: `Přetížená větev ${st.fromLabel} → ${st.toLabel} (${Math.round(st.loadW ?? 0)} W)`, itemId: st.fromId });
-    }
-    const linked = new Set(cables.flatMap((c) => [c.from, c.to]));
-    for (const it of sound) {
-      if (!linked.has(it.id)) out.push({ id: `free-${it.id}`, text: `${it.label || SPECS[it.kind].label} není zapojená`, itemId: it.id });
+      if (st.overload) out.push({ id: `ovl-${st.cableId}`, kind: "power", severity: "error", title: "Přetížená větev", detail: `${st.fromLabel} → ${st.toLabel} (${Math.round(st.loadW ?? 0)} W)`, itemId: st.fromId });
     }
     return out;
   }, [items, cables]);
+  const issues = useMemo(() => rigIssues.map((i) => ({ id: i.id, text: i.title, itemId: i.itemId })), [rigIssues]);
+  const issueMap = useMemo(() => {
+    const m = new Map<string, { severity: "error" | "warn"; count: number }>();
+    for (const i of rigIssues) {
+      if (!i.itemId) continue;
+      const o = m.get(i.itemId);
+      m.set(i.itemId, { severity: o?.severity === "error" || i.severity === "error" ? "error" : "warn", count: (o?.count ?? 0) + 1 });
+    }
+    return m;
+  }, [rigIssues]);
+  const [focusRequest, setFocusRequest] = useState<{ id: string; n: number } | null>(null);
+  const showIssueItem = useCallback((id: string) => {
+    setSelection([id]);
+    setViewMode("3d");
+    setFocusRequest((f) => ({ id, n: (f?.n ?? 0) + 1 }));
+  }, []);
+  const applyFix = useCallback((iss: RigIssue) => {
+    if (iss.fix?.kind !== "wire-to-distro" || !iss.itemId) return;
+    const target = items.find((x) => x.id === iss.itemId);
+    const distros = items.filter((x) => x.kind === "distro");
+    if (!target || !distros.length) return;
+    // Nejbližší rozdělovač k prvku.
+    const d = distros.reduce((best, x) => (Math.hypot(x.pos[0] - target.pos[0], x.pos[2] - target.pos[2]) < Math.hypot(best.pos[0] - target.pos[0], best.pos[2] - target.pos[2]) ? x : best));
+    setCables((cs) => addCable(cs, d.id, target.id, "power"));
+    announce(`${target.label || SPECS[target.kind].label} zapojeno do rozdělovače ${d.label || "Rozdělovač"}.`);
+  }, [items, announce]);
+  const power = useMemo(() => powerBudget(items, kindInfo), [items]);
+  const drawItems = useMemo(() => toDrawItems(items), [items]);
+  const drawCables = useMemo(() => liveCablesOf(items, cables).map((c) => ({ from: c.from, to: c.to, type: c.type })), [items, cables]);
+  const makeShareUrl = useCallback(async () => {
+    const code = await encodeRig(packRig(rigName, items, liveCablesOf(items, cables)));
+    return `${window.location.origin}/view#r=${code}`;
+  }, [rigName, items, cables]);
 
   const PRIMARY_VIEWS: { id: typeof viewMode; label: string; hint: string }[] = [
     { id: "3d", label: "3D", hint: "Volná 3D scéna — stavění a přesuny" },
@@ -6838,23 +6921,77 @@ export function StageBuilder3D() {
                 <b className="text-[13px] text-neutral-900">{issues.length ? `Upozornění (${issues.length})` : "Vše OK"}</b>
                 <button onClick={() => setIssuesOpen(false)} aria-label="Zavřít upozornění" className="rounded-full p-1.5 text-neutral-500 hover:bg-neutral-200"><X size={14} /></button>
               </div>
-              {issues.length ? (
-                <ul className="mt-2 max-h-64 space-y-1 overflow-y-auto">
-                  {issues.map((iss) => (
-                    <li key={iss.id}>
-                      <button
-                        onClick={() => { if (iss.itemId) setSelection([iss.itemId]); }}
-                        className="w-full rounded-lg bg-amber-50 px-2 py-1.5 text-left text-[12px] text-amber-900 hover:bg-amber-100"
-                      >
-                        {iss.text}
-                      </button>
+              {rigIssues.length ? (
+                <ul className="mt-2 max-h-[60vh] space-y-2 overflow-y-auto">
+                  {rigIssues.map((iss) => (
+                    <li key={iss.id} className={`rounded-xl border p-2.5 ${iss.severity === "error" ? "border-red-200 bg-red-50" : "border-amber-200 bg-amber-50"}`}>
+                      <div className={`text-[13px] font-bold ${iss.severity === "error" ? "text-red-800" : "text-amber-900"}`}>{iss.severity === "error" ? "⛔" : "⚠"} {iss.title}</div>
+                      <div className="mt-0.5 text-[12px] text-neutral-700">{iss.detail}</div>
+                      <div className="mt-2 flex flex-wrap gap-1.5">
+                        {iss.itemId && (
+                          <button onClick={() => showIssueItem(iss.itemId!)} className="min-h-9 rounded-lg bg-white px-3 text-[12px] font-semibold text-neutral-900 shadow-sm hover:bg-neutral-100">Ukázat na scéně</button>
+                        )}
+                        {iss.fix && (
+                          <button onClick={() => applyFix(iss)} className="min-h-9 rounded-lg bg-lime-500 px-3 text-[12px] font-bold text-neutral-950 hover:bg-lime-400">{iss.fix.label}</button>
+                        )}
+                      </div>
                     </li>
                   ))}
                 </ul>
               ) : (
-                <p className="mt-1 text-[12px] text-neutral-600">Žádné přetížení ani nezapojené bedny.</p>
+                <p className="mt-1 text-[12px] text-neutral-600">Vše zapojené, příkon i impedance v pořádku.</p>
               )}
             </div>
+          )}
+          {workMode === "wire" && !mobileViewer && (() => {
+            const chans = rigAmpChannels(items, liveCablesOf(items, cables), kindInfo);
+            const amps = items.filter((x) => kindInfo(x.kind).ampChannels > 0);
+            const gens = items.filter((x) => x.kind === "generator");
+            const pct = power.capacityW ? Math.min(100, (power.loadW / power.capacityW) * 100) : 100;
+            const over = power.loadW > power.capacityW;
+            const kw = (w: number) => (w / 1000).toFixed(1).replace(".", ",");
+            return (
+              <section aria-label="Zdroje" className="glass-strong absolute left-3 top-14 z-30 max-h-[calc(100%-7rem)] w-[min(16rem,calc(100%-1.5rem))] overflow-y-auto rounded-2xl p-3 shadow-xl">
+                <h2 className="text-[11px] font-bold uppercase tracking-wider text-neutral-500">Zdroje</h2>
+                <div className="mt-2 rounded-xl bg-white/70 p-2.5">
+                  <div className="flex items-baseline justify-between text-[13px]">
+                    <b className="text-neutral-900">{gens.length ? (gens.length > 1 ? `Agregáty (${gens.length})` : (gens[0].label || "Agregát")) : "Agregát chybí"}</b>
+                    <span className={`font-mono text-[12px] ${over ? "font-bold text-red-700" : "text-neutral-700"}`}>{kw(power.loadW)} z {kw(power.capacityW)} kW</span>
+                  </div>
+                  <div className="mt-1.5 h-2.5 overflow-hidden rounded-full bg-neutral-200" role="progressbar" aria-valuenow={Math.round(pct)} aria-valuemin={0} aria-valuemax={100} aria-label="Zatížení agregátu">
+                    <div className={`h-full rounded-full transition-all ${over ? "bg-red-500" : pct > 80 ? "bg-amber-400" : "bg-lime-500"}`} style={{ width: `${pct}%` }} />
+                  </div>
+                  {!gens.length && <button onClick={() => addItem("generator")} className="mt-2 min-h-9 w-full rounded-lg bg-neutral-900 px-2 text-[12px] font-bold text-white hover:bg-neutral-700">+ Přidat agregát</button>}
+                </div>
+                <ul className="mt-2 space-y-1.5">
+                  {amps.map((a) => {
+                    const n = kindInfo(a.kind).ampChannels;
+                    const mine = chans.filter((c) => c.ampId === a.id);
+                    return (
+                      <li key={a.id}>
+                        <button onClick={() => showIssueItem(a.id)} className="w-full rounded-xl bg-white/70 p-2 text-left hover:bg-white">
+                          <div className="flex items-center justify-between text-[12px]">
+                            <b className="truncate text-neutral-900">{a.label || SPECS[a.kind].label}</b>
+                            <span className={`font-mono ${mine.length > n ? "font-bold text-red-700" : "text-neutral-600"}`}>{Math.min(mine.length, 99)}/{n} kan.</span>
+                          </div>
+                          <div className="mt-1 flex gap-1">
+                            {Array.from({ length: Math.max(n, mine.length) }, (_, i) => {
+                              const ch = mine[i];
+                              const bad = ch && (ch.ohm < 4 || i >= n);
+                              return <span key={i} title={ch ? `CH${i + 1}: ${ch.boxIds.length} bedny · ${ch.ohm.toFixed(1)} Ω` : `CH${i + 1}: volný`} className={`flex h-6 flex-1 items-center justify-center rounded text-[10px] font-bold ${!ch ? "border border-dashed border-neutral-300 text-neutral-400" : bad ? "bg-red-500 text-white" : "bg-sky-500 text-white"}`}>{ch ? `${ch.boxIds.length}×` : `CH${i + 1}`}</span>;
+                            })}
+                          </div>
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ul>
+                <button onClick={() => addItem("powersoft")} className="mt-2 min-h-10 w-full rounded-xl border-2 border-dashed border-neutral-300 text-[13px] font-bold text-neutral-700 hover:border-lime-500 hover:text-lime-700">+ Přidat zesilovač</button>
+              </section>
+            );
+          })()}
+          {workMode === "spec" && (
+            <SpecStudio rigName={rigName} items={drawItems} cables={drawCables} power={power} makeShareUrl={makeShareUrl} />
           )}
           {viewMode === "elev" ? (
             <ElevationView
@@ -7005,6 +7142,8 @@ export function StageBuilder3D() {
               frontView={false}
               topView={false}
               readOnly={mobileViewer}
+              issueMap={issueMap}
+              focusRequest={focusRequest}
               speakerLineZ={speakerLineZ}
               cableRouteY={cableRouteY}
 
@@ -7600,3 +7739,39 @@ export function StageBuilder3D() {
 }
 
 export default StageBuilder3D;
+
+/* ---- Read-only 3D pro sdílený odkaz: jen modely + kabely, žádné úpravy. ---- */
+export function SharedScene3D({ items, cables }: {
+  items: { id: string; kind: string; pos: [number, number, number]; label?: string }[];
+  cables: { from: string; to: string; type: CableType }[];
+}) {
+  const known = items.filter((it) => SPECS[it.kind as Kind]);
+  const byId = new Map(known.map((it) => [it.id, it]));
+  const span = known.reduce((m, it) => Math.max(m, Math.abs(it.pos[0]) + 2, Math.abs(it.pos[2]) + 2), 6);
+  return (
+    <Canvas shadows dpr={[1, 2]} camera={{ position: [span * 0.8, span * 0.6, span * 1.1], fov: 45, near: 0.1, far: 300 }} gl={{ antialias: true }}>
+      <color attach="background" args={["#e7e5e4"]} />
+      <ambientLight intensity={0.7} />
+      <directionalLight position={[6, 10, 8]} intensity={1.2} castShadow />
+      <Grid args={[60, 60]} cellSize={0.5} sectionSize={1} infiniteGrid fadeDistance={50} position={[0, 0.001, 0]} />
+      <Suspense fallback={null}>
+        {known.map((it) => {
+          const s = SPECS[it.kind as Kind];
+          return (
+            <group key={it.id} position={it.pos}>
+              <ModelFor kind={it.kind as Kind} size={s.size} variant={s.defaultVariant} />
+            </group>
+          );
+        })}
+      </Suspense>
+      {cables.map((c, i) => {
+        const a = byId.get(c.from), b = byId.get(c.to);
+        if (!a || !b) return null;
+        const y = 0.03 + i * 0.002;
+        const mz = (a.pos[2] + b.pos[2]) / 2;
+        return <Line key={i} points={[[a.pos[0], y, a.pos[2]], [a.pos[0], y, mz], [b.pos[0], y, mz], [b.pos[0], y, b.pos[2]]]} color={CABLE_META[c.type].color} lineWidth={2} />;
+      })}
+      <OrbitControls makeDefault target={[0, 1, 0]} maxPolarAngle={Math.PI / 2.05} />
+    </Canvas>
+  );
+}
