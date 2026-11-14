@@ -77,11 +77,9 @@ export const generateAiLayout = createServerFn({ method: "POST" })
         text: {
           format: {
             type: "json_schema",
-            json_schema: {
-              name: "stage_layout",
-              strict: true,
-              schema: responseSchema,
-            },
+            name: "stage_layout",
+            strict: true,
+            schema: responseSchema,
           },
         },
       });
