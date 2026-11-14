@@ -5995,6 +5995,45 @@ export function StageBuilder3D() {
   const [funOpen, setFunOpen] = useState(false);
   const [mobilePaletteOpen, setMobilePaletteOpen] = useState(true);
 
+  /** Karta komponenty v paletě: obrys vlevo, název, šedě rozměry + hmotnost. */
+  const renderPaletteCard = (k: Kind, s: Spec, variant: "list" | "row" = "list") => {
+    const wiringPending = mode === "cable" && !!pendingFrom;
+    const wireable = wiringPending && hasConnector(k, cableType);
+    const wireMeta = wiringPending ? CABLE_META[cableType] : null;
+    const def = s.custom ? customDefs.find((d) => d.id === k) : undefined;
+    return (
+      <div
+        key={`${variant}-${k}`}
+        className={`${variant === "row" ? "w-56 shrink-0 snap-start" : "mb-1.5"} overflow-hidden rounded-xl border bg-white/70 transition dark:bg-white/5 ${
+          wiringPending ? (wireable ? "border-transparent" : "border-neutral-200 opacity-40 saturate-50") : "border-neutral-200 hover:border-lime-500/70"
+        }`}
+        style={wireable && wireMeta ? { boxShadow: `0 0 0 2px ${wireMeta.color}` } : undefined}
+      >
+        <button
+          onClick={() => { addItem(k); pushRecent(k); setPaletteOpen((v) => (window.matchMedia("(min-width: 768px)").matches ? v : false)); }}
+          title={`${s.label} — ${s.hint}`}
+          className="flex w-full items-center gap-2.5 p-2 text-left hover:bg-neutral-100/70"
+        >
+          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-neutral-100 text-neutral-700">
+            <Silhouette shape={silhouetteShape(k, s)} className="h-8 w-8" />
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="block truncate text-[12px] font-semibold text-neutral-900">{s.label}</span>
+            <span className="block truncate text-[10px] text-neutral-500">{fmtDims(s)} · {estimateWeightKg(s)} kg</span>
+            {wireable && wireMeta && <span className="block text-[9px] font-bold" style={{ color: wireMeta.color }}>◀ zapojitelné {wireMeta.short}</span>}
+          </span>
+        </button>
+        {def && variant === "list" && (
+          <div className="flex items-center justify-between gap-1 border-t border-neutral-200 px-2 py-1">
+            {(() => { const b = compatBadge(def); return <span title={b.title} className={`rounded-full border px-1.5 py-0.5 text-[9px] font-bold ${b.chip}`}>{b.icon} {def.ohm} Ω · {b.short}</span>; })()}
+            <button onClick={() => { setBuilderEditId(k); setBuilderOpen(true); }} className="text-[10px] font-semibold text-neutral-600 underline hover:text-lime-600">Upravit</button>
+          </div>
+        )}
+      </div>
+    );
+  };
+  const paletteTabs = CATEGORIES.filter((c) => c.id !== "fun");
+
   // --- Speaker builder handlers -------------------------------------------
   const saveCustomDef = useCallback((def: CustomSpeaker) => {
     registerCustomSpeaker(def);
@@ -6646,13 +6685,7 @@ export function StageBuilder3D() {
         style={launcherOpen ? { visibility: "hidden" } : undefined}
       >
 
-        {/* Mobile palette backdrop */}
-        {paletteOpen && !mobileViewer && (
-          <div
-            className="absolute inset-0 z-20 bg-black/40 backdrop-blur-sm md:hidden"
-            onClick={() => setPaletteOpen(false)}
-          />
-        )}
+
         {/* Left rail (visible when palette collapsed) */}
         {!paletteOpen && !mobileViewer && (
           <button
@@ -6664,162 +6697,72 @@ export function StageBuilder3D() {
             <PanelLeft size={14} />
           </button>
         )}
-        {/* Palette */}
+        {/* Palette — desktop */}
         <aside
           aria-label="Knihovna komponent"
-          className={`${paletteOpen && !mobileViewer ? "absolute inset-y-0 left-0 z-30 flex w-[90vw] max-w-sm shadow-2xl animate-in slide-in-from-left-4 fade-in duration-200 md:static md:z-auto md:w-72 md:shadow-none" : "hidden"} glass flex-col border-r border-neutral-200/60`}
+          className={`${paletteOpen && !mobileViewer ? "hidden md:flex md:w-72" : "hidden"} glass flex-col border-r border-neutral-200/60`}
         >
-          {/* Desktop collapse header */}
-          <div className="hidden items-center justify-between border-b border-neutral-200/60 px-2 py-1 md:flex">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-neutral-500">Paleta ( [ )</span>
-            <button
-              onClick={() => setPaletteOpen(false)}
-              title="Sbalit paletu"
-              aria-label="Sbalit paletu komponent"
-              className="rounded-full p-2 text-neutral-400 hover:bg-neutral-200/40 hover:text-neutral-700"
-            >
-              <X size={14} />
-            </button>
-          </div>
-          <div className="flex border-b border-neutral-200/60">
-
-            {CATEGORIES.map((c) => {
-              const Icon = c.icon;
-              return (
-                <button
-                  key={c.id}
-                  onClick={() => setCategory(c.id)}
-                  aria-pressed={category === c.id}
-                  className={`flex min-h-11 flex-1 items-center justify-center gap-1 py-2 text-xs ${category === c.id ? "bg-neutral-100 text-lime-600" : "text-neutral-500 hover:text-neutral-700"}`}
-                >
-                  <Icon size={12} /> {c.label}
-                </button>
-              );
-            })}
-          </div>
-          <div className="border-b border-neutral-200/60 p-2">
+          <div className="flex items-center gap-1 border-b border-neutral-200/60 p-2">
             <input
               type="search"
               value={paletteQuery}
               onChange={(e) => setPaletteQuery(e.target.value)}
               placeholder="Hledat komponentu…"
               aria-label="Hledat v knihovně komponent"
-              className="min-h-10 w-full rounded-lg border border-neutral-300 bg-white px-2 text-[12px] text-neutral-800 focus:border-lime-500 focus:outline-none"
+              className="min-h-10 w-full rounded-lg border border-neutral-300 bg-white px-2.5 text-[12px] text-neutral-800 focus:border-lime-500 focus:outline-none"
             />
+            <button onClick={() => setPaletteOpen(false)} title="Sbalit paletu ( [ )" aria-label="Sbalit paletu komponent" className="rounded-full p-2 text-neutral-400 hover:bg-neutral-200/40 hover:text-neutral-700">
+              <X size={14} />
+            </button>
           </div>
-          <div className="flex-1 overflow-y-auto p-2">
-            {!paletteQuery && recentKinds.length > 0 && (
-              <div className="mb-3">
-                <div className="mb-1 px-0.5 text-[9px] font-bold uppercase tracking-wider text-neutral-500">Nedávno použité</div>
-                <div className="flex flex-wrap gap-1">
-                  {recentKinds.filter((k) => k in SPECS || CUSTOM_SPEAKERS.has(k)).map((k) => (
-                    <button
-                      key={k}
-                      onClick={() => { addItem(k); pushRecent(k); setPaletteOpen(false); }}
-                      title={`${SPECS[k].label} — ${SPECS[k].hint}`}
-                      className="glass-chip max-w-full truncate rounded-full px-2 py-1 text-[10px] font-semibold text-neutral-700 hover:text-lime-600"
-                    >
-                      {SPECS[k].defaultLabel ?? SPECS[k].label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-            {(category === "sound" || !!paletteQuery) && (
-              <button
-                onClick={() => { setBuilderEditId(null); setBuilderOpen(true); }}
-                className="mb-2 flex w-full items-center justify-center gap-1 rounded-lg border border-dashed border-lime-500/70 bg-lime-500/10 py-2 text-[11px] font-bold text-lime-700 hover:bg-lime-500/20"
-              >
-                🔧 Tvorba repro — vlastní bedna
-              </button>
-            )}
-            {(category === "sound" || !!paletteQuery) && (
-              <div className="mb-2 grid grid-cols-2 gap-1.5">
-                <button
-                  onClick={() => setBankOpen(true)}
-                  className="rounded-lg border border-black/10 bg-white/70 py-1.5 text-[11px] font-bold text-neutral-700 hover:border-lime-500 dark:border-white/10 dark:bg-white/5 dark:text-neutral-200"
-                  title="Uložené vlastní bedny — vkládej opakovaně bez nového nahrávání"
-                >
-                  🎛️ Banka beden ({customDefs.length})
-                </button>
-                <button
-                  onClick={() => setStyleOpen(true)}
-                  className="rounded-lg border border-black/10 bg-white/70 py-1.5 text-[11px] font-bold text-neutral-700 hover:border-lime-500 dark:border-white/10 dark:bg-white/5 dark:text-neutral-200"
-                  title="Barva skříně, mřížky a rails pro celou scénu"
-                >
-                  🎨 Styl beden
-                </button>
-              </div>
-            )}
-            {!palette.length && (
-              <p className="px-1 py-4 text-[11px] text-neutral-500">Nic nenalezeno — zkus jiný výraz nebo jinou kategorii.</p>
-            )}
-
-            {palette.map(([k, s]) => {
-              // Během tažení kabelu zvýraznit v paletě jen komponenty, které
-              // mají kompatibilní port — jsou platným dalším krokem zapojení.
-              const wiringPending = mode === "cable" && !!pendingFrom;
-              const wireable = wiringPending && hasConnector(k, cableType);
-              const wireMeta = wiringPending ? CABLE_META[cableType] : null;
+          <div className="flex border-b border-neutral-200/60" role="tablist">
+            {paletteTabs.map((c) => {
+              const Icon = c.icon;
+              const active = (category === "fun" ? "sound" : category) === c.id;
               return (
-              <div
-                key={k}
-                className={`mb-2 overflow-hidden rounded border bg-neutral-50 transition ${
-                  wiringPending
-                    ? wireable
-                      ? "border-transparent"
-                      : "border-neutral-200 opacity-40 saturate-50"
-                    : "border-neutral-200 hover:border-lime-500/60"
-                }`}
-                style={wireable && wireMeta ? { boxShadow: `0 0 0 2px ${wireMeta.color}, 0 0 12px ${wireMeta.color}55` } : undefined}
-              >
-                {wireable && wireMeta && (
-                  <div
-                    className="flex items-center gap-1 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider"
-                    style={{ backgroundColor: `${wireMeta.color}22`, color: wireMeta.color }}
-                  >
-                    ◀ Zapojitelné — {wireMeta.label}
-                  </div>
-                )}
-                <button
-                  onClick={() => { addItem(k); pushRecent(k); setPaletteOpen(false); }}
-                  title={`${s.label} — ${s.hint} · ${s.size[0].toFixed(2)}×${s.size[1].toFixed(2)}×${s.size[2].toFixed(2)} m · ~${estimateWeightKg(s)} kg`}
-                  className="block w-full text-left hover:bg-neutral-100"
-                >
-                  <PaletteThumb kind={k} />
-                  <div className="px-2 py-1.5">
-                    <div className="truncate text-xs font-semibold text-neutral-900">{s.defaultLabel ?? s.label}</div>
-                    <div className="truncate text-[10px] text-neutral-500">{s.hint}</div>
-                  </div>
+                <button key={c.id} role="tab" aria-selected={active} onClick={() => setCategory(c.id)}
+                  className={`flex min-h-10 flex-1 items-center justify-center gap-1 text-xs font-semibold ${active ? "border-b-2 border-lime-500 text-neutral-900" : "text-neutral-500 hover:text-neutral-800"}`}>
+                  <Icon size={12} /> {c.label}
                 </button>
-                {s.custom && (
-                  <div className="flex items-center justify-between gap-1 border-t border-neutral-200 px-2 py-1">
-                    {(() => {
-                      const def = customDefs.find((d) => d.id === k);
-                      if (!def) return <span className="text-[9px] font-bold uppercase tracking-wider text-lime-700">Vlastní</span>;
-                      const b = compatBadge(def);
-                      return (
-                        <span title={b.title} className={`rounded-full border px-1.5 py-0.5 text-[9px] font-bold ${b.chip}`}>
-                          {b.icon} {def.ohm} Ω · {b.short}
-                        </span>
-                      );
-                    })()}
-                    <button
-                      onClick={() => { setBuilderEditId(k); setBuilderOpen(true); }}
-                      className="text-[10px] font-semibold text-neutral-600 underline hover:text-lime-600"
-                    >
-                      Upravit parametry
-                    </button>
-                  </div>
-                )}
-              </div>
               );
             })}
           </div>
-          <div className="hidden border-t border-neutral-200 p-2 text-[10px] text-neutral-500 md:block">
+          {!paletteQuery && recentKinds.some((k) => k in SPECS) && (
+            <div className="border-b border-neutral-200/60 px-2 py-1.5">
+              <div className="mb-1 text-[9px] font-bold uppercase tracking-wider text-neutral-500">Nedávné</div>
+              <div className="flex gap-1">
+                {recentKinds.filter((k) => k in SPECS).slice(0, 3).map((k) => (
+                  <button key={k} onClick={() => { addItem(k); pushRecent(k); }} title={SPECS[k].label}
+                    className="flex min-w-0 flex-1 items-center gap-1 rounded-lg bg-neutral-100 px-1.5 py-1 text-[10px] font-semibold text-neutral-700 hover:bg-lime-100">
+                    <Silhouette shape={silhouetteShape(k, SPECS[k])} className="h-4 w-4 shrink-0" />
+                    <span className="truncate">{SPECS[k].label}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+          <div className="flex-1 overflow-y-auto p-2">
+            {(category === "sound" || category === "fun") && !paletteQuery && (
+              <div className="mb-2 grid grid-cols-3 gap-1">
+                <button onClick={() => { setBuilderEditId(null); setBuilderOpen(true); }} className="rounded-lg border border-dashed border-lime-500/70 bg-lime-500/10 py-1.5 text-[10px] font-bold text-lime-700 hover:bg-lime-500/20">🔧 Vlastní</button>
+                <button onClick={() => setBankOpen(true)} className="rounded-lg bg-neutral-100 py-1.5 text-[10px] font-bold text-neutral-700 hover:bg-neutral-200" title="Uložené vlastní bedny">🎛️ Banka ({customDefs.length})</button>
+                <button onClick={() => setStyleOpen(true)} className="rounded-lg bg-neutral-100 py-1.5 text-[10px] font-bold text-neutral-700 hover:bg-neutral-200" title="Barva skříně, mřížky a rails pro celou scénu">🎨 Styl</button>
+              </div>
+            )}
+            {!palette.length && <p className="px-1 py-4 text-[11px] text-neutral-500">Nic nenalezeno — zkus jiný výraz.</p>}
+            {palette.filter(([, s]) => paletteQuery || s.category !== "fun").map(([k, s]) => renderPaletteCard(k, s))}
+            {!paletteQuery && funPalette.length > 0 && (
+              <div className="mt-3 border-t border-dashed border-neutral-300 pt-2">
+                <button onClick={() => setFunOpen((v) => !v)} className="mb-1 flex w-full items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-neutral-500 hover:text-neutral-800">
+                  {funOpen ? <ChevronDown size={12} /> : <ChevronRight size={12} />} Fun ({funPalette.length})
+                </button>
+                {funOpen && funPalette.map(([k, s]) => renderPaletteCard(k, s))}
+              </div>
+            )}
+          </div>
+          <div className="border-t border-neutral-200 p-2 text-[10px] text-neutral-500">
             Tip: klávesa <b>?</b> zobrazí všechny zkratky.
           </div>
-
         </aside>
 
         {/* 3D Canvas / Schematic view */}
