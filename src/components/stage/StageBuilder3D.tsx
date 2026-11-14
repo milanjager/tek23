@@ -5104,31 +5104,20 @@ function autoWireCables(items: Placed[]): Cable[] {
       clusters.push(cluster);
     }
 
-    const ampUse = new Map<string, number>(); // fan-out counter
+    // Každá linka max. 2 bedny (2× 8 Ω paralelně = 4 Ω); linky se rozdělí
+    // mezi zesilovače podle obsazenosti, pak podle vzdálenosti.
+    const ampUse = new Map<string, number>();
     for (const cluster of clusters) {
       const subs = cluster.filter((c) => isSub(c.kind)).sort((a, b) => a.pos[0] - b.pos[0]);
       const tops = cluster.filter((c) => !isSub(c.kind)).sort((a, b) => a.pos[0] - b.pos[0]);
-      const cx = cluster.reduce((s, c) => s + c.pos[0], 0) / cluster.length;
-      const cz = cluster.reduce((s, c) => s + c.pos[2], 0) / cluster.length;
-      const near = amps
-        .slice()
-        .sort((a, b) => {
-          const da = Math.hypot(a.pos[0] - cx, a.pos[2] - cz) + (ampUse.get(a.id) ?? 0) * 0.01;
-          const db = Math.hypot(b.pos[0] - cx, b.pos[2] - cz) + (ampUse.get(b.id) ?? 0) * 0.01;
-          return da - db;
-        })[0];
-      if (!near) continue;
-      ampUse.set(near.id, (ampUse.get(near.id) ?? 0) + 1);
-
-      // Subs: amp → first sub, then link-chain sub → sub.
-      if (subs[0]) cables.push({ id: uid(), from: near.id, to: subs[0].id, type: "speaker" });
-      for (let i = 0; i < subs.length - 1; i++) {
-        cables.push({ id: uid(), from: subs[i].id, to: subs[i + 1].id, type: "speaker" });
-      }
-      // Tops: separate run.
-      if (tops[0]) cables.push({ id: uid(), from: near.id, to: tops[0].id, type: "speaker" });
-      for (let i = 0; i < tops.length - 1; i++) {
-        cables.push({ id: uid(), from: tops[i].id, to: tops[i + 1].id, type: "speaker" });
+      const runs: Placed[][] = [];
+      for (const list of [subs, tops]) for (let i = 0; i < list.length; i += 2) runs.push(list.slice(i, i + 2));
+      for (const run of runs) {
+        const amp = amps.slice().sort((a, b) =>
+          ((ampUse.get(a.id) ?? 0) - (ampUse.get(b.id) ?? 0)) * 1000 + dist(a, run[0]) - dist(b, run[0]))[0];
+        ampUse.set(amp.id, (ampUse.get(amp.id) ?? 0) + 1);
+        cables.push({ id: uid(), from: amp.id, to: run[0].id, type: "speaker" });
+        for (let i = 0; i < run.length - 1; i++) cables.push({ id: uid(), from: run[i].id, to: run[i + 1].id, type: "speaker" });
       }
     }
   }
