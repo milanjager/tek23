@@ -146,7 +146,7 @@ export default function SpeakerWiringSchema({ nodes, links, scopeLabel, onClose 
             <div className="text-[10px] text-neutral-500">{scopeLabel}</div>
           </div>
           <div className="flex items-center gap-1">
-            <button onClick={download} className="rounded-lg bg-neutral-100 px-2 py-1 text-[11px] font-bold text-neutral-700 hover:bg-neutral-200">Export .txt</button>
+            <button onClick={download} className="rounded-lg bg-neutral-100 px-2 py-1 text-[11px] font-bold text-neutral-700 hover:bg-neutral-200">Uložit .txt</button>
             <button onClick={onClose} className="rounded-lg bg-neutral-900 px-2 py-1 text-[11px] font-bold text-white hover:bg-neutral-700">Zavřít</button>
           </div>
         </header>

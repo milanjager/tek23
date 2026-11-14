@@ -864,7 +864,7 @@ export default function SchematicView({ items, cables, onAddDevice, onConnect, o
 
       {/* Footer hint */}
       <div className="border-t border-neutral-200 bg-neutral-50 px-4 py-1.5 text-[10px] text-neutral-500">
-        Táhni myší = posun · <b>Ctrl/⌘ + kolečko</b> = zoom ({Math.round(zoom * 100)}%) · <button onClick={() => setZoom(1)} className="ml-1 rounded bg-neutral-200 px-1.5 py-0.5 text-[10px] hover:bg-neutral-300">Reset</button> · Schéma se generuje z 3D scény zleva doprava jako signal flow.
+        Táhni myší = posun · <b>Ctrl/⌘ + kolečko</b> = zoom ({Math.round(zoom * 100)}%) · <button onClick={() => setZoom(1)} className="ml-1 rounded bg-neutral-200 px-1.5 py-0.5 text-[10px] hover:bg-neutral-300">Obnovit</button> · Schéma se generuje z 3D scény zleva doprava jako signal flow.
       </div>
     </div>
   );

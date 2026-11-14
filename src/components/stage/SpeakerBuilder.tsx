@@ -131,7 +131,7 @@ export default function SpeakerBuilder({
       >
         <div className="sticky top-0 z-10 flex items-center justify-between border-b border-neutral-200/60 bg-white/80 px-3 py-2 backdrop-blur">
           <h2 className="text-sm font-bold text-neutral-900">
-            🔧 Builder repro — {isNew ? "nová bedna" : "úprava"}
+            🔧 Tvorba repro — {isNew ? "nová bedna" : "úprava"}
           </h2>
           <button
             onClick={onClose}

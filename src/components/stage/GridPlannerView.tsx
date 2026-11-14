@@ -214,7 +214,7 @@ export default function GridPlannerView({
         <button aria-label="Oddálit" className="rounded px-1.5 py-0.5 hover:bg-neutral-200" onClick={() => setZoom((z) => Math.max(0.4, z / 1.15))}>−</button>
         <span className="w-9 text-center font-mono">{Math.round(zoom * 100)}%</span>
         <button aria-label="Přiblížit" className="rounded px-1.5 py-0.5 hover:bg-neutral-200" onClick={() => setZoom((z) => Math.min(2.5, z * 1.15))}>+</button>
-        <button aria-label="Resetovat přiblížení" className="rounded bg-neutral-200 px-1.5 py-0.5 text-[10px] hover:bg-neutral-300" onClick={() => setZoom(1)}>Reset</button>
+        <button aria-label="Resetovat přiblížení" className="rounded bg-neutral-200 px-1.5 py-0.5 text-[10px] hover:bg-neutral-300" onClick={() => setZoom(1)}>Obnovit</button>
       </div>
 
       {/* Legend */}

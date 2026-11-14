@@ -1,135 +1,113 @@
-import { useEffect, useRef, useState } from "react";
-import { ChevronLeft, Rocket, Sparkles } from "lucide-react";
+import { useEffect, useRef } from "react";
+import { FilePlus2, LayoutTemplate, History } from "lucide-react";
 
-export type PresetChoice = { id: string; title: string; desc: string };
+export type SilhouetteBox = { x: number; y: number; w: number; h: number };
+export type PresetChoice = { id: string; title: string; desc: string; boxes: SilhouetteBox[] };
+export type RecentRig = { id: string; name: string; updatedAt: number; count: number };
 
-/**
- * Startovní obrazovka jako začátek herní cesty:
- * jedna hlavní akce, jasná odměna, ostatní volby schované o úroveň níž.
- */
+/** Malý čelní náhled presetu — obrysy beden zepředu. */
+function Silhouette({ boxes }: { boxes: SilhouetteBox[] }) {
+  if (!boxes.length) return <div className="h-16" />;
+  const minX = Math.min(...boxes.map((b) => b.x));
+  const maxX = Math.max(...boxes.map((b) => b.x + b.w));
+  const maxY = Math.max(...boxes.map((b) => b.y + b.h));
+  const pad = 0.2;
+  return (
+    <svg
+      viewBox={`${minX - pad} ${-maxY - pad} ${maxX - minX + pad * 2} ${maxY + pad * 2}`}
+      className="h-16 w-full text-neutral-700"
+      preserveAspectRatio="xMidYMax meet"
+      aria-hidden
+    >
+      <line x1={minX - pad} x2={maxX + pad} y1={0} y2={0} stroke="currentColor" strokeWidth={0.03} opacity={0.4} />
+      {boxes.map((b, i) => (
+        <rect key={i} x={b.x} y={-(b.y + b.h)} width={b.w} height={b.h} fill="currentColor" fillOpacity={0.18} stroke="currentColor" strokeWidth={0.035} />
+      ))}
+    </svg>
+  );
+}
+
+const fmtDate = (t: number) =>
+  new Date(t).toLocaleString("cs-CZ", { day: "numeric", month: "numeric", year: "numeric", hour: "numeric", minute: "2-digit" });
+
+const beden = (n: number) => (n === 1 ? "1 bedna" : n >= 2 && n <= 4 ? `${n} bedny` : `${n} beden`);
+
+/** Úvodní obrazovka: prázdná plocha, preset, nebo pokračování v uloženém rigu. */
 export function StartLauncher({
   presets,
-  hasSaved,
+  recent,
   onBlank,
   onPreset,
-  onOpenSaved,
-  onDemo,
-  onClose,
+  onContinue,
 }: {
   presets: PresetChoice[];
-  hasSaved: boolean;
+  recent: RecentRig[];
   onBlank: () => void;
   onPreset: (id: string) => void;
-  onOpenSaved: () => void;
-  onDemo?: () => void;
-  onClose: () => void;
+  onContinue: (id: string) => void;
 }) {
-  const [screen, setScreen] = useState<"home" | "presets">("home");
   const firstRef = useRef<HTMLButtonElement>(null);
+  useEffect(() => { firstRef.current?.focus(); }, []);
 
-  useEffect(() => {
-    firstRef.current?.focus();
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [onClose]);
+  const section = "rounded-2xl border border-neutral-300 bg-white/80 p-4";
+  const heading = "flex items-center gap-2 text-[13px] font-extrabold text-neutral-900";
 
   return (
     <div
-      className="fixed inset-0 flex items-end justify-center bg-black/60 p-0 backdrop-blur-sm sm:items-center sm:p-4"
+      className="fixed inset-0 flex items-end justify-center bg-black/60 backdrop-blur-sm sm:items-center sm:p-4"
       style={{ zIndex: 2000000000 }}
       role="dialog"
       aria-modal="true"
       aria-labelledby="launcher-title"
     >
-      <div className="glass-strong max-h-[94dvh] w-full max-w-lg overflow-y-auto rounded-t-3xl p-5 shadow-2xl animate-fade-in sm:rounded-3xl sm:p-7">
-        {screen === "home" ? (
-          <>
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-lime-400 px-2.5 py-1 font-mono text-[10px] font-black uppercase tracking-[0.16em] text-neutral-950">
-              <Sparkles size={12} /> Level 1 · Nováček
-            </span>
-            <h1 id="launcher-title" className="mt-3 text-[26px] font-extrabold leading-tight text-neutral-900 sm:text-3xl">
-              Postav si vlastní zvukovou stěnu.
-            </h1>
-            <p className="mt-2 text-sm text-neutral-600">
-              Šest úkolů. Od první bedny až po hotový plán pro crew. Postup vidíš pořád dole na obrazovce.
-            </p>
+      <div className="glass-strong max-h-[94dvh] w-full max-w-2xl overflow-y-auto rounded-t-3xl p-5 shadow-2xl sm:rounded-3xl sm:p-7">
+        <h1 id="launcher-title" className="text-[24px] font-extrabold leading-tight text-neutral-900 sm:text-[28px]">
+          Co dnes postavíš?
+        </h1>
+        <p className="mt-1 text-sm text-neutral-600">Vyber, jak začít. Vše se průběžně ukládá do tohoto prohlížeče.</p>
 
-            {/* Jediné hlavní CTA */}
-            <button
-              ref={firstRef}
-              onClick={onDemo}
-              className="mt-5 flex w-full items-center gap-3 rounded-2xl bg-lime-500 p-4 text-left shadow-lg transition hover:scale-[1.01] hover:bg-lime-400"
-            >
-              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-neutral-950 text-lime-400">
-                <Rocket size={20} />
-              </span>
-              <span className="min-w-0">
-                <span className="block text-[15px] font-black text-neutral-950">Začít cestu</span>
-                <span className="block text-[12px] font-semibold text-neutral-800">
-                  Provedu tě krok za krokem · +50 XP za první krok
-                </span>
-              </span>
-            </button>
+        <div className="mt-5 grid gap-3">
+          <button ref={firstRef} onClick={onBlank} className={`${section} text-left transition hover:border-lime-500`}>
+            <span className={heading}><FilePlus2 size={16} className="text-lime-600" /> Prázdná plocha</span>
+            <span className="mt-0.5 block text-[12px] text-neutral-600">Začni od nuly a přidávej bedny z palety.</span>
+          </button>
 
-            <div className="mt-4 grid gap-2">
-              <button
-                onClick={onBlank}
-                className="min-h-14 rounded-2xl border border-neutral-300 bg-white/80 px-4 text-left text-[13px] font-bold text-neutral-800 transition hover:border-lime-500"
-              >
-                Stavět od nuly
-                <span className="block text-[11px] font-medium text-neutral-500">Prázdná scéna, plná volnost</span>
-              </button>
-              <button
-                onClick={() => setScreen("presets")}
-                className="min-h-14 rounded-2xl border border-neutral-300 bg-white/80 px-4 text-left text-[13px] font-bold text-neutral-800 transition hover:border-lime-500"
-              >
-                Načíst hotovou stage
-                <span className="block text-[11px] font-medium text-neutral-500">Ověřené sestavy pro rychlý start</span>
-              </button>
-              {hasSaved && (
-                <button
-                  onClick={onOpenSaved}
-                  className="min-h-14 rounded-2xl border border-neutral-300 bg-white/80 px-4 text-left text-[13px] font-bold text-neutral-800 transition hover:border-lime-500"
-                >
-                  Pokračovat v projektu
-                  <span className="block text-[11px] font-medium text-neutral-500">Máš rozpracovaný rig</span>
-                </button>
-              )}
-            </div>
-
-            <button
-              onClick={onClose}
-              className="mt-4 min-h-11 w-full rounded-xl text-[12px] font-semibold text-neutral-500 hover:text-neutral-900"
-            >
-              Přeskočit
-            </button>
-          </>
-        ) : (
-          <>
-            <button
-              onClick={() => setScreen("home")}
-              className="inline-flex min-h-9 items-center gap-1 text-[12px] font-bold text-neutral-600 hover:text-neutral-900"
-            >
-              <ChevronLeft size={14} /> Zpět
-            </button>
-            <h2 className="mt-2 text-xl font-extrabold text-neutral-900">Vyber sestavu</h2>
-            <div className="mt-3 space-y-2">
+          <section className={section} aria-labelledby="launcher-presets">
+            <h2 id="launcher-presets" className={heading}><LayoutTemplate size={16} className="text-lime-600" /> Z presetu</h2>
+            <div className="mt-3 grid gap-2 sm:grid-cols-3">
               {presets.map((p) => (
                 <button
                   key={p.id}
                   onClick={() => onPreset(p.id)}
-                  className="block min-h-16 w-full rounded-2xl border border-neutral-300 bg-white/85 p-3 text-left transition hover:border-lime-500 hover:shadow-md"
+                  className="rounded-xl border border-neutral-200 bg-white p-2.5 text-left transition hover:border-lime-500 hover:shadow-md"
                 >
-                  <div className="text-[13px] font-bold text-neutral-900">{p.title}</div>
-                  <div className="mt-0.5 text-[11px] text-neutral-600">{p.desc}</div>
+                  <Silhouette boxes={p.boxes} />
+                  <div className="mt-1.5 text-[13px] font-bold text-neutral-900">{p.title}</div>
+                  <div className="text-[11px] leading-snug text-neutral-600">{p.desc}</div>
                 </button>
               ))}
             </div>
-          </>
-        )}
+          </section>
+
+          <section className={section} aria-labelledby="launcher-recent">
+            <h2 id="launcher-recent" className={heading}><History size={16} className="text-lime-600" /> Pokračovat</h2>
+            {recent.length ? (
+              <ul className="mt-2 divide-y divide-neutral-200">
+                {recent.map((r) => (
+                  <li key={r.id}>
+                    <button onClick={() => onContinue(r.id)} className="flex min-h-11 w-full items-center gap-3 rounded-lg px-2 py-2 text-left hover:bg-neutral-100">
+                      <span className="min-w-0 flex-1 truncate text-[13px] font-semibold text-neutral-900">{r.name}</span>
+                      <span className="shrink-0 text-[11px] text-neutral-600">{beden(r.count)}</span>
+                      <span className="shrink-0 text-[11px] text-neutral-500">{fmtDate(r.updatedAt)}</span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="mt-1 text-[12px] text-neutral-500">Zatím tu nic není — uložené rigy se objeví tady.</p>
+            )}
+          </section>
+        </div>
       </div>
     </div>
   );
