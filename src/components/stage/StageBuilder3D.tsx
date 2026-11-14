@@ -112,8 +112,8 @@ const SPECS: Record<Kind, Spec> = {
   badtekk_sub:  { label: "Badtekk Sub",      category: "sound",  size: [1.20, 0.80, 0.90], stackable: true,  hint: "Badtekk 2×18\" sub", defaultLabel: "Badtekk Sub" },
   badtekk_bass: { label: "Badtekk Bass",     category: "sound",  size: [0.90, 0.65, 0.75], stackable: true,  hint: "Badtekk 2×15\" bass", defaultLabel: "Badtekk Bass" },
   badtekk_top:  { label: "Badtekk Top",      category: "sound",  size: [0.65, 0.55, 0.45], stackable: true,  hint: "Badtekk W-bin top", defaultLabel: "Badtekk Top" },
-  img_0838:     { label: "JB181 4×18\" RCF LF18G401", category: "sound", size: [0.80, 1.20, 0.90], stackable: true, hint: "4× JB181 – RCF LF18G401", defaultLabel: "JB181 4×18\"" },
-  img_0839:     { label: "JB181 4×18\" v2 (vyšší skříň)", category: "sound", size: [0.85, 1.30, 0.95], stackable: true, hint: "4× JB181 – RCF LF18G401, vyšší varianta", defaultLabel: "JB181 4×18\" v2" },
+  img_0838:     { label: "JB181 4×18\" RCF LF18G401 v1", category: "sound", size: [0.80, 1.20, 0.90], stackable: true, hint: "4× JB181 – RCF LF18G401", defaultLabel: "JB181 4×18\" v1" },
+  img_0839:     { label: "JB181 4×18\" RCF LF18G401 v2", category: "sound", size: [0.85, 1.30, 0.95], stackable: true, hint: "4× JB181 – RCF LF18G401, vyšší varianta", defaultLabel: "JB181 4×18\" v2" },
   img_0841:     { label: "JB218 2×18\" RCF LF18N401", category: "sound", size: [1.20, 0.80, 0.95], stackable: true, hint: "2× JB218 – RCF LF18N401", defaultLabel: "JB218 2×18\"" },
   img_0842:     { label: "JB181 stack",       category: "sound",  size: [0.75, 1.80, 0.85], stackable: true,  hint: "Stack JB181 skříní", defaultLabel: "JB181 stack" },
   img_0843:     { label: "Picus top grill",   category: "sound",  size: [1.80, 1.60, 0.85], stackable: true,  hint: "Top řada s hex mřížkou", defaultLabel: "Picus top" },
@@ -265,7 +265,20 @@ interface Placed {
   variant?: "red" | "blue";
   /** Free-form wiring/technical notes shown in inspector and export. */
   notes?: string;
+  /** Povrch skříně jen pro tuto bednu (jinak globální styl beden). */
+  finish?: FinishId;
+  /** false = skrýt přední mřížku (výchozí je zobrazená). */
+  grille?: boolean;
 }
+
+type FinishId = "black" | "plywood" | "yellow" | "army" | "red";
+const FINISHES: { id: FinishId; label: string; color: string; rough: number }[] = [
+  { id: "black",   label: "Černý mat",    color: "#16171a", rough: 0.95 },
+  { id: "plywood", label: "Překližka",    color: "#b8895a", rough: 0.8 },
+  { id: "yellow",  label: "Žlutá",        color: "#e5b419", rough: 0.6 },
+  { id: "army",    label: "Army zelená",  color: "#4b5a2f", rough: 0.85 },
+  { id: "red",     label: "Rudá",         color: "#8f1d1d", rough: 0.7 },
+];
 
 
 type PresetKind = "namel_wall" | "namel_hostivar" | "club_stack" | "festival_ground" | "mlk_wall" | "twin_towers" | "demo_tutorial";
@@ -2821,6 +2834,41 @@ const ItemObject = ({
   const spec = SPECS[item.kind];
   const ref = useRef<THREE.Group>(null!);
   const connectors = useMemo(() => connectorsFor(item.kind), [item.kind]);
+  const modelRef = useRef<THREE.Group>(null);
+
+  // Povrch / mřížka jednotlivé bedny: přebarví jen materiály skříně,
+  // geometrie modelů zůstává beze změny.
+  useEffect(() => {
+    const g = modelRef.current;
+    if (!g) return;
+    const fin = item.finish ? FINISHES.find((f) => f.id === item.finish) : null;
+    const wood = new THREE.Color(WOOD).getHexString();
+    const woodDark = new THREE.Color(WOOD_DARK).getHexString();
+    const grilleHex = new THREE.Color(GRILLE_BG).getHexString();
+    const grilleTex = new Set<unknown>([_grilleTex, ..._grilleClones.values()]);
+    const created: THREE.Material[] = [];
+    g.traverse((o) => {
+      const m = o as THREE.Mesh;
+      if (!m.isMesh) return;
+      if (m.userData.origMat === undefined) { m.userData.origMat = m.material; m.userData.origVisible = m.visible; }
+      m.material = m.userData.origMat;
+      m.visible = m.userData.origVisible;
+      const mat = m.material as THREE.MeshStandardMaterial;
+      if (Array.isArray(mat) || !mat?.color) return;
+      const hex = mat.color.getHexString();
+      const isGrille = (mat.map && grilleTex.has(mat.map)) || hex === grilleHex;
+      if (isGrille && item.grille === false) { m.visible = false; return; }
+      const near = (h: string) => [0, 2, 4].every((k) => Math.abs(parseInt(hex.slice(k, k + 2), 16) - parseInt(h.slice(k, k + 2), 16)) <= 12);
+      if (fin && (near(wood) || hex === woodDark)) {
+        const c = mat.clone();
+        c.color.set(hex === woodDark ? shadeHex(fin.color, -0.25) : fin.color);
+        if ("roughness" in c) c.roughness = fin.rough;
+        created.push(c);
+        m.material = c;
+      }
+    });
+    return () => created.forEach((c) => c.dispose());
+  }, [item.finish, item.grille, item.kind]);
 
   useEffect(() => {
     onRegister(item.id, ref.current);
@@ -2863,7 +2911,7 @@ const ItemObject = ({
             <Pallet w={spec.size[0] * 1.02} d={spec.size[2] * 1.02} />
           </group>
         )}
-        <group position={[0, modelYOffset, 0]}>
+        <group ref={modelRef} position={[0, modelYOffset, 0]}>
           <ModelFor kind={item.kind} size={spec.size} variant={item.variant} />
         </group>
       </group>
@@ -2952,8 +3000,9 @@ const ItemObject = ({
       {/* Custom label above the box */}
       {item.label && (selected || showLabel) && (
         <Html position={[0, spec.size[1] + 0.25, 0]} center distanceFactor={8} occlude={false}>
-          <div className="pointer-events-none rounded bg-black/80 px-1.5 py-0.5 font-mono text-[10px] font-bold uppercase tracking-wider text-lime-600 shadow-lg">
-            {item.label}
+          <div className="pointer-events-none whitespace-nowrap rounded bg-black/80 px-1.5 py-0.5 text-center leading-tight shadow-lg">
+            <div className="text-[10px] font-bold text-lime-400">{item.label}</div>
+            <div className="font-mono text-[8px] text-neutral-400">X {item.pos[0].toFixed(1)} · Z {item.pos[2].toFixed(1)} m</div>
           </div>
         </Html>
       )}
@@ -3020,7 +3069,7 @@ function sceneHasOverlap(items: Placed[]): boolean {
 }
 
 function normalizeScene(items: Placed[], gap = 0.06): Placed[] {
-  const stacked = sanitizeStacks(items.map((it) => ({ ...it, rotY: 0 })));
+  const stacked = sanitizeStacks(items.map((it) => ({ ...it, rotY: Math.abs(Math.abs(it.rotY) - Math.PI) < 0.01 ? Math.PI : 0 })));
   return resolveHorizontalOverlaps(stacked, gap);
 }
 
@@ -5074,6 +5123,36 @@ function ThumbLookAt() {
   return null;
 }
 
+type SilShape = "scoop" | "sub" | "bass" | "mid" | "horn" | "light" | "tech";
+function silhouetteShape(kind: Kind, s: Spec): SilShape {
+  if (s.category === "lights" || s.category === "fun") return "light";
+  if (s.category !== "sound") return "tech";
+  const t = `${kind} ${s.label} ${s.hint ?? ""}`.toLowerCase();
+  if (t.includes("scoop")) return "scoop";
+  if (/horn|hřib|top|tweet|trychtý/.test(t)) return "horn";
+  if (/\bsub|18"|21"|jb18|jb21/.test(t)) return "sub";
+  if (/bass|bin|shelf/.test(t)) return "bass";
+  if (/mid|střed|line|monitor/.test(t)) return "mid";
+  const [w, h] = s.size;
+  return h > w * 1.2 ? "mid" : h < w * 0.75 ? "bass" : "sub";
+}
+/** Jednoduchý obrys bedny podle typu — rychlejší a čitelnější než 3D náhled. */
+function Silhouette({ shape, className = "" }: { shape: SilShape; className?: string }) {
+  const c = { fill: "none", stroke: "currentColor", strokeWidth: 2, strokeLinejoin: "round" as const };
+  return (
+    <svg viewBox="0 0 40 40" className={className} aria-hidden>
+      {shape === "scoop" && (<><rect x={6} y={6} width={28} height={28} rx={2} {...c} /><path d="M6 6 L34 34 M34 6 L6 34" {...c} strokeWidth={1.5} /></>)}
+      {shape === "sub" && (<><rect x={6} y={6} width={28} height={28} rx={2} {...c} /><circle cx={20} cy={20} r={10} {...c} /><circle cx={20} cy={20} r={4} {...c} /></>)}
+      {shape === "bass" && (<><rect x={3} y={13} width={34} height={15} rx={2} {...c} /><circle cx={12} cy={20.5} r={4.5} {...c} /><circle cx={28} cy={20.5} r={4.5} {...c} /></>)}
+      {shape === "mid" && (<><rect x={11} y={3} width={18} height={34} rx={2} {...c} /><circle cx={20} cy={13} r={4.5} {...c} /><circle cx={20} cy={27} r={4.5} {...c} /></>)}
+      {shape === "horn" && (<><path d="M4 7 L25 16 L25 24 L4 33 Z" {...c} /><rect x={25} y={15} width={10} height={10} rx={1.5} {...c} /></>)}
+      {shape === "light" && (<><circle cx={20} cy={18} r={7} {...c} /><path d="M20 4v4M20 28v4M6 18h4M30 18h4M10 8l3 3M30 8l-3 3" {...c} strokeWidth={1.5} /><path d="M15 34h10" {...c} /></>)}
+      {shape === "tech" && (<><rect x={4} y={10} width={32} height={20} rx={2} {...c} /><path d="M10 20h20M10 25h12" {...c} strokeWidth={1.5} /><circle cx={30} cy={15} r={1.6} fill="currentColor" /></>)}
+    </svg>
+  );
+}
+const fmtDims = (s: Spec) => `${s.size.map((v) => v.toFixed(2).replace(".", ",")).join(" × ")} m`;
+
 function PaletteThumb({ kind }: { kind: Kind }) {
   const spec = SPECS[kind];
   const [w, h, d] = spec.size;
@@ -5211,14 +5290,13 @@ export function StageBuilder3D() {
   const [mobileViewer, setMobileViewer] = useState(false);
   const [sheet, setSheet] = useState<null | "inspect" | "views">(null);
   useEffect(() => {
-    const saved = localStorage.getItem("stage.mobileViewer");
-    const narrow = window.matchMedia("(max-width: 767px)").matches;
-    const on = saved !== null ? saved === "1" : narrow;
+    const saved = localStorage.getItem("stage.mobileViewer.v2");
+    const on = saved === "1";
     setMobileViewer(on);
     if (on) { setViewMode("grid"); setWorkMode("build"); }
   }, []);
   useEffect(() => {
-    if (panelsHydrated) localStorage.setItem("stage.mobileViewer", mobileViewer ? "1" : "0");
+    if (panelsHydrated) localStorage.setItem("stage.mobileViewer.v2", mobileViewer ? "1" : "0");
   }, [mobileViewer, panelsHydrated]);
   const enterViewer = useCallback(() => {
     setMobileViewer(true);
@@ -5811,6 +5889,55 @@ export function StageBuilder3D() {
     setSelection([]);
   }, [speakerLineZ]);
 
+  /** Srovnat řadu: bedny ve stejném patře a řadě se sesunou hranou k hraně
+   *  (bez mezer, se zachovaným středem) a stacky nad nimi jedou s nimi. */
+  const alignRow = useCallback(() => {
+    let moved = 0;
+    setItems((cur) => {
+      const seed = cur.find((x) => x.id === selection[0]);
+      if (!seed) return cur;
+      const sameTier = (x: Placed) => Math.abs(x.pos[1] - seed.pos[1]) < 0.05;
+      const row = cur
+        .filter((x) => sameTier(x) && (selection.length > 1 ? selection.includes(x.id) : Math.abs(x.pos[2] - seed.pos[2]) < 0.35))
+        .sort((a, b) => a.pos[0] - b.pos[0]);
+      if (!row.length) return cur;
+      const w = (x: Placed) => SPECS[x.kind].size[0];
+      const left = Math.min(...row.map((x) => x.pos[0] - w(x) / 2));
+      const right = Math.max(...row.map((x) => x.pos[0] + w(x) / 2));
+      const total = row.reduce((sum, x) => sum + w(x), 0);
+      let cursor = (left + right) / 2 - total / 2;
+      const shift = new Map<string, [number, number]>(); // id → [newX, newZ]
+      for (const r of row) {
+        const nx = cursor + w(r) / 2;
+        cursor += w(r);
+        const dx = nx - r.pos[0];
+        for (const x of cur) {
+          const above = x.id === r.id || (Math.abs(x.pos[0] - r.pos[0]) < w(r) / 2 && Math.abs(x.pos[2] - r.pos[2]) < 0.35 && x.pos[1] > r.pos[1] + 0.01);
+          if (above && !shift.has(x.id)) shift.set(x.id, [x.pos[0] + dx, seed.pos[2]]);
+        }
+      }
+      moved = row.length;
+      return normalizeScene(cur.map((x) => {
+        const n = shift.get(x.id);
+        return n ? { ...x, pos: [n[0], x.pos[1], n[1]] as [number, number, number] } : x;
+      }));
+    });
+    setTimeout(() => announce(moved ? `Řada srovnána — ${moved} beden hranou k hraně.` : "Nejdřív vyber bednu v řadě."), 0);
+  }, [selection]);
+
+  /** Zkopíruje celou řadu (stejné patro + hloubka) jako nové patro nahoru. */
+  const duplicateRow = useCallback((seedId: string) => {
+    setItems((cur) => {
+      const seed = cur.find((x) => x.id === seedId);
+      if (!seed) return cur;
+      const row = cur.filter((x) => Math.abs(x.pos[1] - seed.pos[1]) < 0.05 && Math.abs(x.pos[2] - seed.pos[2]) < 0.35);
+      const lift = Math.max(...row.map((x) => SPECS[x.kind].size[1]));
+      const copies = row.map((x) => ({ ...x, id: uid(), groupId: x.groupId, pos: [x.pos[0], x.pos[1] + lift, x.pos[2]] as [number, number, number] }));
+      setTimeout(() => { setSelection(copies.map((c) => c.id)); announce(`Řada zduplikována — ${copies.length} beden jako nové patro.`); }, 0);
+      return normalizeScene([...cur, ...copies]);
+    });
+  }, []);
+
   // Keyboard shortcuts
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -5829,6 +5956,9 @@ export function StageBuilder3D() {
       else if (meta && !e.shiftKey && e.key.toLowerCase() === "z") { undo(); e.preventDefault(); }
       else if (meta && (e.key.toLowerCase() === "y" || (e.shiftKey && e.key.toLowerCase() === "z"))) { redo(); e.preventDefault(); }
       else if (e.key === "[") { setPaletteOpen((v) => !v); }
+      else if (!meta && (e.key === "1" || e.key === "2" || e.key === "3")) { setWorkMode(e.key === "1" ? "build" : e.key === "2" ? "wire" : "spec"); }
+      else if (!meta && e.key.toLowerCase() === "r") { alignRow(); }
+      else if (!meta && e.key.toLowerCase() === "m") { setMagnet((v) => !v); }
       else if (e.key === "]") { setRightOpen((v) => !v); }
       // Arrow-key nudge: 0.1m, Shift = 1m. Alt = Y axis (up/down).
       else if (selection.length && (e.key === "ArrowLeft" || e.key === "ArrowRight" || e.key === "ArrowUp" || e.key === "ArrowDown")) {
@@ -5848,7 +5978,7 @@ export function StageBuilder3D() {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [deleteSelection, copySelection, pasteSelection, duplicateSelection, groupSelection, ungroupSelection, undo, redo, nudgeSelection, selection.length]);
+  }, [deleteSelection, copySelection, pasteSelection, duplicateSelection, groupSelection, ungroupSelection, undo, redo, nudgeSelection, selection.length, alignRow]);
 
   // Recently used palette kinds (persisted) + shortcuts overlay.
   const [recentKinds, setRecentKinds] = useState<Kind[]>([]);
@@ -5907,10 +6037,54 @@ export function StageBuilder3D() {
 
   const palette = useMemo(() => {
     const q = paletteQuery.trim().toLowerCase();
-    const list = (Object.entries(SPECS) as [Kind, Spec][]).filter(([, s]) => q ? true : s.category === category);
+    const tab = category === "fun" ? "sound" : category;
+    const list = (Object.entries(SPECS) as [Kind, Spec][]).filter(([, s]) => q ? true : s.category === tab);
     if (!q) return list;
     return list.filter(([k, s]) => `${k} ${s.label} ${s.hint ?? ""}`.toLowerCase().includes(q));
   }, [category, paletteQuery, customDefs]);
+
+  const funPalette = useMemo(() => (Object.entries(SPECS) as [Kind, Spec][]).filter(([, s]) => s.category === "fun"), [customDefs]);
+  const [funOpen, setFunOpen] = useState(false);
+  const [mobilePaletteOpen, setMobilePaletteOpen] = useState(true);
+
+  /** Karta komponenty v paletě: obrys vlevo, název, šedě rozměry + hmotnost. */
+  const renderPaletteCard = (k: Kind, s: Spec, variant: "list" | "row" = "list") => {
+    const wiringPending = mode === "cable" && !!pendingFrom;
+    const wireable = wiringPending && hasConnector(k, cableType);
+    const wireMeta = wiringPending ? CABLE_META[cableType] : null;
+    const def = s.custom ? customDefs.find((d) => d.id === k) : undefined;
+    return (
+      <div
+        key={`${variant}-${k}`}
+        className={`${variant === "row" ? "w-56 shrink-0 snap-start" : "mb-1.5"} overflow-hidden rounded-xl border bg-white/70 transition dark:bg-white/5 ${
+          wiringPending ? (wireable ? "border-transparent" : "border-neutral-200 opacity-40 saturate-50") : "border-neutral-200 hover:border-lime-500/70"
+        }`}
+        style={wireable && wireMeta ? { boxShadow: `0 0 0 2px ${wireMeta.color}` } : undefined}
+      >
+        <button
+          onClick={() => { addItem(k); pushRecent(k); setPaletteOpen((v) => (window.matchMedia("(min-width: 768px)").matches ? v : false)); }}
+          title={`${s.label} — ${s.hint}`}
+          className="flex w-full items-center gap-2.5 p-2 text-left hover:bg-neutral-100/70"
+        >
+          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-neutral-100 text-neutral-700">
+            <Silhouette shape={silhouetteShape(k, s)} className="h-8 w-8" />
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="block truncate text-[12px] font-semibold text-neutral-900">{s.label}</span>
+            <span className="block truncate text-[10px] text-neutral-500">{fmtDims(s)} · {estimateWeightKg(s)} kg</span>
+            {wireable && wireMeta && <span className="block text-[9px] font-bold" style={{ color: wireMeta.color }}>◀ zapojitelné {wireMeta.short}</span>}
+          </span>
+        </button>
+        {def && variant === "list" && (
+          <div className="flex items-center justify-between gap-1 border-t border-neutral-200 px-2 py-1">
+            {(() => { const b = compatBadge(def); return <span title={b.title} className={`rounded-full border px-1.5 py-0.5 text-[9px] font-bold ${b.chip}`}>{b.icon} {def.ohm} Ω · {b.short}</span>; })()}
+            <button onClick={() => { setBuilderEditId(k); setBuilderOpen(true); }} className="text-[10px] font-semibold text-neutral-600 underline hover:text-lime-600">Upravit</button>
+          </div>
+        )}
+      </div>
+    );
+  };
+  const paletteTabs = CATEGORIES.filter((c) => c.id !== "fun");
 
   // --- Speaker builder handlers -------------------------------------------
   const saveCustomDef = useCallback((def: CustomSpeaker) => {
@@ -6210,26 +6384,19 @@ export function StageBuilder3D() {
       {/* ── Header: identita projektu, stav, globální akce ─────────── */}
       <header className="glass-strong z-30 px-2 pt-1.5 pb-1 sm:px-3">
         <div className="flex flex-nowrap items-center gap-2 overflow-x-auto no-scrollbar">
-          <button
-            data-walkthrough="palette-btn"
-            onClick={() => setPaletteOpen((v) => !v)}
-            className="glass-chip inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full md:hidden"
-            aria-label={paletteOpen ? "Zavřít paletu komponent" : "Otevřít paletu komponent"}
-          >
-            {paletteOpen ? <X size={16} /> : <Menu size={16} />}
-          </button>
+
           <div className="inline-flex shrink-0 items-center gap-1.5 font-bold text-lime-600">
             <Boxes size={18} /> <span className="hidden text-[13px] lg:inline">STAGE RIG</span>
           </div>
 
-          <nav data-walkthrough="work-mode" aria-label="Kroky" className="mx-auto flex shrink-0 items-center gap-1">
+          <nav data-walkthrough="work-mode" aria-label="Kroky" className="mx-auto hidden shrink-0 items-center gap-1 md:flex">
             {MODES.map((m, i) => (
               <div key={m.id} className="flex items-center gap-1">
                 {i > 0 && <span className="h-px w-3 bg-neutral-300 sm:w-5" aria-hidden />}
                 <button
                   onClick={() => setWorkMode(m.id)}
                   aria-current={workMode === m.id ? "step" : undefined}
-                  title={m.hint}
+                  title={`${m.hint} (${m.n})`}
                   className={`inline-flex min-h-10 items-center gap-1.5 rounded-full px-2.5 text-[13px] font-bold sm:px-3 ${workMode === m.id ? "bg-neutral-900 text-white" : "text-neutral-600 hover:bg-neutral-200"}`}
                 >
                   <span className={`inline-flex h-5 w-5 items-center justify-center rounded-full text-[11px] ${workMode === m.id ? "bg-lime-400 text-neutral-950" : "bg-neutral-200 text-neutral-700"}`}>{m.n}</span>
@@ -6239,7 +6406,7 @@ export function StageBuilder3D() {
             ))}
           </nav>
 
-          <div className="flex shrink-0 items-center gap-1.5">
+          <div className="ml-auto flex shrink-0 items-center gap-1.5 md:ml-0">
             <button
               data-walkthrough="issues-badge"
               onClick={() => { setWorkMode("wire"); setIssuesOpen(true); }}
@@ -6260,6 +6427,7 @@ export function StageBuilder3D() {
                 aria-haspopup="menu"
                 aria-expanded={moreOpen}
                 aria-label="Další volby"
+                title="Další volby (? = zkratky)"
                 className={`${btnCls} bg-neutral-100 font-bold hover:bg-neutral-200`}
               >
                 ⋯
@@ -6333,7 +6501,10 @@ export function StageBuilder3D() {
               <li><b>Ctrl+G / Ctrl+Shift+G</b> — seskupit / rozdělit</li>
               <li><b>Ctrl+Z / Ctrl+Shift+Z</b> — zpět / vpřed</li>
               <li><b>Šipky</b> — posun po mřížce (Shift = větší krok)</li>
-              <li><b>[</b> — paleta · <b>?</b> — tato nápověda</li>
+              <li><b>1 / 2 / 3</b> — kroky Postav / Zapoj / Spec</li>
+              <li><b>R</b> — srovnat řadu · <b>M</b> — magnety zap/vyp · <b>Esc</b> — zrušit výběr</li>
+              <li><b>Alt+šipky</b> — výška nahoru/dolů</li>
+              <li><b>[</b> — paleta · <b>]</b> — inspektor · <b>?</b> — tato nápověda</li>
             </ul>
             <p className="mt-3 text-[11px] text-neutral-500">
               V kroku Zapoj: klik na první bednu → klik na druhou. Klik na kabel otevře inspektor.
@@ -6383,25 +6554,26 @@ export function StageBuilder3D() {
               <option value="club_stack">Club Stack — 2×2 sub + top L/R</option>
               <option value="festival_ground">Festival Ground — 3 clustery</option>
             </select>
-            <button onClick={() => { setMode("select"); setPendingFrom(null); setMarqueeMode(false); }} className={`${btnCls} ${mode === "select" && !marqueeMode ? "bg-lime-500 text-neutral-950" : "bg-neutral-100 hover:bg-neutral-200"}`}><MousePointer2 size={13} /> Výběr</button>
+            <button onClick={() => { setMode("select"); setPendingFrom(null); setMarqueeMode(false); }} title="Výběr (Esc zruší výběr)" className={`${btnCls} ${mode === "select" && !marqueeMode ? "bg-lime-500 text-neutral-950" : "bg-neutral-100 hover:bg-neutral-200"}`}><MousePointer2 size={13} /> Výběr</button>
             <button onClick={() => { setMode("select"); setPendingFrom(null); setMarqueeMode((v) => !v); }} className={`${btnCls} ${marqueeMode ? "bg-lime-500 text-neutral-950" : "bg-neutral-100 hover:bg-neutral-200"}`} title="Táhni myší přes bedny (Shift = přidat k výběru)"><BoxSelect size={13} /> Rámeček</button>
             <button
               data-walkthrough="magnet-toggle"
               onClick={() => { setMagnet((v) => { announce(v ? "Magnety vypnuty — bedny se už nezarovnávají." : "Magnety zapnuty — bedny cvakají k hranám a do řady."); return !v; }); }}
               aria-pressed={magnet}
-              title="Magnetické snapování: bedna cvakne hranou k sousedovi nebo se zarovná do řady (tolerance 35 cm)."
+              title="Magnety (M): bedna při tažení cvakne hranou k sousedovi a zarovná se do řady (tolerance 35 cm)."
               className={`${btnCls} ${magnet ? "bg-cyan-500 text-neutral-950" : "bg-neutral-100 hover:bg-neutral-200"}`}
             >
               🧲 Magnety {magnet ? "· zap" : "· vyp"}
             </button>
+            <button onClick={alignRow} disabled={!selection.length} title="Srovnat řadu (R): bedny v řadě se sesunou hranou k hraně, stacky jedou s nimi" className={`${btnCls} bg-neutral-100 hover:bg-neutral-200 disabled:opacity-40`}>⇿ Srovnat řadu</button>
 
             <button onClick={() => setTool("translate")} disabled={mode !== "select"} className={`${btnCls} ${tool === "translate" && mode === "select" ? "bg-lime-500 text-neutral-950" : "bg-neutral-100 hover:bg-neutral-200"} disabled:opacity-40`}><MoveIcon size={13} /> Posun (T)</button>
-            <button onClick={duplicateSelection} disabled={!selection.length} className={`${btnCls} bg-neutral-100 hover:bg-neutral-200 disabled:opacity-40`}><Copy size={13} /> Duplikovat</button>
-            <button onClick={copySelection} disabled={!selection.length} className={`${btnCls} bg-neutral-100 hover:bg-neutral-200 disabled:opacity-40`}>Kopírovat</button>
-            <button onClick={pasteSelection} disabled={!clipboard.length} className={`${btnCls} bg-neutral-100 hover:bg-neutral-200 disabled:opacity-40`}><ClipboardPaste size={13} /> Vložit</button>
-            <button onClick={groupSelection} disabled={selection.length < 2} className={`${btnCls} bg-neutral-100 hover:bg-neutral-200 disabled:opacity-40`}><GroupIcon size={13} /> Seskupit</button>
-            <button onClick={ungroupSelection} disabled={!selection.length} className={`${btnCls} bg-neutral-100 hover:bg-neutral-200 disabled:opacity-40`}><Ungroup size={13} /> Rozdělit</button>
-            <button onClick={deleteSelection} disabled={!selection.length} className={`${btnCls} bg-red-100 text-red-700 hover:bg-red-200 disabled:opacity-40`}><Trash2 size={13} /> Smazat</button>
+            <button onClick={duplicateSelection} disabled={!selection.length} title="Duplikovat (Ctrl+D)" className={`${btnCls} bg-neutral-100 hover:bg-neutral-200 disabled:opacity-40`}><Copy size={13} /> Duplikovat</button>
+            <button onClick={copySelection} disabled={!selection.length} title="Kopírovat (Ctrl+C)" className={`${btnCls} bg-neutral-100 hover:bg-neutral-200 disabled:opacity-40`}>Kopírovat</button>
+            <button onClick={pasteSelection} disabled={!clipboard.length} title="Vložit (Ctrl+V)" className={`${btnCls} bg-neutral-100 hover:bg-neutral-200 disabled:opacity-40`}><ClipboardPaste size={13} /> Vložit</button>
+            <button onClick={groupSelection} disabled={selection.length < 2} title="Seskupit (Ctrl+G)" className={`${btnCls} bg-neutral-100 hover:bg-neutral-200 disabled:opacity-40`}><GroupIcon size={13} /> Seskupit</button>
+            <button onClick={ungroupSelection} disabled={!selection.length} title="Rozdělit skupinu (Ctrl+Shift+G)" className={`${btnCls} bg-neutral-100 hover:bg-neutral-200 disabled:opacity-40`}><Ungroup size={13} /> Rozdělit</button>
+            <button onClick={deleteSelection} disabled={!selection.length} title="Smazat (Del)" className={`${btnCls} bg-red-100 text-red-700 hover:bg-red-200 disabled:opacity-40`}><Trash2 size={13} /> Smazat</button>
             <div className={`inline-flex shrink-0 items-center gap-1 rounded-lg bg-neutral-100 px-2 ${compact ? "min-h-7" : "min-h-11"}`} title="Společná hloubka řady reproduktorů">
               <span className="text-[10px] text-neutral-500">Hloubka řady</span>
               <input
@@ -6418,7 +6590,7 @@ export function StageBuilder3D() {
 
         {workMode === "wire" && !mobileViewer && (
           <>
-            <button onClick={() => { setMode("cable"); setSelection([]); }} className={`${btnCls} ${mode === "cable" ? "bg-lime-500 text-neutral-950" : "bg-neutral-100 hover:bg-neutral-200"}`}><CableIcon size={13} /> Kabely (C)</button>
+            <button onClick={() => { setMode("cable"); setSelection([]); }} title="Režim kabelů (C)" className={`${btnCls} ${mode === "cable" ? "bg-lime-500 text-neutral-950" : "bg-neutral-100 hover:bg-neutral-200"}`}><CableIcon size={13} /> Kabely (C)</button>
             {mode === "cable" && (
               <div className="inline-flex shrink-0 items-center gap-1 rounded-lg bg-neutral-100 p-0.5">
                 {(Object.keys(CABLE_META) as CableType[]).map((t) => (
@@ -6563,13 +6735,7 @@ export function StageBuilder3D() {
         style={launcherOpen ? { visibility: "hidden" } : undefined}
       >
 
-        {/* Mobile palette backdrop */}
-        {paletteOpen && !mobileViewer && (
-          <div
-            className="absolute inset-0 z-20 bg-black/40 backdrop-blur-sm md:hidden"
-            onClick={() => setPaletteOpen(false)}
-          />
-        )}
+
         {/* Left rail (visible when palette collapsed) */}
         {!paletteOpen && !mobileViewer && (
           <button
@@ -6581,168 +6747,78 @@ export function StageBuilder3D() {
             <PanelLeft size={14} />
           </button>
         )}
-        {/* Palette */}
+        {/* Palette — desktop */}
         <aside
           aria-label="Knihovna komponent"
-          className={`${paletteOpen && !mobileViewer ? "absolute inset-y-0 left-0 z-30 flex w-[90vw] max-w-sm shadow-2xl animate-in slide-in-from-left-4 fade-in duration-200 md:static md:z-auto md:w-72 md:shadow-none" : "hidden"} glass flex-col border-r border-neutral-200/60`}
+          className={`${paletteOpen && !mobileViewer ? "hidden md:flex md:w-72" : "hidden"} glass flex-col border-r border-neutral-200/60`}
         >
-          {/* Desktop collapse header */}
-          <div className="hidden items-center justify-between border-b border-neutral-200/60 px-2 py-1 md:flex">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-neutral-500">Paleta ( [ )</span>
-            <button
-              onClick={() => setPaletteOpen(false)}
-              title="Sbalit paletu"
-              aria-label="Sbalit paletu komponent"
-              className="rounded-full p-2 text-neutral-400 hover:bg-neutral-200/40 hover:text-neutral-700"
-            >
-              <X size={14} />
-            </button>
-          </div>
-          <div className="flex border-b border-neutral-200/60">
-
-            {CATEGORIES.map((c) => {
-              const Icon = c.icon;
-              return (
-                <button
-                  key={c.id}
-                  onClick={() => setCategory(c.id)}
-                  aria-pressed={category === c.id}
-                  className={`flex min-h-11 flex-1 items-center justify-center gap-1 py-2 text-xs ${category === c.id ? "bg-neutral-100 text-lime-600" : "text-neutral-500 hover:text-neutral-700"}`}
-                >
-                  <Icon size={12} /> {c.label}
-                </button>
-              );
-            })}
-          </div>
-          <div className="border-b border-neutral-200/60 p-2">
+          <div className="flex items-center gap-1 border-b border-neutral-200/60 p-2">
             <input
               type="search"
               value={paletteQuery}
               onChange={(e) => setPaletteQuery(e.target.value)}
               placeholder="Hledat komponentu…"
               aria-label="Hledat v knihovně komponent"
-              className="min-h-10 w-full rounded-lg border border-neutral-300 bg-white px-2 text-[12px] text-neutral-800 focus:border-lime-500 focus:outline-none"
+              className="min-h-10 w-full rounded-lg border border-neutral-300 bg-white px-2.5 text-[12px] text-neutral-800 focus:border-lime-500 focus:outline-none"
             />
+            <button onClick={() => setPaletteOpen(false)} title="Sbalit paletu ( [ )" aria-label="Sbalit paletu komponent" className="rounded-full p-2 text-neutral-400 hover:bg-neutral-200/40 hover:text-neutral-700">
+              <X size={14} />
+            </button>
           </div>
-          <div className="flex-1 overflow-y-auto p-2">
-            {!paletteQuery && recentKinds.length > 0 && (
-              <div className="mb-3">
-                <div className="mb-1 px-0.5 text-[9px] font-bold uppercase tracking-wider text-neutral-500">Nedávno použité</div>
-                <div className="flex flex-wrap gap-1">
-                  {recentKinds.filter((k) => k in SPECS || CUSTOM_SPEAKERS.has(k)).map((k) => (
-                    <button
-                      key={k}
-                      onClick={() => { addItem(k); pushRecent(k); setPaletteOpen(false); }}
-                      title={`${SPECS[k].label} — ${SPECS[k].hint}`}
-                      className="glass-chip max-w-full truncate rounded-full px-2 py-1 text-[10px] font-semibold text-neutral-700 hover:text-lime-600"
-                    >
-                      {SPECS[k].defaultLabel ?? SPECS[k].label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-            {(category === "sound" || !!paletteQuery) && (
-              <button
-                onClick={() => { setBuilderEditId(null); setBuilderOpen(true); }}
-                className="mb-2 flex w-full items-center justify-center gap-1 rounded-lg border border-dashed border-lime-500/70 bg-lime-500/10 py-2 text-[11px] font-bold text-lime-700 hover:bg-lime-500/20"
-              >
-                🔧 Tvorba repro — vlastní bedna
-              </button>
-            )}
-            {(category === "sound" || !!paletteQuery) && (
-              <div className="mb-2 grid grid-cols-2 gap-1.5">
-                <button
-                  onClick={() => setBankOpen(true)}
-                  className="rounded-lg border border-black/10 bg-white/70 py-1.5 text-[11px] font-bold text-neutral-700 hover:border-lime-500 dark:border-white/10 dark:bg-white/5 dark:text-neutral-200"
-                  title="Uložené vlastní bedny — vkládej opakovaně bez nového nahrávání"
-                >
-                  🎛️ Banka beden ({customDefs.length})
-                </button>
-                <button
-                  onClick={() => setStyleOpen(true)}
-                  className="rounded-lg border border-black/10 bg-white/70 py-1.5 text-[11px] font-bold text-neutral-700 hover:border-lime-500 dark:border-white/10 dark:bg-white/5 dark:text-neutral-200"
-                  title="Barva skříně, mřížky a rails pro celou scénu"
-                >
-                  🎨 Styl beden
-                </button>
-              </div>
-            )}
-            {!palette.length && (
-              <p className="px-1 py-4 text-[11px] text-neutral-500">Nic nenalezeno — zkus jiný výraz nebo jinou kategorii.</p>
-            )}
-
-            {palette.map(([k, s]) => {
-              // Během tažení kabelu zvýraznit v paletě jen komponenty, které
-              // mají kompatibilní port — jsou platným dalším krokem zapojení.
-              const wiringPending = mode === "cable" && !!pendingFrom;
-              const wireable = wiringPending && hasConnector(k, cableType);
-              const wireMeta = wiringPending ? CABLE_META[cableType] : null;
+          <div className="flex border-b border-neutral-200/60" role="tablist">
+            {paletteTabs.map((c) => {
+              const Icon = c.icon;
+              const active = (category === "fun" ? "sound" : category) === c.id;
               return (
-              <div
-                key={k}
-                className={`mb-2 overflow-hidden rounded border bg-neutral-50 transition ${
-                  wiringPending
-                    ? wireable
-                      ? "border-transparent"
-                      : "border-neutral-200 opacity-40 saturate-50"
-                    : "border-neutral-200 hover:border-lime-500/60"
-                }`}
-                style={wireable && wireMeta ? { boxShadow: `0 0 0 2px ${wireMeta.color}, 0 0 12px ${wireMeta.color}55` } : undefined}
-              >
-                {wireable && wireMeta && (
-                  <div
-                    className="flex items-center gap-1 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider"
-                    style={{ backgroundColor: `${wireMeta.color}22`, color: wireMeta.color }}
-                  >
-                    ◀ Zapojitelné — {wireMeta.label}
-                  </div>
-                )}
-                <button
-                  onClick={() => { addItem(k); pushRecent(k); setPaletteOpen(false); }}
-                  title={`${s.label} — ${s.hint} · ${s.size[0].toFixed(2)}×${s.size[1].toFixed(2)}×${s.size[2].toFixed(2)} m · ~${estimateWeightKg(s)} kg`}
-                  className="block w-full text-left hover:bg-neutral-100"
-                >
-                  <PaletteThumb kind={k} />
-                  <div className="px-2 py-1.5">
-                    <div className="truncate text-xs font-semibold text-neutral-900">{s.defaultLabel ?? s.label}</div>
-                    <div className="truncate text-[10px] text-neutral-500">{s.hint}</div>
-                  </div>
+                <button key={c.id} role="tab" aria-selected={active} onClick={() => setCategory(c.id)}
+                  className={`flex min-h-10 flex-1 items-center justify-center gap-1 text-xs font-semibold ${active ? "border-b-2 border-lime-500 text-neutral-900" : "text-neutral-500 hover:text-neutral-800"}`}>
+                  <Icon size={12} /> {c.label}
                 </button>
-                {s.custom && (
-                  <div className="flex items-center justify-between gap-1 border-t border-neutral-200 px-2 py-1">
-                    {(() => {
-                      const def = customDefs.find((d) => d.id === k);
-                      if (!def) return <span className="text-[9px] font-bold uppercase tracking-wider text-lime-700">Vlastní</span>;
-                      const b = compatBadge(def);
-                      return (
-                        <span title={b.title} className={`rounded-full border px-1.5 py-0.5 text-[9px] font-bold ${b.chip}`}>
-                          {b.icon} {def.ohm} Ω · {b.short}
-                        </span>
-                      );
-                    })()}
-                    <button
-                      onClick={() => { setBuilderEditId(k); setBuilderOpen(true); }}
-                      className="text-[10px] font-semibold text-neutral-600 underline hover:text-lime-600"
-                    >
-                      Upravit parametry
-                    </button>
-                  </div>
-                )}
-              </div>
               );
             })}
           </div>
-          <div className="hidden border-t border-neutral-200 p-2 text-[10px] text-neutral-500 md:block">
+          {!paletteQuery && recentKinds.some((k) => k in SPECS) && (
+            <div className="border-b border-neutral-200/60 px-2 py-1.5">
+              <div className="mb-1 text-[9px] font-bold uppercase tracking-wider text-neutral-500">Nedávné</div>
+              <div className="flex gap-1">
+                {recentKinds.filter((k) => k in SPECS).slice(0, 3).map((k) => (
+                  <button key={k} onClick={() => { addItem(k); pushRecent(k); }} title={SPECS[k].label}
+                    className="flex min-w-0 flex-1 items-center gap-1 rounded-lg bg-neutral-100 px-1.5 py-1 text-[10px] font-semibold text-neutral-700 hover:bg-lime-100">
+                    <Silhouette shape={silhouetteShape(k, SPECS[k])} className="h-4 w-4 shrink-0" />
+                    <span className="truncate">{SPECS[k].label}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+          <div className="flex-1 overflow-y-auto p-2">
+            {(category === "sound" || category === "fun") && !paletteQuery && (
+              <div className="mb-2 grid grid-cols-3 gap-1">
+                <button onClick={() => { setBuilderEditId(null); setBuilderOpen(true); }} className="rounded-lg border border-dashed border-lime-500/70 bg-lime-500/10 py-1.5 text-[10px] font-bold text-lime-700 hover:bg-lime-500/20">🔧 Vlastní</button>
+                <button onClick={() => setBankOpen(true)} className="rounded-lg bg-neutral-100 py-1.5 text-[10px] font-bold text-neutral-700 hover:bg-neutral-200" title="Uložené vlastní bedny">🎛️ Banka ({customDefs.length})</button>
+                <button onClick={() => setStyleOpen(true)} className="rounded-lg bg-neutral-100 py-1.5 text-[10px] font-bold text-neutral-700 hover:bg-neutral-200" title="Barva skříně, mřížky a rails pro celou scénu">🎨 Styl</button>
+              </div>
+            )}
+            {!palette.length && <p className="px-1 py-4 text-[11px] text-neutral-500">Nic nenalezeno — zkus jiný výraz.</p>}
+            {palette.filter(([, s]) => paletteQuery || s.category !== "fun").map(([k, s]) => renderPaletteCard(k, s))}
+            {!paletteQuery && funPalette.length > 0 && (
+              <div className="mt-3 border-t border-dashed border-neutral-300 pt-2">
+                <button onClick={() => setFunOpen((v) => !v)} className="mb-1 flex w-full items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-neutral-500 hover:text-neutral-800">
+                  {funOpen ? <ChevronDown size={12} /> : <ChevronRight size={12} />} Fun ({funPalette.length})
+                </button>
+                {funOpen && funPalette.map(([k, s]) => renderPaletteCard(k, s))}
+              </div>
+            )}
+          </div>
+          <div className="border-t border-neutral-200 p-2 text-[10px] text-neutral-500">
             Tip: klávesa <b>?</b> zobrazí všechny zkratky.
           </div>
-
         </aside>
 
         {/* 3D Canvas / Schematic view */}
         <div className="relative flex-1" ref={canvasWrapRef} id="stage-canvas" data-walkthrough="stage-canvas" role="main" aria-label="Plátno stage">
           {!mobileViewer && (
-            <div data-walkthrough="scene-views" role="group" aria-label="Pohled na scénu" className="glass-strong absolute bottom-3 left-1/2 z-40 flex -translate-x-1/2 items-center gap-0.5 rounded-full p-1 shadow-lg">
+            <div data-walkthrough="scene-views" role="group" aria-label="Pohled na scénu" className="glass-strong absolute left-1/2 top-2 z-40 flex -translate-x-1/2 items-center gap-0.5 rounded-full p-1 shadow-lg md:bottom-3 md:top-auto">
               {PRIMARY_VIEWS.map((v) => (
                 <button
                   key={v.id}
@@ -6757,7 +6833,7 @@ export function StageBuilder3D() {
             </div>
           )}
           {issuesOpen && (
-            <div role="region" aria-label="Upozornění" className="glass-strong absolute right-3 top-3 z-40 w-[min(20rem,calc(100%-1.5rem))] rounded-2xl p-3 shadow-xl">
+            <div role="region" aria-label="Upozornění" className="glass-strong absolute right-3 top-14 z-40 w-[min(20rem,calc(100%-1.5rem))] rounded-2xl p-3 shadow-xl">
               <div className="flex items-center justify-between">
                 <b className="text-[13px] text-neutral-900">{issues.length ? `Upozornění (${issues.length})` : "Vše OK"}</b>
                 <button onClick={() => setIssuesOpen(false)} aria-label="Zavřít upozornění" className="rounded-full p-1.5 text-neutral-500 hover:bg-neutral-200"><X size={14} /></button>
@@ -7013,34 +7089,26 @@ export function StageBuilder3D() {
           <button
             onClick={() => setRightOpen(true)}
             title="Otevřít inspektor ( ] )"
-            className="glass-chip absolute right-2 top-2 z-20 flex h-10 w-10 items-center justify-center rounded-full text-neutral-600 shadow-md hover:text-lime-600"
+            className="glass-chip absolute right-2 top-2 z-20 hidden h-10 md:flex w-10 items-center justify-center rounded-full text-neutral-600 shadow-md hover:text-lime-600"
           >
             <PanelRight size={14} />
           </button>
         )}
-        {/* Mobile inspector backdrop */}
-        {rightOpen && !mobileViewer && (
-          <div
-            className="absolute inset-0 z-20 bg-black/40 backdrop-blur-sm md:hidden"
-            onClick={() => setRightOpen(false)}
-          />
-        )}
+
         {/* Right inspector — overlay drawer on mobile, static on md+ */}
         <aside
           aria-label="Inspektor a vrstvy"
-          style={mobileViewer && sheet === "inspect" ? { zIndex: 1000000001 } : undefined}
+          style={mobileViewer ? (sheet === "inspect" ? { zIndex: 1000000001 } : undefined) : { zIndex: 1000000001 }}
           className={`${mobileViewer
             ? (sheet === "inspect"
                 ? "absolute inset-x-0 bottom-0 flex max-h-[68dvh] w-full overflow-y-auto rounded-t-2xl border-t border-neutral-200/60 pb-14 shadow-2xl animate-in slide-in-from-bottom-8 fade-in duration-300"
                 : "hidden")
-            : rightOpen
-            ? "absolute inset-y-0 right-0 z-30 flex w-[86vw] max-w-sm shadow-2xl animate-in slide-in-from-right-4 fade-in duration-200 md:static md:z-auto md:w-72 md:shadow-none border-l border-neutral-200/60"
-            : "hidden"} glass flex-col`}
+            : `${selection.length ? "absolute inset-x-0 bottom-14 flex max-h-[60dvh] overflow-y-auto rounded-t-2xl border-t border-neutral-200/60 shadow-2xl animate-in slide-in-from-bottom-8 fade-in duration-200" : "hidden"} ${rightOpen ? "md:static md:flex md:max-h-none md:w-72 md:overflow-visible md:rounded-none md:border-t-0 md:border-l md:shadow-none" : "md:hidden"}`} glass flex-col md:!z-auto`}
         >
           <div className="flex items-center justify-between border-b border-neutral-200/60 px-2 py-1">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-neutral-500">Inspektor ( ] )</span>
+            <span className="text-[10px] font-bold uppercase tracking-wider text-neutral-500"><span className="mx-auto mb-1 block h-1 w-10 rounded-full bg-neutral-300 md:hidden" />Inspektor ( ] )</span>
             <button
-              onClick={() => setRightOpen(false)}
+              onClick={() => { if (window.matchMedia("(max-width: 767px)").matches) setSelection([]); else setRightOpen(false); }}
               title="Sbalit inspektor"
               className="rounded-full p-1 text-neutral-400 hover:bg-neutral-200/40 hover:text-neutral-700"
             >
@@ -7048,260 +7116,124 @@ export function StageBuilder3D() {
             </button>
           </div>
 
-          {/* ── Detail výběru ─────────────────────────────────────────── */}
+          {/* ── Detail vybraného prvku ─────────────────────────────────── */}
           {(() => {
             const primary = items.find((x) => x.id === selection[0]);
             if (!primary) {
               return (
-                <div className="border-b border-neutral-200 bg-white/60 px-3 py-3 text-[11px] text-neutral-500">
-                  <div className="mb-1 text-[10px] font-bold uppercase tracking-wider text-neutral-500">Detail výběru</div>
-                  Vyber komponentu ve scéně, nárysu, plánu nebo schématu.
+                <div className="border-b border-neutral-200 px-3 py-4 text-[12px] text-neutral-500">
+                  Klikni na bednu na plátně — tady uvidíš jen ji.
                 </div>
               );
             }
             const pspec = SPECS[primary.kind];
-            const pconns = connectorsFor(primary.kind);
-            // "Patra" — stack of items sharing (x, z) sorted by y bottom-up
-            const stack = items
-              .filter((x) => Math.abs(x.pos[0] - primary.pos[0]) < 0.05 && Math.abs(x.pos[2] - primary.pos[2]) < 0.05)
-              .sort((a, b) => a.pos[1] - b.pos[1]);
-            const stackIdx = stack.findIndex((x) => x.id === primary.id);
-            const linkedCables = cables.filter((c) => c.from === primary.id || c.to === primary.id);
-            const deg = Math.round((primary.rotY * 180) / Math.PI);
-            const patchPrimary = (patch: Partial<Placed>) => {
-              setItems((cur) => normalizeScene(cur.map((x) => x.id === primary.id ? { ...x, ...patch, rotY: 0 } as Placed : x)));
+            const deg = Math.abs(Math.abs(primary.rotY) - Math.PI) < 0.01 ? 180 : 0;
+            const patch = (p: Partial<Placed>) => setItems((cur) => normalizeScene(cur.map((x) => x.id === primary.id ? { ...x, ...p } : x)));
+            const setPos = (i: 0 | 1 | 2, v: number) => {
+              const pos = [...primary.pos] as [number, number, number];
+              pos[i] = i === 1 ? Math.max(0, v) : v;
+              patch({ pos });
             };
+            const steps = generateWiringSteps(items, cables);
+            // Který zesilovač a kanál: projdi SPK linku proti proudu až k zesilovači.
+            const ampFeed = (() => {
+              let cur = primary.id; let hops = 0;
+              const seen = new Set<string>();
+              while (!seen.has(cur)) {
+                seen.add(cur);
+                const c = cables.find((x) => x.type === "speaker" && x.to === cur);
+                if (!c) return null;
+                const src = items.find((i) => i.id === c.from);
+                if (!src) return null;
+                if (SPECS[src.kind].category !== "sound") {
+                  const st = steps.find((x) => x.cableId === c.id);
+                  return { name: src.label || SPECS[src.kind].label, port: st?.fromPort ?? "", hops };
+                }
+                cur = src.id; hops++;
+              }
+              return null;
+            })();
+            const incoming = steps.filter((x) => x.toId === primary.id && x.type !== "speaker");
+            const outgoing = steps.filter((x) => x.fromId === primary.id);
+            const fieldCls = "w-full rounded-lg border border-neutral-300 bg-white px-2 py-1.5 font-mono text-[12px] text-neutral-900 focus:border-lime-500 focus:outline-none";
             return (
-              <div className="border-b-2 border-lime-300 bg-white/80 px-3 py-2 text-[11px]">
-                <div className="mb-1 flex items-center justify-between">
-                  <button
-                    onClick={() => toggleSec("detail")}
-                    className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-lime-700 hover:text-lime-800"
-                    title="Sbalit / rozbalit detail"
-                  >
-                    <span className="inline-block w-3 text-center">{(secOpen.detail ?? true) ? "▾" : "▸"}</span>
-                    Detail výběru
-                  </button>
-                  <span className="font-mono text-[9px] text-neutral-500">#{primary.id.slice(0, 4)}</span>
-                </div>
-                {(secOpen.detail ?? true) && (<>
-                <div className="mb-2">
-                  <div className="truncate text-[13px] font-bold text-neutral-900">{primary.label || pspec.label}</div>
-                  <div className="text-[10px] text-neutral-500">{pspec.label} · {pspec.hint}</div>
-                  {(() => {
-                    const def = customDefs.find((d) => d.id === primary.kind);
-                    if (!def) return null;
-                    const b = compatBadge(def);
-                    return (
-                      <span
-                        title={b.title}
-                        className={`mt-1 inline-block rounded-full border px-1.5 py-0.5 text-[9px] font-bold ${b.chip}`}
-                      >
-                        {b.icon} {def.ohm} Ω · {b.short} · {getPreferredAmp().name}
-                      </span>
-                    );
-                  })()}
-                </div>
+              <div className="border-b border-neutral-200 bg-white/70 px-3 py-3 text-[12px] dark:bg-white/5">
+                <input
+                  value={primary.label ?? ""}
+                  placeholder={pspec.defaultLabel ?? pspec.label}
+                  onChange={(e) => { const v = e.target.value; setItems((cur) => cur.map((x) => x.id === primary.id ? { ...x, label: v || undefined } : x)); }}
+                  aria-label="Název prvku"
+                  className="w-full rounded-md bg-transparent px-0 text-[15px] font-bold text-neutral-900 placeholder:text-neutral-900 focus:bg-white focus:px-1 focus:outline-none"
+                />
+                <div className="text-[11px] text-neutral-500">{pspec.label}</div>
+                <div className="mt-1 text-[11px] text-neutral-500">{fmtDims(pspec)} · {estimateWeightKg(pspec)} kg</div>
+                {selection.length > 1 && <div className="mt-1 text-[11px] font-semibold text-lime-700">+ {selection.length - 1} dalších ve výběru</div>}
 
-                {/* Rozměry */}
-                <div className="mb-2 rounded bg-neutral-100 px-2 py-1 font-mono text-[10px] text-neutral-700">
-                  Š×V×H&nbsp; {pspec.size[0].toFixed(2)} × {pspec.size[1].toFixed(2)} × {pspec.size[2].toFixed(2)} m
-                </div>
-
-                {/* Napájení */}
-                {(() => {
-                  const own = pspec.powerW ?? 0;
-                  // Sum of downstream draws (this item as PWR source).
-                  const loads = computeCableLoads(items, cables);
-                  const outgoing = cables.filter((c) => c.type === "power" && c.from === primary.id);
-                  const incoming = cables.filter((c) => c.type === "power" && c.to === primary.id);
-                  const feeds = outgoing.reduce((s, c) => s + (loads[c.id] ?? 0), 0);
-                  const overloadedBranch = outgoing.some((c) => (loads[c.id] ?? 0) > PWR_BRANCH_MAX_W);
-                  if (own === 0 && outgoing.length === 0 && incoming.length === 0) return null;
-                  return (
-                    <div className={`mb-2 rounded px-2 py-1 text-[10px] ${overloadedBranch ? "border border-red-400 bg-red-50 text-red-900" : "bg-amber-50 text-amber-900"}`}>
-                      <div className="mb-0.5 font-bold uppercase tracking-wider">Napájení</div>
-                      {own > 0 && <div>Vlastní odběr: <b>{own} W</b></div>}
-                      {outgoing.length > 0 && (
-                        <div>
-                          Napájí ({outgoing.length} větv{outgoing.length === 1 ? "e" : "í"}): <b>{Math.round(feeds)} W</b>
-                          <span className="ml-1 text-[9px] text-neutral-500">/ max {PWR_BRANCH_MAX_W} W na CEE 16A</span>
-                          {overloadedBranch && <div className="mt-0.5 font-bold">⚠ PŘETÍŽENO — rozděl na víc větví!</div>}
-                        </div>
-                      )}
-                      {incoming.length > 0 && <div>Napájeno z {incoming.length} zdroje/-ů</div>}
+                {pspec.category === "sound" && (
+                  <div className="mt-3">
+                    <div className="mb-1 text-[10px] font-bold uppercase tracking-wider text-neutral-500">Povrch</div>
+                    <div className="flex flex-wrap gap-1.5">
+                      {FINISHES.map((f) => (
+                        <button
+                          key={f.id}
+                          onClick={() => patch({ finish: primary.finish === f.id ? undefined : f.id })}
+                          aria-pressed={primary.finish === f.id}
+                          title={`${f.label}${primary.finish === f.id ? " — klikni znovu pro výchozí styl" : ""}`}
+                          aria-label={f.label}
+                          className={`h-11 w-11 rounded-lg border-2 ${primary.finish === f.id ? "border-lime-500 ring-2 ring-lime-400/50" : "border-neutral-300"}`}
+                          style={{ backgroundColor: f.color }}
+                        />
+                      ))}
                     </div>
-                  );
-                })()}
-
-                {/* Poznámky pro techniku */}
-                <div className="mb-2">
-                  <div className="mb-0.5 text-[9px] uppercase tracking-wider text-neutral-500">Poznámky (zapojení, IN/OUT)</div>
-                  <textarea
-                    value={primary.notes ?? ""}
-                    onChange={(e) => setItems((cur) => cur.map((x) => x.id === primary.id ? { ...x, notes: e.target.value } : x))}
-                    placeholder="např. IN: XLR z FOH · OUT: SpeakON A→sub 1, B→sub 2"
-                    className="w-full rounded border border-neutral-300 bg-white px-1.5 py-1 font-mono text-[10px] text-neutral-800"
-                    rows={2}
-                  />
-                </div>
-
-                {/* Powersoft — detailní zapojení + software setup */}
-                {(primary.kind === "powersoft" || primary.kind === "amp") && (
-                  <PowersoftGuide label={primary.label || pspec.label} />
+                    <label className="mt-2 flex min-h-9 items-center justify-between rounded-lg bg-neutral-100 px-2">
+                      <span className="text-[12px] font-semibold text-neutral-700">Přední mřížka</span>
+                      <input type="checkbox" checked={primary.grille !== false} onChange={(e) => patch({ grille: e.target.checked ? undefined : false })} className="h-4 w-4 accent-lime-500" />
+                    </label>
+                  </div>
                 )}
 
-                {/* Krokový návod zapojení pro tuto komponentu */}
-                {(() => {
-                  const allSteps = generateWiringSteps(items, cables);
-                  const mine = allSteps.filter((s) => s.fromId === primary.id || s.toId === primary.id);
-                  if (!mine.length) return null;
-                  return (
-                    <div className="mb-2 rounded border border-lime-300 bg-lime-50/60 px-2 py-1.5">
-                      <div className="mb-1 flex items-center justify-between">
-                        <span className="text-[9px] font-bold uppercase tracking-wider text-lime-800">
-                          Postup zapojení ({mine.length})
-                        </span>
-                        <span className="text-[9px] text-neutral-500">z celkem {allSteps.length}</span>
-                      </div>
-                      <ol className="flex flex-col gap-0.5">
-                        {mine.map((s) => {
-                          const meta = CABLE_META[s.type];
-                          const isSource = s.fromId === primary.id;
-                          return (
-                            <li
-                              key={s.cableId}
-                              className={`rounded px-1.5 py-1 text-[10px] ${s.overload ? "border border-red-400 bg-red-50" : "bg-white"}`}
-                            >
-                              <div className="flex items-center gap-1">
-                                <span className="inline-flex h-4 min-w-[18px] items-center justify-center rounded bg-neutral-800 px-1 font-mono text-[9px] font-bold text-white">
-                                  {s.index}
-                                </span>
-                                <span
-                                  className="rounded px-1 font-mono text-[9px] font-bold text-neutral-900"
-                                  style={{ backgroundColor: meta.color }}
-                                >
-                                  {meta.short}
-                                </span>
-                                {s.loadW !== undefined && (
-                                  <span className={`ml-auto font-mono text-[9px] ${s.overload ? "font-bold text-red-700" : "text-neutral-500"}`}>
-                                    {Math.round(s.loadW)} W{s.overload ? " ⚠" : ""}
-                                  </span>
-                                )}
-                              </div>
-                              <div className="mt-0.5 font-mono text-[9.5px] leading-tight text-neutral-800">
-                                <span className={isSource ? "font-bold text-lime-800" : ""}>{s.fromLabel}</span>
-                                <span className="text-neutral-400"> ({s.fromPort})</span>
-                                <span className="mx-1 text-neutral-500">→</span>
-                                <span className={!isSource ? "font-bold text-lime-800" : ""}>{s.toLabel}</span>
-                                <span className="text-neutral-400"> ({s.toPort})</span>
-                              </div>
-                            </li>
-                          );
-                        })}
-                      </ol>
-                    </div>
-                  );
-                })()}
-
-
-
-
-
-
-                {/* Patra */}
-                <div className="mb-2">
-                  <div className="mb-0.5 text-[9px] uppercase tracking-wider text-neutral-500">Patra ve stacku ({stackIdx + 1}/{stack.length})</div>
-                  <div className="flex flex-col gap-0.5">
-                    {stack.slice().reverse().map((s, i) => {
-                      const sp = SPECS[s.kind];
-                      const isMe = s.id === primary.id;
-                      const level = stack.length - i;
-                      return (
-                        <button
-                          key={s.id}
-                          onClick={() => setSelection([s.id])}
-                          className={`flex items-center justify-between rounded px-1.5 py-0.5 text-left text-[10px] ${isMe ? "bg-lime-200 font-bold text-neutral-900" : "bg-neutral-100 hover:bg-neutral-200 text-neutral-700"}`}
-                        >
-                          <span className="truncate">{level}. {s.label || sp.label}</span>
-                          <span className="ml-2 font-mono text-[9px] text-neutral-500">y {s.pos[1].toFixed(2)}m</span>
-                        </button>
-                      );
-                    })}
-                  </div>
+                <div className="mt-3 grid grid-cols-2 gap-2">
+                  <label><span className="mb-0.5 block text-[10px] text-neutral-500">X (m)</span>
+                    <input type="number" step={0.1} value={Number(primary.pos[0].toFixed(2))} onChange={(e) => setPos(0, Number(e.target.value) || 0)} className={fieldCls} /></label>
+                  <label><span className="mb-0.5 block text-[10px] text-neutral-500">Y — výška (m)</span>
+                    <input type="number" step={0.05} min={0} value={Number(primary.pos[1].toFixed(2))} onChange={(e) => setPos(1, Number(e.target.value) || 0)} className={fieldCls} /></label>
+                  <label><span className="mb-0.5 block text-[10px] text-neutral-500">Řada — hloubka (m)</span>
+                    <input type="number" step={0.1} value={Number(primary.pos[2].toFixed(2))} onChange={(e) => setPos(2, Number(e.target.value) || 0)} className={fieldCls} /></label>
+                  <label><span className="mb-0.5 block text-[10px] text-neutral-500">Natočení</span>
+                    <select value={deg} onChange={(e) => patch({ rotY: Number(e.target.value) === 180 ? Math.PI : 0 })} className={fieldCls}>
+                      <option value={0}>0° — čelem k publiku</option>
+                      <option value={180}>180° — čelem na stage</option>
+                    </select></label>
                 </div>
 
-                {/* Orientace odstraněna – bedny mají fixní směr (▼ = přední strana) */}
-
-                {/* Výška (Y) */}
-                <div className="mb-2">
-                  <div className="mb-0.5 flex items-center justify-between">
-                    <span className="text-[9px] uppercase tracking-wider text-neutral-500">Výška (spodek bedny)</span>
-                    <span className="font-mono text-[10px] text-neutral-700">{primary.pos[1].toFixed(2)} m</span>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <button
-                      onClick={() => patchPrimary({ pos: [primary.pos[0], Math.max(0, primary.pos[1] - 0.1), primary.pos[2]] })}
-                      className="rounded bg-neutral-100 px-2 py-1 text-[11px] hover:bg-neutral-200"
-                    >−0.1</button>
-                    <input
-                      type="number" step={0.05} min={0}
-                      value={Number(primary.pos[1].toFixed(2))}
-                      onChange={(e) => {
-                        const v = Math.max(0, Number(e.target.value) || 0);
-                        patchPrimary({ pos: [primary.pos[0], v, primary.pos[2]] });
-                      }}
-                      className="flex-1 rounded border border-neutral-300 bg-white px-1.5 py-1 font-mono text-[11px] focus:border-lime-500 focus:outline-none"
-                    />
-                    <button
-                      onClick={() => patchPrimary({ pos: [primary.pos[0], primary.pos[1] + 0.1, primary.pos[2]] })}
-                      className="rounded bg-neutral-100 px-2 py-1 text-[11px] hover:bg-neutral-200"
-                    >+0.1</button>
-                  </div>
-                  <div className="mt-1 flex gap-1">
-                    <button
-                      onClick={() => patchPrimary({ pos: [primary.pos[0], 0, primary.pos[2]] })}
-                      className="flex-1 rounded bg-neutral-100 px-1 py-0.5 text-[10px] hover:bg-neutral-200"
-                    >Na zem</button>
-                    <button
-                      onClick={() => {
-                        const y = stackY(primary, items.filter((i) => i.id !== primary.id));
-                        patchPrimary({ pos: [primary.pos[0], y, primary.pos[2]] });
-                      }}
-                      className="flex-1 rounded bg-neutral-100 px-1 py-0.5 text-[10px] hover:bg-neutral-200"
-                    >Auto-stack</button>
-                  </div>
-                </div>
-
-                {/* Konektory */}
-                <div className="mb-1">
-                  <div className="mb-0.5 text-[9px] uppercase tracking-wider text-neutral-500">Konektory ({pconns.length})</div>
-                  {pconns.length === 0 ? (
-                    <div className="rounded bg-neutral-100 px-2 py-1 text-[10px] italic text-neutral-500">Žádné (pasivní prvek)</div>
-                  ) : (
-                    <div className="flex flex-col gap-0.5">
-                      {pconns.map((c, i) => {
-                        const meta = CABLE_META[c.type];
-                        const used = linkedCables.find((cab) => cab.type === c.type && ((c.role === "out" && cab.from === primary.id) || (c.role === "in" && cab.to === primary.id)));
-                        const otherId = used ? (used.from === primary.id ? used.to : used.from) : null;
-                        const other = otherId ? items.find((x) => x.id === otherId) : null;
-                        return (
-                          <div key={i} className="flex items-center justify-between rounded bg-neutral-100 px-1.5 py-0.5 text-[10px]">
-                            <span className="flex items-center gap-1">
-                              <span className="inline-block h-2 w-2 rounded-full" style={{ backgroundColor: meta.color }} />
-                              <span className="font-mono font-bold">{meta.short}</span>
-                              <span className="text-neutral-500">{c.role === "in" ? "◀ IN" : "OUT ▶"}</span>
-                            </span>
-                            <span className="truncate text-[9px] text-neutral-600">
-                              {other ? (other.label || SPECS[other.kind].label) : <span className="italic text-neutral-400">volný</span>}
-                            </span>
-                          </div>
-                        );
-                      })}
-                    </div>
+                <div className="mt-3 rounded-lg bg-neutral-100 px-2 py-1.5">
+                  <div className="mb-0.5 text-[10px] font-bold uppercase tracking-wider text-neutral-500">Zapojení</div>
+                  {pspec.category === "sound" && (
+                    ampFeed
+                      ? <div className="text-[12px] text-neutral-800">Zesilovač <b>{ampFeed.name}</b>{ampFeed.port && <> · kanál <b>{ampFeed.port}</b></>}{ampFeed.hops > 0 && <span className="text-neutral-500"> (přes {ampFeed.hops} {ampFeed.hops === 1 ? "bednu" : "bedny"})</span>}</div>
+                      : <div className="text-[12px] text-amber-700">Zatím nezapojeno k zesilovači — krok 2 Zapoj.</div>
                   )}
+                  {incoming.map((x) => (
+                    <div key={x.cableId} className="text-[11px] text-neutral-700"><span className="font-mono font-bold" style={{ color: CABLE_META[x.type].color }}>{CABLE_META[x.type].short}</span> z {x.fromLabel} <span className="text-neutral-500">({x.fromPort})</span></div>
+                  ))}
+                  {outgoing.map((x) => (
+                    <div key={x.cableId} className="text-[11px] text-neutral-700"><span className="font-mono font-bold" style={{ color: CABLE_META[x.type].color }}>{CABLE_META[x.type].short}</span> → {x.toLabel} <span className="text-neutral-500">({x.fromPort})</span>{x.overload && <b className="text-red-700"> ⚠</b>}</div>
+                  ))}
+                  {pspec.category !== "sound" && !incoming.length && !outgoing.length && <div className="text-[11px] text-neutral-500">Bez kabelů.</div>}
                 </div>
-                </>)}
+
+                {(primary.kind === "powersoft" || primary.kind === "amp") && (
+                  <div className="mt-2"><PowersoftGuide label={primary.label || pspec.label} /></div>
+                )}
+
+                <div className="mt-3 grid grid-cols-2 gap-2">
+                  <button onClick={() => duplicateRow(primary.id)} title="Zkopíruje celou řadu jako nové patro nahoru" className="min-h-10 rounded-lg bg-neutral-900 px-2 text-[12px] font-bold text-white hover:bg-neutral-700">
+                    <Copy size={12} className="mr-1 inline" />Duplikovat celou řadu
+                  </button>
+                  <button onClick={deleteSelection} title="Smazat (Del)" className="min-h-10 rounded-lg bg-red-100 px-2 text-[12px] font-bold text-red-700 hover:bg-red-200">
+                    <Trash2 size={12} className="mr-1 inline" />Smazat
+                  </button>
+                </div>
               </div>
             );
           })()}
@@ -7312,7 +7244,7 @@ export function StageBuilder3D() {
               className="flex items-center gap-1 text-xs font-bold uppercase tracking-wider text-neutral-500 hover:text-neutral-800"
               title="Sbalit / rozbalit vrstvy"
             >
-              <span className="inline-block w-3 text-center">{(secOpen.layers ?? true) ? "▾" : "▸"}</span>
+              <span className="inline-block w-3 text-center">{(secOpen.layers ?? false) ? "▾" : "▸"}</span>
               Vrstvy ({items.length})
             </button>
             <div className="flex items-center gap-1">
@@ -7330,7 +7262,7 @@ export function StageBuilder3D() {
               ><Ungroup size={10} className="inline" /> Rozpustit</button>
             </div>
           </div>
-          {(secOpen.layers ?? true) && (
+          {(secOpen.layers ?? false) && (
           <div className="flex-1 overflow-y-auto p-2">
             {items.length === 0 && (
               <div className="p-4 text-center text-[11px] text-neutral-500">Zatím žádné komponenty. Přidej z levého panelu nebo načti preset.</div>
@@ -7358,7 +7290,7 @@ export function StageBuilder3D() {
                       if (el) layerRowRefs.current.set(it.id, el);
                       else layerRowRefs.current.delete(it.id);
                     }}
-                    className={`mb-1.5 rounded border p-2 text-[11px] transition ${isSel ? "border-lime-500 bg-neutral-100" : "border-neutral-200 bg-neutral-50 hover:border-neutral-300"}`}
+                    className={`mb-1 rounded border px-2 py-1.5 text-[11px] transition ${isSel ? "border-lime-500 bg-neutral-100" : "border-neutral-200 bg-neutral-50 hover:border-neutral-300"}`}
                   >
                     <button
                       onClick={(e) => {
@@ -7369,7 +7301,7 @@ export function StageBuilder3D() {
                           setSelection([it.id]);
                         }
                       }}
-                      className="mb-1.5 flex w-full items-start gap-2 text-left"
+                      className="flex w-full items-start gap-2 text-left"
                     >
                       <span
                         className="mt-1 inline-block h-2 w-2 shrink-0 rounded-full"
@@ -7385,66 +7317,6 @@ export function StageBuilder3D() {
                       </span>
 
                     </button>
-                    <label className="mb-1 block">
-                      <span className="mb-0.5 block text-[9px] uppercase tracking-wider text-neutral-500">Model / typ bedny</span>
-                      <select
-                        value={it.kind}
-                        onChange={(e) => {
-                          const newKind = e.target.value as Kind;
-                          setItems((cur) => normalizeScene(cur.map((x) => x.id === it.id ? {
-                            ...x, kind: newKind,
-                            variant: SPECS[newKind].defaultVariant ?? x.variant,
-                            rotY: 0,
-                          } : x)));
-                        }}
-                        className="w-full rounded border border-neutral-300 bg-white px-1.5 py-1 text-[11px] text-neutral-900 focus:border-lime-500 focus:outline-none"
-                      >
-                        {CATEGORIES.map((cat) => (
-                          <optgroup key={cat.id} label={cat.label}>
-                            {(Object.entries(SPECS) as [Kind, Spec][])
-                              .filter(([, s]) => s.category === cat.id)
-                              .map(([k, s]) => (<option key={k} value={k}>{s.label}</option>))}
-                          </optgroup>
-                        ))}
-                      </select>
-                    </label>
-                    <label className="mb-1 block">
-                      <span className="mb-0.5 block text-[9px] uppercase tracking-wider text-neutral-500">Vlastní štítek</span>
-                      <input
-                        type="text" value={it.label ?? ""} placeholder={spec.defaultLabel ?? spec.label}
-                        onChange={(e) => {
-                          const v = e.target.value;
-                          setItems((cur) => cur.map((x) => x.id === it.id ? { ...x, label: v || undefined } : x));
-                        }}
-                        className="w-full rounded border border-neutral-300 bg-white px-1.5 py-1 font-mono text-[11px] text-lime-600 focus:border-lime-500 focus:outline-none"
-                      />
-                    </label>
-                    {isKorg && (
-                      <div className="mb-1 flex items-center gap-1">
-                        <span className="text-[9px] uppercase tracking-wider text-neutral-500">Barva:</span>
-                        {(["red", "blue"] as const).map((v) => (
-                          <button
-                            key={v}
-                            onClick={() => setItems((cur) => cur.map((x) => x.id === it.id ? { ...x, variant: v } : x))}
-                            className={`h-5 w-5 rounded border-2 ${it.variant === v ? "border-lime-400" : "border-neutral-300"}`}
-                            style={{ backgroundColor: v === "red" ? "#c81e2a" : "#1e5ec8" }}
-                            title={v === "red" ? "Červený" : "Modrý"}
-                          />
-                        ))}
-                      </div>
-                    )}
-                    <div className="mt-1 flex items-center justify-between">
-                      <span className="font-mono text-[9px] text-neutral-600">
-                        {spec.size[0].toFixed(2)}×{spec.size[1].toFixed(2)}×{spec.size[2].toFixed(2)} m
-                      </span>
-                      <button
-                        onClick={() => {
-                          setItems((cur) => cur.filter((x) => x.id !== it.id));
-                          setCables((cs) => cs.filter((c) => c.from !== it.id && c.to !== it.id));
-                        }}
-                        className="rounded bg-red-100 px-1.5 py-0.5 text-[10px] text-red-700 hover:bg-red-200"
-                      ><Trash2 size={10} className="inline" /></button>
-                    </div>
                   </div>
                 );
               };
@@ -7553,6 +7425,53 @@ export function StageBuilder3D() {
           </div>
           )}
         </aside>
+
+        {/* ── Mobil (< 768 px): paleta jako spodní sheet + kroky dole ── */}
+        {!mobileViewer && !launcherOpen && workMode === "build" && !selection.length && (
+          <div className="glass-strong absolute inset-x-0 bottom-14 rounded-t-2xl border-t border-neutral-200/60 shadow-2xl md:hidden" style={{ zIndex: 1000000001 }}>
+            <button
+              data-walkthrough="palette-sheet"
+              onClick={() => setMobilePaletteOpen((v) => !v)}
+              aria-expanded={mobilePaletteOpen}
+              aria-label={mobilePaletteOpen ? "Sbalit paletu" : "Rozbalit paletu"}
+              className="flex w-full flex-col items-center pt-1.5 pb-1"
+            >
+              <span className="h-1 w-10 rounded-full bg-neutral-300" />
+              <span className="mt-1 text-[10px] font-bold uppercase tracking-wider text-neutral-500">Paleta</span>
+            </button>
+            <div className="flex gap-1 px-2 pb-1.5">
+              {paletteTabs.map((c) => {
+                const active = (category === "fun" ? "sound" : category) === c.id;
+                return (
+                  <button key={c.id} onClick={() => { setCategory(c.id); setMobilePaletteOpen(true); }} aria-pressed={active}
+                    className={`min-h-9 flex-1 rounded-full text-[12px] font-bold ${active ? "bg-neutral-900 text-white" : "bg-neutral-100 text-neutral-600"}`}>{c.label}</button>
+                );
+              })}
+            </div>
+            {mobilePaletteOpen && (
+              <div className="pb-2">
+                <div className="px-2 pb-1.5">
+                  <input type="search" value={paletteQuery} onChange={(e) => setPaletteQuery(e.target.value)} placeholder="Hledat komponentu…" aria-label="Hledat v knihovně komponent"
+                    className="min-h-10 w-full rounded-lg border border-neutral-300 bg-white px-2.5 text-[13px] text-neutral-800 focus:border-lime-500 focus:outline-none" />
+                </div>
+                <div className="flex snap-x gap-2 overflow-x-auto px-2 no-scrollbar">
+                  {[...palette.filter(([, s]) => paletteQuery || s.category !== "fun"), ...(paletteQuery ? [] : funPalette)].map(([k, s]) => renderPaletteCard(k, s, "row"))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+        {!mobileViewer && !launcherOpen && (
+          <nav aria-label="Kroky" className="glass-strong absolute inset-x-0 bottom-0 flex h-14 items-stretch gap-1 border-t border-neutral-200/60 px-2 py-1.5 md:hidden" style={{ zIndex: 1000000002 }}>
+            {MODES.map((m) => (
+              <button key={m.id} onClick={() => setWorkMode(m.id)} aria-current={workMode === m.id ? "step" : undefined}
+                className={`flex flex-1 items-center justify-center gap-1.5 rounded-xl text-[13px] font-bold ${workMode === m.id ? "bg-neutral-900 text-white" : "text-neutral-600"}`}>
+                <span className={`inline-flex h-5 w-5 items-center justify-center rounded-full text-[11px] ${workMode === m.id ? "bg-lime-400 text-neutral-950" : "bg-neutral-200 text-neutral-700"}`}>{m.n}</span>
+                {m.label}
+              </button>
+            ))}
+          </nav>
+        )}
 
         {/* ── Mobilní režim prohlížení: spodní sheet místo bočních panelů ── */}
         {mobileViewer && sheet && !launcherOpen && (
