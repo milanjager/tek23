@@ -112,8 +112,8 @@ const SPECS: Record<Kind, Spec> = {
   badtekk_sub:  { label: "Badtekk Sub",      category: "sound",  size: [1.20, 0.80, 0.90], stackable: true,  hint: "Badtekk 2×18\" sub", defaultLabel: "Badtekk Sub" },
   badtekk_bass: { label: "Badtekk Bass",     category: "sound",  size: [0.90, 0.65, 0.75], stackable: true,  hint: "Badtekk 2×15\" bass", defaultLabel: "Badtekk Bass" },
   badtekk_top:  { label: "Badtekk Top",      category: "sound",  size: [0.65, 0.55, 0.45], stackable: true,  hint: "Badtekk W-bin top", defaultLabel: "Badtekk Top" },
-  img_0838:     { label: "JB181 4×18\" RCF LF18G401", category: "sound", size: [0.80, 1.20, 0.90], stackable: true, hint: "4× JB181 – RCF LF18G401", defaultLabel: "JB181 4×18\"" },
-  img_0839:     { label: "JB181 4×18\" v2 (vyšší skříň)", category: "sound", size: [0.85, 1.30, 0.95], stackable: true, hint: "4× JB181 – RCF LF18G401, vyšší varianta", defaultLabel: "JB181 4×18\" v2" },
+  img_0838:     { label: "JB181 4×18\" RCF LF18G401 v1", category: "sound", size: [0.80, 1.20, 0.90], stackable: true, hint: "4× JB181 – RCF LF18G401", defaultLabel: "JB181 4×18\" v1" },
+  img_0839:     { label: "JB181 4×18\" RCF LF18G401 v2", category: "sound", size: [0.85, 1.30, 0.95], stackable: true, hint: "4× JB181 – RCF LF18G401, vyšší varianta", defaultLabel: "JB181 4×18\" v2" },
   img_0841:     { label: "JB218 2×18\" RCF LF18N401", category: "sound", size: [1.20, 0.80, 0.95], stackable: true, hint: "2× JB218 – RCF LF18N401", defaultLabel: "JB218 2×18\"" },
   img_0842:     { label: "JB181 stack",       category: "sound",  size: [0.75, 1.80, 0.85], stackable: true,  hint: "Stack JB181 skříní", defaultLabel: "JB181 stack" },
   img_0843:     { label: "Picus top grill",   category: "sound",  size: [1.80, 1.60, 0.85], stackable: true,  hint: "Top řada s hex mřížkou", defaultLabel: "Picus top" },
@@ -265,7 +265,20 @@ interface Placed {
   variant?: "red" | "blue";
   /** Free-form wiring/technical notes shown in inspector and export. */
   notes?: string;
+  /** Povrch skříně jen pro tuto bednu (jinak globální styl beden). */
+  finish?: FinishId;
+  /** false = skrýt přední mřížku (výchozí je zobrazená). */
+  grille?: boolean;
 }
+
+type FinishId = "black" | "plywood" | "yellow" | "army" | "red";
+const FINISHES: { id: FinishId; label: string; color: string; rough: number }[] = [
+  { id: "black",   label: "Černý mat",    color: "#16171a", rough: 0.95 },
+  { id: "plywood", label: "Překližka",    color: "#b8895a", rough: 0.8 },
+  { id: "yellow",  label: "Žlutá",        color: "#e5b419", rough: 0.6 },
+  { id: "army",    label: "Army zelená",  color: "#4b5a2f", rough: 0.85 },
+  { id: "red",     label: "Rudá",         color: "#8f1d1d", rough: 0.7 },
+];
 
 
 type PresetKind = "namel_wall" | "namel_hostivar" | "club_stack" | "festival_ground" | "mlk_wall" | "twin_towers" | "demo_tutorial";
@@ -2821,6 +2834,40 @@ const ItemObject = ({
   const spec = SPECS[item.kind];
   const ref = useRef<THREE.Group>(null!);
   const connectors = useMemo(() => connectorsFor(item.kind), [item.kind]);
+  const modelRef = useRef<THREE.Group>(null);
+
+  // Povrch / mřížka jednotlivé bedny: přebarví jen materiály skříně,
+  // geometrie modelů zůstává beze změny.
+  useEffect(() => {
+    const g = modelRef.current;
+    if (!g) return;
+    const fin = item.finish ? FINISHES.find((f) => f.id === item.finish) : null;
+    const wood = new THREE.Color(WOOD).getHexString();
+    const woodDark = new THREE.Color(WOOD_DARK).getHexString();
+    const grilleHex = new THREE.Color(GRILLE_BG).getHexString();
+    const grilleTex = new Set<unknown>([_grilleTex, ..._grilleClones.values()]);
+    const created: THREE.Material[] = [];
+    g.traverse((o) => {
+      const m = o as THREE.Mesh;
+      if (!m.isMesh) return;
+      if (m.userData.origMat === undefined) { m.userData.origMat = m.material; m.userData.origVisible = m.visible; }
+      m.material = m.userData.origMat;
+      m.visible = m.userData.origVisible;
+      const mat = m.material as THREE.MeshStandardMaterial;
+      if (Array.isArray(mat) || !mat?.color) return;
+      const hex = mat.color.getHexString();
+      const isGrille = (mat.map && grilleTex.has(mat.map)) || hex === grilleHex;
+      if (isGrille && item.grille === false) { m.visible = false; return; }
+      if (fin && (hex === wood || hex === woodDark)) {
+        const c = mat.clone();
+        c.color.set(hex === woodDark ? shadeHex(fin.color, -0.25) : fin.color);
+        if ("roughness" in c) c.roughness = fin.rough;
+        created.push(c);
+        m.material = c;
+      }
+    });
+    return () => created.forEach((c) => c.dispose());
+  }, [item.finish, item.grille, item.kind, spawned]);
 
   useEffect(() => {
     onRegister(item.id, ref.current);
@@ -2863,7 +2910,7 @@ const ItemObject = ({
             <Pallet w={spec.size[0] * 1.02} d={spec.size[2] * 1.02} />
           </group>
         )}
-        <group position={[0, modelYOffset, 0]}>
+        <group ref={modelRef} position={[0, modelYOffset, 0]}>
           <ModelFor kind={item.kind} size={spec.size} variant={item.variant} />
         </group>
       </group>
@@ -2952,8 +2999,9 @@ const ItemObject = ({
       {/* Custom label above the box */}
       {item.label && (selected || showLabel) && (
         <Html position={[0, spec.size[1] + 0.25, 0]} center distanceFactor={8} occlude={false}>
-          <div className="pointer-events-none rounded bg-black/80 px-1.5 py-0.5 font-mono text-[10px] font-bold uppercase tracking-wider text-lime-600 shadow-lg">
-            {item.label}
+          <div className="pointer-events-none whitespace-nowrap rounded bg-black/80 px-1.5 py-0.5 text-center leading-tight shadow-lg">
+            <div className="text-[10px] font-bold text-lime-400">{item.label}</div>
+            <div className="font-mono text-[8px] text-neutral-400">X {item.pos[0].toFixed(1)} · Z {item.pos[2].toFixed(1)} m</div>
           </div>
         </Html>
       )}
@@ -3020,7 +3068,7 @@ function sceneHasOverlap(items: Placed[]): boolean {
 }
 
 function normalizeScene(items: Placed[], gap = 0.06): Placed[] {
-  const stacked = sanitizeStacks(items.map((it) => ({ ...it, rotY: 0 })));
+  const stacked = sanitizeStacks(items.map((it) => ({ ...it, rotY: Math.abs(Math.abs(it.rotY) - Math.PI) < 0.01 ? Math.PI : 0 })));
   return resolveHorizontalOverlaps(stacked, gap);
 }
 
