@@ -18,6 +18,7 @@ import {
   Move as MoveIcon, Boxes, Zap, Sparkles, Radio, Volume2,
   Cable as CableIcon, MousePointer2, Menu, X, BoxSelect, PanelLeft, PanelRight,
   Workflow, Box as BoxIcon, LayoutGrid, GalleryVerticalEnd, Folder, ChevronDown, ChevronRight,
+  WandSparkles,
 } from "lucide-react";
 import SchematicView from "./SchematicView";
 import GridPlannerView from "./GridPlannerView";
@@ -35,6 +36,8 @@ import { type DrawItem } from "./rigDrawings";
 import SpecStudio from "./SpecStudio";
 import { packRig, encodeRig } from "./shareLink";
 import { sfxCableStart, sfxPortConnect, sfxCableComplete, sfxCancel } from "./sfx";
+import AiPlanner from "./AiPlanner";
+import type { AiCatalogEntry, AiPlan } from "@/lib/aiPlanner";
 
 import {
   type CustomSpeaker,
@@ -6327,7 +6330,47 @@ export function StageBuilder3D() {
     announce(`Preset načten — ${it.length} prvků, ${cs.length} kabelů.`);
   }, [announce]);
 
+  const aiCatalog = useMemo<AiCatalogEntry[]>(() => (
+    (Object.entries(SPECS) as [Kind, Spec][])
+      .filter(([, spec]) => spec.category !== "fun")
+      .map(([kind, spec]) => ({
+        kind,
+        label: spec.label,
+        category: spec.category,
+        size: spec.size,
+        powerW: spec.powerW ?? 0,
+      }))
+  ), [customDefs]);
+
+  const applyAiPlan = useCallback((plan: AiPlan) => {
+    const placed: Placed[] = plan.placements.flatMap((placement) => {
+      const kind = placement.kind as Kind;
+      const spec = SPECS[kind];
+      if (!spec) return [];
+      return [{
+        id: uid(),
+        kind,
+        pos: [placement.x, placement.y, placement.z] as [number, number, number],
+        rotY: placement.rotationDeg * Math.PI / 180,
+        label: placement.label,
+        ...(spec.defaultVariant ? { variant: spec.defaultVariant } : {}),
+        ...(spec.defaultNotes ? { notes: spec.defaultNotes } : {}),
+      }];
+    });
+    const normalized = normalizeScene(placed);
+    const soundZ = normalized.filter((item) => SPECS[item.kind].category === "sound").map((item) => item.pos[2]);
+    if (soundZ.length) setSpeakerLineZ(Math.min(...soundZ));
+    setItems(normalized);
+    setCables(autoWireCables(normalized));
+    setSelection([]);
+    setAiPlannerOpen(false);
+    setWorkMode("build");
+    setViewMode("grid");
+    announce(`AI návrh „${plan.name}“ je ve scéně — ${normalized.length} prvků. Původní scénu vrátíš přes Ctrl+Z.`);
+  }, [announce]);
+
   const [moreOpen, setMoreOpen] = useState(false);
+  const [aiPlannerOpen, setAiPlannerOpen] = useState(false);
   const [clearOpen, setClearOpen] = useState(false);
   const [issuesOpen, setIssuesOpen] = useState(false);
   const startRig = useCallback((name: string) => {
@@ -6628,6 +6671,13 @@ export function StageBuilder3D() {
               <option value="club_stack">Club Stack — 2×2 sub + top L/R</option>
               <option value="festival_ground">Festival Ground — 3 clustery</option>
             </select>
+            <button
+              onClick={() => setAiPlannerOpen(true)}
+              className={`${btnCls} bg-primary font-bold text-primary-foreground shadow-sm hover:brightness-105`}
+              title="AI navrhne rozmístění podle prostoru, publika a dostupné techniky"
+            >
+              <WandSparkles size={14} /> AI návrh
+            </button>
             <button onClick={() => { setMode("select"); setPendingFrom(null); setMarqueeMode(false); }} title="Výběr (Esc zruší výběr)" className={`${btnCls} ${mode === "select" && !marqueeMode ? "bg-lime-500 text-neutral-950" : "bg-neutral-100 hover:bg-neutral-200"}`}><MousePointer2 size={13} /> Výběr</button>
             <button onClick={() => { setMode("select"); setPendingFrom(null); setMarqueeMode((v) => !v); }} className={`${btnCls} ${marqueeMode ? "bg-lime-500 text-neutral-950" : "bg-neutral-100 hover:bg-neutral-200"}`} title="Táhni myší přes bedny (Shift = přidat k výběru)"><BoxSelect size={13} /> Rámeček</button>
             <button
@@ -7659,6 +7709,13 @@ export function StageBuilder3D() {
           </nav>
         )}
       </div>
+      <AiPlanner
+        open={aiPlannerOpen}
+        catalog={aiCatalog}
+        sceneItems={items}
+        onClose={() => setAiPlannerOpen(false)}
+        onApply={applyAiPlan}
+      />
       <SpeakerBuilder
         open={builderOpen}
         defs={customDefs}

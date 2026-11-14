@@ -9,3 +9,4 @@
 - [ ] Vrátit změny ze 4. září
 - [x] Kontrola rigu (badge + karty), Zdroje v kroku 2, Spec studio, techrider PDF/PNG/CSV/nakládací list, read-only odkaz
 - [x] Refaktor UI: 3 kroky, odznak kontroly, úvodní obrazovka, 4 pohledy, souhrn, autosave, menu ⋯, čeština, bez dev tlačítka a badge
+- [x] AI návrh rozmístění: rozměry prostoru, návštěvníci, dostupné komponenty, návrh a vložení do scény přes AI Gateway
