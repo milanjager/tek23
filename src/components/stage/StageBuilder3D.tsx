@@ -7102,7 +7102,7 @@ export function StageBuilder3D() {
             ? (sheet === "inspect"
                 ? "absolute inset-x-0 bottom-0 flex max-h-[68dvh] w-full overflow-y-auto rounded-t-2xl border-t border-neutral-200/60 pb-14 shadow-2xl animate-in slide-in-from-bottom-8 fade-in duration-300"
                 : "hidden")
-            : `${selection.length ? "absolute inset-x-0 bottom-14 flex max-h-[60dvh] overflow-y-auto rounded-t-2xl border-t border-neutral-200/60 shadow-2xl animate-in slide-in-from-bottom-8 fade-in duration-200" : "hidden"} ${rightOpen ? "md:static md:flex md:max-h-none md:w-72 md:overflow-visible md:rounded-none md:border-t-0 md:border-l md:shadow-none" : "md:hidden"}`} glass flex-col`}
+            : `${selection.length ? "absolute inset-x-0 bottom-14 flex max-h-[60dvh] overflow-y-auto rounded-t-2xl border-t border-neutral-200/60 shadow-2xl animate-in slide-in-from-bottom-8 fade-in duration-200" : "hidden"} ${rightOpen ? "md:static md:flex md:max-h-none md:w-72 md:overflow-visible md:rounded-none md:border-t-0 md:border-l md:shadow-none" : "md:hidden"}`} glass flex-col md:!z-auto`}
         >
           <div className="flex items-center justify-between border-b border-neutral-200/60 px-2 py-1">
             <span className="text-[10px] font-bold uppercase tracking-wider text-neutral-500"><span className="mx-auto mb-1 block h-1 w-10 rounded-full bg-neutral-300 md:hidden" />Inspektor ( ] )</span>
