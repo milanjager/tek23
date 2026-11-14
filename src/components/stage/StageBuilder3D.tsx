@@ -2866,6 +2866,7 @@ const ItemObject = ({
         m.material = c;
       }
     });
+    if (item.finish) { const hs = new Set<string>(); g.traverse((o) => { const mm = (o as THREE.Mesh).material as THREE.MeshStandardMaterial; if (mm?.color) hs.add(mm.color.getHexString()); }); console.log("FINDBG", wood, woodDark, created.length, [...hs].join(",")); }
     return () => created.forEach((c) => c.dispose());
   }, [item.finish, item.grille, item.kind]);
 
