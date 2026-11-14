@@ -2867,7 +2867,7 @@ const ItemObject = ({
       }
     });
     return () => created.forEach((c) => c.dispose());
-  }, [item.finish, item.grille, item.kind, spawned]);
+  }, [item.finish, item.grille, item.kind]);
 
   useEffect(() => {
     onRegister(item.id, ref.current);
@@ -5122,6 +5122,36 @@ function ThumbLookAt() {
   return null;
 }
 
+type SilShape = "scoop" | "sub" | "bass" | "mid" | "horn" | "light" | "tech";
+function silhouetteShape(kind: Kind, s: Spec): SilShape {
+  if (s.category === "lights" || s.category === "fun") return "light";
+  if (s.category !== "sound") return "tech";
+  const t = `${kind} ${s.label} ${s.hint ?? ""}`.toLowerCase();
+  if (t.includes("scoop")) return "scoop";
+  if (/horn|hřib|top|tweet|trychtý/.test(t)) return "horn";
+  if (/\bsub|18"|21"|jb18|jb21/.test(t)) return "sub";
+  if (/bass|bin|shelf/.test(t)) return "bass";
+  if (/mid|střed|line|monitor/.test(t)) return "mid";
+  const [w, h] = s.size;
+  return h > w * 1.2 ? "mid" : h < w * 0.75 ? "bass" : "sub";
+}
+/** Jednoduchý obrys bedny podle typu — rychlejší a čitelnější než 3D náhled. */
+function Silhouette({ shape, className = "" }: { shape: SilShape; className?: string }) {
+  const c = { fill: "none", stroke: "currentColor", strokeWidth: 2, strokeLinejoin: "round" as const };
+  return (
+    <svg viewBox="0 0 40 40" className={className} aria-hidden>
+      {shape === "scoop" && (<><rect x={6} y={6} width={28} height={28} rx={2} {...c} /><path d="M6 6 L34 34 M34 6 L6 34" {...c} strokeWidth={1.5} /></>)}
+      {shape === "sub" && (<><rect x={6} y={6} width={28} height={28} rx={2} {...c} /><circle cx={20} cy={20} r={10} {...c} /><circle cx={20} cy={20} r={4} {...c} /></>)}
+      {shape === "bass" && (<><rect x={3} y={13} width={34} height={15} rx={2} {...c} /><circle cx={12} cy={20.5} r={4.5} {...c} /><circle cx={28} cy={20.5} r={4.5} {...c} /></>)}
+      {shape === "mid" && (<><rect x={11} y={3} width={18} height={34} rx={2} {...c} /><circle cx={20} cy={13} r={4.5} {...c} /><circle cx={20} cy={27} r={4.5} {...c} /></>)}
+      {shape === "horn" && (<><path d="M4 7 L25 16 L25 24 L4 33 Z" {...c} /><rect x={25} y={15} width={10} height={10} rx={1.5} {...c} /></>)}
+      {shape === "light" && (<><circle cx={20} cy={18} r={7} {...c} /><path d="M20 4v4M20 28v4M6 18h4M30 18h4M10 8l3 3M30 8l-3 3" {...c} strokeWidth={1.5} /><path d="M15 34h10" {...c} /></>)}
+      {shape === "tech" && (<><rect x={4} y={10} width={32} height={20} rx={2} {...c} /><path d="M10 20h20M10 25h12" {...c} strokeWidth={1.5} /><circle cx={30} cy={15} r={1.6} fill="currentColor" /></>)}
+    </svg>
+  );
+}
+const fmtDims = (s: Spec) => `${s.size.map((v) => v.toFixed(2).replace(".", ",")).join(" × ")} m`;
+
 function PaletteThumb({ kind }: { kind: Kind }) {
   const spec = SPECS[kind];
   const [w, h, d] = spec.size;
@@ -5955,10 +5985,15 @@ export function StageBuilder3D() {
 
   const palette = useMemo(() => {
     const q = paletteQuery.trim().toLowerCase();
-    const list = (Object.entries(SPECS) as [Kind, Spec][]).filter(([, s]) => q ? true : s.category === category);
+    const tab = category === "fun" ? "sound" : category;
+    const list = (Object.entries(SPECS) as [Kind, Spec][]).filter(([, s]) => q ? true : s.category === tab);
     if (!q) return list;
     return list.filter(([k, s]) => `${k} ${s.label} ${s.hint ?? ""}`.toLowerCase().includes(q));
   }, [category, paletteQuery, customDefs]);
+
+  const funPalette = useMemo(() => (Object.entries(SPECS) as [Kind, Spec][]).filter(([, s]) => s.category === "fun"), [customDefs]);
+  const [funOpen, setFunOpen] = useState(false);
+  const [mobilePaletteOpen, setMobilePaletteOpen] = useState(true);
 
   // --- Speaker builder handlers -------------------------------------------
   const saveCustomDef = useCallback((def: CustomSpeaker) => {
