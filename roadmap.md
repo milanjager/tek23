@@ -6,3 +6,4 @@
 - [x] Název a typ kabelu (linka / patch / power) + tiskový soupis kabelů
 - [x] Gamifikovaná vrstva: startovní obrazovka s jedním CTA, Cesta stavitele (questy, XP, levely, odměny)
 - [ ] Gamifikace fáze 2: zjednodušení toolbaru a panelů (méně voleb na obrazovku), akční jazyk místo technického
+- [ ] Vrátit změny ze 4. září
