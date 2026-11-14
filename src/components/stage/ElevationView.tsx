@@ -13,6 +13,8 @@ import { createSnapModifier } from "@dnd-kit/modifiers";
 
 import type { StageItem as Placed } from "@/types/stage";
 
+const CAT_CS: Record<string, string> = { sound: "Zvuk", lights: "Světla", infra: "Technika", fun: "Ostatní" };
+
 export interface ElevSpec {
   label: string;
   category: string;
@@ -660,7 +662,7 @@ export default function ElevationView({
         {Object.entries(CAT_COLOR).map(([k, c]) => (
           <div key={k} className="flex items-center gap-1.5">
             <span className="inline-block h-2.5 w-2.5 rounded-sm border" style={{ background: c.bg, borderColor: c.border }} />
-            <span className="capitalize">{k}</span>
+            <span>{CAT_CS[k] ?? k}</span>
           </div>
         ))}
       </div>
@@ -888,7 +890,7 @@ export default function ElevationView({
           <div className="mb-2 flex items-center justify-between">
             <div className="min-w-0">
               <div className="flex items-center gap-1 text-[10px] uppercase tracking-wide text-neutral-500">
-                <Info size={10} /> {specs[selected.kind]?.category}
+                <Info size={10} /> {CAT_CS[specs[selected.kind]?.category ?? ""] ?? specs[selected.kind]?.category}
               </div>
               <div className="truncate text-sm font-bold text-neutral-900">
                 {selected.label ?? specs[selected.kind]?.label ?? selected.kind}
