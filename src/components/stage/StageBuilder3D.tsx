@@ -6943,6 +6943,56 @@ export function StageBuilder3D() {
               )}
             </div>
           )}
+          {workMode === "wire" && !mobileViewer && (() => {
+            const chans = rigAmpChannels(items, liveCablesOf(items, cables), kindInfo);
+            const amps = items.filter((x) => kindInfo(x.kind).ampChannels > 0);
+            const gens = items.filter((x) => x.kind === "generator");
+            const pct = power.capacityW ? Math.min(100, (power.loadW / power.capacityW) * 100) : 100;
+            const over = power.loadW > power.capacityW;
+            const kw = (w: number) => (w / 1000).toFixed(1).replace(".", ",");
+            return (
+              <section aria-label="Zdroje" className="glass-strong absolute left-3 top-14 z-30 max-h-[calc(100%-7rem)] w-[min(16rem,calc(100%-1.5rem))] overflow-y-auto rounded-2xl p-3 shadow-xl">
+                <h2 className="text-[11px] font-bold uppercase tracking-wider text-neutral-500">Zdroje</h2>
+                <div className="mt-2 rounded-xl bg-white/70 p-2.5">
+                  <div className="flex items-baseline justify-between text-[13px]">
+                    <b className="text-neutral-900">{gens.length ? (gens.length > 1 ? `Agregáty (${gens.length})` : (gens[0].label || "Agregát")) : "Agregát chybí"}</b>
+                    <span className={`font-mono text-[12px] ${over ? "font-bold text-red-700" : "text-neutral-700"}`}>{kw(power.loadW)} z {kw(power.capacityW)} kW</span>
+                  </div>
+                  <div className="mt-1.5 h-2.5 overflow-hidden rounded-full bg-neutral-200" role="progressbar" aria-valuenow={Math.round(pct)} aria-valuemin={0} aria-valuemax={100} aria-label="Zatížení agregátu">
+                    <div className={`h-full rounded-full transition-all ${over ? "bg-red-500" : pct > 80 ? "bg-amber-400" : "bg-lime-500"}`} style={{ width: `${pct}%` }} />
+                  </div>
+                  {!gens.length && <button onClick={() => addItem("generator")} className="mt-2 min-h-9 w-full rounded-lg bg-neutral-900 px-2 text-[12px] font-bold text-white hover:bg-neutral-700">+ Přidat agregát</button>}
+                </div>
+                <ul className="mt-2 space-y-1.5">
+                  {amps.map((a) => {
+                    const n = kindInfo(a.kind).ampChannels;
+                    const mine = chans.filter((c) => c.ampId === a.id);
+                    return (
+                      <li key={a.id}>
+                        <button onClick={() => showIssueItem(a.id)} className="w-full rounded-xl bg-white/70 p-2 text-left hover:bg-white">
+                          <div className="flex items-center justify-between text-[12px]">
+                            <b className="truncate text-neutral-900">{a.label || SPECS[a.kind].label}</b>
+                            <span className={`font-mono ${mine.length > n ? "font-bold text-red-700" : "text-neutral-600"}`}>{Math.min(mine.length, 99)}/{n} kan.</span>
+                          </div>
+                          <div className="mt-1 flex gap-1">
+                            {Array.from({ length: Math.max(n, mine.length) }, (_, i) => {
+                              const ch = mine[i];
+                              const bad = ch && (ch.ohm < 4 || i >= n);
+                              return <span key={i} title={ch ? `CH${i + 1}: ${ch.boxIds.length} bedny · ${ch.ohm.toFixed(1)} Ω` : `CH${i + 1}: volný`} className={`flex h-6 flex-1 items-center justify-center rounded text-[10px] font-bold ${!ch ? "border border-dashed border-neutral-300 text-neutral-400" : bad ? "bg-red-500 text-white" : "bg-sky-500 text-white"}`}>{ch ? `${ch.boxIds.length}×` : `CH${i + 1}`}</span>;
+                            })}
+                          </div>
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ul>
+                <button onClick={() => addItem("powersoft")} className="mt-2 min-h-10 w-full rounded-xl border-2 border-dashed border-neutral-300 text-[13px] font-bold text-neutral-700 hover:border-lime-500 hover:text-lime-700">+ Přidat zesilovač</button>
+              </section>
+            );
+          })()}
+          {workMode === "spec" && (
+            <SpecStudio rigName={rigName} items={drawItems} cables={drawCables} power={power} makeShareUrl={makeShareUrl} />
+          )}
           {viewMode === "elev" ? (
             <ElevationView
               items={items}
