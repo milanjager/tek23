@@ -19,3 +19,4 @@
 - Below 768 px the palette and inspector are bottom sheets and steps move to a bottom nav; desktop side panels are `md:` only, so one component tree serves both layouts.
 - Rig check rules (unwired, generator load, Ω per channel, boxes per channel) live in `src/components/stage/rigChecks.ts` (pure, tested); the scene badges, issue cards and step-2 Sources panel only read its output, so every view reports the same problems.
 - Techrider/plan/schema drawings are plain SVG in `rigDrawings.tsx`, shared by step 3 (`SpecStudio`) and the read-only `/view` page; the share link carries the whole rig in the URL hash (deflate + base64url), so no backend is needed.
+- AI layout suggestions use a typed `createServerFn` and Gateway structured JSON; `aiPlanner.ts` sanitizes model output against room bounds and available quantities before the shared scene state and normal wiring rules consume it.
