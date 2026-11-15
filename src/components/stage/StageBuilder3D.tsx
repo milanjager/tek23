@@ -7288,7 +7288,7 @@ export function StageBuilder3D() {
           <div className="sticky top-0 z-10 flex items-center justify-between border-b border-neutral-200/60 bg-background/95 px-2 py-1 backdrop-blur md:static md:bg-transparent">
             <span className="text-[10px] font-bold uppercase tracking-wider text-neutral-500"><span className="mx-auto mb-1 block h-1 w-10 rounded-full bg-neutral-300 md:hidden" />Inspektor ( ] )</span>
             <button
-              onClick={() => { if (window.matchMedia("(max-width: 767px)").matches) setSelection([]); else setRightOpen(false); }}
+              onClick={() => { if (window.matchMedia("(max-width: 767px)").matches) { setSelection([]); if (sheet === "inspect") setSheet(null); } else setRightOpen(false); }}
               title="Sbalit inspektor"
               aria-label="Zavřít inspektor"
               className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-neutral-400 md:h-auto md:w-auto md:p-1 hover:bg-neutral-200/40 hover:text-neutral-700"
