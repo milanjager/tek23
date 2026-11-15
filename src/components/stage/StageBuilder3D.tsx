@@ -5344,6 +5344,8 @@ export function StageBuilder3D() {
   const [mobileViewer, setMobileViewer] = useState(false);
   const [sheet, setSheet] = useState<null | "inspect" | "views">(null);
   const [inspMin, setInspMin] = useState(true);
+  const selKey = selection.join(",");
+  useEffect(() => { setInspMin(true); }, [selKey]);
   useEffect(() => {
     const saved = localStorage.getItem("stage.mobileViewer.v2");
     const on = saved === "1";
