@@ -19,6 +19,7 @@ import {
   Cable as CableIcon, MousePointer2, Menu, X, BoxSelect, PanelLeft, PanelRight,
   Workflow, Box as BoxIcon, LayoutGrid, GalleryVerticalEnd, Folder, ChevronDown, ChevronRight,
   WandSparkles,
+  Undo2, Redo2, Share2, MoreHorizontal, Magnet, Check, Minus, Plus,
 } from "lucide-react";
 import SchematicView from "./SchematicView";
 import GridPlannerView from "./GridPlannerView";
@@ -6438,7 +6439,28 @@ export function StageBuilder3D() {
     { id: "3d", label: "3D", hint: "Volná 3D scéna — stavění a přesuny" },
     { id: "elev", label: "Nárys", hint: "Pohled zepředu, patra stacků" },
     { id: "grid", label: "Půdorys", hint: "Pohled shora v mřížce" },
-    { id: "schema", label: "Schéma zapojení", hint: "Schéma zapojení kabelů" },
+    { id: "schema", label: "Schéma", hint: "Schéma zapojení kabelů" },
+  ];
+
+  const [shareCopied, setShareCopied] = useState(false);
+  const shareRig = useCallback(async () => {
+    const url = await makeShareUrl();
+    try { await navigator.clipboard.writeText(url); setShareCopied(true); setTimeout(() => setShareCopied(false), 2000); announce("Odkaz pro crew zkopírován."); }
+    catch { window.prompt("Zkopíruj odkaz pro crew:", url); }
+  }, [makeShareUrl, announce]);
+  const [zoomPct, setZoomPct] = useState(100);
+  const zoomBy = useCallback((dir: 1 | -1) => {
+    const wrap = canvasWrapRef.current;
+    const canvas = wrap?.querySelector("canvas");
+    const svg = [...(wrap?.querySelectorAll("svg") ?? [])].sort((a, b) => b.clientWidth * b.clientHeight - a.clientWidth * a.clientHeight)[0];
+    const el = canvas ?? svg;
+    const r = el?.getBoundingClientRect();
+    el?.dispatchEvent(new WheelEvent("wheel", { deltaY: -dir * 240, deltaMode: 0, ctrlKey: !canvas, bubbles: true, cancelable: true, clientX: r ? r.left + r.width / 2 : 0, clientY: r ? r.top + r.height / 2 : 0 }));
+    setZoomPct((z) => Math.max(10, Math.min(400, Math.round(z * (dir > 0 ? 1.15 : 1 / 1.15)))));
+  }, []);
+  const PRESET_MENU: [PresetKind, string][] = [
+    ["namel_wall", "Namel Wall"], ["namel_hostivar", "Namel Hostivař"], ["mlk_wall", "MLK Wall"],
+    ["twin_towers", "Twin Towers"], ["club_stack", "Club Stack"], ["festival_ground", "Festival Ground"],
   ];
 
   const MODES: { id: typeof workMode; n: number; label: string; hint: string }[] = [
@@ -6492,7 +6514,7 @@ export function StageBuilder3D() {
               <button autoFocus onClick={() => setClearOpen(false)} className="min-h-11 rounded-xl bg-neutral-100 px-4 text-[13px] font-semibold text-neutral-800 hover:bg-neutral-200">Zrušit</button>
               <button
                 onClick={() => { setItems([]); setCables([]); setSelection([]); setClearOpen(false); announce("Plocha vyčištěna. Vrátit zpět můžeš přes Ctrl+Z."); }}
-                className="min-h-11 rounded-xl bg-red-600 px-4 text-[13px] font-bold text-white hover:bg-red-700"
+                className="sr-btn sr-danger"
               >
                 Vyčistit
               </button>
@@ -6501,99 +6523,106 @@ export function StageBuilder3D() {
         </div>
       )}
 
-      {/* ── Header: identita projektu, stav, globální akce ─────────── */}
-      <header className="glass-strong z-30 px-2 pt-1.5 pb-1 sm:px-3">
-        <div className="flex flex-nowrap items-center gap-2 overflow-x-auto no-scrollbar">
-
-          <div className="inline-flex shrink-0 items-center gap-1.5 font-bold text-lime-600">
-            <Boxes size={18} /> <span className="hidden text-[13px] lg:inline">STAGE RIG</span>
+      {/* ── Hlavička (56 px): identita · kroky · globální akce ─────────── */}
+      <header className="sr-shell z-30 flex h-14 shrink-0 items-center gap-2 border-b px-2 sm:px-4">
+        <div className="flex min-w-0 flex-1 items-center gap-3">
+          <div className="inline-flex shrink-0 items-center gap-2">
+            <span aria-hidden className="inline-flex h-7 w-7 items-center justify-center rounded-md border-2 border-primary"><span className="h-2.5 w-2.5 rounded-sm bg-primary" /></span>
+            <span className="hidden font-display text-[14px] font-bold tracking-[0.2em] lg:inline">STAGE RIG</span>
           </div>
-
-          <nav data-walkthrough="work-mode" aria-label="Kroky" className="mx-auto hidden shrink-0 items-center gap-1 md:flex">
-            {MODES.map((m, i) => (
-              <div key={m.id} className="flex items-center gap-1">
-                {i > 0 && <span className="h-px w-3 bg-neutral-300 sm:w-5" aria-hidden />}
-                <button
-                  onClick={() => setWorkMode(m.id)}
-                  aria-current={workMode === m.id ? "step" : undefined}
-                  title={`${m.hint} (${m.n})`}
-                  className={`inline-flex min-h-10 items-center gap-1.5 rounded-full px-2.5 text-[13px] font-bold sm:px-3 ${workMode === m.id ? "bg-neutral-900 text-white" : "text-neutral-600 hover:bg-neutral-200"}`}
-                >
-                  <span className={`inline-flex h-5 w-5 items-center justify-center rounded-full text-[11px] ${workMode === m.id ? "bg-lime-400 text-neutral-950" : "bg-neutral-200 text-neutral-700"}`}>{m.n}</span>
-                  {m.label}
-                </button>
-              </div>
-            ))}
-          </nav>
-
-          <div className="ml-auto flex shrink-0 items-center gap-1.5 md:ml-0">
-            <button
-              data-walkthrough="issues-badge"
-              onClick={() => { setWorkMode("wire"); setIssuesOpen(true); }}
-              className={`inline-flex min-h-9 items-center gap-1 rounded-full px-3 text-[12px] font-bold ${issues.length ? "bg-amber-100 text-amber-800 hover:bg-amber-200" : "bg-emerald-100 text-emerald-800 hover:bg-emerald-200"}`}
-              title="Kontrola rigu — klikni pro seznam"
-            >
-              {issues.length ? `⚠ ${issues.length} upozornění` : "✓ Vše OK"}
-            </button>
-            {savedAt && (
-              <span className="hidden whitespace-nowrap text-[11px] text-neutral-500 sm:inline" role="status">Uloženo {savedAt}</span>
-            )}
-            <button onClick={undo} disabled={!canUndo || mobileViewer} title="Zpět (Ctrl+Z)" aria-label="Zpět" className={`${btnCls} bg-neutral-100 hover:bg-neutral-200 disabled:opacity-40`}>↶</button>
-            <button onClick={redo} disabled={!canRedo || mobileViewer} title="Vpřed (Ctrl+Shift+Z)" aria-label="Vpřed" className={`${btnCls} bg-neutral-100 hover:bg-neutral-200 disabled:opacity-40`}>↷</button>
-            <div className="relative">
-              <button
-                data-walkthrough="help-btn"
-                onClick={() => setMoreOpen((v) => !v)}
-                aria-haspopup="menu"
-                aria-expanded={moreOpen}
-                aria-label="Další volby"
-                title="Další volby (? = zkratky)"
-                className={`${btnCls} bg-neutral-100 font-bold hover:bg-neutral-200`}
-              >
-                ⋯
-              </button>
-            </div>
-          </div>
+          <span className="hidden h-6 w-px bg-[var(--sr-line)] sm:block" aria-hidden />
+          <input
+            value={rigName}
+            onChange={(e) => setRigName(e.target.value)}
+            placeholder="Rig bez názvu"
+            aria-label="Název rigu"
+            className="min-h-10 w-28 min-w-0 truncate rounded-md border !border-transparent !bg-transparent px-1 font-display text-[15px] font-bold text-foreground hover:border-[var(--sr-line)] focus:border-primary focus:outline-none sm:w-44"
+          />
+          {savedAt && <span className="hidden whitespace-nowrap text-[12px] text-muted-foreground md:inline" role="status">Uloženo {savedAt}</span>}
         </div>
-        <dl className="mt-1 flex items-center justify-center gap-x-4 gap-y-0.5 text-[11px] text-neutral-600" aria-label="Souhrn rigu">
-          {[
-            ["Beden", String(rigStats.speakers)],
-            ["Hmotnost", `${rigStats.kg.toLocaleString("cs-CZ")} kg`],
-            ["Špička", `${rigStats.peakKw.toLocaleString("cs-CZ", { maximumFractionDigits: 1 })} kW`],
-            ["Kabelů", String(cables.length)],
-          ].map(([k, v]) => (
-            <div key={k} className="flex items-baseline gap-1">
-              <dt>{k}</dt>
-              <dd className="font-mono font-bold tabular-nums text-neutral-900">{v}</dd>
-            </div>
-          ))}
-        </dl>
+
+        <nav data-walkthrough="work-mode" aria-label="Kroky" className="hidden shrink-0 items-center gap-1 rounded-xl border border-[var(--sr-line)] p-1 md:flex">
+          {MODES.map((m) => {
+            const on = workMode === m.id;
+            return (
+              <button key={m.id} onClick={() => setWorkMode(m.id)} aria-current={on ? "step" : undefined} title={`${m.hint} (${m.n})`}
+                className={`inline-flex min-h-10 items-center gap-2 rounded-lg px-4 text-[14px] font-semibold ${on ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}>
+                <span className={`inline-flex h-5 w-5 items-center justify-center rounded-full border text-[11px] font-bold ${on ? "border-primary-foreground bg-primary-foreground text-primary" : "border-current"}`}>{m.n}</span>
+                {m.label}
+              </button>
+            );
+          })}
+        </nav>
+
+        <div className="flex flex-1 items-center justify-end gap-1.5">
+          <button onClick={undo} disabled={!canUndo || mobileViewer} title="Zpět (Ctrl+Z)" aria-label="Zpět" className="sr-btn sr-icon"><Undo2 size={16} /></button>
+          <button onClick={redo} disabled={!canRedo || mobileViewer} title="Vpřed (Ctrl+Shift+Z)" aria-label="Vpřed" className="sr-btn sr-icon"><Redo2 size={16} /></button>
+          <button onClick={shareRig} disabled={!items.length} title="Zkopírovat read-only odkaz pro crew" className="sr-btn">{shareCopied ? <Check size={15} /> : <Share2 size={15} />}<span className="hidden sm:inline">{shareCopied ? "Zkopírováno" : "Sdílet"}</span></button>
+          <button data-walkthrough="help-btn" onClick={() => setMoreOpen((v) => !v)} aria-haspopup="menu" aria-expanded={moreOpen} aria-label="Další volby" title="Další volby (? = zkratky)" className="sr-btn sr-icon"><MoreHorizontal size={18} /></button>
+        </div>
       </header>
 
       {moreOpen && (
         <>
           <div className="fixed inset-0 z-[70]" onClick={() => setMoreOpen(false)} aria-hidden />
-          <div role="menu" aria-label="Další volby" className="glass-strong fixed right-2 top-14 z-[71] w-60 rounded-2xl p-1.5 shadow-2xl">
+          <div role="menu" aria-label="Další volby" className="sr-shell fixed right-2 top-14 z-[71] max-h-[calc(100dvh-4.5rem)] w-72 overflow-y-auto rounded-xl border p-1.5 shadow-2xl">
             {([
-              ["Návod krok za krokem", () => setWalkOpen(true)],
-              ["Klávesové zkratky", () => setShortcutsOpen(true)],
-              ["Úvodní obrazovka", () => { setRecentRigs(loadRigs()); setLauncherOpen(true); }],
-              [mobileViewer ? "Ukončit prohlížení" : "Jen prohlížet", () => { if (mobileViewer) setMobileViewer(false); else enterViewer(); }],
-              [compact ? "Větší ovládání" : "Kompaktní ovládání", () => setDensity((d) => (d === "compact" ? "standard" : "compact"))],
-              [dark ? "Světlý režim" : "Tmavý režim", () => setDark(!dark)],
-            ] as [string, () => void][]).map(([label, fn]) => (
-              <button key={label} role="menuitem" onClick={() => { setMoreOpen(false); fn(); }} className="flex min-h-11 w-full items-center rounded-xl px-3 text-left text-[13px] font-semibold text-neutral-800 hover:bg-neutral-100">
-                {label}
-              </button>
+              ["Rig", [
+                ["Úvodní obrazovka", () => { setRecentRigs(loadRigs()); setLauncherOpen(true); }],
+                ...PRESET_MENU.map(([id, label]) => [`Preset: ${label}`, () => applyPreset(id)] as [string, () => void]),
+              ]],
+              ["Stavění", [
+                ["AI návrh", () => setAiPlannerOpen(true)],
+                [`Rámeček výběru ${marqueeMode ? "· zap" : "· vyp"}`, () => { setMode("select"); setMarqueeMode((v) => !v); }],
+                ["Kopírovat výběr", copySelection],
+                ["Vložit", pasteSelection],
+                ["Seskupit výběr", groupSelection],
+                ["Rozdělit skupinu", ungroupSelection],
+                ["Srovnat stacky", () => { setItems((cur) => normalizeScene(cur)); announce("Stacky srovnány."); }],
+                [`Auto srovnat po dropu ${autoSanitize ? "· zap" : "· vyp"}`, () => setAutoSanitize((v) => !v)],
+                ["Auto rozmístit", () => { autoLayout(); announce("Prvky srovnány do řad bez překryvů."); }],
+                [`Hloubka řady: ${speakerLineZ} m (změnit)`, () => { const v = window.prompt("Hloubka řady reproduktorů (m)", String(speakerLineZ)); if (v !== null && !Number.isNaN(Number(v))) setSpeakerLineZ(Number(v)); }],
+              ]],
+              ["Bedny a vzhled", [
+                ["Vlastní bedna…", () => { setBuilderEditId(null); setBuilderOpen(true); }],
+                [`Banka vlastních beden (${customDefs.length})`, () => setBankOpen(true)],
+                ["Styl beden…", () => setStyleOpen(true)],
+                [`Realistický vzhled ${realistic ? "· zap" : "· vyp"}`, () => setRealistic((v) => !v)],
+                [`Popisky beden ${showItemLabels ? "· zap" : "· vyp"}`, () => setShowItemLabels((v) => !v)],
+                [dark ? "Světlý režim" : "Tmavý režim", () => setDark(!dark)],
+                [compact ? "Větší ovládání" : "Kompaktní ovládání", () => setDensity((d) => (d === "compact" ? "standard" : "compact"))],
+              ]],
+              ["Kabeláž", [
+                ["Schéma NL4 / napájení", () => setWiringSchemaOpen(true)],
+                ["Powersoft průvodce", () => { const a = items.find((x) => x.kind === "powersoft"); if (a) { setSelection([a.id]); setRightOpen(true); } else announce("Ve scéně není žádný Powersoft zesilovač."); }],
+                [`Popisky konektorů ${showConnectorLabels ? "· zap" : "· vyp"}`, () => setShowConnectorLabels((v) => !v)],
+                [`Popisky kabelů ${showCableLabels ? "· zap" : "· vyp"}`, () => setShowCableLabels((v) => !v)],
+                [`Trasa kabelů: ${autoRoute ? "po podlaze" : `vzduchem ${cableRouteY} m`}`, () => setAutoRoute((v) => { const nv = !v; if (nv) setCableRouteY(0.02); else { const h = Number(window.prompt("Výška trasy (m)", "3")); if (h > 0) setCableRouteY(h); } return nv; })],
+              ]],
+              ["Export", [
+                ["Seznam kabelů (CSV)", exportCablesCsv],
+                ["Postup pro technika (TXT)", exportGuideTxt],
+                ["Checklist + BOM (PDF)", () => setShowPrintReport(true)],
+              ]],
+              ["Nápověda", [
+                ["Návod krok za krokem", () => setWalkOpen(true)],
+                ["Klávesové zkratky", () => setShortcutsOpen(true)],
+                [mobileViewer ? "Ukončit prohlížení" : "Jen prohlížet", () => { if (mobileViewer) setMobileViewer(false); else enterViewer(); }],
+              ]],
+            ] as [string, [string, () => void][]][]).map(([sec, rows]) => (
+              <div key={sec} className="py-1">
+                <div className="sr-label px-3 py-1">{sec}</div>
+                {rows.map(([label, fn]) => (
+                  <button key={label} role="menuitem" onClick={() => { setMoreOpen(false); fn(); }} className="flex min-h-11 w-full items-center rounded-lg px-3 text-left text-[13px] font-medium text-foreground hover:bg-[var(--sr-line)]">
+                    {label}
+                  </button>
+                ))}
+              </div>
             ))}
-            <div className="my-1 h-px bg-neutral-200" />
-            <button
-              role="menuitem"
-              disabled={!items.length && !cables.length}
-              onClick={() => { setMoreOpen(false); setClearOpen(true); }}
-              className="flex min-h-11 w-full items-center rounded-xl px-3 text-left text-[13px] font-bold text-red-700 hover:bg-red-50 disabled:opacity-40"
-            >
-              Vyčistit…
+            <div className="my-1 h-px bg-[var(--sr-line)]" />
+            <button role="menuitem" disabled={!items.length && !cables.length} onClick={() => { setMoreOpen(false); setClearOpen(true); }}
+              className="flex min-h-11 w-full items-center rounded-lg px-3 text-left text-[13px] font-bold text-[var(--sr-problem)] hover:bg-[var(--sr-line)] disabled:opacity-40">
+              Vyčistit plochu…
             </button>
           </div>
         </>
@@ -6632,7 +6661,7 @@ export function StageBuilder3D() {
             <div className="mt-4 flex flex-wrap gap-2 border-t border-neutral-200/70 pt-3">
               <button
                 onClick={() => { setShortcutsOpen(false); setWalkOpen(true); }}
-                className="rounded-lg bg-sky-500 px-3 py-1.5 text-[12px] font-semibold text-white hover:bg-sky-600"
+                className="sr-btn sr-primary"
               >
                 Spustit návod
               </button>
@@ -6654,208 +6683,68 @@ export function StageBuilder3D() {
         onFinish={() => announce("Průvodce dokončen — nyní můžeš začít stavět vlastní rig.")}
       />
 
-      {/* ── Sekundární lišta: pohled + nástroje aktivního režimu ───── */}
+      {/* ── Druhý řádek: kontext kroku + živá čísla + odznak kontroly ── */}
       {!mobileViewer && (
-      <div className="glass z-20 flex flex-nowrap items-center gap-1.5 overflow-x-auto px-2 py-1.5 no-scrollbar sm:px-3 md:flex-wrap md:overflow-visible">
-
-        {workMode === "build" && !mobileViewer && (
+      <div className="sr-shell z-20 flex min-h-14 shrink-0 items-center gap-1.5 overflow-x-auto border-b px-2 py-1.5 no-scrollbar sm:px-4">
+        {workMode === "build" && (
           <>
-            <select
-              value=""
-              onChange={(e) => { const v = e.target.value as PresetKind | ""; if (!v) return; applyPreset(v); e.target.value = ""; }}
-              aria-label="Načíst preset"
-              className={`${compact ? "min-h-7" : "min-h-11"} max-w-[8.5rem] shrink-0 rounded-lg border border-neutral-300 bg-white px-2 text-[12px] font-semibold text-neutral-800 focus:border-lime-500 focus:outline-none sm:max-w-none`}
-            >
-              <option value="">⚡ Načíst preset…</option>
-              <option value="namel_wall">Namel Wall — velká 4×18&quot; stěna</option>
-              <option value="namel_hostivar">Namel Hostivař — 3 basy + středy + hřiby</option>
-              <option value="mlk_wall">MLK Wall — mega stěna 14,5 m</option>
-              <option value="twin_towers">Twin Towers — 2 věže L/R</option>
-              <option value="club_stack">Club Stack — 2×2 sub + top L/R</option>
-              <option value="festival_ground">Festival Ground — 3 clustery</option>
-            </select>
-            <button
-              onClick={() => setAiPlannerOpen(true)}
-              className={`${btnCls} bg-primary font-bold text-primary-foreground shadow-sm hover:brightness-105`}
-              title="AI navrhne rozmístění podle prostoru, publika a dostupné techniky"
-            >
-              <WandSparkles size={14} /> AI návrh
-            </button>
-            <button onClick={() => { setMode("select"); setPendingFrom(null); setMarqueeMode(false); }} title="Výběr (Esc zruší výběr)" className={`${btnCls} ${mode === "select" && !marqueeMode ? "bg-lime-500 text-neutral-950" : "bg-neutral-100 hover:bg-neutral-200"}`}><MousePointer2 size={13} /> Výběr</button>
-            <button onClick={() => { setMode("select"); setPendingFrom(null); setMarqueeMode((v) => !v); }} className={`${btnCls} ${marqueeMode ? "bg-lime-500 text-neutral-950" : "bg-neutral-100 hover:bg-neutral-200"}`} title="Táhni myší přes bedny (Shift = přidat k výběru)"><BoxSelect size={13} /> Rámeček</button>
-            <button
-              data-walkthrough="magnet-toggle"
-              onClick={() => { setMagnet((v) => { announce(v ? "Magnety vypnuty — bedny se už nezarovnávají." : "Magnety zapnuty — bedny cvakají k hranám a do řady."); return !v; }); }}
-              aria-pressed={magnet}
-              title="Magnety (M): bedna při tažení cvakne hranou k sousedovi a zarovná se do řady (tolerance 35 cm)."
-              className={`${btnCls} ${magnet ? "bg-cyan-500 text-neutral-950" : "bg-neutral-100 hover:bg-neutral-200"}`}
-            >
-              🧲 Magnety {magnet ? "· zap" : "· vyp"}
-            </button>
-            <button onClick={alignRow} disabled={!selection.length} title="Srovnat řadu (R): bedny v řadě se sesunou hranou k hraně, stacky jedou s nimi" className={`${btnCls} bg-neutral-100 hover:bg-neutral-200 disabled:opacity-40`}>⇿ Srovnat řadu</button>
-
-            <button onClick={() => setTool("translate")} disabled={mode !== "select"} className={`${btnCls} ${tool === "translate" && mode === "select" ? "bg-lime-500 text-neutral-950" : "bg-neutral-100 hover:bg-neutral-200"} disabled:opacity-40`}><MoveIcon size={13} /> Posun (T)</button>
-            <button onClick={duplicateSelection} disabled={!selection.length} title="Duplikovat (Ctrl+D)" className={`${btnCls} bg-neutral-100 hover:bg-neutral-200 disabled:opacity-40`}><Copy size={13} /> Duplikovat</button>
-            <button onClick={copySelection} disabled={!selection.length} title="Kopírovat (Ctrl+C)" className={`${btnCls} bg-neutral-100 hover:bg-neutral-200 disabled:opacity-40`}>Kopírovat</button>
-            <button onClick={pasteSelection} disabled={!clipboard.length} title="Vložit (Ctrl+V)" className={`${btnCls} bg-neutral-100 hover:bg-neutral-200 disabled:opacity-40`}><ClipboardPaste size={13} /> Vložit</button>
-            <button onClick={groupSelection} disabled={selection.length < 2} title="Seskupit (Ctrl+G)" className={`${btnCls} bg-neutral-100 hover:bg-neutral-200 disabled:opacity-40`}><GroupIcon size={13} /> Seskupit</button>
-            <button onClick={ungroupSelection} disabled={!selection.length} title="Rozdělit skupinu (Ctrl+Shift+G)" className={`${btnCls} bg-neutral-100 hover:bg-neutral-200 disabled:opacity-40`}><Ungroup size={13} /> Rozdělit</button>
-            <button onClick={deleteSelection} disabled={!selection.length} title="Smazat (Del)" className={`${btnCls} bg-red-100 text-red-700 hover:bg-red-200 disabled:opacity-40`}><Trash2 size={13} /> Smazat</button>
-            <div className={`inline-flex shrink-0 items-center gap-1 rounded-lg bg-neutral-100 px-2 ${compact ? "min-h-7" : "min-h-11"}`} title="Společná hloubka řady reproduktorů">
-              <span className="text-[10px] text-neutral-500">Hloubka řady</span>
-              <input
-                type="number"
-                step={0.1}
-                aria-label="Hloubka řady reproduktorů v metrech"
-                value={speakerLineZ}
-                onChange={(e) => setSpeakerLineZ(Number(e.target.value) || 0)}
-                className="w-14 rounded border border-neutral-300 bg-white px-1 py-1 text-[11px]"
-              />
+            <div className="flex shrink-0 items-center gap-1" role="group" aria-label="Nástroje">
+              <button onClick={() => { setMode("select"); setPendingFrom(null); setMarqueeMode(false); }} title="Výběr (Esc)" aria-label="Výběr" aria-pressed={mode === "select" && !marqueeMode} className={`sr-btn sr-icon ${mode === "select" && !marqueeMode ? "sr-on" : ""}`}><MousePointer2 size={16} /></button>
+              <button onClick={() => { setMode("select"); setTool("translate"); }} title="Posun (T)" aria-label="Posun" aria-pressed={mode === "select" && tool === "translate"} className={`sr-btn sr-icon ${mode === "select" && tool === "translate" ? "sr-on" : ""}`}><MoveIcon size={16} /></button>
+              <button data-walkthrough="magnet-toggle" onClick={() => setMagnet((v) => { announce(v ? "Magnety vypnuty." : "Magnety zapnuty — bedny cvakají k hranám a do řady."); return !v; })} aria-pressed={magnet} title="Magnety (M)" aria-label="Magnety" className={`sr-btn sr-icon ${magnet ? "sr-on" : ""}`}><Magnet size={16} /></button>
+              <button onClick={() => { setWorkMode("wire"); setMode("cable"); setSelection([]); }} title="Kabel (C)" aria-label="Kabel" className="sr-btn sr-icon"><CableIcon size={16} /></button>
             </div>
+            <span className="mx-1 h-6 w-px shrink-0 bg-[var(--sr-line)]" aria-hidden />
+            <button onClick={alignRow} disabled={!selection.length} title="Srovnat řadu (R)" className="sr-btn">Srovnat řadu</button>
+            <button onClick={duplicateSelection} disabled={!selection.length} title="Duplikovat (Ctrl+D)" className="sr-btn">Duplikovat</button>
+            {selection.length >= 2 && (
+              <div className="flex shrink-0 items-center gap-1" role="group" aria-label="Zarovnání výběru">
+                {([["left","⇤","Zarovnat vlevo"],["hcenter","⇔","Vodorovně na střed"],["right","⇥","Zarovnat vpravo"],["bottom","▁","Zarovnat dolů"],["top","▔","Zarovnat nahoru"]] as const).map(([k, g, t]) => (
+                  <button key={k} onClick={() => alignSelection(k)} title={t} aria-label={t} className="sr-btn sr-icon font-mono text-[16px]">{g}</button>
+                ))}
+                {selection.length >= 3 && <button onClick={() => distributeSelection("x")} title="Rovnoměrné mezery po X" aria-label="Rozmístit po X" className="sr-btn sr-icon font-mono text-[16px]">↔</button>}
+              </div>
+            )}
           </>
         )}
-
-        {workMode === "wire" && !mobileViewer && (
+        {workMode === "wire" && (
           <>
-            <button onClick={() => { setMode("cable"); setSelection([]); }} title="Režim kabelů (C)" className={`${btnCls} ${mode === "cable" ? "bg-lime-500 text-neutral-950" : "bg-neutral-100 hover:bg-neutral-200"}`}><CableIcon size={13} /> Kabely (C)</button>
+            <span className="shrink-0 text-[13px] text-muted-foreground">{mode === "cable" ? (pendingFrom ? "Teď klikni na cílový konektor…" : "Klikni na bednu a pak na zesilovač. Kabel vedeš klikem, ne tahem.") : "Klikni na bednu a pak na zesilovač…"}</span>
+            <button onClick={() => { setMode(mode === "cable" ? "select" : "cable"); setSelection([]); }} aria-pressed={mode === "cable"} title="Režim kabelů (C)" className={`sr-btn ${mode === "cable" ? "sr-on" : ""}`}><CableIcon size={15} /> Kabel</button>
             {mode === "cable" && (
-              <div className="inline-flex shrink-0 items-center gap-1 rounded-lg bg-neutral-100 p-0.5">
+              <div className="flex shrink-0 items-center gap-1 rounded-lg border border-[var(--sr-line)] p-0.5" role="group" aria-label="Typ kabelu">
                 {(Object.keys(CABLE_META) as CableType[]).map((t) => (
-                  <button
-                    key={t}
-                    onClick={() => setCableType(t)}
-                    className={`min-h-9 rounded-lg px-2 text-[11px] font-bold ${cableType === t ? "text-neutral-950" : "text-neutral-600"}`}
-                    style={cableType === t ? { backgroundColor: CABLE_META[t].color } : { backgroundColor: "transparent" }}
-                    title={CABLE_META[t].label}
-                  >
-                    {CABLE_META[t].short}
+                  <button key={t} onClick={() => setCableType(t)} title={CABLE_META[t].label} aria-pressed={cableType === t}
+                    className={`inline-flex min-h-10 items-center gap-1.5 rounded-md px-2 text-[12px] font-semibold ${cableType === t ? "bg-[var(--sr-line)] text-foreground" : "text-muted-foreground"}`}>
+                    <span className="h-2 w-2 rounded-full" style={{ backgroundColor: CABLE_META[t].color }} aria-hidden />{CABLE_META[t].short}
                   </button>
                 ))}
               </div>
             )}
-            <button
-              data-walkthrough="wire-autowire"
-              onClick={() => {
-                const cs = autoWireCables(items);
-                setCables(cs);
-                const steps = generateWiringSteps(items, cs);
-                const bad = steps.filter((s) => s.overload).length;
-                announce(`Automatická kabeláž vytvořila ${cs.length} spojů${bad ? ` · ${bad} vyžaduje kontrolu (přetížení)` : ""}. Zpět přes Ctrl+Z.`);
-              }}
-              className={`${btnCls} bg-amber-400 font-bold text-neutral-950 shadow-sm hover:bg-amber-300`}
-              title="Vygeneruje kompletní kabeláž: PWR, SIG, SPK i DMX"
-            >
-              <Zap size={14} /> Zapojit vše
-            </button>
-            <button
-              onClick={() => setWiringSchemaOpen(true)}
-              className={`${btnCls} bg-sky-500 font-bold text-white shadow-sm hover:bg-sky-400`}
-              title="Schéma NL4/Speakon linek a napájení aktivních beden"
-            >
-              <CableIcon size={14} /> Schéma NL4/PWR
-            </button>
-            <button onClick={() => setShowConnectorLabels((v) => !v)} aria-pressed={showConnectorLabels} className={`${btnCls} ${showConnectorLabels ? "bg-lime-500 text-neutral-950" : "bg-neutral-100 text-neutral-500 hover:bg-neutral-200"}`}>Popisky konektorů</button>
-            <button onClick={() => setShowCableLabels((v) => !v)} aria-pressed={showCableLabels} className={`${btnCls} ${showCableLabels ? "bg-lime-500 text-neutral-950" : "bg-neutral-100 text-neutral-500 hover:bg-neutral-200"}`}>Popisky kabelů</button>
-            <button onClick={() => setShowItemLabels((v) => !v)} aria-pressed={showItemLabels} title="Jména beden nad modely (vybrané se ukazují vždy)" className={`${btnCls} ${showItemLabels ? "bg-lime-500 text-neutral-950" : "bg-neutral-100 text-neutral-500 hover:bg-neutral-200"}`}>Popisky beden</button>
-            <button
-              onClick={() => setAutoRoute((v) => { const nv = !v; if (nv) setCableRouteY(0.02); return nv; })}
-              className={`${btnCls} ${autoRoute ? "bg-lime-500 text-neutral-950" : "bg-neutral-100 text-neutral-500 hover:bg-neutral-200"}`}
-              title="Auto: kabely po podlaze. Vypni pro vlastní výšku (truss)."
-            >
-              Trasa {autoRoute ? "· po podlaze" : "· vzduchem"}
-            </button>
-            {!autoRoute && (
-              <label className={`inline-flex shrink-0 items-center gap-1 rounded-lg bg-neutral-100 px-2 text-[11px] ${compact ? "min-h-7" : "min-h-11"}`}>
-                Výška
-                <input type="number" min={0} max={6} step={0.1} value={cableRouteY} onChange={(e) => setCableRouteY(Math.max(0, Number(e.target.value) || 0))} className="w-14 rounded bg-white px-1 py-1 text-[11px]" />
-                m
-              </label>
-            )}
+            <button data-walkthrough="wire-autowire" onClick={() => { const cs = autoWireCables(items); setCables(cs); announce(`Automatická kabeláž vytvořila ${cs.length} spojů. Zpět přes Ctrl+Z.`); }} title="Vygeneruje PWR, SIG, SPK i DMX" className="sr-btn sr-primary"><Zap size={15} /> Zapojit vše</button>
           </>
         )}
-
-        {workMode === "build" && !mobileViewer && (
-          <>
-            <button
-              onClick={() => { setItems((cur) => normalizeScene(cur)); announce("Stacky srovnány — každá bedna dosedla na bednu pod sebou."); }}
-              className={`${btnCls} bg-neutral-100 hover:bg-neutral-200`}
-              title="Srovná stackovací věže — žádné zanořené kusy."
-            >
-              <Boxes size={13} /> Srovnat stacky
-            </button>
-            <button
-              onClick={() => { setAutoSanitize((v) => { announce(v ? "Auto srovnání vypnuto." : "Auto srovnání zapnuto — po každém dropu se stacky srovnají."); return !v; }); }}
-              aria-pressed={autoSanitize}
-              className={`${btnCls} ${autoSanitize ? "bg-cyan-500 text-neutral-950" : "bg-neutral-100 hover:bg-neutral-200"}`}
-            >
-              <Boxes size={13} /> Auto srovnat {autoSanitize ? "· zap" : "· vyp"}
-            </button>
-            <button
-              onClick={() => { const n = items.length; autoLayout(); announce(`Auto rozmístění srovnalo ${n} prvků do řad bez překryvů.`); }}
-              disabled={!items.length}
-              className={`${btnCls} bg-lime-100 font-semibold text-lime-800 hover:bg-lime-200 disabled:opacity-40`}
-            >
-              ⇹ Auto rozmístit
-            </button>
-            <button
-              onClick={() => setRealistic((v) => !v)}
-              aria-pressed={realistic}
-              className={`${btnCls} ${realistic ? "bg-amber-400 text-neutral-950" : "bg-neutral-100 hover:bg-neutral-200"}`}
-              title="PBR osvětlení + ACES tone mapping (načte se až při zapnutí)"
-            >
-              <Sparkles size={13} /> Realistický vzhled
-            </button>
-            {selection.length >= 2 && (
-              <div className="inline-flex shrink-0 items-center gap-1 rounded-lg bg-neutral-100 p-1" role="group" aria-label="Zarovnání výběru">
-                <span className="px-1 text-[9px] font-bold uppercase tracking-wider text-neutral-500">Zarovnat</span>
-                <button onClick={() => alignSelection("left")}    className="min-h-11 min-w-11 rounded font-mono text-[18px] hover:bg-white" title="Zarovnat vlevo (X min)" aria-label="Zarovnat vlevo">⇤</button>
-                <button onClick={() => alignSelection("hcenter")} className="min-h-11 min-w-11 rounded font-mono text-[18px] hover:bg-white" title="Vodorovně na střed" aria-label="Vodorovně na střed">⇔</button>
-                <button onClick={() => alignSelection("right")}   className="min-h-11 min-w-11 rounded font-mono text-[18px] hover:bg-white" title="Zarovnat vpravo (X max)" aria-label="Zarovnat vpravo">⇥</button>
-                <span className="mx-0.5 h-5 w-px bg-neutral-300" />
-                <button onClick={() => alignSelection("front")}   className="min-h-11 min-w-11 rounded font-mono text-[18px] hover:bg-white" title="Zarovnat dopředu (Z min)" aria-label="Zarovnat dopředu">⤒</button>
-                <button onClick={() => alignSelection("vcenter")} className="min-h-11 min-w-11 rounded font-mono text-[18px] hover:bg-white" title="Do hloubky na střed" aria-label="Do hloubky na střed">⇕</button>
-                <button onClick={() => alignSelection("back")}    className="min-h-11 min-w-11 rounded font-mono text-[18px] hover:bg-white" title="Zarovnat dozadu (Z max)" aria-label="Zarovnat dozadu">⤓</button>
-                <span className="mx-0.5 h-5 w-px bg-neutral-300" />
-                <button onClick={() => alignSelection("bottom")}  className="min-h-11 min-w-11 rounded font-mono text-[18px] hover:bg-white" title="Zarovnat dolů (Y min)" aria-label="Zarovnat dolů">▁</button>
-                <button onClick={() => alignSelection("ycenter")} className="min-h-11 min-w-11 rounded font-mono text-[18px] hover:bg-white" title="Výškově na střed" aria-label="Výškově na střed">▬</button>
-                <button onClick={() => alignSelection("top")}     className="min-h-11 min-w-11 rounded font-mono text-[18px] hover:bg-white" title="Zarovnat nahoru (Y max)" aria-label="Zarovnat nahoru">▔</button>
-                {selection.length >= 3 && (
-                  <>
-                    <span className="mx-0.5 h-5 w-px bg-neutral-300" />
-                    <span className="px-1 text-[9px] font-bold uppercase tracking-wider text-neutral-500">Rozmístit</span>
-                    <button onClick={() => distributeSelection("x")} className="min-h-11 min-w-11 rounded font-mono text-[18px] hover:bg-white" title="Rovnoměrné mezery po X" aria-label="Rozmístit po X">↔</button>
-                    <button onClick={() => distributeSelection("z")} className="min-h-11 min-w-11 rounded font-mono text-[18px] hover:bg-white" title="Rovnoměrné mezery po Z" aria-label="Rozmístit po Z">↕</button>
-                    <button onClick={() => distributeSelection("y")} className="min-h-11 min-w-11 rounded font-mono text-[18px] hover:bg-white" title="Rovnoměrné mezery po Y" aria-label="Rozmístit po Y">⇅</button>
-                  </>
-                )}
-              </div>
-            )}
-          </>
+        {workMode === "spec" && (
+          <span className="shrink-0 text-[13px] text-muted-foreground">Vyber, co patří do techrideru, a exportuj vpravo.</span>
         )}
 
-        {workMode === "spec" && !mobileViewer && (
-          <>
-            <button onClick={exportCablesCsv} disabled={!cables.length} className={`${btnCls} bg-neutral-100 hover:bg-neutral-200 disabled:opacity-40`} title="Kabelový list (CSV) — pořadí PWR → DMX → SIG → SPK">⤓ Seznam kabelů (CSV)</button>
-            <button onClick={exportGuideTxt} disabled={!cables.length} className={`${btnCls} bg-neutral-100 hover:bg-neutral-200 disabled:opacity-40`} title="Textový krokový návod pro technika (.txt)">⤓ Postup pro technika</button>
-            <button data-walkthrough="export-report" onClick={() => setShowPrintReport(true)} disabled={!items.length} className={`${btnCls} bg-lime-500 text-neutral-900 hover:bg-lime-400 disabled:opacity-40`} title="Vygeneruje tisknutelný checklist zapojení + BOM (uložitelné jako PDF)">🧾 Checklist + BOM (PDF)</button>
-
-            <span className="text-[11px] text-neutral-500">
-              Checklist: plán ({items.length} prvků) · kabelový list ({cables.length}) · postup pro crew
-            </span>
-          </>
-        )}
-
-        <div
-          role="status"
-          aria-live="polite"
-          className={`ml-auto shrink-0 truncate text-[11px] font-semibold ${status ? "text-lime-700" : "text-neutral-400"}`}
-        >
-          {status || MODES.find((m) => m.id === workMode)?.hint}
+        <div role="status" aria-live="polite" className="sr-only">{status}</div>
+        <div className="ml-auto flex shrink-0 items-center gap-4 pl-3">
+          <dl className="hidden items-baseline gap-4 text-[12px] text-muted-foreground lg:flex" aria-label="Souhrn rigu">
+            {(workMode === "wire"
+              ? [[String(cables.length), "kabelů"], [`${(power.loadW / 1000).toFixed(1).replace(".", ",")}`, `z ${(power.capacityW / 1000).toFixed(0)} kW`]]
+              : [[String(rigStats.speakers), "beden"], [rigStats.kg.toLocaleString("cs-CZ"), "kg"], [rigStats.peakKw.toLocaleString("cs-CZ", { maximumFractionDigits: 1 }), "kW špička"], [String(cables.length), "kabelů"]]
+            ).map(([v, k]) => (
+              <div key={k} className="flex items-baseline gap-1"><dd className="sr-num text-[16px] text-foreground">{v}</dd><dt>{k}</dt></div>
+            ))}
+          </dl>
+          <button data-walkthrough="issues-badge" onClick={() => { setWorkMode("wire"); setIssuesOpen(true); }} title="Kontrola rigu"
+            className={`inline-flex min-h-10 items-center gap-2 rounded-full px-3.5 text-[13px] font-bold ${issues.length ? "sr-badge-bad" : "sr-badge-ok"}`}>
+            <span className="h-2 w-2 rounded-full bg-current" aria-hidden />{issues.length ? `${issues.length} upozornění` : "Vše OK"}
+          </button>
         </div>
       </div>
       )}
-
-
 
       <div
         className="relative flex flex-1 overflow-hidden"
@@ -6877,7 +6766,7 @@ export function StageBuilder3D() {
         {/* Palette — desktop */}
         <aside
           aria-label="Knihovna komponent"
-          className={`${paletteOpen && !mobileViewer ? "hidden md:flex md:w-72" : "hidden"} glass flex-col border-r border-neutral-200/60`}
+          className={`${paletteOpen && !mobileViewer ? "hidden md:flex md:w-64" : "hidden"} sr-shell shrink-0 flex-col border-r`}
         >
           <div className="flex items-center gap-1 border-b border-neutral-200/60 p-2">
             <input
@@ -6919,13 +6808,6 @@ export function StageBuilder3D() {
             </div>
           )}
           <div className="flex-1 overflow-y-auto p-2">
-            {(category === "sound" || category === "fun") && !paletteQuery && (
-              <div className="mb-2 grid grid-cols-3 gap-1">
-                <button onClick={() => { setBuilderEditId(null); setBuilderOpen(true); }} className="rounded-lg border border-dashed border-lime-500/70 bg-lime-500/10 py-1.5 text-[10px] font-bold text-lime-700 hover:bg-lime-500/20">🔧 Vlastní</button>
-                <button onClick={() => setBankOpen(true)} className="rounded-lg bg-neutral-100 py-1.5 text-[10px] font-bold text-neutral-700 hover:bg-neutral-200" title="Uložené vlastní bedny">🎛️ Banka ({customDefs.length})</button>
-                <button onClick={() => setStyleOpen(true)} className="rounded-lg bg-neutral-100 py-1.5 text-[10px] font-bold text-neutral-700 hover:bg-neutral-200" title="Barva skříně, mřížky a rails pro celou scénu">🎨 Styl</button>
-              </div>
-            )}
             {!palette.length && <p className="px-1 py-4 text-[11px] text-neutral-500">Nic nenalezeno — zkus jiný výraz.</p>}
             {palette.filter(([, s]) => paletteQuery || s.category !== "fun").map(([k, s]) => renderPaletteCard(k, s))}
             {!paletteQuery && funPalette.length > 0 && (
@@ -6943,21 +6825,29 @@ export function StageBuilder3D() {
         </aside>
 
         {/* 3D Canvas / Schematic view */}
-        <div className="relative flex-1" ref={canvasWrapRef} id="stage-canvas" data-walkthrough="stage-canvas" role="main" aria-label="Plátno stage">
+        <div className="relative min-w-0 flex-1 overflow-hidden" ref={canvasWrapRef} id="stage-canvas" data-walkthrough="stage-canvas" role="main" aria-label="Plátno stage">
           {!mobileViewer && (
-            <div data-walkthrough="scene-views" role="group" aria-label="Pohled na scénu" className="glass-strong absolute left-1/2 top-2 z-40 flex -translate-x-1/2 items-center gap-0.5 rounded-full p-1 shadow-lg md:bottom-3 md:top-auto">
+            <>
+            <div className="sr-label pointer-events-none absolute left-4 top-3 z-30">{({ "3d": "3D", elev: "Nárys · 1:50", grid: "Půdorys · 1:100", schema: "Schéma zapojení" } as Record<string, string>)[viewMode] ?? PRIMARY_VIEWS.find((v) => v.id === viewMode)?.label}</div>
+            <div className="sr-shell absolute bottom-[4.5rem] right-3 z-40 hidden items-center gap-1 rounded-xl border p-1 md:bottom-4 md:flex" role="group" aria-label="Zoom">
+              <button onClick={() => zoomBy(-1)} aria-label="Oddálit" title="Oddálit" className="sr-btn sr-icon border-transparent"><Minus size={16} /></button>
+              <span className="sr-num w-12 text-center text-[13px]">{zoomPct} %</span>
+              <button onClick={() => zoomBy(1)} aria-label="Přiblížit" title="Přiblížit" className="sr-btn sr-icon border-transparent"><Plus size={16} /></button>
+            </div>
+            <div data-walkthrough="scene-views" role="group" aria-label="Pohled na scénu" className="sr-shell absolute left-1/2 top-9 z-40 flex -translate-x-1/2 md:top-auto items-center gap-1 rounded-xl border p-1 shadow-lg md:bottom-4">
               {PRIMARY_VIEWS.map((v) => (
                 <button
                   key={v.id}
                   onClick={() => setViewMode(v.id)}
                   aria-pressed={viewMode === v.id}
                   title={v.hint}
-                  className={`min-h-9 whitespace-nowrap rounded-full px-3 text-[12px] font-bold ${viewMode === v.id ? "bg-neutral-900 text-white" : "text-neutral-700 hover:bg-neutral-200"}`}
+                  className={`min-h-10 whitespace-nowrap rounded-lg px-4 text-[14px] font-semibold ${viewMode === v.id ? "bg-[var(--sr-line)] text-foreground" : "text-muted-foreground hover:text-foreground"}`}
                 >
                   {v.label}
                 </button>
               ))}
             </div>
+            </>
           )}
           {issuesOpen && (
             <div role="region" aria-label="Upozornění" className="glass-strong absolute right-3 top-14 z-40 w-[min(20rem,calc(100%-1.5rem))] rounded-2xl p-3 shadow-xl">
@@ -7256,7 +7146,7 @@ export function StageBuilder3D() {
             </div>
           )}
 
-          <div className="pointer-events-none absolute bottom-2 left-2 rounded bg-neutral-50/80 px-2 py-1 text-[10px] text-neutral-500">
+          <div className="pointer-events-none hidden">
             {marqueeMode
               ? "Skupinový výběr: táhni myší přes bedny · Shift = přidat · vypnout tlačítkem v liště"
               : mode === "cable"
@@ -7286,7 +7176,7 @@ export function StageBuilder3D() {
             ? (sheet === "inspect"
                 ? `absolute inset-x-0 bottom-0 flex ${inspMin ? "max-h-16 overflow-hidden" : "max-h-[45dvh]"} w-full overflow-y-auto rounded-t-2xl border-t border-neutral-200/60 pb-14 shadow-2xl animate-in slide-in-from-bottom-8 fade-in duration-300`
                 : "hidden")
-            : `${selection.length ? `absolute inset-x-0 bottom-14 flex ${inspMin ? "max-h-14 overflow-hidden" : "max-h-[45dvh] overflow-y-auto"} rounded-t-2xl border-t border-neutral-200/60 shadow-2xl animate-in slide-in-from-bottom-8 fade-in duration-200` : "hidden"} ${rightOpen ? "md:static md:flex md:max-h-none md:w-72 md:overflow-visible md:rounded-none md:border-t-0 md:border-l md:shadow-none" : "md:hidden"}`} glass flex-col max-w-[100vw] overflow-x-hidden md:max-w-none md:!z-auto`}
+            : `${selection.length ? `absolute inset-x-0 bottom-14 flex ${inspMin ? "max-h-14 overflow-hidden" : "max-h-[45dvh] overflow-y-auto"} rounded-t-2xl border-t border-neutral-200/60 shadow-2xl animate-in slide-in-from-bottom-8 fade-in duration-200` : "hidden"} ${rightOpen ? "md:static md:flex md:max-h-none md:w-[280px] md:shrink-0 md:overflow-y-auto md:rounded-none md:border-t-0 md:border-l md:shadow-none" : "md:hidden"}`} glass flex-col max-w-[100vw] overflow-x-hidden md:max-w-none md:!z-auto`}
         >
           <div className="sticky top-0 z-10 flex items-center justify-between border-b border-neutral-200/60 bg-background/95 px-2 py-1 backdrop-blur md:static md:bg-transparent">
             <button type="button" onClick={() => setInspMin((v) => !v)} className="flex min-h-11 min-w-0 flex-1 flex-col items-start justify-center text-left md:pointer-events-none md:min-h-0"><span className="mb-1 block h-1 w-10 rounded-full bg-neutral-300 md:hidden" /><span className="text-[10px] font-bold uppercase tracking-wider text-neutral-500">Inspektor<span className="md:hidden"> · {inspMin ? "▲ rozbalit" : "▼ sbalit"}</span><span className="hidden md:inline"> ( ] )</span></span></button>
@@ -7410,12 +7300,12 @@ export function StageBuilder3D() {
                   <div className="mt-2"><PowersoftGuide label={primary.label || pspec.label} /></div>
                 )}
 
-                <div className="mt-3 grid grid-cols-2 gap-2">
-                  <button onClick={() => duplicateRow(primary.id)} title="Zkopíruje celou řadu jako nové patro nahoru" className="min-h-10 rounded-lg bg-neutral-900 px-2 text-[12px] font-bold text-white hover:bg-neutral-700">
-                    <Copy size={12} className="mr-1 inline" />Duplikovat celou řadu
+                <div className="mt-4 grid gap-2 border-t border-[var(--sr-line)] pt-3">
+                  <button onClick={() => duplicateRow(primary.id)} title="Zkopíruje celou řadu jako nové patro nahoru" className="sr-btn w-full">
+                    Duplikovat celou řadu
                   </button>
-                  <button onClick={deleteSelection} title="Smazat (Del)" className="min-h-10 rounded-lg bg-red-100 px-2 text-[12px] font-bold text-red-700 hover:bg-red-200">
-                    <Trash2 size={12} className="mr-1 inline" />Smazat
+                  <button onClick={deleteSelection} title="Smazat (Del)" className="sr-btn sr-danger w-full">
+                    Smazat bednu
                   </button>
                 </div>
               </div>
@@ -7646,10 +7536,10 @@ export function StageBuilder3D() {
           </div>
         )}
         {!mobileViewer && !launcherOpen && (
-          <nav aria-label="Kroky" className="glass-strong absolute inset-x-0 bottom-0 flex h-14 items-stretch gap-1 border-t border-neutral-200/60 px-2 py-1.5 md:hidden" style={{ zIndex: 1000000002 }}>
+          <nav aria-label="Kroky" className="sr-shell absolute inset-x-0 bottom-0 flex h-14 items-stretch gap-1 border-t border-neutral-200/60 px-2 py-1.5 md:hidden" style={{ zIndex: 1000000002 }}>
             {MODES.map((m) => (
               <button key={m.id} onClick={() => setWorkMode(m.id)} aria-current={workMode === m.id ? "step" : undefined}
-                className={`flex flex-1 items-center justify-center gap-1.5 rounded-xl text-[13px] font-bold ${workMode === m.id ? "bg-neutral-900 text-white" : "text-neutral-600"}`}>
+                className={`flex flex-1 items-center justify-center gap-1.5 rounded-xl text-[14px] font-semibold ${workMode === m.id ? "bg-primary text-primary-foreground" : "text-muted-foreground"}`}>
                 <span className={`inline-flex h-5 w-5 items-center justify-center rounded-full text-[11px] ${workMode === m.id ? "bg-lime-400 text-neutral-950" : "bg-neutral-200 text-neutral-700"}`}>{m.n}</span>
                 {m.label}
               </button>
