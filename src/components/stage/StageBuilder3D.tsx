@@ -7283,16 +7283,17 @@ export function StageBuilder3D() {
             ? (sheet === "inspect"
                 ? "absolute inset-x-0 bottom-0 flex max-h-[68dvh] w-full overflow-y-auto rounded-t-2xl border-t border-neutral-200/60 pb-14 shadow-2xl animate-in slide-in-from-bottom-8 fade-in duration-300"
                 : "hidden")
-            : `${selection.length ? "absolute inset-x-0 bottom-14 flex max-h-[60dvh] overflow-y-auto rounded-t-2xl border-t border-neutral-200/60 shadow-2xl animate-in slide-in-from-bottom-8 fade-in duration-200" : "hidden"} ${rightOpen ? "md:static md:flex md:max-h-none md:w-72 md:overflow-visible md:rounded-none md:border-t-0 md:border-l md:shadow-none" : "md:hidden"}`} glass flex-col md:!z-auto`}
+            : `${selection.length ? "absolute inset-x-0 bottom-14 flex max-h-[60dvh] overflow-y-auto rounded-t-2xl border-t border-neutral-200/60 shadow-2xl animate-in slide-in-from-bottom-8 fade-in duration-200" : "hidden"} ${rightOpen ? "md:static md:flex md:max-h-none md:w-72 md:overflow-visible md:rounded-none md:border-t-0 md:border-l md:shadow-none" : "md:hidden"}`} glass flex-col max-w-[100vw] overflow-x-hidden md:max-w-none md:!z-auto`}
         >
-          <div className="flex items-center justify-between border-b border-neutral-200/60 px-2 py-1">
+          <div className="sticky top-0 z-10 flex items-center justify-between border-b border-neutral-200/60 bg-background/95 px-2 py-1 backdrop-blur md:static md:bg-transparent">
             <span className="text-[10px] font-bold uppercase tracking-wider text-neutral-500"><span className="mx-auto mb-1 block h-1 w-10 rounded-full bg-neutral-300 md:hidden" />Inspektor ( ] )</span>
             <button
-              onClick={() => { if (window.matchMedia("(max-width: 767px)").matches) setSelection([]); else setRightOpen(false); }}
+              onClick={() => { if (window.matchMedia("(max-width: 767px)").matches) { setSelection([]); if (sheet === "inspect") setSheet(null); } else setRightOpen(false); }}
               title="Sbalit inspektor"
-              className="rounded-full p-1 text-neutral-400 hover:bg-neutral-200/40 hover:text-neutral-700"
+              aria-label="Zavřít inspektor"
+              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-neutral-400 md:h-auto md:w-auto md:p-1 hover:bg-neutral-200/40 hover:text-neutral-700"
             >
-              <X size={14} />
+              <X size={20} className="md:h-3.5 md:w-3.5" />
             </button>
           </div>
 
